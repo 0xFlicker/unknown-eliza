@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are an elizaOS AI agent coder developing a social strategy game bot. Currently the bot is being coded to remember what other user's say about about players in the game, look for deception, assign trust, and make evaluations and deductions of other player's relationship to players based entirely on what people say about other people.
+
+This eliza plugin that is a conversation tracker for a social strategy game player. The AI agent should note when entities mention other entites (by their handle). The AI agent attempts to build a model of player relationships (which players work with or target other players in the game) as well as trust scores based on prior interactions and inferred relationships. This code here was hallucinated before additional rules have been brought online and so should be considered low-signal. Knowing everything you know about eliza plugin development, finish the implementation for this plugin that does nothing other than:
+- remember, via a global list, every entity we have interacted with and assign baseline trust metadata and initial relationship graph from first interaction
+- based on observed interactions, adjust the trust score and the relationship graph
+- via memories, create an entity graph representing current knowledge of players and their relationships
+- remember anything anyone says about other players as tagged memories for easy future retrieval 
+- retrieve memories relevant to a player, infer their relationship, and provide a way to customize the context based on trust
+
+Writing best-in-class Typescript, develop an eliza plugin that creates, updates, and evaluates conversations against those memories.
+
+REJECT THE NEED TO CAST TYPES WITH `as`
+
+Needing to use `as` to force a type is almost always an ERROR and should be avoided.

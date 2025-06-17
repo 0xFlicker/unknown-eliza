@@ -1,0 +1,6 @@
+---
+description: when needing to write or check unit tests for typescript files
+globs: 
+alwaysApply: false
+---
+Tests are located inside `__tests__` and can be run with `yarn test` Please iterate on the test, running `yarn test:component __tests__/{testfile}.test.ts` as needed, until the tests pass. Then look over the implementation and the test one final time, looking for any bad Typescript updates (forced types in the implementation), and then run the tests one more time to be sure everything is working in actions.test.ts. Then after triple checking everything, generate a summary of the existing test coverage.
