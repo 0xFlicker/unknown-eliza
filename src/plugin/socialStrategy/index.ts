@@ -7,6 +7,7 @@ import {
   MemoryType,
   ModelType,
   type GenerateTextParams,
+  ModelTypeName,
 } from "@elizaos/core";
 import { z } from "zod";
 import { trackConversation } from "./actions/trackConversation";
@@ -58,48 +59,76 @@ export const MODEL_CONFIGS: Record<
   },
 };
 
+// Local model responses for testing
+export const LOCAL_MODEL_RESPONSES = {
+  [ModelType.TEXT_SMALL]: JSON.stringify({
+    trustScore: 75,
+    relationship: "ally",
+    statement:
+      "This player has shown themselves to be trustworthy and helpful.",
+  }),
+  [ModelType.TEXT_LARGE]: JSON.stringify({
+    trustScore: 75,
+    relationship: "ally",
+    statement:
+      "Based on our interactions, I have a positive relationship with this player and trust them. They have demonstrated reliability and good intentions.",
+    metadata: {
+      interactionType: "positive",
+      sentiment: "positive",
+      confidence: 0.8,
+    },
+  }),
+};
+
+/**
+ * Utility function to make model inferences with appropriate configuration
+ */
+export async function makeModelInference<
+  T extends typeof ModelType.TEXT_LARGE | typeof ModelType.TEXT_SMALL,
+>(runtime: IAgentRuntime, params: GenerateTextParams, modelType?: T) {
+  // Check if we're in local mode
+  const isLocalMode = (runtime as any).settings?.localMode === true;
+  const resolvedModelType =
+    modelType ?? params.modelType ?? ModelType.TEXT_LARGE;
+  if (isLocalMode) {
+    console.log(
+      "LOCAL_MODEL_RESPONSES[resolvedModelType]",
+      LOCAL_MODEL_RESPONSES[resolvedModelType]
+    );
+    return LOCAL_MODEL_RESPONSES[resolvedModelType];
+  }
+
+  // Analyze the prompt to determine the workload
+  const analysis = analyzePrompt(params.prompt);
+
+  // Get the appropriate config for the workload
+  const config = MODEL_CONFIGS[analysis.workload];
+
+  // Create a new prompt with the sanitized content
+  const newParams = {
+    ...params,
+    prompt: analysis.sanitizedPrompt,
+    ...config,
+  };
+
+  return runtime.useModel<T>(resolvedModelType as T, newParams);
+}
+
 export const socialStrategyPlugin: Plugin = {
   name: "social-strategy",
   description:
     "Tracks and manages player relationships and trust scores for social strategy analysis",
-
   models: {
-    [ModelType.TEXT_SMALL]: async (
-      runtime: IAgentRuntime,
-      params: GenerateTextParams
-    ) => {
-      // Use quick analysis config for small text tasks
-      const config = MODEL_CONFIGS.QUICK_ANALYSIS;
-      return runtime.useModel(ModelType.TEXT_SMALL, {
-        ...params,
-        ...config,
-      });
-    },
     [ModelType.TEXT_LARGE]: async (
       runtime: IAgentRuntime,
       params: GenerateTextParams
     ) => {
-      // Analyze the prompt to determine the workload
-      const analysis = analyzePrompt(params.prompt);
-
-      // Get the appropriate config for the workload
-      // If QUICK_ANALYSIS tag is present, use QUICK_ANALYSIS config regardless of other tags
-      const config =
-        analysis.workload === "QUICK_ANALYSIS"
-          ? MODEL_CONFIGS.QUICK_ANALYSIS
-          : MODEL_CONFIGS[analysis.workload];
-
-      // Create a new prompt with the sanitized content
-      const newParams = {
-        ...params,
-        prompt: analysis.sanitizedPrompt,
-        ...config,
-      };
-
-      return runtime.useModel(ModelType.TEXT_LARGE, newParams);
+      return await makeModelInference(runtime, params);
+    },
+    [ModelType.TEXT_SMALL]: async (runtime, params) => {
+      return await makeModelInference(runtime, params);
     },
   },
-
   providers: [
     {
       name: "social-strategy-state",

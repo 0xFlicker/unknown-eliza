@@ -6,6 +6,7 @@ import {
   type ProjectAgent,
 } from "@elizaos/core";
 import starterPlugin from "./plugin/example.ts";
+import { socialStrategyPlugin } from "./plugin/socialStrategy/index.ts";
 
 /**
  * Represents the default character (Eliza) with her specific attributes and behaviors.
@@ -139,7 +140,8 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 
 export const projectAgent: ProjectAgent = {
   character,
-  init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
+  init: async (runtime: IAgentRuntime) => initCharacter({ runtime }),
+  plugins: [socialStrategyPlugin],
 };
 const project: Project = {
   agents: [projectAgent],

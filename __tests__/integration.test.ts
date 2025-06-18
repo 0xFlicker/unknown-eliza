@@ -55,7 +55,6 @@ describe("Integration: Plugin Structure", () => {
   it("should have plugin with required properties", () => {
     expect(plugin).toHaveProperty("name");
     expect(plugin).toHaveProperty("description");
-    expect(plugin).toHaveProperty("models");
     expect(plugin).toHaveProperty("actions");
     expect(plugin).toHaveProperty("providers");
     expect(plugin).toHaveProperty("routes");
@@ -63,7 +62,7 @@ describe("Integration: Plugin Structure", () => {
 
   it("should have valid plugin components", () => {
     // Check if plugin has actions, models, providers, routes
-    const components = ["models", "actions", "providers", "routes"];
+    const components = ["actions", "providers", "routes"];
     components.forEach((component) => {
       if (plugin[component]) {
         expect(

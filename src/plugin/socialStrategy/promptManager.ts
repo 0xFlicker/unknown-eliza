@@ -60,7 +60,7 @@ export class SocialStrategyPromptBuilder {
   /**
    * Build the final prompt with all tags and metadata
    */
-  build(): GenerateTextParams {
+  build(): Omit<GenerateTextParams, "runtime" | "modelType"> {
     const tagString = Array.from(this.tags).join(" ");
     const metadataString = Object.entries(this.metadata)
       .map(([key, value]) => `[[SSA:${key}=${JSON.stringify(value)}]]`)

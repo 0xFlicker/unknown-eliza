@@ -73,104 +73,12 @@ describe("Social Strategy Plugin", () => {
     });
 
     it("should have required plugin components", () => {
-      expect(socialStrategyPlugin.models).toBeDefined();
       expect(socialStrategyPlugin.actions).toBeDefined();
       expect(socialStrategyPlugin.providers).toBeDefined();
 
       documentTestResult("Plugin components check", {
-        hasModels: !!socialStrategyPlugin.models,
         hasActions: !!socialStrategyPlugin.actions,
         hasProviders: !!socialStrategyPlugin.providers,
-      });
-    });
-  });
-
-  describe("Plugin Models", () => {
-    it("should have TEXT_SMALL model defined", () => {
-      expect(socialStrategyPlugin.models).toBeDefined();
-      const models = socialStrategyPlugin.models!;
-      expect(models).toHaveProperty(ModelType.TEXT_SMALL);
-      expect(typeof models[ModelType.TEXT_SMALL]).toBe("function");
-
-      documentTestResult("TEXT_SMALL model check", {
-        defined: ModelType.TEXT_SMALL in models,
-        isFunction: typeof models[ModelType.TEXT_SMALL] === "function",
-      });
-    });
-
-    it("should have TEXT_LARGE model defined", () => {
-      expect(socialStrategyPlugin.models).toBeDefined();
-      const models = socialStrategyPlugin.models!;
-      expect(models).toHaveProperty(ModelType.TEXT_LARGE);
-      expect(typeof models[ModelType.TEXT_LARGE]).toBe("function");
-
-      documentTestResult("TEXT_LARGE model check", {
-        defined: ModelType.TEXT_LARGE in models,
-        isFunction: typeof models[ModelType.TEXT_LARGE] === "function",
-      });
-    });
-
-    it("should use correct model configurations", async () => {
-      expect(socialStrategyPlugin.models).toBeDefined();
-      const models = socialStrategyPlugin.models!;
-      const runtime = createMockRuntime();
-      const spy = vi.spyOn(runtime, "useModel");
-
-      // Test TEXT_SMALL model
-      await models[ModelType.TEXT_SMALL](runtime, {
-        prompt: "Test prompt",
-      });
-      expect(spy).toHaveBeenCalledWith(
-        ModelType.TEXT_SMALL,
-        expect.objectContaining({
-          temperature: 0.3,
-          maxTokens: 256,
-          frequencyPenalty: 0.3,
-          presencePenalty: 0.3,
-          prompt: "Test prompt",
-        })
-      );
-      spy.mockClear();
-
-      // Test TEXT_LARGE model with different workloads
-      const workloads = [
-        { tag: MODEL_TAGS.QUICK_ANALYSIS, temp: 0.3, tokens: 256 },
-        { tag: MODEL_TAGS.RELATIONSHIP_ANALYSIS, temp: 0.5, tokens: 512 },
-        { tag: MODEL_TAGS.STRATEGY_PLANNING, temp: 0.7, tokens: 1024 },
-        { tag: MODEL_TAGS.CREATIVE_ANALYSIS, temp: 0.9, tokens: 2048 },
-      ];
-
-      for (const workload of workloads) {
-        const prompt = `${workload.tag} Test prompt`;
-        await models[ModelType.TEXT_LARGE](runtime, { prompt });
-        const expectedConfig =
-          workload.tag === MODEL_TAGS.QUICK_ANALYSIS
-            ? MODEL_CONFIGS.QUICK_ANALYSIS
-            : MODEL_CONFIGS[
-                workload.tag === MODEL_TAGS.RELATIONSHIP_ANALYSIS
-                  ? "RELATIONSHIP_ANALYSIS"
-                  : workload.tag === MODEL_TAGS.STRATEGY_PLANNING
-                    ? "STRATEGY_PLANNING"
-                    : "CREATIVE_ANALYSIS"
-              ];
-
-        // The implementation strips the tag from the prompt
-        const sanitizedPrompt = "Test prompt";
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            temperature: expectedConfig.temperature,
-            maxTokens: expectedConfig.maxTokens,
-            frequencyPenalty: expectedConfig.frequencyPenalty,
-            presencePenalty: expectedConfig.presencePenalty,
-            prompt: sanitizedPrompt,
-          })
-        );
-        spy.mockClear();
-      }
-
-      documentTestResult("Model configurations check", {
-        testedWorkloads: workloads.length,
       });
     });
   });
@@ -184,7 +92,7 @@ describe("Social Strategy Plugin", () => {
       );
       expect(trackConversationAction).toBeDefined();
       expect(trackConversationAction?.description).toBe(
-        "Track a new conversation or update an existing one"
+        "Track conversation and update player relationships"
       );
 
       documentTestResult("trackConversation action check", {

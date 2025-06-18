@@ -1,22 +1,23 @@
-import { type State } from "@elizaos/core";
+import { type State, type UUID } from "@elizaos/core";
+
+export type RelationshipType = "ally" | "neutral" | "rival";
 
 export interface PlayerEntity {
-  id: string;
+  id: UUID;
   handle: string;
   trustScore: number; // 0-100 scale
   firstInteraction: number; // timestamp
   lastInteraction: number; // timestamp
   metadata: {
-    relationshipType?: "ally" | "enemy" | "neutral";
+    relationshipType: RelationshipType;
     interactionCount: number;
-    notes?: string[];
   };
 }
 
 export interface PlayerRelationship {
-  sourcePlayerId: string;
-  targetPlayerId: string;
-  relationshipType: "ally" | "enemy" | "neutral";
+  sourcePlayerId: UUID;
+  targetPlayerId: UUID;
+  relationshipType: RelationshipType;
   strength: number; // 0-100 scale
   lastUpdated: number; // timestamp
   evidence: Array<{
@@ -26,22 +27,25 @@ export interface PlayerRelationship {
       | "reported_interaction";
     timestamp: number;
     description: string;
-    source: string;
+    source: UUID;
   }>;
 }
 
 export interface PlayerStatement {
-  speakerId: string;
-  targetId: string;
+  id: UUID;
+  speakerId: UUID;
+  targetId: UUID;
   content: string;
   timestamp: number;
-  sentiment: "positive" | "negative" | "neutral";
-  confidence: number; // 0-100 scale
-  context?: string;
+  metadata: {
+    sentiment?: string;
+    confidence?: number;
+    [key: string]: any;
+  };
 }
 
 export interface SocialStrategyState extends State {
-  players: Record<string, PlayerEntity>;
+  players: Record<UUID, PlayerEntity>;
   relationships: PlayerRelationship[];
   statements: PlayerStatement[];
   metadata: {

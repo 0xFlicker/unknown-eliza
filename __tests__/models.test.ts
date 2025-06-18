@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
-import { socialStrategyPlugin as plugin } from "../src/plugin/socialStrategy";
-import { ModelType, logger } from "@elizaos/core";
+import {
+  socialStrategyPlugin as plugin,
+  makeModelInference,
+  MODEL_CONFIGS,
+} from "../src/plugin/socialStrategy";
+import { ModelType, logger, type GenerateTextParams } from "@elizaos/core";
 import type { IAgentRuntime } from "@elizaos/core";
 import dotenv from "dotenv";
 import { documentTestResult, createMockRuntime } from "./utils/core-test-utils";
@@ -8,16 +12,6 @@ import {
   SocialStrategyPromptBuilder,
   MODEL_TAGS,
 } from "../src/plugin/socialStrategy/promptManager";
-
-// Define a simplified version of the GenerateTextParams for testing
-interface TestGenerateParams {
-  prompt: string;
-  stopSequences?: string[];
-  maxTokens?: number;
-  temperature?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-}
 
 // Setup environment variables from .env file
 dotenv.config();
@@ -34,32 +28,27 @@ afterAll(() => {
 });
 
 /**
- * Tests a model function with core testing patterns
+ * Tests model inference with core testing patterns
  * @param modelType The type of model to test
- * @param modelFn The model function to test
  */
-const runCoreModelTests = async (
-  modelType: keyof typeof ModelType,
-  modelFn: (
-    runtime: IAgentRuntime,
-    params: TestGenerateParams
-  ) => Promise<string>
-) => {
+const runCoreModelTests = async (modelType: keyof typeof ModelType) => {
   // Create a mock runtime for model testing
   const mockRuntime = createMockRuntime();
 
   // Test with basic parameters
-  const basicParams: TestGenerateParams = {
+  const basicParams: GenerateTextParams = {
     prompt: `Test prompt for ${modelType}`,
     stopSequences: ["STOP"],
     maxTokens: 100,
+    runtime: mockRuntime,
+    modelType,
   };
 
   let basicResponse: string | null = null;
   let basicError: Error | null = null;
 
   try {
-    basicResponse = await modelFn(mockRuntime, basicParams);
+    basicResponse = await makeModelInference(mockRuntime, basicParams);
     expect(basicResponse).toBeTruthy();
     expect(typeof basicResponse).toBe("string");
   } catch (e) {
@@ -68,35 +57,39 @@ const runCoreModelTests = async (
   }
 
   // Test with empty prompt
-  const emptyParams: TestGenerateParams = {
+  const emptyParams: GenerateTextParams = {
     prompt: "",
+    runtime: mockRuntime,
+    modelType,
   };
 
   let emptyResponse: string | null = null;
   let emptyError: Error | null = null;
 
   try {
-    emptyResponse = await modelFn(mockRuntime, emptyParams);
+    emptyResponse = await makeModelInference(mockRuntime, emptyParams);
   } catch (e) {
     emptyError = e as Error;
     logger.error(`${modelType} empty prompt test failed:`, e);
   }
 
   // Test with all parameters
-  const fullParams: TestGenerateParams = {
+  const fullParams: GenerateTextParams = {
     prompt: `Comprehensive test prompt for ${modelType}`,
     stopSequences: ["STOP1", "STOP2"],
     maxTokens: 200,
     temperature: 0.8,
     frequencyPenalty: 0.6,
     presencePenalty: 0.4,
+    runtime: mockRuntime,
+    modelType,
   };
 
   let fullResponse: string | null = null;
   let fullError: Error | null = null;
 
   try {
-    fullResponse = await modelFn(mockRuntime, fullParams);
+    fullResponse = await makeModelInference(mockRuntime, fullParams);
   } catch (e) {
     fullError = e as Error;
     logger.error(`${modelType} all parameters test failed:`, e);
@@ -109,182 +102,133 @@ const runCoreModelTests = async (
   };
 };
 
-describe("Plugin Models", () => {
-  it("should have models defined", () => {
-    expect(plugin.models).toBeDefined();
-    if (plugin.models) {
-      expect(typeof plugin.models).toBe("object");
-    }
-  });
-
-  describe("TEXT_SMALL Model", () => {
-    it("should have a TEXT_SMALL model defined", () => {
-      if (plugin.models) {
-        expect(plugin.models).toHaveProperty(ModelType.TEXT_SMALL);
-        expect(typeof plugin.models[ModelType.TEXT_SMALL]).toBe("function");
-      }
-    });
-
-    it("should run core tests for TEXT_SMALL model", async () => {
-      if (plugin.models && plugin.models[ModelType.TEXT_SMALL]) {
-        const results = await runCoreModelTests(
-          ModelType.TEXT_SMALL,
-          plugin.models[ModelType.TEXT_SMALL]
-        );
-
-        documentTestResult("TEXT_SMALL core model tests", results);
-      }
-    });
-
-    it("should use QUICK_ANALYSIS config for TEXT_SMALL", async () => {
-      if (plugin.models && plugin.models[ModelType.TEXT_SMALL]) {
-        const mockRuntime = createMockRuntime();
-        const spy = vi.spyOn(mockRuntime, "useModel");
-
-        await plugin.models[ModelType.TEXT_SMALL](mockRuntime, {
-          prompt: "test",
-        });
-
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_SMALL,
-          expect.objectContaining({
-            temperature: 0.3,
-            frequencyPenalty: 0.3,
-            presencePenalty: 0.3,
-            maxTokens: 256,
-          })
-        );
-      }
-    });
-  });
-
+describe("Social Strategy Model Inference", () => {
   describe("TEXT_LARGE Model", () => {
-    it("should have a TEXT_LARGE model defined", () => {
-      if (plugin.models) {
-        expect(plugin.models).toHaveProperty(ModelType.TEXT_LARGE);
-        expect(typeof plugin.models[ModelType.TEXT_LARGE]).toBe("function");
-      }
-    });
-
-    it("should run core tests for TEXT_LARGE model", async () => {
-      if (plugin.models && plugin.models[ModelType.TEXT_LARGE]) {
-        const results = await runCoreModelTests(
-          ModelType.TEXT_LARGE,
-          plugin.models[ModelType.TEXT_LARGE]
-        );
-
-        documentTestResult("TEXT_LARGE core model tests", results);
-      }
-    });
-
     it("should use appropriate config based on prompt tags", async () => {
-      if (plugin.models && plugin.models[ModelType.TEXT_LARGE]) {
-        const mockRuntime = createMockRuntime();
-        const spy = vi.spyOn(mockRuntime, "useModel");
+      const mockRuntime = createMockRuntime();
+      const spy = vi.spyOn(mockRuntime, "useModel");
 
-        // Test strategy planning config
-        const strategyPrompt = new SocialStrategyPromptBuilder()
-          .withPrompt("Analyze player interaction patterns")
-          .withWorkload("STRATEGY_PLANNING")
-          .build();
+      // Test strategy planning config
+      const strategyPrompt = new SocialStrategyPromptBuilder()
+        .withPrompt("Analyze player interaction patterns")
+        .withWorkload("STRATEGY_PLANNING")
+        .build();
 
-        await plugin.models[ModelType.TEXT_LARGE](mockRuntime, strategyPrompt);
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            prompt: "Analyze player interaction patterns",
-            temperature: 0.7,
-            frequencyPenalty: 0.7,
-            presencePenalty: 0.7,
-            maxTokens: 1024,
-          })
-        );
+      await makeModelInference(mockRuntime, {
+        ...strategyPrompt,
+        runtime: mockRuntime,
+        modelType: ModelType.TEXT_LARGE,
+      });
 
-        // Test creative analysis config
-        const creativePrompt = new SocialStrategyPromptBuilder()
-          .withPrompt("Analyze player behavior patterns")
-          .withWorkload("CREATIVE_ANALYSIS")
-          .build();
+      expect(spy).toHaveBeenCalledWith(
+        ModelType.TEXT_LARGE,
+        expect.objectContaining({
+          prompt: "Analyze player interaction patterns",
+          temperature: 0.7,
+          frequencyPenalty: 0.7,
+          presencePenalty: 0.7,
+          maxTokens: 1024,
+        })
+      );
 
-        await plugin.models[ModelType.TEXT_LARGE](mockRuntime, creativePrompt);
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            prompt: "Analyze player behavior patterns",
-            temperature: 0.9,
-            frequencyPenalty: 0.9,
-            presencePenalty: 0.9,
-            maxTokens: 2048,
-          })
-        );
+      // Test creative analysis config
+      const creativePrompt = new SocialStrategyPromptBuilder()
+        .withPrompt("Analyze player behavior patterns")
+        .withWorkload("CREATIVE_ANALYSIS")
+        .build();
 
-        // Test quick analysis config
-        const quickPrompt = new SocialStrategyPromptBuilder()
-          .withPrompt("Quick player sentiment check")
-          .withWorkload("QUICK_ANALYSIS")
-          .build();
+      await makeModelInference(mockRuntime, {
+        ...creativePrompt,
+        runtime: mockRuntime,
+        modelType: ModelType.TEXT_LARGE,
+      });
 
-        await plugin.models[ModelType.TEXT_LARGE](mockRuntime, quickPrompt);
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            prompt: "Quick player sentiment check",
-            temperature: 0.3,
-            frequencyPenalty: 0.3,
-            presencePenalty: 0.3,
-            maxTokens: 256,
-          })
-        );
+      expect(spy).toHaveBeenCalledWith(
+        ModelType.TEXT_LARGE,
+        expect.objectContaining({
+          prompt: "Analyze player behavior patterns",
+          temperature: 0.9,
+          frequencyPenalty: 0.9,
+          presencePenalty: 0.9,
+          maxTokens: 2048,
+        })
+      );
 
-        // Test default relationship analysis config
-        const defaultPrompt = new SocialStrategyPromptBuilder()
-          .withPrompt("Analyze player relationships")
-          .withWorkload("RELATIONSHIP_ANALYSIS")
-          .build();
+      // Test quick analysis config
+      const quickPrompt = new SocialStrategyPromptBuilder()
+        .withPrompt("Quick player sentiment check")
+        .withWorkload("QUICK_ANALYSIS")
+        .build();
 
-        await plugin.models[ModelType.TEXT_LARGE](mockRuntime, defaultPrompt);
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            prompt: "Analyze player relationships",
-            temperature: 0.5,
-            frequencyPenalty: 0.5,
-            presencePenalty: 0.5,
-            maxTokens: 512,
-          })
-        );
-      }
+      await makeModelInference(mockRuntime, {
+        ...quickPrompt,
+        runtime: mockRuntime,
+        modelType: ModelType.TEXT_LARGE,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        ModelType.TEXT_LARGE,
+        expect.objectContaining({
+          prompt: "Quick player sentiment check",
+          temperature: 0.3,
+          frequencyPenalty: 0.3,
+          presencePenalty: 0.3,
+          maxTokens: 256,
+        })
+      );
+
+      // Test default relationship analysis config
+      const defaultPrompt = new SocialStrategyPromptBuilder()
+        .withPrompt("Analyze player relationships")
+        .withWorkload("RELATIONSHIP_ANALYSIS")
+        .build();
+
+      await makeModelInference(mockRuntime, {
+        ...defaultPrompt,
+        runtime: mockRuntime,
+        modelType: ModelType.TEXT_LARGE,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        ModelType.TEXT_LARGE,
+        expect.objectContaining({
+          prompt: "Analyze player relationships",
+          temperature: 0.5,
+          frequencyPenalty: 0.5,
+          presencePenalty: 0.5,
+          maxTokens: 512,
+        })
+      );
     });
 
     it("should handle metadata in prompts", async () => {
-      if (plugin.models && plugin.models[ModelType.TEXT_LARGE]) {
-        const mockRuntime = createMockRuntime();
-        const spy = vi.spyOn(mockRuntime, "useModel");
+      const mockRuntime = createMockRuntime();
+      const spy = vi.spyOn(mockRuntime, "useModel");
 
-        const promptWithMetadata = new SocialStrategyPromptBuilder()
-          .withPrompt("Analyze player relationships")
-          .withWorkload("RELATIONSHIP_ANALYSIS")
-          .withMetadata("playerId", "player123")
-          .withMetadata("context", "game_session_1")
-          .build();
+      const promptWithMetadata = new SocialStrategyPromptBuilder()
+        .withPrompt("Analyze player relationships")
+        .withWorkload("RELATIONSHIP_ANALYSIS")
+        .withMetadata("playerId", "player123")
+        .withMetadata("context", "game_session_1")
+        .build();
 
-        await plugin.models[ModelType.TEXT_LARGE](
-          mockRuntime,
-          promptWithMetadata
-        );
+      await makeModelInference(mockRuntime, {
+        ...promptWithMetadata,
+        runtime: mockRuntime,
+        modelType: ModelType.TEXT_LARGE,
+      });
 
-        // Verify the sanitized prompt doesn't include metadata
-        expect(spy).toHaveBeenCalledWith(
-          ModelType.TEXT_LARGE,
-          expect.objectContaining({
-            prompt: "Analyze player relationships",
-            temperature: 0.5,
-            frequencyPenalty: 0.5,
-            presencePenalty: 0.5,
-            maxTokens: 512,
-          })
-        );
-      }
+      // Verify the sanitized prompt doesn't include metadata
+      expect(spy).toHaveBeenCalledWith(
+        ModelType.TEXT_LARGE,
+        expect.objectContaining({
+          prompt: "Analyze player relationships",
+          temperature: 0.5,
+          frequencyPenalty: 0.5,
+          presencePenalty: 0.5,
+          maxTokens: 512,
+        })
+      );
     });
   });
 });
