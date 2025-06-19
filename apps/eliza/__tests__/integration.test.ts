@@ -27,21 +27,6 @@ const isCI = Boolean(process.env.CI) || process.env.NODE_ENV === "test";
  * examine how components interact with each other.
  */
 describe("Integration: Project Structure and Components", () => {
-  it("should have a valid package structure", () => {
-    const srcDir = path.join(process.cwd(), "src");
-    expect(fs.existsSync(srcDir)).toBe(true);
-
-    // Check for required source files - only checking core files
-    const srcFiles = [
-      path.join(srcDir, "index.ts"),
-      path.join(srcDir, "plugin/socialStrategy/index.ts"),
-    ];
-
-    srcFiles.forEach((file) => {
-      expect(fs.existsSync(file)).toBe(true);
-    });
-  });
-
   it("should have dist directory for build outputs (optional)", () => {
     const distDir = path.join(process.cwd(), "dist");
     // Only check if dist exists, don't fail if not built yet

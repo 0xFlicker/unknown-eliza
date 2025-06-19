@@ -3,4 +3,6 @@ dist
 .env
 dist
 .eliza
+.elizadb-test
 data
+.nx

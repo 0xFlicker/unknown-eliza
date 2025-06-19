@@ -1,5 +1,5 @@
 ---
-description: 
+description: running or writing elizaos unit or integration tests
 globs: 
 alwaysApply: false
 ---
@@ -165,7 +165,7 @@ src/
 
 ### Example Test Index
 
-Reference: [src/scenarios/tests/index.ts](mdc:src/scenarios/tests/index.ts)
+Reference: [src/scenarios/tests/index.ts](mdc:social-strategy-agent/src/scenarios/tests/index.ts)
 
 ```typescript
 import { type TestSuite } from "@elizaos/core";
@@ -241,7 +241,7 @@ if (!task) throw new Error("Specific task not found");
 
 ### 4. Integration Testing
 
-Reference: [src/scenarios/tests/scenariosIntegration.e2e.ts](mdc:src/scenarios/tests/scenariosIntegration.e2e.ts)
+Reference: [src/scenarios/tests/scenariosIntegration.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/scenariosIntegration.e2e.ts)
 
 ```typescript
 // Test multiple features together
@@ -304,8 +304,8 @@ elizaos test
 
 ## Example References
 
-- Documentation Research Test: [src/scenarios/tests/documentationResearch.e2e.ts](mdc:src/scenarios/tests/documentationResearch.e2e.ts)
-- GitHub Analysis Test: [src/scenarios/tests/githubAnalysis.e2e.ts](mdc:src/scenarios/tests/githubAnalysis.e2e.ts)
-- System Health Test: [src/scenarios/tests/systemHealth.e2e.ts](mdc:src/scenarios/tests/systemHealth.e2e.ts)
-- Learning Path Test: [src/scenarios/tests/learningPath.e2e.ts](mdc:src/scenarios/tests/learningPath.e2e.ts)
-- Integration Test: [src/scenarios/tests/scenariosIntegration.e2e.ts](mdc:src/scenarios/tests/scenariosIntegration.e2e.ts)
+- Documentation Research Test: [src/scenarios/tests/documentationResearch.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/documentationResearch.e2e.ts)
+- GitHub Analysis Test: [src/scenarios/tests/githubAnalysis.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/githubAnalysis.e2e.ts)
+- System Health Test: [src/scenarios/tests/systemHealth.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/systemHealth.e2e.ts)
+- Learning Path Test: [src/scenarios/tests/learningPath.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/learningPath.e2e.ts)
+- Integration Test: [src/scenarios/tests/scenariosIntegration.e2e.ts](mdc:social-strategy-agent/src/scenarios/tests/scenariosIntegration.e2e.ts)

@@ -1,16 +1,22 @@
-import path from 'node:path';
-import { defineConfig } from 'vitest/config';
+import path from "node:path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'node',
+    environment: "node",
     globals: true,
     testTimeout: 60000,
-    exclude: ['**/e2e/**', '**/node_modules/**'],
+    exclude: ["**/e2e/**", "**/node_modules/**"],
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
+      "@0xflicker/plugin-social-strategy": path.resolve(
+        __dirname,
+        "..",
+        "..",
+        "packages/plugin-social-strategy/src"
+      ),
     },
   },
 });

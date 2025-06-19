@@ -13,9 +13,19 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./promptManager": {
+      "import": "./dist/promptManager.js",
+      "types": "./dist/promptManager.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@elizaos/core": "^1.0.9",
     "zod": "^3.24.2"

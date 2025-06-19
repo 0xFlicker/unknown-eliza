@@ -1,19 +1,12 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ['src/index.ts'],
-  outDir: 'dist',
-  tsconfig: './tsconfig.build.json',
+  entry: ["src/index.ts", "src/promptManager.ts", "src/types.ts"],
+  outDir: "dist",
+  tsconfig: "./tsconfig.build.json",
   sourcemap: true,
   clean: true,
-  format: ['esm'],
+  format: ["esm"],
   dts: true,
-  external: [
-    'fs',
-    'path',
-    'https',
-    'http',
-    '@elizaos/core',
-    'zod'
-  ],
+  external: ["fs", "path", "https", "http", "@elizaos/core", "zod"],
 });
