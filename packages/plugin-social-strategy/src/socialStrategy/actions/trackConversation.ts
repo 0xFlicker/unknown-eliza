@@ -235,7 +235,7 @@ export const trackConversation: Action = {
     let socialState = state as SocialStrategyState;
     if (socialStrategyMemory) {
       const memoryState = JSON.parse(
-        socialStrategyMemory.content.text
+        socialStrategyMemory.content.text || "{}"
       ) as SocialStrategyState;
       // Merge memory state with initial state to preserve test UUIDs
       socialState = {

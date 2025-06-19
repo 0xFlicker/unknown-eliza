@@ -11,7 +11,7 @@ import {
   type HandlerCallback,
   ModelType,
   findEntityByName,
-  ActionState,
+  State,
 } from '@elizaos/core';
 import { RolodexService } from '../services/RolodexService';
 
@@ -108,7 +108,7 @@ export const addContactAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback
-  ): Promise<ActionState> => {
+  ): Promise<State> => {
     const rolodexService = runtime.getService('rolodex') as RolodexService;
 
     if (!rolodexService) {

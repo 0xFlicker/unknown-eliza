@@ -9,7 +9,7 @@ import {
   type Relationship,
   ModelType,
   type Entity,
-  type ActionState,
+  type State,
 } from '@elizaos/core';
 import { RolodexService } from '../services/RolodexService';
 
@@ -72,7 +72,7 @@ export const relationshipExtractionEvaluator: Evaluator = {
     runtime: IAgentRuntime,
     message: Memory,
     state?: State
-  ): Promise<ActionState | null> => {
+  ): Promise<State | null> => {
     try {
       const rolodexService = runtime.getService('rolodex') as RolodexService;
       if (!rolodexService) {

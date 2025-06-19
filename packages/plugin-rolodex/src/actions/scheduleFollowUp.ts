@@ -10,7 +10,7 @@ import {
   asUUID,
   type HandlerCallback,
   ModelType,
-  type ActionState,
+  type State,
 } from '@elizaos/core';
 import { RolodexService, FollowUpService } from '../services';
 
@@ -118,7 +118,7 @@ export const scheduleFollowUpAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback
-  ): Promise<ActionState | void> => {
+  ): Promise<State | void> => {
     const rolodexService = runtime.getService('rolodex') as RolodexService;
     const followUpService = runtime.getService('follow_up') as FollowUpService;
 

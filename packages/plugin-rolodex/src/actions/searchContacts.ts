@@ -8,7 +8,7 @@ import {
   composePromptFromState,
   type HandlerCallback,
   ModelType,
-  type ActionState,
+  type State,
 } from '@elizaos/core';
 import { RolodexService } from '../services/RolodexService';
 
@@ -113,7 +113,7 @@ export const searchContactsAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback
-  ): Promise<ActionState | void> => {
+  ): Promise<State | void> => {
     const rolodexService = runtime.getService('rolodex') as RolodexService;
 
     if (!rolodexService) {

@@ -99,7 +99,7 @@ export async function makeModelInference<
   }
 
   // Analyze the prompt to determine the workload
-  const analysis = analyzePrompt(params.prompt);
+  const analysis = analyzePrompt(params.prompt || "");
 
   // Get the appropriate config for the workload
   const config = MODEL_CONFIGS[analysis.workload];
@@ -149,7 +149,7 @@ export const socialStrategyPlugin: Plugin = {
 
         // Parse the state from the memory content
         const socialState = JSON.parse(
-          socialStrategyMemory.content.text
+          socialStrategyMemory.content.text || "{}"
         ) as SocialStrategyState;
 
         return {
@@ -248,7 +248,7 @@ export const socialStrategyPlugin: Plugin = {
 
         // Parse the state from the memory content
         const socialState = JSON.parse(
-          socialStrategyMemory.content.text
+          socialStrategyMemory.content.text || "{}"
         ) as SocialStrategyState;
 
         return res.json(socialState);
@@ -256,3 +256,5 @@ export const socialStrategyPlugin: Plugin = {
     },
   ],
 };
+
+export { trackConversation } from "./actions/trackConversation";

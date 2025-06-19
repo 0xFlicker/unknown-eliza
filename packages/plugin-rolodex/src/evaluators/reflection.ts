@@ -9,7 +9,7 @@ import {
   ModelType,
   type State,
   type UUID,
-  type ActionState,
+  type State,
 } from '@elizaos/core';
 
 // Schema definitions for the reflection output
@@ -157,7 +157,7 @@ async function handler(
   runtime: IAgentRuntime,
   message: Memory,
   state?: State
-): Promise<ActionState | void> {
+): Promise<State | void> {
   const { agentId, roomId } = message;
 
   if (!agentId || !roomId) {
