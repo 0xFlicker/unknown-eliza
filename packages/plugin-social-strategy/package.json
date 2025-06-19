@@ -1,0 +1,42 @@
+{
+  "name": "@0xflicker/plugin-social-strategy",
+  "version": "0.1.0",
+  "description": "Tracks and manages player relationships and trust scores for social strategy analysis",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@elizaos/core": "^1.0.9",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "prettier": "3.5.3",
+    "tsup": "8.5.0",
+    "typescript": "5.8.2",
+    "vitest": "3.1.4"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "prettier --write ./src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write ./src",
+    "format:check": "prettier --check ./src"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

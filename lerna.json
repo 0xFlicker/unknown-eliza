@@ -1,0 +1,13 @@
+{
+  "version": "independent",
+  "packages": ["apps/*", "packages/*"],
+  "npmClient": "bun",
+  "command": {
+    "publish": {
+      "workspaceConfig": true
+    },
+    "version": {
+      "workspaceConfig": true
+    }
+  }
+}

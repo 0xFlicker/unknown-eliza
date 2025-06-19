@@ -1,0 +1,8 @@
+.cursor
+.eliza
+.elizadb*
+.turbo
+dist
+docs
+node_modules
+.env

@@ -1,0 +1,19 @@
+{
+  "folders": [
+	{
+		"path": "."
+	},
+	{
+		"path": "../eliza"
+	},
+	{
+		"path": "../plugin-discord"
+	},
+	{
+		"path": "../plugin-rolodex"
+	}
+],
+  "settings": {
+    "typescript.tsdk": "eliza/node_modules/typescript/lib"
+  }
+}
