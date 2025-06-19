@@ -1,21 +1,13 @@
 import { defineConfig } from "tsup";
+import path from "path";
 
 export default defineConfig({
   entry: ["src/index.ts", "e2e/**/*.test.ts"],
   outDir: "dist",
-  tsconfig: "./tsconfig.build.json", // Use build-specific tsconfig
+  tsconfig: "./tsconfig.build.json",
   sourcemap: true,
   clean: true,
-  format: ["esm"], // Ensure you're targeting CommonJS
-  dts: false, // Skip DTS generation to avoid external import issues // Ensure you're targeting CommonJS
-  external: [
-    "dotenv", // Externalize dotenv to prevent bundling
-    "fs", // Externalize fs to use Node.js built-in module
-    "path", // Externalize other built-ins if necessary
-    "https",
-    "http",
-    "zod",
-    // Prevent resolving stub import of compiled code
-    "../dist/src/index.js",
-  ],
+  format: ["esm"],
+  dts: false,
+  external: ["dotenv", "fs", "path", "https", "http", "zod"],
 });

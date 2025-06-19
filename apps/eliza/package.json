@@ -51,7 +51,7 @@
     "build": "tsup",
     "lint": "prettier --write ./src",
     "test:component": "vitest run",
-    "test:e2e": "elizaos test",
+    "test:e2e": "elizaos test --type e2e",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
