@@ -9,9 +9,8 @@ import {
   type Relationship,
   ModelType,
   type Entity,
-  type State,
-} from '@elizaos/core';
-import { RolodexService } from '../services/RolodexService';
+} from "@elizaos/core";
+import { RolodexService } from "../services/RolodexService";
 
 interface PlatformIdentity {
   platform: string;
@@ -23,8 +22,8 @@ interface PlatformIdentity {
 }
 
 interface RelationshipIndicator {
-  type: 'friend' | 'colleague' | 'community' | 'family' | 'acquaintance';
-  sentiment: 'positive' | 'negative' | 'neutral';
+  type: "friend" | "colleague" | "community" | "family" | "acquaintance";
+  sentiment: "positive" | "negative" | "neutral";
   confidence: number;
   context: string;
 }
@@ -44,26 +43,36 @@ Extract:
 Respond with your analysis in a structured format.`;
 
 export const relationshipExtractionEvaluator: Evaluator = {
-  name: 'RELATIONSHIP_EXTRACTION',
-  description: 'Passively extracts and updates relationship information from conversations',
-  similes: ['RELATIONSHIP_ANALYZER', 'SOCIAL_GRAPH_BUILDER', 'CONTACT_EXTRACTOR'],
+  name: "RELATIONSHIP_EXTRACTION",
+  description:
+    "Passively extracts and updates relationship information from conversations",
+  similes: [
+    "RELATIONSHIP_ANALYZER",
+    "SOCIAL_GRAPH_BUILDER",
+    "CONTACT_EXTRACTOR",
+  ],
   examples: [
     {
-      prompt: 'User introduces themselves with social media',
+      prompt: "User introduces themselves with social media",
       messages: [
         {
-          name: 'user',
+          name: "user",
           content: {
-            type: 'text',
+            type: "text",
             text: "Hi, I'm Sarah Chen. You can find me on Twitter @sarahchen_dev",
           },
         },
       ],
-      outcome: 'Extracts Twitter handle and creates entity with platform identity',
+      outcome:
+        "Extracts Twitter handle and creates entity with platform identity",
     },
   ],
 
-  validate: async (runtime: IAgentRuntime, message: Memory, state?: State): Promise<boolean> => {
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state?: State
+  ): Promise<boolean> => {
     // Always run for messages in conversations
     return !!(message.content?.text && message.content.text.length > 0);
   },
@@ -74,16 +83,16 @@ export const relationshipExtractionEvaluator: Evaluator = {
     state?: State
   ): Promise<State | null> => {
     try {
-      const rolodexService = runtime.getService('rolodex') as RolodexService;
+      const rolodexService = runtime.getService("rolodex") as RolodexService;
       if (!rolodexService) {
-        logger.warn('[RelationshipExtraction] RolodexService not available');
+        logger.warn("[RelationshipExtraction] RolodexService not available");
         return null;
       }
 
       // Get recent messages for context
       const recentMessages = await runtime.getMemories({
         roomId: message.roomId,
-        tableName: 'messages',
+        tableName: "messages",
         count: 10,
         unique: false,
       });
@@ -127,7 +136,7 @@ export const relationshipExtractionEvaluator: Evaluator = {
       // Handle admin user updates
       await handleAdminUpdates(runtime, message, recentMessages);
 
-      logger.info('[RelationshipExtraction] Completed extraction for message', {
+      logger.info("[RelationshipExtraction] Completed extraction for message", {
         messageId: message.id,
         identitiesFound: identities.length,
         disputeDetected: !!disputeInfo,
@@ -145,10 +154,10 @@ export const relationshipExtractionEvaluator: Evaluator = {
           disputeInfo,
           mentionedPeople,
         },
-        text: `Extracted ${identities.length} identities, ${mentionedPeople.length} mentioned people, and ${disputeInfo ? '1 dispute' : '0 disputes'}.`,
+        text: `Extracted ${identities.length} identities, ${mentionedPeople.length} mentioned people, and ${disputeInfo ? "1 dispute" : "0 disputes"}.`,
       };
     } catch (error) {
-      logger.error('[RelationshipExtraction] Error during extraction:', error);
+      logger.error("[RelationshipExtraction] Error during extraction:", error);
       return null;
     }
   },
@@ -164,7 +173,7 @@ function extractPlatformIdentities(text: string): PlatformIdentity[] {
       if (!handle.match(/@(here|everyone|channel)/)) {
         // Skip Discord mentions
         identities.push({
-          platform: 'twitter',
+          platform: "twitter",
           handle: handle,
           verified: false,
           confidence: 0.7,
@@ -179,7 +188,7 @@ function extractPlatformIdentities(text: string): PlatformIdentity[] {
   let match;
   while ((match = githubPattern.exec(text)) !== null) {
     identities.push({
-      platform: 'github',
+      platform: "github",
       handle: match[1] || match[2],
       verified: false,
       confidence: 0.8,
@@ -191,7 +200,7 @@ function extractPlatformIdentities(text: string): PlatformIdentity[] {
   const discordPattern = /discord:?\s*(\w+#\d{4})|my discord is (\w+#\d{4})/gi;
   while ((match = discordPattern.exec(text)) !== null) {
     identities.push({
-      platform: 'discord',
+      platform: "discord",
       handle: match[1] || match[2],
       verified: false,
       confidence: 0.8,
@@ -211,7 +220,8 @@ async function storePlatformIdentities(
   if (!entity) return;
 
   const metadata = entity.metadata || {};
-  const platformIdentities = (metadata.platformIdentities || []) as PlatformIdentity[];
+  const platformIdentities = (metadata.platformIdentities ||
+    []) as PlatformIdentity[];
 
   for (const identity of identities) {
     identity.source = entityId;
@@ -241,7 +251,10 @@ interface DisputeInfo {
   disputer?: UUID;
 }
 
-function detectDispute(text: string, recentMessages: Memory[]): DisputeInfo | null {
+function detectDispute(
+  text: string,
+  recentMessages: Memory[]
+): DisputeInfo | null {
   const disputePhrases = [
     /that'?s not (actually|really) their (\w+)/i,
     /no,? (actually|really) it'?s (\w+)/i,
@@ -253,10 +266,10 @@ function detectDispute(text: string, recentMessages: Memory[]): DisputeInfo | nu
     if (pattern.test(text)) {
       // Simple dispute detection - would be enhanced with NLP
       return {
-        disputedEntity: 'unknown', // Would extract from context
-        disputedField: 'platform_identity',
-        originalValue: 'unknown',
-        claimedValue: 'unknown',
+        disputedEntity: "unknown", // Would extract from context
+        disputedField: "platform_identity",
+        originalValue: "unknown",
+        claimedValue: "unknown",
       };
     }
   }
@@ -264,23 +277,27 @@ function detectDispute(text: string, recentMessages: Memory[]): DisputeInfo | nu
   return null;
 }
 
-async function handleDispute(runtime: IAgentRuntime, dispute: DisputeInfo, message: Memory) {
+async function handleDispute(
+  runtime: IAgentRuntime,
+  dispute: DisputeInfo,
+  message: Memory
+) {
   dispute.disputer = message.entityId;
 
   // Store dispute in a dedicated component
   await runtime.createComponent({
     id: stringToUuid(`dispute-${Date.now()}-${message.entityId}`),
-    type: 'dispute_record',
+    type: "dispute_record",
     agentId: runtime.agentId,
     entityId: message.entityId,
     roomId: message.roomId,
-    worldId: stringToUuid('rolodex-world-' + runtime.agentId),
+    worldId: stringToUuid("rolodex-world-" + runtime.agentId),
     sourceEntityId: message.entityId,
     data: dispute as any,
     createdAt: Date.now(),
   });
 
-  logger.info('[RelationshipExtraction] Dispute recorded', dispute);
+  logger.info("[RelationshipExtraction] Dispute recorded", dispute);
 }
 
 async function analyzeRelationships(
@@ -315,7 +332,10 @@ async function analyzeRelationships(
   }
 }
 
-function analyzeInteraction(messagesA: Memory[], messagesB: Memory[]): RelationshipIndicator[] {
+function analyzeInteraction(
+  messagesA: Memory[],
+  messagesB: Memory[]
+): RelationshipIndicator[] {
   const indicators: RelationshipIndicator[] = [];
 
   // Look for friendship indicators
@@ -356,7 +376,7 @@ function analyzeInteraction(messagesA: Memory[], messagesB: Memory[]): Relations
     for (const pattern of friendPhrases) {
       if (pattern.test(text)) {
         indicators.push({
-          type: 'friend',
+          type: "friend",
           sentiment: determineSentiment(text),
           confidence: 0.8,
           context: text.substring(0, 100),
@@ -367,7 +387,7 @@ function analyzeInteraction(messagesA: Memory[], messagesB: Memory[]): Relations
     for (const pattern of colleaguePhrases) {
       if (pattern.test(text)) {
         indicators.push({
-          type: 'colleague',
+          type: "colleague",
           sentiment: determineSentiment(text),
           confidence: 0.7,
           context: text.substring(0, 100),
@@ -378,7 +398,7 @@ function analyzeInteraction(messagesA: Memory[], messagesB: Memory[]): Relations
     for (const pattern of communityPhrases) {
       if (pattern.test(text)) {
         indicators.push({
-          type: 'community',
+          type: "community",
           sentiment: determineSentiment(text),
           confidence: 0.6,
           context: text.substring(0, 100),
@@ -390,9 +410,25 @@ function analyzeInteraction(messagesA: Memory[], messagesB: Memory[]): Relations
   return indicators;
 }
 
-function determineSentiment(text: string): 'positive' | 'negative' | 'neutral' {
-  const positiveWords = ['thanks', 'great', 'good', 'appreciate', 'love', 'helpful', 'awesome'];
-  const negativeWords = ['harsh', 'wrong', 'bad', 'terrible', 'hate', 'angry', 'upset'];
+function determineSentiment(text: string): "positive" | "negative" | "neutral" {
+  const positiveWords = [
+    "thanks",
+    "great",
+    "good",
+    "appreciate",
+    "love",
+    "helpful",
+    "awesome",
+  ];
+  const negativeWords = [
+    "harsh",
+    "wrong",
+    "bad",
+    "terrible",
+    "hate",
+    "angry",
+    "upset",
+  ];
 
   const lowerText = text.toLowerCase();
   let positiveCount = 0;
@@ -406,9 +442,9 @@ function determineSentiment(text: string): 'positive' | 'negative' | 'neutral' {
     if (lowerText.includes(word)) negativeCount++;
   }
 
-  if (positiveCount > negativeCount) return 'positive';
-  if (negativeCount > positiveCount) return 'negative';
-  return 'neutral';
+  if (positiveCount > negativeCount) return "positive";
+  if (negativeCount > positiveCount) return "negative";
+  return "neutral";
 }
 
 async function updateRelationship(
@@ -435,23 +471,25 @@ async function updateRelationship(
   );
 
   const primaryType =
-    Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'acquaintance';
+    Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "acquaintance";
 
   // Calculate average sentiment
   const sentiments = indicators.map((i) => i.sentiment);
   const sentiment =
-    sentiments.filter((s) => s === 'positive').length > sentiments.length / 2
-      ? 'positive'
-      : sentiments.filter((s) => s === 'negative').length > sentiments.length / 2
-        ? 'negative'
-        : 'neutral';
+    sentiments.filter((s) => s === "positive").length > sentiments.length / 2
+      ? "positive"
+      : sentiments.filter((s) => s === "negative").length >
+          sentiments.length / 2
+        ? "negative"
+        : "neutral";
 
   if (!relationship) {
     // Create new relationship
     await runtime.createRelationship({
       sourceEntityId: entityA,
       targetEntityId: entityB,
-      tags: ['rolodex', primaryType],
+      tags: ["rolodex", primaryType],
       metadata: {
         sentiment,
         indicators,
@@ -465,7 +503,9 @@ async function updateRelationship(
     // Update existing relationship
     const metadata = relationship.metadata || {};
     metadata.sentiment = sentiment;
-    const existingIndicators = Array.isArray(metadata.indicators) ? metadata.indicators : [];
+    const existingIndicators = Array.isArray(metadata.indicators)
+      ? metadata.indicators
+      : [];
     metadata.indicators = [...existingIndicators, ...indicators];
     metadata.lastAnalyzed = Date.now();
 
@@ -474,7 +514,7 @@ async function updateRelationship(
     await runtime.createRelationship({
       sourceEntityId: relationship.sourceEntityId,
       targetEntityId: relationship.targetEntityId,
-      tags: [...(relationship.tags || []), 'updated'],
+      tags: [...(relationship.tags || []), "updated"],
       metadata: {
         ...metadata,
         relationshipType: primaryType,
@@ -504,7 +544,11 @@ function extractMentionedPeople(text: string): MentionedPerson[] {
     let match;
     while ((match = pattern.exec(text)) !== null) {
       // Simple name validation
-      if (match[1] && match[1].length > 3 && !match[1].match(/^(the|and|but|for|with)$/i)) {
+      if (
+        match[1] &&
+        match[1].length > 3 &&
+        !match[1].match(/^(the|and|but|for|with)$/i)
+      ) {
         people.push({
           name: match[1],
           context: match[0],
@@ -527,7 +571,7 @@ async function createOrUpdateMentionedEntity(
 
   // Get all recent memories to find entities with matching names
   const memories = await runtime.getMemories({
-    tableName: 'entities',
+    tableName: "entities",
     count: 1000,
     unique: true,
   });
@@ -536,7 +580,12 @@ async function createOrUpdateMentionedEntity(
   for (const memory of memories) {
     if (memory.entityId) {
       const entity = await runtime.getEntityById(memory.entityId);
-      if (entity && entity.names.some((name) => name.toLowerCase() === person.name.toLowerCase())) {
+      if (
+        entity &&
+        entity.names.some(
+          (name) => name.toLowerCase() === person.name.toLowerCase()
+        )
+      ) {
         existing = entity;
         break;
       }
@@ -553,7 +602,7 @@ async function createOrUpdateMentionedEntity(
         mentionedBy,
         mentionContext: person.context,
         attributes: person.attributes,
-        createdFrom: 'mention',
+        createdFrom: "mention",
       },
     });
   } else {
@@ -571,7 +620,11 @@ async function createOrUpdateMentionedEntity(
   }
 }
 
-async function assessTrustIndicators(runtime: IAgentRuntime, entityId: UUID, messages: Memory[]) {
+async function assessTrustIndicators(
+  runtime: IAgentRuntime,
+  entityId: UUID,
+  messages: Memory[]
+) {
   const userMessages = messages.filter((m) => m.entityId === entityId);
   if (userMessages.length === 0) return;
 
@@ -600,15 +653,25 @@ async function assessTrustIndicators(runtime: IAgentRuntime, entityId: UUID, mes
     }
 
     // Suspicious indicators - enhanced detection
-    if (text.match(/delete all|give me access|send me your|password|private key|update my permissions|i'?m the new admin|give me.*details|send me.*keys/)) {
+    if (
+      text.match(
+        /delete all|give me access|send me your|password|private key|update my permissions|i'?m the new admin|give me.*details|send me.*keys/
+      )
+    ) {
       suspiciousCount += 2; // Double weight for security threats
     }
   }
 
   // Update metrics - normalize to 0-1 range
   const totalMessages = userMessages.length || 1;
-  trustMetrics.helpfulness = Math.min(1, trustMetrics.helpfulness * 0.8 + (helpfulCount / totalMessages) * 0.2);
-  trustMetrics.suspicionLevel = Math.min(1, trustMetrics.suspicionLevel * 0.8 + (suspiciousCount / totalMessages) * 0.2);
+  trustMetrics.helpfulness = Math.min(
+    1,
+    trustMetrics.helpfulness * 0.8 + (helpfulCount / totalMessages) * 0.2
+  );
+  trustMetrics.suspicionLevel = Math.min(
+    1,
+    trustMetrics.suspicionLevel * 0.8 + (suspiciousCount / totalMessages) * 0.2
+  );
   trustMetrics.engagement = userMessages.length;
   trustMetrics.lastAssessed = Date.now();
 
@@ -617,7 +680,7 @@ async function assessTrustIndicators(runtime: IAgentRuntime, entityId: UUID, mes
 }
 
 interface PrivacyInfo {
-  type: 'confidential' | 'doNotShare' | 'private';
+  type: "confidential" | "doNotShare" | "private";
   content: string;
   context: string;
 }
@@ -636,9 +699,9 @@ function detectPrivacyBoundaries(text: string): PrivacyInfo | null {
   for (const pattern of privacyPhrases) {
     if (pattern.test(text)) {
       return {
-        type: 'confidential',
+        type: "confidential",
         content: text,
-        context: 'Privacy boundary detected',
+        context: "Privacy boundary detected",
       };
     }
   }
@@ -646,24 +709,28 @@ function detectPrivacyBoundaries(text: string): PrivacyInfo | null {
   return null;
 }
 
-async function handlePrivacyBoundary(runtime: IAgentRuntime, privacyInfo: PrivacyInfo, message: Memory) {
+async function handlePrivacyBoundary(
+  runtime: IAgentRuntime,
+  privacyInfo: PrivacyInfo,
+  message: Memory
+) {
   const entity = await runtime.getEntityById(message.entityId);
   if (!entity) return;
 
   const metadata = entity.metadata || {};
   metadata.privateData = true;
   metadata.confidential = true;
-  
+
   await runtime.updateEntity({ ...entity, metadata });
 
   // Create privacy marker component
   await runtime.createComponent({
     id: stringToUuid(`privacy-${Date.now()}-${message.entityId}`),
-    type: 'privacy_marker',
+    type: "privacy_marker",
     agentId: runtime.agentId,
     entityId: message.entityId,
     roomId: message.roomId,
-    worldId: stringToUuid('rolodex-world-' + runtime.agentId),
+    worldId: stringToUuid("rolodex-world-" + runtime.agentId),
     sourceEntityId: message.entityId,
     data: {
       privacyInfo,
@@ -672,10 +739,17 @@ async function handlePrivacyBoundary(runtime: IAgentRuntime, privacyInfo: Privac
     createdAt: Date.now(),
   });
 
-  logger.info('[RelationshipExtraction] Privacy boundary recorded', privacyInfo);
+  logger.info(
+    "[RelationshipExtraction] Privacy boundary recorded",
+    privacyInfo
+  );
 }
 
-async function handleAdminUpdates(runtime: IAgentRuntime, message: Memory, recentMessages: Memory[]) {
+async function handleAdminUpdates(
+  runtime: IAgentRuntime,
+  message: Memory,
+  recentMessages: Memory[]
+) {
   // Check if user has admin role
   const entity = await runtime.getEntityById(message.entityId);
   if (!entity || !entity.metadata?.isAdmin) return;
@@ -684,21 +758,26 @@ async function handleAdminUpdates(runtime: IAgentRuntime, message: Memory, recen
   const text = message.content?.text;
   if (!text) return;
 
-  const updatePattern = /(?:update|set|change)\s+(\w+(?:\s+\w+)*)'?s?\s+(\w+)\s+(?:to|is|=)\s+(.+)/i;
+  const updatePattern =
+    /(?:update|set|change)\s+(\w+(?:\s+\w+)*)'?s?\s+(\w+)\s+(?:to|is|=)\s+(.+)/i;
   const match = text.match(updatePattern);
-  
+
   if (match) {
     const [, targetName, field, value] = match;
-    
+
     // Find target entity
-    const targetEntity = await findEntityByName(runtime, targetName, message.roomId);
+    const targetEntity = await findEntityByName(
+      runtime,
+      targetName,
+      message.roomId
+    );
     if (targetEntity) {
       const metadata = targetEntity.metadata || {};
       metadata[field.toLowerCase()] = value;
-      
+
       await runtime.updateEntity({ ...targetEntity, metadata });
-      
-      logger.info('[RelationshipExtraction] Admin updated entity metadata', {
+
+      logger.info("[RelationshipExtraction] Admin updated entity metadata", {
         admin: message.entityId,
         target: targetEntity.id,
         field,
@@ -708,14 +787,18 @@ async function handleAdminUpdates(runtime: IAgentRuntime, message: Memory, recen
   }
 }
 
-async function findEntityByName(runtime: IAgentRuntime, name: string, roomId: UUID): Promise<Entity | null> {
+async function findEntityByName(
+  runtime: IAgentRuntime,
+  name: string,
+  roomId: UUID
+): Promise<Entity | null> {
   const entities = await runtime.getEntitiesForRoom(roomId);
-  
+
   for (const entity of entities) {
-    if (entity.names.some(n => n.toLowerCase() === name.toLowerCase())) {
+    if (entity.names.some((n) => n.toLowerCase() === name.toLowerCase())) {
       return entity;
     }
   }
-  
+
   return null;
 }

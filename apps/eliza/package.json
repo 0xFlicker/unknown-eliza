@@ -27,6 +27,10 @@
   "files": [
     "dist"
   ],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "dependencies": {
     "@elizaos/cli": "1.0.9",
     "@elizaos/core": "^1.0.9",
@@ -38,6 +42,8 @@
     "@elizaos/plugin-ollama": "1.0.3",
     "@elizaos/plugin-sql": "^1.0.9",
     "@elizaos/plugin-video-generation": "^0.25.6-alpha.1",
+    "@elizaos/plugin-rolodex": "workspace:*",
+    "@elizaos/plugin-social-strategy": "workspace:*",
     "zod": "3.24.2"
   },
   "devDependencies": {

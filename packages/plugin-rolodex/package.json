@@ -1,5 +1,5 @@
 {
-  "name": "@0xflicker/plugin-rolodex",
+  "name": "@elizaos/plugin-rolodex",
   "description": "A plugin for ElizaOS that allows you to manage entites, relationships and associations",
   "version": "1.0.0",
   "type": "module",

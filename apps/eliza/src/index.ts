@@ -6,6 +6,7 @@ import {
   type ProjectAgent,
 } from "@elizaos/core";
 import { socialStrategyPlugin } from "@0xflicker/plugin-social-strategy";
+import { rolodexPlugin } from "@elizaos/plugin-rolodex";
 
 /**
  * Represents the default character (Eliza) with her specific attributes and behaviors.

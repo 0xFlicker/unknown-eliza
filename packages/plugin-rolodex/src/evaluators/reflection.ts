@@ -1,16 +1,15 @@
-import { z } from 'zod';
-import { getEntityDetails, logger } from '@elizaos/core';
-import { composePrompt } from '@elizaos/core';
+import { z } from "zod";
+import { getEntityDetails, logger } from "@elizaos/core";
+import { composePrompt } from "@elizaos/core";
 import {
   type Entity,
   type Evaluator,
   type IAgentRuntime,
   type Memory,
   ModelType,
-  type State,
   type UUID,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 // Schema definitions for the reflection output
 const relationshipSchema = z.object({
@@ -125,7 +124,11 @@ Generate a response in the following format:
  */
 function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
   // First try exact UUID match
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entityId)) {
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      entityId
+    )
+  ) {
     return entityId as UUID;
   }
 
@@ -161,7 +164,7 @@ async function handler(
   const { agentId, roomId } = message;
 
   if (!agentId || !roomId) {
-    logger.warn('Missing agentId or roomId in message', message);
+    logger.warn("Missing agentId or roomId in message", message);
     return;
   }
 
@@ -172,7 +175,7 @@ async function handler(
     }),
     getEntityDetails({ runtime, roomId }),
     runtime.getMemories({
-      tableName: 'facts',
+      tableName: "facts",
       roomId,
       count: 30,
       unique: true,
@@ -188,7 +191,8 @@ async function handler(
       existingRelationships: JSON.stringify(existingRelationships),
       senderId: message.entityId,
     },
-    template: runtime.character.templates?.reflectionTemplate || reflectionTemplate,
+    template:
+      runtime.character.templates?.reflectionTemplate || reflectionTemplate,
   });
 
   // Use the model without schema validation
@@ -199,18 +203,24 @@ async function handler(
     });
 
     if (!reflection) {
-      logger.warn('Getting reflection failed - empty response', prompt);
+      logger.warn("Getting reflection failed - empty response", prompt);
       return;
     }
 
     // Perform basic structure validation instead of using zod
     if (!reflection.facts || !Array.isArray(reflection.facts)) {
-      logger.warn('Getting reflection failed - invalid facts structure', reflection);
+      logger.warn(
+        "Getting reflection failed - invalid facts structure",
+        reflection
+      );
       return;
     }
 
     if (!reflection.relationships || !Array.isArray(reflection.relationships)) {
-      logger.warn('Getting reflection failed - invalid relationships structure', reflection);
+      logger.warn(
+        "Getting reflection failed - invalid relationships structure",
+        reflection
+      );
       return;
     }
 
@@ -219,12 +229,12 @@ async function handler(
       reflection.facts.filter(
         (fact) =>
           fact &&
-          typeof fact === 'object' &&
+          typeof fact === "object" &&
           !fact.already_known &&
           !fact.in_bio &&
           fact.claim &&
-          typeof fact.claim === 'string' &&
-          fact.claim.trim() !== ''
+          typeof fact.claim === "string" &&
+          fact.claim.trim() !== ""
       ) || [];
 
     await Promise.all(
@@ -236,7 +246,7 @@ async function handler(
           roomId,
           createdAt: Date.now(),
         });
-        return runtime.createMemory(factMemory, 'facts', true);
+        return runtime.createMemory(factMemory, "facts", true);
       })
     );
 
@@ -249,8 +259,8 @@ async function handler(
         sourceId = resolveEntity(relationship.sourceEntityId, entities);
         targetId = resolveEntity(relationship.targetEntityId, entities);
       } catch (error) {
-        console.warn('Failed to resolve relationship entities:', error);
-        console.warn('relationship:\n', relationship);
+        console.warn("Failed to resolve relationship entities:", error);
+        console.warn("relationship:\n", relationship);
         continue; // Skip this relationship if we can't resolve the IDs
       }
 
@@ -262,7 +272,9 @@ async function handler(
         const updatedMetadata = {
           ...existingRelationship.metadata,
           interactions:
-            ((existingRelationship.metadata?.interactions as number | undefined) || 0) + 1,
+            ((existingRelationship.metadata?.interactions as
+              | number
+              | undefined) || 0) + 1,
         };
 
         const updatedTags = Array.from(
@@ -289,7 +301,7 @@ async function handler(
 
     await runtime.setCache<string>(
       `${message.roomId}-reflection-last-processed`,
-      message?.id || ''
+      message?.id || ""
     );
 
     return {
@@ -301,29 +313,39 @@ async function handler(
         facts: newFacts,
         relationships: reflection.relationships,
       },
-      text: reflection.thought || 'Reflection complete.',
+      text: reflection.thought || "Reflection complete.",
     };
   } catch (error) {
-    logger.error('Error in reflection handler:', error);
+    logger.error("Error in reflection handler:", error);
     return;
   }
 }
 
 export const reflectionEvaluator: Evaluator = {
-  name: 'REFLECTION',
-  similes: ['REFLECT', 'SELF_REFLECT', 'EVALUATE_INTERACTION', 'ASSESS_SITUATION'],
-  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  name: "REFLECTION",
+  similes: [
+    "REFLECT",
+    "SELF_REFLECT",
+    "EVALUATE_INTERACTION",
+    "ASSESS_SITUATION",
+  ],
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory
+  ): Promise<boolean> => {
     const lastMessageId = await runtime.getCache<string>(
       `${message.roomId}-reflection-last-processed`
     );
     const messages = await runtime.getMemories({
-      tableName: 'messages',
+      tableName: "messages",
       roomId: message.roomId,
       count: runtime.getConversationLength(),
     });
 
     if (lastMessageId) {
-      const lastMessageIndex = messages.findIndex((msg) => msg.id === lastMessageId);
+      const lastMessageIndex = messages.findIndex(
+        (msg) => msg.id === lastMessageId
+      );
       if (lastMessageIndex !== -1) {
         messages.splice(0, lastMessageIndex + 1);
       }
@@ -334,7 +356,7 @@ export const reflectionEvaluator: Evaluator = {
     return messages.length > reflectionInterval;
   },
   description:
-    'Generate a self-reflective thought on the conversation, then extract facts and relationships between entities in the conversation.',
+    "Generate a self-reflective thought on the conversation, then extract facts and relationships between entities in the conversation.",
   handler,
   examples: [
     {
@@ -345,15 +367,15 @@ Current Room: general-chat
 Message Sender: John (user-123)`,
       messages: [
         {
-          name: 'John',
+          name: "John",
           content: { text: "Hey everyone, I'm new here!" },
         },
         {
-          name: 'Sarah',
-          content: { text: 'Welcome John! How did you find our community?' },
+          name: "Sarah",
+          content: { text: "Welcome John! How did you find our community?" },
         },
         {
-          name: 'John',
+          name: "John",
           content: { text: "Through a friend who's really into AI" },
         },
       ],
@@ -395,21 +417,21 @@ Current Room: tech-help
 Message Sender: Emma (user-456)`,
       messages: [
         {
-          name: 'Emma',
-          content: { text: 'My app keeps crashing when I try to upload files' },
+          name: "Emma",
+          content: { text: "My app keeps crashing when I try to upload files" },
         },
         {
-          name: 'Alex',
-          content: { text: 'Have you tried clearing your cache?' },
+          name: "Alex",
+          content: { text: "Have you tried clearing your cache?" },
         },
         {
-          name: 'Emma',
-          content: { text: 'No response...' },
+          name: "Emma",
+          content: { text: "No response..." },
         },
         {
-          name: 'Alex',
+          name: "Alex",
           content: {
-            text: 'Emma, are you still there? We can try some other troubleshooting steps.',
+            text: "Emma, are you still there? We can try some other troubleshooting steps.",
           },
         },
       ],
@@ -446,31 +468,31 @@ Current Room: book-club
 Message Sender: Lisa (user-789)`,
       messages: [
         {
-          name: 'Lisa',
-          content: { text: 'What did everyone think about chapter 5?' },
+          name: "Lisa",
+          content: { text: "What did everyone think about chapter 5?" },
         },
         {
-          name: 'Max',
+          name: "Max",
           content: {
-            text: 'The symbolism was fascinating! The red door clearly represents danger.',
+            text: "The symbolism was fascinating! The red door clearly represents danger.",
           },
         },
         {
-          name: 'Max',
+          name: "Max",
           content: {
             text: "And did anyone notice how the author used weather to reflect the protagonist's mood?",
           },
         },
         {
-          name: 'Max',
+          name: "Max",
           content: {
-            text: 'Plus the foreshadowing in the first paragraph was brilliant!',
+            text: "Plus the foreshadowing in the first paragraph was brilliant!",
           },
         },
         {
-          name: 'Max',
+          name: "Max",
           content: {
-            text: 'I also have thoughts about the character development...',
+            text: "I also have thoughts about the character development...",
           },
         },
       ],
@@ -507,5 +529,5 @@ function formatFacts(facts: Memory[]) {
   return facts
     .reverse()
     .map((fact: Memory) => fact.content.text)
-    .join('\n');
+    .join("\n");
 }

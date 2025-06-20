@@ -1,5 +1,5 @@
 {
-  "name": "@0xflicker/plugin-social-strategy",
+  "name": "@elizaos/plugin-social-strategy",
   "version": "0.1.0",
   "description": "Tracks and manages player relationships and trust scores for social strategy analysis",
   "type": "module",
