@@ -587,24 +587,17 @@ export const trackConversation: Action = {
       console.log("🚀 [trackConversation] memoryId:", memoryId);
 
       // Check if storeMemory method exists (may not be available in test environment)
-      if (typeof runtime.storeMemory === "function") {
-        await runtime.storeMemory({
-          id: memoryId as UUID,
-          content: {
-            text: JSON.stringify(updatedState),
-          },
-          metadata: {
-            type: MemoryType.CUSTOM,
-            source: "social-strategy",
-            timestamp: Date.now(),
-          },
-        });
-        console.log("🚀 [trackConversation] memory stored successfully");
-      } else {
-        console.log(
-          "🚀 [trackConversation] storeMemory not available, skipping memory storage"
-        );
-      }
+      runtime.createMemory({
+        id: memoryId as UUID,
+        content: {
+          text: JSON.stringify(updatedState),
+        },
+        metadata: {
+          type: MemoryType.CUSTOM,
+          source: "social-strategy",
+          timestamp: Date.now(),
+        },
+      });
 
       return {
         success: true,

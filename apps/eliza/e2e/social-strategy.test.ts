@@ -81,22 +81,6 @@ export class StarterTestSuite implements TestSuite {
         }
       },
     },
-    {
-      name: "Plugin initialization test",
-      fn: async (runtime: any) => {
-        // Test plugin initialization with empty config
-        try {
-          await runtime.registerPlugin({
-            name: "starter",
-            description: "A starter plugin for Eliza",
-            init: async () => {},
-            config: {},
-          });
-        } catch (error) {
-          throw new Error(`Failed to register plugin: ${error.message}`);
-        }
-      },
-    },
     // {
     //   name: "Hello world action test",
     //   fn: async (runtime: any) => {

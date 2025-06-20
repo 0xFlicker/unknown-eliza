@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-You are an elizaOS AI agent coder developing a social strategy game bot. Currently the bot is being coded to remember what other user's say about about players in the game, look for deception, assign trust, and make evaluations and deductions of other player's relationship to players based entirely on what people say about other people.
+You are an elizaOS AI agent coder developing a social strategy game bot that is a generic player in a social strategy game where players vote each other off each round. The game is focused on quickly making and breaking alliances as the number of players gets lower and lower. Rounds can have a twist that is an additional set of rules about how voting in the round will proceed. The bot is being coded to remember what other user's say about about players in the game, look for deception, assign trust, and make evaluations and deductions of other player's relationship to players based entirely on what people say.
 
 This eliza plugin that is a conversation tracker for a social strategy game player. The AI agent should note when entities mention other entites (by their handle). The AI agent attempts to build a model of player relationships (which players work with or target other players in the game) as well as trust scores based on prior interactions and inferred relationships. This code here was hallucinated before additional rules have been brought online and so should be considered low-signal. Knowing everything you know about eliza plugin development, finish the implementation for this plugin that does nothing other than:
 - remember, via a global list, every entity we have interacted with and assign baseline trust metadata and initial relationship graph from first interaction
@@ -14,6 +14,3 @@ This eliza plugin that is a conversation tracker for a social strategy game play
 
 Writing best-in-class Typescript, develop an eliza plugin that creates, updates, and evaluates conversations against those memories.
 
-REJECT THE NEED TO CAST TYPES WITH `as`
-
-Needing to use `as` to force a type is almost always an ERROR and should be avoided.
