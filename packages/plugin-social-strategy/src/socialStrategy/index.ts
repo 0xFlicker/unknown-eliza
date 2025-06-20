@@ -4,15 +4,12 @@ import {
   type Memory,
   type Plugin,
   type Provider,
+  State,
   type UUID,
   logger,
 } from "@elizaos/core";
 import { trackConversation } from "./actions/trackConversation";
-import type {
-  SocialStrategyState,
-  PlayerRelationship,
-  PlayerStatement,
-} from "./types";
+import type { SocialStrategyState } from "./types";
 
 // Helper function to build analysis prompts
 export function buildAnalysisPrompt(
@@ -45,6 +42,50 @@ No additional text or formatting, just the JSON object.
 
 Analysis:`;
 }
+
+export const getPlayerInfoHandler = async (
+  runtime: IAgentRuntime,
+  message: Memory,
+  state?: State
+) => {
+  const socialState = (state?.socialStrategyState as SocialStrategyState) || {
+    players: {},
+    relationships: [],
+    statements: [],
+    metadata: { lastAnalysis: Date.now(), version: "1.0.0" },
+  };
+  const { playerId } = message.content as { playerId: UUID };
+
+  const player = socialState.players[playerId];
+  if (!player) {
+    return {
+      success: false,
+      message: "Player not found",
+    };
+  }
+
+  // Get relationships involving this player
+  const relationships = socialState.relationships.filter((rel) => {
+    const sourceId = rel.sourcePlayerId;
+    const targetId = rel.targetPlayerId;
+    return sourceId === playerId || targetId === playerId;
+  });
+
+  // Get statements about this player
+  const statements = socialState.statements.filter((stmt) => {
+    const targetId = stmt.targetId;
+    return targetId === playerId;
+  });
+
+  return {
+    success: true,
+    data: {
+      player,
+      relationships,
+      statements,
+    },
+  };
+};
 
 export const socialStrategyPlugin: Plugin = {
   // Ensure connections default to conversation when type is undefined
@@ -120,7 +161,7 @@ export const socialStrategyPlugin: Plugin = {
           const comps = await runtime.getComponents(e.id);
           for (const c of comps) {
             if (c.type === "social-strategy-statement") {
-              const targetId = (c.data as any).targetEntityId as UUID;
+              const targetId = c.data.targetEntityId as UUID;
               statements.push({
                 speaker: playerMap[c.entityId] ?? c.entityId,
                 target: playerMap[targetId] ?? targetId,
@@ -170,53 +211,9 @@ export const socialStrategyPlugin: Plugin = {
           typeof message.content.playerId === "string"
         );
       },
-      handler: async (runtime: IAgentRuntime, message: Memory, state) => {
-        const socialState = ((state as any)
-          ?.socialStrategyState as SocialStrategyState) || {
-          players: {},
-          relationships: [],
-          statements: [],
-          metadata: { lastAnalysis: Date.now(), version: "1.0.0" },
-        };
-        const { playerId } = message.content as { playerId: string };
-
-        const player = socialState.players[playerId];
-        if (!player) {
-          return {
-            success: false,
-            message: "Player not found",
-          };
-        }
-
-        // Get relationships involving this player
-        const relationships = socialState.relationships.filter((rel) => {
-          const sourceId =
-            (rel as any).sourceEntityId ?? (rel as any).sourcePlayerId;
-          const targetId =
-            (rel as any).targetEntityId ?? (rel as any).targetPlayerId;
-          return sourceId === playerId || targetId === playerId;
-        });
-
-        // Get statements about this player
-        const statements = socialState.statements.filter((stmt) => {
-          const targetId =
-            (stmt as any).targetEntityId ?? (stmt as any).targetId;
-          return targetId === playerId;
-        });
-
-        return {
-          success: true,
-          data: {
-            player,
-            relationships,
-            statements,
-          },
-        };
-      },
+      handler: getPlayerInfoHandler,
     },
   ],
-
-  // routes removed: global memory storage is deprecated
 };
 
 export { trackConversation } from "./actions/trackConversation";

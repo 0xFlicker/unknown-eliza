@@ -1,5 +1,11 @@
 import { character } from "../src/index.ts";
 import { v4 as uuidv4 } from "uuid";
+import {
+  trackConversation,
+  socialStrategyPlugin,
+  getPlayerInfoHandler,
+} from "@0xflicker/plugin-social-strategy";
+import { MemoryType } from "@elizaos/core";
 
 // Define a minimal TestSuite interface that matches what's needed
 interface TestSuite {
@@ -75,152 +81,237 @@ export class StarterTestSuite implements TestSuite {
         }
       },
     },
-    // {
-    //   name: "Hello world action test",
-    //   fn: async (runtime: any) => {
-    //     const message: Memory = {
-    //       entityId: uuidv4() as UUID,
-    //       roomId: uuidv4() as UUID,
-    //       content: {
-    //         text: "Can you say hello?",
-    //         source: "test",
-    //         actions: ["HELLO_WORLD"], // Explicitly request the HELLO_WORLD action
-    //       },
-    //     };
+    {
+      name: "Agent conversation and memory update (local Ollama model)",
+      fn: async (runtime: any) => {
+        // Use the local UUID type for test UUIDs
+        const testRoomId = uuidv4() as UUID;
+        const otherPlayerId = uuidv4() as UUID;
 
-    //     const state: State = {
-    //       values: {},
-    //       data: {},
-    //       text: "",
-    //     };
-    //     let responseReceived = false;
+        // Explicitly type as 'any' for test context
+        const testMessage: any = {
+          id: uuidv4() as UUID,
+          entityId: otherPlayerId,
+          roomId: testRoomId,
+          content: {
+            text: "@TestPlayer has shown me that they can be trusted",
+          },
+          metadata: {
+            type: MemoryType.CUSTOM,
+            entityName: "OtherPlayer",
+            source: "test",
+            username: "OtherPlayer",
+            discriminator: "1234",
+          },
+        };
 
-    //     // Test the hello world action
-    //     try {
-    //       await runtime.processActions(
-    //         message,
-    //         [],
-    //         state,
-    //         async (content: Content) => {
-    //           if (
-    //             content.text === "hello world!" &&
-    //             content.actions?.includes("HELLO_WORLD")
-    //           ) {
-    //             responseReceived = true;
-    //           }
-    //           return [];
-    //         }
-    //       );
+        const initialState: any = {
+          players: {},
+          relationships: [],
+          statements: [],
+          metadata: {
+            lastAnalysis: Date.now(),
+            version: "1.0.0",
+          },
+          values: {},
+          data: {},
+          text: "",
+        };
 
-    //       if (!responseReceived) {
-    //         // Try directly executing the action if processActions didn't work
-    //         const helloWorldAction = runtime.actions.find(
-    //           (a) => a.name === "HELLO_WORLD"
-    //         );
-    //         if (helloWorldAction) {
-    //           await helloWorldAction.handler(
-    //             runtime,
-    //             message,
-    //             state,
-    //             {},
-    //             async (content: Content) => {
-    //               if (
-    //                 content.text === "hello world!" &&
-    //                 content.actions?.includes("HELLO_WORLD")
-    //               ) {
-    //                 responseReceived = true;
-    //               }
-    //               return [];
-    //             },
-    //             []
-    //           );
-    //         } else {
-    //           throw new Error(
-    //             "HELLO_WORLD action not found in runtime.actions"
-    //           );
-    //         }
-    //       }
+        // Cast result to expected type
+        const result = (await trackConversation.handler(
+          runtime,
+          testMessage,
+          initialState
+        )) as {
+          success: boolean;
+          data: {
+            players: Record<UUID, any>;
+            relationships: any[];
+            statements: any[];
+            [key: string]: any;
+          };
+        };
 
-    //       if (!responseReceived) {
-    //         throw new Error(
-    //           "Hello world action did not produce expected response"
-    //         );
-    //       }
-    //     } catch (error) {
-    //       throw new Error(`Hello world action test failed: ${error.message}`);
-    //     }
-    //   },
-    // },
-    // {
-    //   name: "Hello world provider test",
-    //   fn: async (runtime: any) => {
-    //     const message: Memory = {
-    //       entityId: uuidv4() as UUID,
-    //       roomId: uuidv4() as UUID,
-    //       content: {
-    //         text: "What can you provide?",
-    //         source: "test",
-    //       },
-    //     };
+        if (!result.success) {
+          throw new Error("Agent did not process conversation as expected");
+        }
 
-    //     const state: State = {
-    //       values: {},
-    //       data: {},
-    //       text: "",
-    //     };
+        const players = result.data.players;
+        const statements = result.data.statements;
+        if (!players || Object.keys(players).length === 0) {
+          throw new Error("No players were created in agent state");
+        }
+        if (!statements || statements.length === 0) {
+          throw new Error("No statements were created in agent state");
+        }
 
-    //     // Test the hello world provider
-    //     try {
-    //       if (!runtime.providers || runtime.providers.length === 0) {
-    //         throw new Error("No providers found in runtime");
-    //       }
+        const createdTestPlayer = Object.values(players).find(
+          (p: any) => p.handle === "TestPlayer"
+        );
+        if (!createdTestPlayer) {
+          throw new Error("TestPlayer was not created in agent state");
+        }
 
-    //       // Find the specific provider we want to test
-    //       const helloWorldProvider = runtime.providers.find(
-    //         (p) => p.name === "HELLO_WORLD_PROVIDER"
-    //       );
+        console.log(
+          "✅ Agent conversation test passed - players and statements created successfully"
+        );
+      },
+    },
+    {
+      name: "Social-context provider and getPlayerInfo action validation",
+      fn: async (runtime: any) => {
+        // ---------------------------------------------
+        // 1. Simulate a conversation to populate state
+        // ---------------------------------------------
+        const testRoomId = uuidv4() as UUID;
+        const otherPlayerId = uuidv4() as UUID;
 
-    //       if (!helloWorldProvider) {
-    //         throw new Error(
-    //           "HELLO_WORLD_PROVIDER not found in runtime providers"
-    //         );
-    //       }
+        const convoMessage: any = {
+          id: uuidv4() as UUID,
+          entityId: otherPlayerId,
+          roomId: testRoomId,
+          content: {
+            text: "@TestPlayer just saved me from elimination, we should keep them around!",
+          },
+          metadata: {
+            type: MemoryType.CUSTOM,
+            entityName: "OtherPlayer",
+            source: "test",
+            username: "OtherPlayer",
+            discriminator: "1234",
+          },
+        };
 
-    //       const result = await helloWorldProvider.get(runtime, message, state);
+        const baseState: any = {
+          players: {},
+          relationships: [],
+          statements: [],
+          metadata: {
+            lastAnalysis: Date.now(),
+            version: "1.0.0",
+          },
+          values: {},
+          data: {},
+          text: "",
+        };
 
-    //       if (result.text !== "I am a provider") {
-    //         throw new Error(
-    //           `Expected provider to return "I am a provider", got "${result.text}"`
-    //         );
-    //       }
-    //     } catch (error) {
-    //       throw new Error(`Hello world provider test failed: ${error.message}`);
-    //     }
-    //   },
-    // },
-    // {
-    //   name: "Starter service test",
-    //   fn: async (runtime: any) => {
-    //     // Test service registration and lifecycle
-    //     try {
-    //       const service = runtime.getService("starter");
-    //       if (!service) {
-    //         throw new Error("Starter service not found");
-    //       }
+        // Run trackConversation to update state with TestPlayer
+        const convoResult = (await trackConversation.handler(
+          runtime,
+          convoMessage,
+          baseState
+        )) as {
+          success: boolean;
+          data: {
+            players: Record<UUID, any>;
+            relationships: any[];
+            statements: any[];
+          };
+        };
 
-    //       if (
-    //         service.capabilityDescription !==
-    //         "This is a starter service which is attached to the agent through the starter plugin."
-    //       ) {
-    //         throw new Error("Incorrect service capability description");
-    //       }
+        if (!convoResult.success) {
+          throw new Error("trackConversation failed during setup phase");
+        }
 
-    //       await service.stop();
-    //     } catch (error) {
-    //       throw new Error(`Starter service test failed: ${error.message}`);
-    //     }
-    //   },
-    // },
+        // Find TestPlayer ID from updated players
+        const testPlayerEntry = (
+          Object.entries(convoResult.data.players) as Array<[string, any]>
+        ).find(([, p]) => p.handle === "TestPlayer");
+        if (!testPlayerEntry) {
+          throw new Error("TestPlayer entity was not created as expected");
+        }
+        const [testPlayerId] = testPlayerEntry as [string, any];
+
+        // ---------------------------------------------------------
+        // 2. Validate getPlayerInfo action
+        // ---------------------------------------------------------
+        // Locate the getPlayerInfo action from the plugin definition
+        const getPlayerInfoMessage: any = {
+          id: uuidv4() as UUID,
+          entityId: otherPlayerId,
+          roomId: testRoomId,
+          content: {
+            playerId: testPlayerId,
+          },
+        };
+
+        // The getPlayerInfo handler expects the social strategy state to be nested under `socialStrategyState`
+        const nestedState = {
+          socialStrategyState: convoResult.data,
+          values: {},
+          data: {},
+          text: "",
+        };
+
+        const playerInfoResult = await getPlayerInfoHandler(
+          runtime,
+          getPlayerInfoMessage,
+          nestedState
+        );
+
+        console.log("playerInfoResult", playerInfoResult);
+
+        if (!playerInfoResult.success) {
+          throw new Error("getPlayerInfo action returned unsuccessful result");
+        }
+        if (playerInfoResult.data?.player.handle !== "TestPlayer") {
+          throw new Error(
+            `getPlayerInfo returned wrong player handle: ${playerInfoResult.data?.player.handle}`
+          );
+        }
+
+        // ---------------------------------------------------------
+        // 3. Validate social-context provider
+        // ---------------------------------------------------------
+        const socialContextProvider = socialStrategyPlugin.providers?.find(
+          (p: any) => p.name === "social-context"
+        );
+        if (!socialContextProvider) {
+          throw new Error("social-context provider not found in plugin");
+        }
+
+        const providerMessage = {
+          id: uuidv4() as UUID,
+          entityId: otherPlayerId,
+          roomId: testRoomId,
+          content: {
+            text: "Requesting social context",
+          },
+        };
+
+        const providerResult = await socialContextProvider.get(
+          runtime,
+          providerMessage,
+          baseState
+        );
+
+        console.log("providerResult", providerResult);
+
+        if (!providerResult || !providerResult.values?.socialContext) {
+          throw new Error("Provider did not return socialContext value");
+        }
+
+        // Ensure socialContext is valid JSON with required keys
+        let parsedContext: any;
+        try {
+          parsedContext = JSON.parse(providerResult.values.socialContext);
+        } catch {
+          throw new Error("socialContext value is not valid JSON");
+        }
+
+        const requiredKeys = ["players", "relationships", "recentStatements"];
+        for (const key of requiredKeys) {
+          if (!(key in parsedContext)) {
+            throw new Error(`socialContext JSON missing required key: ${key}`);
+          }
+        }
+
+        console.log(
+          "✅ social-context provider and getPlayerInfo action validated successfully"
+        );
+      },
+    },
   ];
 }
 

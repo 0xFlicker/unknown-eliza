@@ -1,6 +1,6 @@
-import { socialStrategyPlugin } from "./socialStrategy/index";
 export { trackConversation } from "./socialStrategy/actions/trackConversation";
+export {
+  socialStrategyPlugin,
+  getPlayerInfoHandler,
+} from "./socialStrategy/index";
 export * from "./types";
-
-// Default export for runtime plugin loading
-export default socialStrategyPlugin;

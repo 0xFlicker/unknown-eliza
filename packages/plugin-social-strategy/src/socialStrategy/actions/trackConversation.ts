@@ -1,604 +1,300 @@
-// @ts-nocheck
 import {
-  MemoryType,
   type Action,
   type IAgentRuntime,
-  type Content,
   type Memory,
-  type Entity,
-  ModelType,
   type UUID,
-  type GenerateTextParams,
   stringToUuid,
 } from "@elizaos/core";
-import { v4 as uuidv4 } from "uuid";
 import {
-  type SocialStrategyState,
-  type PlayerEntity,
-  type PlayerRelationship,
-  type PlayerStatement,
-  type RelationshipType,
+  SocialStrategyState,
+  PlayerEntity,
+  PlayerRelationship,
+  PlayerStatement,
+  RelationshipType,
 } from "../types";
-import { makeModelInference, buildAnalysisPrompt } from "../index";
 
-const DEFAULT_TRUST_SCORE = 50;
-const TRUST_ADJUSTMENT = 10;
+/**
+ * Baseline trust score assigned to newly discovered players.
+ */
+const BASE_TRUST = 50;
 
-interface MessageMetadata {
-  type?: string;
-  entityName?: string;
-  username?: string;
-  source?: string;
-  discriminator?: string;
-  // anon chat
-  raw?: {
-    senderName?: string;
-  };
+/** Keyword lists for naive sentiment analysis */
+const POSITIVE_KEYWORDS = [
+  "trust",
+  "like",
+  "love",
+  "ally",
+  "friend",
+  "support",
+  "help",
+  "agree",
+];
+const NEGATIVE_KEYWORDS = [
+  "distrust",
+  "hate",
+  "dislike",
+  "enemy",
+  "rival",
+  "betray",
+  "oppose",
+  "against",
+];
+
+/** Max absolute change applied to a trust score from one interaction */
+const TRUST_DELTA = 10;
+
+/**
+ * Helper – clamp a number into an inclusive range.
+ */
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-export interface ModelAnalysis {
-  trustScore: number;
-  relationship: string;
-  statement: string;
-  metadata?: {
-    sentiment?: string;
-    confidence?: number;
-    [key: string]: string | number | boolean | undefined;
-  };
-}
-
-// Helper function to validate relationship type
-function validateRelationshipType(type: string): RelationshipType {
-  switch (type.toLowerCase()) {
-    case "enemy":
-    case "rival":
-      return "rival";
-    case "ally":
-      return "ally";
-    case "neutral":
-    default:
-      return "neutral";
+/**
+ * Extract @mentions from a string.
+ */
+function extractMentions(text: string): string[] {
+  const regex = /@([a-zA-Z0-9_]+)/g;
+  const out: string[] = [];
+  let match: RegExpExecArray | null = null;
+  // eslint-disable-next-line no-cond-assign
+  while ((match = regex.exec(text)) !== null) {
+    out.push(match[1]);
   }
+  return out;
 }
 
-// Helper function to generate deterministic player ID (per agent per handle)
-function generatePlayerId(agentId: string, handle: string): UUID {
-  return stringToUuid(`${agentId}:player:${handle.toLowerCase()}`);
+/**
+ * Infer the sentiment (positive / negative / neutral) of a message towards a target player
+ * using a very simple keyword-based heuristic.
+ */
+function inferSentiment(text: string): "positive" | "negative" | "neutral" {
+  const lower = text.toLowerCase();
+  if (POSITIVE_KEYWORDS.some((w) => lower.includes(w))) return "positive";
+  if (NEGATIVE_KEYWORDS.some((w) => lower.includes(w))) return "negative";
+  return "neutral";
 }
 
-// Helper function to generate deterministic statement ID
-function generateStatementId(
-  speakerId: string,
-  targetId: string,
-  timestamp: number
-): UUID {
-  return stringToUuid(`statement:${speakerId}:${targetId}:${timestamp}`);
+/**
+ * Maps a sentiment into our RelationshipType domain.
+ */
+function sentimentToRelationship(
+  sentiment: "positive" | "negative" | "neutral"
+): RelationshipType {
+  if (sentiment === "positive") return "ally";
+  if (sentiment === "negative") return "rival";
+  return "neutral";
 }
 
-// Helper function to find player by handle or ID
-function findPlayerByHandle(
+/**
+ * Obtain (or create) a PlayerEntity for the given handle.
+ */
+function getOrCreatePlayer(
   state: SocialStrategyState,
   agentId: string,
-  handle: string,
-  knownId?: UUID
-): string | undefined {
-  // If we have a known ID and it exists in state, use it
-  if (knownId && state.players[knownId]) {
-    return knownId;
-  }
-  // Try to find by deterministic ID
-  const deterministicId = generatePlayerId(agentId, handle);
-  if (state.players[deterministicId]) {
-    return deterministicId;
-  }
-  // Search by handle (for test cases with pre-defined UUIDs)
-  // Only return valid UUIDs to prevent string-based IDs from being used
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  for (const [id, player] of Object.entries(state.players)) {
-    if (
-      player.handle.toLowerCase() === handle.toLowerCase() &&
-      uuidRegex.test(id)
-    ) {
-      return id;
-    }
-  }
-  return undefined;
-}
-
-// Helper function to create a new player
-function createPlayer(
-  agentId: string,
-  handle: string,
-  existingId?: UUID
+  handle: string
 ): PlayerEntity {
-  return {
-    id: existingId || generatePlayerId(agentId, handle),
+  const id = stringToUuid(`${agentId}:player:${handle.toLowerCase()}`);
+  const now = Date.now();
+  const existing = state.players[id];
+  if (existing) {
+    existing.lastInteraction = now;
+    existing.metadata.interactionCount += 1;
+    return existing;
+  }
+  const newPlayer: PlayerEntity = {
+    id,
     handle,
-    trustScore: DEFAULT_TRUST_SCORE,
-    firstInteraction: Date.now(),
-    lastInteraction: Date.now(),
+    trustScore: BASE_TRUST,
+    firstInteraction: now,
+    lastInteraction: now,
     metadata: {
       relationshipType: "neutral",
-      interactionCount: 0,
+      interactionCount: 1,
     },
   };
+  state.players[id] = newPlayer;
+  return newPlayer;
 }
 
-// Helper function to create a new statement
-function createStatement(
-  speakerId: string,
-  targetId: string,
-  content: string,
-  metadata: ModelAnalysis["metadata"] = {}
-): PlayerStatement {
-  const timestamp = Date.now();
-  return {
-    id: generateStatementId(speakerId, targetId, timestamp),
-    speakerId,
-    targetId,
-    content,
-    timestamp,
-    metadata,
-  };
-}
-
-// Helper function to update relationship
-function updateRelationship(
+/**
+ * Update or create the relationship record from source → target with the provided type.
+ * This is stored bidirectionally by calling this method twice with swapped arguments.
+ */
+function upsertRelationship(
   state: SocialStrategyState,
   sourceId: UUID,
   targetId: UUID,
-  type: RelationshipType,
+  relType: RelationshipType,
   description: string
 ): void {
-  const existingRelationship = state.relationships.find(
+  const now = Date.now();
+  const existing = state.relationships.find(
     (r) => r.sourcePlayerId === sourceId && r.targetPlayerId === targetId
   );
-
-  if (existingRelationship) {
-    existingRelationship.relationshipType = type;
-    existingRelationship.lastUpdated = Date.now();
-    existingRelationship.evidence.push({
+  if (existing) {
+    existing.relationshipType = relType;
+    existing.lastUpdated = now;
+    existing.strength = clamp(existing.strength + 1, 0, 100);
+    existing.evidence.push({
       type: "direct_interaction",
-      timestamp: Date.now(),
+      timestamp: now,
       description,
       source: sourceId,
     });
-  } else {
-    state.relationships.push({
-      sourcePlayerId: sourceId,
-      targetPlayerId: targetId,
-      relationshipType: type,
-      strength: 50, // Default strength
-      lastUpdated: Date.now(),
-      evidence: [
-        {
-          type: "direct_interaction",
-          timestamp: Date.now(),
-          description,
-          source: sourceId,
-        },
-      ],
-    });
+    return;
   }
+  const newRel: PlayerRelationship = {
+    sourcePlayerId: sourceId,
+    targetPlayerId: targetId,
+    relationshipType: relType,
+    strength: 1,
+    lastUpdated: now,
+    evidence: [
+      {
+        type: "direct_interaction",
+        timestamp: now,
+        description,
+        source: sourceId,
+      },
+    ],
+  };
+  state.relationships.push(newRel);
 }
 
-// Helper function to extract mentioned players from text
-function extractMentionedPlayers(text: string): string[] {
-  console.log("🔍 [extractMentionedPlayers] input text:", text);
-
-  // Simple regex to find @mentions
-  const mentionRegex = /@(\w+)/g;
-  const matches = text.match(mentionRegex);
-
-  if (!matches) {
-    console.log("🔍 [extractMentionedPlayers] no mentions found");
-    return [];
-  }
-
-  // Extract the username part (remove @)
-  const players = matches.map((match) => match.substring(1));
-  console.log("🔍 [extractMentionedPlayers] found players:", players);
-
-  return players;
+/**
+ * Create a new PlayerStatement and append to state.
+ */
+function addStatement(
+  state: SocialStrategyState,
+  speakerId: UUID,
+  targetId: UUID,
+  content: string,
+  sentiment: "positive" | "negative" | "neutral"
+): void {
+  const now = Date.now();
+  const statementId = stringToUuid(`statement:${speakerId}:${targetId}:${now}`);
+  const statement: PlayerStatement = {
+    id: statementId,
+    speakerId,
+    targetId,
+    content,
+    timestamp: now,
+    metadata: { sentiment, confidence: 1 },
+  };
+  state.statements.push(statement);
 }
 
 export const trackConversation: Action = {
   name: "trackConversation",
   description:
-    "Track and analyze conversations to update player relationships and trust scores",
-  similes: ["CONVERSATION_TRACKING", "SOCIAL_ANALYSIS", "RELATIONSHIP_UPDATE"],
-  examples: [
-    [
-      {
-        name: "user",
-        content: {
-          text: "Player A said 'I trust Player B completely'",
-        },
-      },
-      {
-        name: "agent",
-        content: {
-          text: "Updated trust score for Player B based on Player A's statement.",
-          actions: ["trackConversation"],
-        },
-      },
-    ],
-  ],
-  validate: async (runtime: IAgentRuntime, message: Memory) => {
-    console.log("🔍 [trackConversation] validate called with message:", {
-      id: message.id,
-      entityId: message.entityId,
-      content: message.content,
-      metadata: message.metadata,
-    });
-
-    const isValid =
+    "Analyze a message, identify player mentions, infer sentiment, and update the player graph.",
+  similes: ["SSA_TRACK"],
+  examples: [],
+  validate: async (_runtime: IAgentRuntime, message: Memory) => {
+    return (
       typeof message.content === "object" &&
       message.content !== null &&
       "text" in message.content &&
-      typeof message.content.text === "string";
-
-    console.log("🔍 [trackConversation] validate result:", isValid);
-    return isValid;
+      typeof (message.content as { text: unknown }).text === "string"
+    );
   },
   handler: async (runtime: IAgentRuntime, message: Memory, state) => {
-    console.log("🚀 [trackConversation] handler started");
-    console.log("🚀 [trackConversation] message:", {
-      id: message.id,
-      entityId: message.entityId,
-      content: message.content,
-      metadata: message.metadata,
-    });
-    console.log(
-      "🚀 [trackConversation] state:",
-      JSON.stringify(state, null, 2)
+    // Ensure we have a SocialStrategyState container on the shared state object.
+    const container = state as Record<string, unknown>;
+    if (!("socialStrategyState" in container)) {
+      container.socialStrategyState = {
+        players: {},
+        relationships: [],
+        statements: [],
+        metadata: { lastAnalysis: 0, version: "1.0.0" },
+        values: {},
+        data: {},
+        text: "",
+      } satisfies SocialStrategyState;
+    }
+    const socialState = container.socialStrategyState as SocialStrategyState;
+
+    const textContent = (message.content as { text: string }).text;
+
+    // Identify speaking player handle. Prefer metadata.username, fall back to entityId string.
+    const username =
+      ((message.metadata ?? {}) as { username?: string }).username ??
+      message.entityId;
+
+    const speakingPlayer = getOrCreatePlayer(
+      socialState,
+      runtime.agentId,
+      username
     );
 
-    try {
-      const socialState = state as SocialStrategyState;
-      console.log("🚀 [trackConversation] socialState parsed:", {
-        players: Object.keys(socialState.players || {}).length,
-        relationships: Array.isArray(socialState.relationships)
-          ? socialState.relationships.length
-          : "NOT_ARRAY",
-        statements: Array.isArray(socialState.statements)
-          ? socialState.statements.length
-          : "NOT_ARRAY",
-      });
-
-      // Extract text content
-      const textContent = message.content.text;
-      console.log("🚀 [trackConversation] textContent:", textContent);
-
-      // Extract entity information
-      const entityId = message.entityId;
-      const meta = message.metadata as MessageMetadata;
-      const entityName = meta.entityName ?? "Unknown";
-      const username = meta.username ?? "Unknown";
-      const discriminator = meta.discriminator ?? "0000";
-      const roomId = message.roomId;
-
-      console.log("🚀 [trackConversation] extracted entity info:", {
-        entityId,
-        entityName,
-        username,
-        discriminator,
-        roomId,
-      });
-
-      // Generate deterministic UUIDs for players
-      const agentId = runtime.agentId;
-      console.log("🚀 [trackConversation] agentId:", agentId);
-
-      // Extract mentioned players from text
-      const mentionedPlayers = extractMentionedPlayers(textContent);
-      console.log("🚀 [trackConversation] mentionedPlayers:", mentionedPlayers);
-
-      // Create or update the speaking player
-      const speakingPlayerId = stringToUuid(
-        `${agentId}:player:${username.toLowerCase()}`
-      );
-      console.log("🚀 [trackConversation] speakingPlayerId:", speakingPlayerId);
-
-      const speakingPlayer: Player = {
-        id: speakingPlayerId,
-        handle: username,
-        discriminator,
-        trustScore: socialState.players[speakingPlayerId]?.trustScore ?? 50,
-        relationship:
-          socialState.players[speakingPlayerId]?.relationship ?? "neutral",
-        lastSeen: Date.now(),
-        metadata: {
-          entityName,
-          roomId,
-          source: "conversation",
-        },
-      };
-
-      console.log(
-        "🚀 [trackConversation] speakingPlayer created:",
-        speakingPlayer
-      );
-
-      // Update state with speaking player
-      const updatedPlayers = {
-        ...socialState.players,
-        [speakingPlayerId]: speakingPlayer,
-      };
-
-      console.log(
-        "🚀 [trackConversation] updatedPlayers keys:",
-        Object.keys(updatedPlayers)
-      );
-
-      // Process mentioned players
-      const newPlayers: Record<UUID, Player> = {};
-      const newRelationships: Relationship[] = [];
-      const newStatements: Statement[] = [];
-
-      console.log(
-        "🚀 [trackConversation] starting to process mentioned players, count:",
-        mentionedPlayers.length
-      );
-
-      for (const mentionedHandle of mentionedPlayers) {
-        // Removed DB createEntity for mentioned player; keep in-memory only
-        const targetId = stringToUuid(
-          `${agentId}:player:${mentionedHandle.toLowerCase()}`
-        );
-        console.log(
-          "🚀 [trackConversation] processing mentioned handle:",
-          mentionedHandle
-        );
-
-        console.log("🚀 [trackConversation] mentionedPlayerId:", targetId);
-
-        // Create or update mentioned player
-        const existingMentionedPlayer = updatedPlayers[targetId];
-        console.log(
-          "🚀 [trackConversation] existingMentionedPlayer:",
-          existingMentionedPlayer
-        );
-
-        const mentionedPlayer: PlayerEntity = {
-          id: targetId,
-          handle: mentionedHandle,
-          discriminator: "0000",
-          trustScore: existingMentionedPlayer?.trustScore ?? 50,
-          relationship: existingMentionedPlayer?.relationship ?? "neutral",
-          lastSeen: Date.now(),
-          metadata: {
-            entityName: mentionedHandle,
-            roomId,
-            source: "conversation",
-          },
-        };
-
-        console.log(
-          "🚀 [trackConversation] mentionedPlayer created:",
-          mentionedPlayer
-        );
-        newPlayers[targetId] = mentionedPlayer;
-
-        // Create relationship between speaking and mentioned player
-        const relationshipId = uuidv4() as UUID;
-        console.log("🚀 [trackConversation] relationshipId:", relationshipId);
-
-        const relationship: Relationship = {
-          id: relationshipId,
-          sourceEntityId: speakingPlayerId,
-          targetEntityId: targetId,
-          relationshipType: "mentions",
-          strength: 1,
-          metadata: {
-            source: "conversation",
-            timestamp: Date.now(),
-          },
-        };
-
-        console.log(
-          "🚀 [trackConversation] relationship created:",
-          relationship
-        );
-        newRelationships.push(relationship);
-
-        // Create statement about the mentioned player
-        const statementId = uuidv4() as UUID;
-        console.log("🚀 [trackConversation] statementId:", statementId);
-
-        const statement: PlayerStatement = {
-          id: statementId,
-          sourceEntityId: speakingPlayerId,
-          targetEntityId: targetId,
-          content: textContent,
-          statementType: "mention",
-          sentiment: "neutral",
-          confidence: 0.5,
-          metadata: {
-            source: "conversation",
-            timestamp: Date.now(),
-            roomId,
-          },
-        };
-
-        console.log("🚀 [trackConversation] statement created:", statement);
-        newStatements.push(statement);
-      }
-
-      console.log("🚀 [trackConversation] processing complete. Summary:", {
-        newPlayersCount: Object.keys(newPlayers).length,
-        newRelationshipsCount: newRelationships.length,
-        newStatementsCount: newStatements.length,
-      });
-
-      // Start AI analysis
-      console.log("🚀 [trackConversation] starting AI analysis");
-
-      const analysisPrompt = buildAnalysisPrompt(
-        textContent,
-        speakingPlayer.handle,
-        mentionedPlayers
-      );
-
-      console.log("🚀 [trackConversation] analysisPrompt:", analysisPrompt);
-
-      // Call the model directly with appropriate configuration
-      let modelAnalysis: any = null;
-      try {
-        console.log("🤖 [trackConversation] calling model directly");
-
-        // Use a simple configuration for the model call
-        const modelParams = {
-          prompt: analysisPrompt,
-          temperature: 0.3,
-          maxTokens: 512,
-        };
-
-        console.log("🤖 [trackConversation] model params:", {
-          prompt: modelParams.prompt.substring(0, 200) + "...",
-          temperature: modelParams.temperature,
-          maxTokens: modelParams.maxTokens,
-        });
-
-        const modelResponse = await runtime.useModel(
-          ModelType.TEXT_LARGE,
-          modelParams
-        );
-        console.log("🤖 [trackConversation] model response:", modelResponse);
-
-        // Parse the JSON response
-        try {
-          modelAnalysis = JSON.parse(modelResponse);
-          console.log("🤖 [trackConversation] parsed analysis:", modelAnalysis);
-        } catch (parseError) {
-          console.error(
-            "🤖 [trackConversation] failed to parse model response:",
-            parseError
-          );
-          // Fallback to default analysis
-          modelAnalysis = {
-            trustScore: 50,
-            relationship: "neutral",
-            statement: "Unable to analyze interaction",
-            metadata: {
-              interactionType: "neutral",
-              sentiment: "neutral",
-              confidence: 0.5,
-            },
-          };
-        }
-      } catch (modelError) {
-        console.error("🤖 [trackConversation] model call failed:", modelError);
-        // Fallback to default analysis
-        modelAnalysis = {
-          trustScore: 50,
-          relationship: "neutral",
-          statement: "Model analysis failed",
-          metadata: {
-            interactionType: "neutral",
-            sentiment: "neutral",
-            confidence: 0.5,
-          },
-        };
-      }
-
-      // Update trust scores and relationships based on analysis
-      console.log(
-        "🚀 [trackConversation] updating based on analysis:",
-        modelAnalysis
-      );
-
-      for (const [playerId, player] of Object.entries(newPlayers)) {
-        console.log(
-          "🚀 [trackConversation] updating player:",
-          playerId,
-          player.handle
-        );
-
-        const updatedPlayer = {
-          ...player,
-          trustScore: modelAnalysis.trustScore || player.trustScore,
-          relationship: modelAnalysis.relationship || player.relationship,
-        };
-
-        console.log("🚀 [trackConversation] updated player:", updatedPlayer);
-        newPlayers[playerId as UUID] = updatedPlayer;
-      }
-
-      // Combine all data
-      console.log("🚀 [trackConversation] combining data");
-
-      const finalPlayers = {
-        ...updatedPlayers,
-        ...newPlayers,
-      };
-
-      console.log(
-        "🚀 [trackConversation] finalPlayers keys:",
-        Object.keys(finalPlayers)
-      );
-
-      const finalRelationships = [
-        ...(Array.isArray(socialState.relationships)
-          ? socialState.relationships
-          : []),
-        ...newRelationships,
-      ];
-
-      console.log(
-        "🚀 [trackConversation] finalRelationships length:",
-        finalRelationships.length
-      );
-
-      const finalStatements = [
-        ...(Array.isArray(socialState.statements)
-          ? socialState.statements
-          : []),
-        ...newStatements,
-      ];
-
-      console.log(
-        "🚀 [trackConversation] finalStatements length:",
-        finalStatements.length
-      );
-
-      // Create updated state with core state properties
-      const updatedState: SocialStrategyState = {
-        players: finalPlayers,
-        relationships: finalRelationships,
-        statements: finalStatements,
-        metadata: {
-          lastAnalysis: Date.now(),
-          version: "1.0.0",
-        },
-        values: state.values,
-        data: state.data,
-        text: state.text,
-      };
-
-      console.log("🚀 [trackConversation] final state summary:", {
-        playersCount: Object.keys(updatedState.players).length,
-        relationshipsCount: updatedState.relationships.length,
-        statementsCount: updatedState.statements.length,
-      });
-
-      // Merge updated state into handler state
-      Object.assign(state, updatedState);
-
-      // Return success with updated state
-      return {
-        success: true,
-        message: "Social strategy state updated",
-        data: updatedState,
-      };
-    } catch (error) {
-      console.error("🚀 [trackConversation] handler error:", error);
-      console.error(
-        "🚀 [trackConversation] error stack:",
-        error instanceof Error ? error.stack : "No stack"
-      );
-      throw error;
+    // Extract mentions and process each
+    const mentionedHandles = extractMentions(textContent);
+    if (mentionedHandles.length === 0) {
+      speakingPlayer.lastInteraction = Date.now();
+      socialState.metadata.lastAnalysis = Date.now();
+      return { success: true, message: "No player mentions found." };
     }
+
+    for (const targetHandle of mentionedHandles) {
+      const targetPlayer = getOrCreatePlayer(
+        socialState,
+        runtime.agentId,
+        targetHandle
+      );
+
+      // Infer sentiment and relationship type
+      const sentiment = inferSentiment(textContent);
+      const relationshipType = sentimentToRelationship(sentiment);
+
+      // Update trust score of the TARGET based on sentiment
+      if (relationshipType === "ally") {
+        targetPlayer.trustScore = clamp(
+          targetPlayer.trustScore + TRUST_DELTA,
+          0,
+          100
+        );
+      } else if (relationshipType === "rival") {
+        targetPlayer.trustScore = clamp(
+          targetPlayer.trustScore - TRUST_DELTA,
+          0,
+          100
+        );
+      }
+
+      // Upsert relationship in both directions
+      const description = `Sentiment '${sentiment}' detected in message: "${textContent}"`;
+      upsertRelationship(
+        socialState,
+        speakingPlayer.id,
+        targetPlayer.id,
+        relationshipType,
+        description
+      );
+      upsertRelationship(
+        socialState,
+        targetPlayer.id,
+        speakingPlayer.id,
+        relationshipType,
+        description
+      );
+
+      // Add statement record
+      addStatement(
+        socialState,
+        speakingPlayer.id,
+        targetPlayer.id,
+        textContent,
+        sentiment
+      );
+    }
+
+    socialState.metadata.lastAnalysis = Date.now();
+
+    return {
+      success: true,
+      message: "Conversation tracked",
+      data: socialState,
+    };
   },
 };
