@@ -224,6 +224,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
   db: any = {};
   private memories: Record<string, Memory> = {};
   private relationships: Record<string, Relationship> = {};
+  private roomParticipants: Record<string, Set<UUID>> = {};
   agentId: UUID = asUUID(uuidv4());
   async init() {}
   async initialize() {}
@@ -426,7 +427,18 @@ export class InMemoryAdapter implements IDatabaseAdapter {
   async getParticipant() {
     return null;
   }
+  async addParticipantsRoom(entityIds: UUID[], roomId: UUID): Promise<boolean> {
+    if (!this.roomParticipants[roomId]) {
+      this.roomParticipants[roomId] = new Set<UUID>();
+    }
+    entityIds.forEach((id) => this.roomParticipants[roomId].add(id));
+    return true;
+  }
   async removeParticipant(entityId: UUID, roomId: UUID): Promise<boolean> {
+    const set = this.roomParticipants[roomId];
+    if (set) {
+      set.delete(entityId);
+    }
     return true;
   }
   async getAllParticipants() {
@@ -588,6 +600,9 @@ export class InMemoryAdapter implements IDatabaseAdapter {
   }
   async updateGoals() {
     return [];
+  }
+  async getParticipantsForRoom(roomId: UUID): Promise<UUID[]> {
+    return Array.from(this.roomParticipants[roomId]?.values() ?? []);
   }
 }
 

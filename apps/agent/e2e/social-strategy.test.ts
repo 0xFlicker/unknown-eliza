@@ -4,6 +4,7 @@ import {
   trackConversation,
   socialStrategyPlugin,
   getPlayerInfoHandler,
+  trackConversationHandler,
 } from "@0xflicker/plugin-social-strategy";
 import { MemoryType } from "@elizaos/core";
 
@@ -119,7 +120,7 @@ export class StarterTestSuite implements TestSuite {
         };
 
         // Cast result to expected type
-        const result = (await trackConversation.handler(
+        const result = (await trackConversationHandler(
           runtime,
           testMessage,
           initialState
@@ -250,8 +251,6 @@ export class StarterTestSuite implements TestSuite {
           nestedState
         );
 
-        console.log("playerInfoResult", playerInfoResult);
-
         if (!playerInfoResult.success) {
           throw new Error("getPlayerInfo action returned unsuccessful result");
         }
@@ -285,8 +284,6 @@ export class StarterTestSuite implements TestSuite {
           providerMessage,
           baseState
         );
-
-        console.log("providerResult", providerResult);
 
         if (!providerResult || !providerResult.values?.socialContext) {
           throw new Error("Provider did not return socialContext value");

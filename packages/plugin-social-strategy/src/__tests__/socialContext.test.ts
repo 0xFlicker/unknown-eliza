@@ -107,9 +107,16 @@ describe("social-context provider", () => {
       ],
     });
 
-    // Validate values and text
+    // Text output should be prompt-like and include SSA tag and player handles
+    const textOutput = result.text as string;
+    expect(textOutput).toContain("[[SSA:REL]]");
+    expect(textOutput).toContain("Alice");
+    expect(textOutput).toContain("Bob");
+
+    // values.socialContext should remain the raw JSON string
     const expectedString = JSON.stringify(result.data.socialContext);
     expect(result.values.socialContext).toBe(expectedString);
-    expect(result.text).toBe(`Social Context: ${expectedString}`);
+    // Optionally ensure socialPrompt is present and matches text
+    expect(result.values.socialPrompt).toBe(textOutput);
   });
 });
