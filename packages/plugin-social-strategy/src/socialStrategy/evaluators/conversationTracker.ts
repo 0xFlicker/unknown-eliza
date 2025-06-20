@@ -4,7 +4,6 @@ import {
   type Memory,
   type State,
 } from "@elizaos/core";
-import { trackConversationHandler } from "../actions/trackConversation";
 
 /**
  * Regex utility to detect @mentions in a text message.
@@ -13,7 +12,7 @@ import { trackConversationHandler } from "../actions/trackConversation";
  */
 function hasMentions(text: unknown): boolean {
   if (typeof text !== "string") return false;
-  return /@[a-zA-Z0-9_]+/.test(text);
+  return /@[^\s]+/.test(text);
 }
 
 /**

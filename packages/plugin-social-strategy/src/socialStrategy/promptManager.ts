@@ -143,3 +143,62 @@ export function formatHandles(handles: string[]): string {
   if (handles.length === 1) return handles[0];
   return `known as ${handles.join(", ")}`;
 }
+
+// Helper function to build analysis prompts
+export type AnalysisResult = {
+  handle: string;
+  trustScore: number;
+  statement: string;
+  sentiment: "positive" | "negative" | "neutral";
+  confidence: number;
+}[];
+
+export function buildAnalysisPrompt(
+  text: string,
+  speakingPlayer: string,
+  mentionedPlayers: string[]
+): string {
+  const playerList =
+    mentionedPlayers.length > 0 ? mentionedPlayers.join(", ") : "None";
+
+  return `Analyze this conversation and provide insights about player relationships and trust.
+
+Conversation: "${text}"
+Speaker: ${speakingPlayer || "Unknown"}
+Mentioned Players: ${playerList}
+
+When analyzing the conversation, consider the following:
+- The speaker is the person making the statement about other players
+- The mentioned players are the people being talked about from the speaker's perspective
+- The trust score is an abstract measure of the level of trust the speaker has in the mentioned players
+  - This is not a measure of the trust the mentioned players have in the speaker
+  - A 0 would be "it looks like the speaker wants to completely avoid the mentioned players"
+  - A 50 would be "it looks like the speaker wants to engage with the mentioned players, but is not sure how to do so"
+  - A 100 would be "it looks like the speaker wants to completely engage with the mentioned players"
+- The sentiment is the sentiment of the interaction
+- The confidence is the confidence in the analysis
+- The statement is the brief analysis of the interaction as it relates to the speaker
+
+
+Please provide a JSON response ONLY with the following structure (one object per mentioned player):
+[
+  {
+    "handle": "<first player handle>",
+    "trustScore": <number between 0-100>,
+    "statement": "<brief analysis of the interaction as it relates to the first player>",
+    "sentiment": "<positive|negative|neutral>",
+    "confidence": <number between 0-1>
+  },
+  {
+    "handle": "<second player handle>",
+    "trustScore": <number between 0-100>,
+    "statement": "<brief analysis of the interaction as it relates to the second player>",
+    "sentiment": "<positive|negative|neutral>",
+    "confidence": <number between 0-1>
+  },
+]
+
+No additional text or formatting, just the JSON object.
+
+Analysis:`;
+}

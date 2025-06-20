@@ -13,6 +13,7 @@
     "dev": "bunx turbo dev",
     "start": "bunx turbo start",
     "test": "bunx turbo test",
+    "test:e2e": "bunx turbo test:e2e",
     "lint": "bunx turbo lint",
     "format": "turbo format"
   }

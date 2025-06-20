@@ -17,48 +17,12 @@ import type {
   PlayerStatement,
   SocialStrategyState,
 } from "./types";
-import {
-  formatHandles,
-  SocialStrategyPromptBuilder,
-  type ModelWorkload,
-} from "./promptManager";
-import { getParticipantsForRoom } from "../safeUtils";
 import { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
+import { socialContextProvider } from "./providers/socialContext";
 
 const logger = elizaLogger.child({
   plugin: "social-strategy",
 });
-// Helper function to build analysis prompts
-export function buildAnalysisPrompt(
-  text: string,
-  speakingPlayer: string,
-  mentionedPlayers: string[]
-): string {
-  const playerList =
-    mentionedPlayers.length > 0 ? mentionedPlayers.join(", ") : "None";
-
-  return `Analyze this conversation and provide insights about player relationships and trust.
-
-Conversation: "${text}"
-Speaker: ${speakingPlayer || "Unknown"}
-Mentioned Players: ${playerList}
-
-Please provide a JSON response ONLY with the following structure:
-{
-  "trustScore": <number between 0-100>,
-  "relationship": "<ally|neutral|rival>",
-  "statement": "<brief analysis of the interaction>",
-  "metadata": {
-    "interactionType": "<positive|negative|neutral>",
-    "sentiment": "<positive|negative|neutral>",
-    "confidence": <number between 0-1>
-  }
-}
-
-No additional text or formatting, just the JSON object.
-
-Analysis:`;
-}
 
 export const getPlayerInfoHandler = async (
   runtime: IAgentRuntime,
@@ -125,166 +89,7 @@ export const socialStrategyPlugin: Plugin = {
   name: "social-strategy",
   description:
     "Tracks and manages player relationships and trust scores for social strategy analysis",
-  providers: [
-    {
-      name: "social-context",
-      description:
-        "Provides formatted social context (players, trust scores, top relationships, recent statements) for prompt injection",
-      get: async (
-        runtime: IAgentRuntime,
-        message: Memory,
-        state?: State
-      ): Promise<SocialStrategyContext> => {
-        logger.info(`Getting social context for room ${message.roomId}`);
-        const { roomId } = message;
-        // -------------------------
-        // 1. Gather data from runtime
-        // -------------------------
-        const participantIds = await getParticipantsForRoom(runtime, roomId);
-
-        logger.info(
-          `Participant IDs: ${JSON.stringify(participantIds, null, 2)}`
-        );
-
-        // Build a map for quick lookup
-        const playerMap: Record<string, PlayerEntity> = {};
-        for (const id of participantIds) {
-          if (id) {
-            const player = await runtime.getEntityById(id);
-            if (player) {
-              playerMap[id] = player as PlayerEntity;
-            }
-          }
-        }
-
-        // -------------------------
-        // 2. Runtime relationships & statements
-        // -------------------------
-        const relSet = new Set<string>();
-        const runtimeRelationships: Array<PlayerRelationship> = [];
-        for (const [id, player] of Object.entries(playerMap)) {
-          if (!id || !validateUuid(id)) continue;
-          const entityId = asUUID(id);
-          const rels = await runtime.getRelationships({ entityId });
-          for (const r of rels) {
-            const key = `${r.sourceEntityId}-${r.targetEntityId}`;
-            if (relSet.has(key)) continue;
-            relSet.add(key);
-            runtimeRelationships.push(r as PlayerRelationship);
-          }
-        }
-
-        const runtimeStatements: Array<PlayerStatement> = [];
-        for (const [id, player] of Object.entries(playerMap)) {
-          if (!id || !validateUuid(id)) continue;
-          const entityId = asUUID(id);
-          const comps = await runtime.getComponents(entityId);
-          for (const c of comps) {
-            if (c.type === "social-strategy-statement") {
-              runtimeStatements.push(c as PlayerStatement);
-            }
-          }
-        }
-
-        // -------------------------
-        // 3. Fallback/merge with in-memory SocialStrategyState
-        // -------------------------
-        let players = Object.values(playerMap);
-        let relationships = [...runtimeRelationships];
-        let statements = [...runtimeStatements];
-
-        const recentStatements = statements.slice(-5);
-        const socialContext = {
-          players,
-          relationships,
-          statements: recentStatements,
-        };
-
-        // ----------------------------------------------------
-        // 4. If no relevant data, return empty provider result
-        // ----------------------------------------------------
-        if (
-          players.length === 0 &&
-          relationships.length === 0 &&
-          recentStatements.length === 0
-        ) {
-          return {
-            values: {
-              players: [],
-              relationships: [],
-              statements: [],
-            },
-            text: "",
-          };
-        }
-
-        // ----------------------------------------------------
-        // 5. Build user-friendly prompt using PromptManager
-        // ----------------------------------------------------
-
-        const friendlyContextLines: string[] = [];
-
-        // Players section
-        if (players.length > 0) {
-          friendlyContextLines.push("Players:");
-          for (const p of players) {
-            friendlyContextLines.push(
-              `- ${formatHandles(p.names)} (Trust: ${p.metadata.trustScore})`
-            );
-          }
-          friendlyContextLines.push("");
-        }
-
-        // Relationships section
-        if (relationships.length > 0) {
-          friendlyContextLines.push("Relationships:");
-          for (const r of relationships) {
-            const sourcePlayer = playerMap[r.sourceEntityId];
-            const targetPlayer = playerMap[r.targetEntityId];
-            if (!sourcePlayer || !targetPlayer) continue;
-            friendlyContextLines.push(
-              `- ${formatHandles(sourcePlayer.names)} -> ${formatHandles(targetPlayer.names)} (${r.metadata.relationshipType}, strength ${r.metadata.strength})`
-            );
-          }
-          friendlyContextLines.push("");
-        }
-
-        // Recent statements section
-        if (recentStatements.length > 0) {
-          friendlyContextLines.push("Recent Statements:");
-          for (const s of recentStatements) {
-            const speakerPlayer = playerMap[s.data.speakerEntityId];
-            const targetPlayer = playerMap[s.data.targetEntityId];
-            if (!speakerPlayer || !targetPlayer) continue;
-            const snippet =
-              s.data.content.length > 100
-                ? `${s.data.content.slice(0, 97)}…`
-                : s.data.content;
-            friendlyContextLines.push(
-              `- ${formatHandles(speakerPlayer.names)} about ${formatHandles(targetPlayer.names)}: "${snippet}"`
-            );
-          }
-        }
-
-        const friendlyContext = friendlyContextLines.join("\n");
-
-        const prompt = new SocialStrategyPromptBuilder()
-          .withWorkload("RELATIONSHIP_ANALYSIS" as ModelWorkload)
-          .withMetadata("roomId", roomId ?? "unknown")
-          .withPrompt(friendlyContext)
-          .build().prompt;
-
-        return {
-          values: {
-            players,
-            relationships,
-            statements,
-          },
-          text: prompt,
-        };
-      },
-    },
-  ],
+  providers: [socialContextProvider],
 
   // Evaluators that passively listen to the conversation and keep the
   // social graph up-to-date.
@@ -326,4 +131,7 @@ export const socialStrategyPlugin: Plugin = {
 
 export { trackConversation } from "./actions/trackConversation";
 export { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
+export { socialContextProvider } from "./providers/socialContext";
 export * from "./types";
+
+/* promptManager utilities no longer required in this module */

@@ -190,7 +190,6 @@ export class ConversationSimulator {
       // Let runtime evaluators run (if any)
       const state = await this.runtime.composeState(memory);
       const result = await this.runtime.evaluate(memory, state, true);
-      console.log(`Result: ${JSON.stringify(result, null, 2)}`);
 
       if (onMessage) await onMessage(memory, state);
 

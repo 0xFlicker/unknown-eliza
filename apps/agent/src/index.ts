@@ -206,7 +206,10 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => initCharacter({ runtime }),
-  plugins: [socialStrategyPlugin, ...(!process.env.CI ? [pluginDiscord] : [])],
+  plugins: [
+    socialStrategyPlugin,
+    // ...(!process.env.CI ? [pluginDiscord] : [])
+  ],
 };
 const project: Project = {
   agents: [projectAgent],

@@ -74,7 +74,6 @@ export class StarterTestSuite implements TestSuite {
           ],
         };
         await sim.runConversation(script, async (message, state) => {
-          console.log(`Message: ${JSON.stringify(message, null, 2)}`);
           await runtime.processActions(message, []);
           const otherPlayer = state.values.players.find((p: PlayerEntity) =>
             p.names?.includes("OtherPlayer")

@@ -1,7 +1,4 @@
-export {
-  trackConversation,
-  trackConversationHandler,
-} from "./socialStrategy/actions/trackConversation";
+export { trackConversation } from "./socialStrategy/actions/trackConversation";
 export {
   socialStrategyPlugin,
   getPlayerInfoHandler,

@@ -22,8 +22,12 @@ describe("social-context provider", () => {
     const result = await (provider as any).get(runtime, message);
     expect(result).toEqual({
       text: "",
-      data: { socialContext: null },
-      values: { socialContext: "" },
+      data: { newSentiments: [] },
+      values: {
+        players: [],
+        relationships: [],
+        statements: [],
+      },
     });
   });
 
@@ -89,34 +93,36 @@ describe("social-context provider", () => {
     const result = await (provider as any).get(runtime, message);
 
     // Validate data structure
-    expect(result.data.socialContext).toEqual({
-      players: [
-        { handle: "Alice", trustScore: 70 },
-        { handle: "Bob", trustScore: 40 },
-      ],
+    expect(result.values).toEqual({
+      players: [],
       relationships: [
         {
-          source: "Alice",
-          target: "Bob",
+          sourceEntityId: "p1",
+          targetEntityId: "p2",
           relationshipType: "ally",
           strength: 80,
+          id: "r1",
+          metadata: {},
         },
       ],
-      recentStatements: [
-        { speaker: "Alice", target: "Bob", content: "Hello Bob" },
+      statements: [
+        {
+          id: "s1",
+          sourceEntityId: "p1",
+          targetEntityId: "p2",
+          content: "Hello Bob",
+          statementType: "mention",
+          sentiment: "neutral",
+          confidence: 0.5,
+          metadata: {},
+        },
       ],
     });
 
-    // Text output should be prompt-like and include SSA tag and player handles
-    const textOutput = result.text as string;
-    expect(textOutput).toContain("[[SSA:REL]]");
-    expect(textOutput).toContain("Alice");
-    expect(textOutput).toContain("Bob");
+    // text output remains blank since provider does not inject prompt
+    expect(result.text).toBe("");
 
-    // values.socialContext should remain the raw JSON string
-    const expectedString = JSON.stringify(result.data.socialContext);
-    expect(result.values.socialContext).toBe(expectedString);
-    // Optionally ensure socialPrompt is present and matches text
-    expect(result.values.socialPrompt).toBe(textOutput);
+    // new sentiments array should be empty
+    expect(result.data.newSentiments).toEqual([]);
   });
 });
