@@ -104,16 +104,10 @@ export const getPlayerInfoHandler = async (
 };
 
 export type SocialStrategyContext = {
-  data: {
-    socialContext?: {
-      players: PlayerEntity[];
-      relationships: PlayerRelationship[];
-      statements: PlayerStatement[];
-    };
-  };
   values: {
-    socialContext?: string;
-    socialPrompt?: string;
+    players: PlayerEntity[];
+    relationships: PlayerRelationship[];
+    statements: PlayerStatement[];
   };
   text: string;
 };
@@ -198,55 +192,6 @@ export const socialStrategyPlugin: Plugin = {
         let relationships = [...runtimeRelationships];
         let statements = [...runtimeStatements];
 
-        const socialState = (state as any)?.socialStrategyState as
-          | SocialStrategyState
-          | undefined;
-        if (socialState) {
-          // Players from state
-          // const statePlayersArr = Object.values(socialState.players).map(
-          //   (p) => ({
-          //     handles: p.names,
-          //     entityId: p.id,
-          //     trustScore: p.metadata.trustScore,
-          //   })
-          // );
-
-          // // Merge player handles, preferring state trustScore values
-          // const seenHandles = new Map<string, [number, UUID]>();
-          // for (const sp of statePlayersArr) {
-          //   seenHandles.set(sp.handle, [sp.trustScore, sp.entityId]);
-          // }
-          // for (const rp of players) {
-          //   if (!seenHandles.has(rp.handle)) {
-          //     seenHandles.set(rp.handle, [rp.trustScore, rp.entityId]);
-          //   }
-          // }
-          // players = Array.from(seenHandles.entries()).map(
-          //   ([handle, trustScore]) => ({
-          //     handle,         //     trustScore,
-          //   })
-          // );
-
-          // // Build id→handle map from state for relationships/statement conversion
-          // const idToHandle: Record<string, string> = {};
-          // for (const [id, p] of Object.entries(socialState.players)) {
-          //   idToHandle[id] = p.handle;
-          // }
-
-          // Merge (avoid duplicates by simple key)
-          const relKey = (r: { sourceEntityId: UUID; targetEntityId: UUID }) =>
-            `${r.sourceEntityId}-${r.targetEntityId}`;
-          const allRels = [...relationships, ...socialState.relationships];
-          const uniqueRelMap = new Map<string, PlayerRelationship>();
-          for (const r of allRels) {
-            uniqueRelMap.set(relKey(r), r);
-          }
-          relationships = Array.from(uniqueRelMap.values());
-
-          // Statements from state – convert to readable form
-          statements = [...statements, ...socialState.statements];
-        }
-
         const recentStatements = statements.slice(-5);
         const socialContext = {
           players,
@@ -263,8 +208,11 @@ export const socialStrategyPlugin: Plugin = {
           recentStatements.length === 0
         ) {
           return {
-            data: {},
-            values: {},
+            values: {
+              players: [],
+              relationships: [],
+              statements: [],
+            },
             text: "",
           };
         }
@@ -323,11 +271,12 @@ export const socialStrategyPlugin: Plugin = {
           .withPrompt(friendlyContext)
           .build().prompt;
 
-        const contextString = JSON.stringify(socialContext);
-
         return {
-          data: { socialContext },
-          values: { socialContext: contextString, socialPrompt: prompt },
+          values: {
+            players,
+            relationships,
+            statements,
+          },
           text: prompt,
         };
       },

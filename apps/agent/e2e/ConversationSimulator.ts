@@ -7,6 +7,7 @@ import {
   stringToUuid,
   logger,
   ChannelType,
+  State,
 } from "@elizaos/core";
 
 export interface UserProfile {
@@ -18,6 +19,7 @@ export interface UserProfile {
 export interface ConversationStep {
   from: string; // User name
   content: string;
+  actions?: string[];
   delay?: number; // Milliseconds to wait before sending
 }
 
@@ -119,11 +121,17 @@ export class ConversationSimulator {
   /**
    * Simulates sending a message from a user
    */
-  async sendMessage(
-    from: Entity,
-    content: string,
-    room: Room
-  ): Promise<Memory> {
+  async sendMessage({
+    from,
+    content,
+    room,
+    actions,
+  }: {
+    from: Entity;
+    content: string;
+    room: Room;
+    actions?: string[];
+  }): Promise<Memory> {
     const messageId = stringToUuid(`msg-${from.id}-${Date.now()}`);
 
     const memory: Memory = {
@@ -134,6 +142,7 @@ export class ConversationSimulator {
       content: {
         text: content,
         type: "text",
+        actions,
       },
       createdAt: Date.now(),
     } as Memory;
@@ -156,7 +165,7 @@ export class ConversationSimulator {
    */
   async runConversation(
     script: ConversationScript,
-    onMessage?: (memory: Memory) => Promise<void> | void
+    onMessage?: (memory: Memory, state: State) => Promise<void> | void
   ): Promise<void> {
     const room = await this.getOrCreateRoom(script.room);
     // Create participants
@@ -171,22 +180,21 @@ export class ConversationSimulator {
 
       if (step.delay) await new Promise((r) => setTimeout(r, step.delay));
 
-      const memory = await this.sendMessage(user.entity, step.content, room);
+      const memory = await this.sendMessage({
+        from: user.entity,
+        content: step.content,
+        room,
+        actions: step.actions,
+      });
 
       // Let runtime evaluators run (if any)
       const state = await this.runtime.composeState(memory);
-      await this.runtime.evaluate(memory, state, false);
+      const result = await this.runtime.evaluate(memory, state, true);
+      console.log(`Result: ${JSON.stringify(result, null, 2)}`);
 
-      if (onMessage) await onMessage(memory);
+      if (onMessage) await onMessage(memory, state);
 
       await new Promise((r) => setTimeout(r, 100));
-
-      const memories = await this.runtime.getMemoriesByRoomIds({
-        roomIds: [room.id],
-        tableName: "components",
-        limit: 1000,
-      });
-      console.log(`Memories: ${JSON.stringify(memories, null, 2)}`);
     }
   }
 

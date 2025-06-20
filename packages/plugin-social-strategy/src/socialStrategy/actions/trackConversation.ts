@@ -16,6 +16,9 @@ import {
 } from "../types";
 import { safeAddParticipant } from "../../safeUtils";
 
+// Create a child logger specifically for this action with additional context.
+// Logs throughout this file use expressive emoji prefixes (🚀, ✅, ⚠️, 🔍, 🔗, 👀, 🗣️) so that important
+// milestones stand out clearly when scanning log output.
 const logger = elizaLogger.child({
   plugin: "social-strategy",
   action: "trackConversation",
@@ -290,7 +293,7 @@ export const trackConversationHandler = async (
   message: Memory,
   state?: State
 ) => {
-  logger.info(`Tracking conversation in room ${message.roomId}`);
+  logger.info(`🚀 Starting conversation tracking | room: ${message.roomId}`);
   const socialState: SocialStrategyState = {
     players: {},
     relationships: [],
@@ -302,6 +305,7 @@ export const trackConversationHandler = async (
   };
 
   const textContent = (message.content as { text: string }).text;
+  logger.info(`📝 Message content: "${textContent}"`);
 
   // Identify speaking player handle. Prefer metadata.username, fall back to entityId string.
   const username =
@@ -313,16 +317,20 @@ export const trackConversationHandler = async (
     socialState,
     username
   );
+  logger.info(`🎤 Speaker identified: ${username} (${speakingPlayer.id})`);
 
   // Extract mentions and process each
   const mentionedHandles = extractMentions(textContent);
   if (mentionedHandles.length === 0) {
     speakingPlayer.metadata.lastInteraction = Date.now();
     socialState.metadata.lastAnalysis = Date.now();
+    logger.info("✅ No player mentions found – nothing to update.");
     return { success: true, message: "No player mentions found." };
   }
 
-  logger.info(`${mentionedHandles.length} mentioned handles`);
+  logger.info(
+    `👀 Found ${mentionedHandles.length} mention(s): ${mentionedHandles.join(", ")}`
+  );
 
   for (const targetHandle of mentionedHandles) {
     const targetPlayer = await getOrCreatePlayer(
@@ -330,6 +338,8 @@ export const trackConversationHandler = async (
       socialState,
       targetHandle
     );
+
+    logger.info(`➡️  Processing mention '@${targetHandle}'`);
 
     // Ensure target player connection as well
     await safeAddParticipant({
@@ -343,18 +353,34 @@ export const trackConversationHandler = async (
     const sentiment = inferSentiment(textContent);
     const relationshipType = sentimentToRelationship(sentiment);
 
+    logger.info(
+      `🔍 Sentiment toward @${targetHandle}: ${sentiment} → relationship '${relationshipType}'`
+    );
+
     // Update trust score of the TARGET based on sentiment
+    let trustChange = 0;
     if (relationshipType === "ally") {
+      trustChange = TRUST_DELTA;
       targetPlayer.metadata.trustScore = clamp(
         targetPlayer.metadata.trustScore + TRUST_DELTA,
         0,
         100
       );
     } else if (relationshipType === "rival") {
+      trustChange = -TRUST_DELTA;
       targetPlayer.metadata.trustScore = clamp(
         targetPlayer.metadata.trustScore - TRUST_DELTA,
         0,
         100
+      );
+    }
+
+    if (trustChange !== 0) {
+      const emoji = trustChange > 0 ? "✅" : "⚠️";
+      logger.info(
+        `${emoji} Trust score for @${targetHandle} ${trustChange > 0 ? "increased" : "decreased"} by ${Math.abs(
+          trustChange
+        )} → ${targetPlayer.metadata.trustScore}`
       );
     }
 
@@ -369,6 +395,10 @@ export const trackConversationHandler = async (
       description
     );
 
+    logger.info(
+      `🔗 Relationship recorded: ${username} → ${targetHandle} (${relationshipType})`
+    );
+
     // Add statement record
     await addStatement({
       runtime,
@@ -379,23 +409,36 @@ export const trackConversationHandler = async (
       content: textContent,
       sentiment,
     });
+
+    logger.info(`🗣️  Statement logged for interaction with @${targetHandle}`);
   }
 
-  socialState.metadata.lastAnalysis = Date.now();
-
-  return {
-    success: true,
-    message: "Conversation tracked",
-    data: socialState,
-  };
+  logger.info("🏁 Conversation tracking completed.");
 };
 
 export const trackConversation: Action = {
   name: "trackConversation",
   description:
-    "Analyze a message, identify player mentions, infer sentiment, and update the player graph.",
-  similes: ["SSA_TRACK"],
-  examples: [],
+    "Analyze a message, identify player mentions, infer sentiment, and update the player graph. Called whenever a user mentions another player.",
+  similes: ["UPDATE_SENTIMENT", "NOTICE_MENTION"],
+  examples: [
+    [
+      {
+        name: "{{user}}",
+        content: {
+          text: "What do you think of @OtherPlayer?",
+          actions: ["NOTICE_MENTION"],
+        },
+      },
+      {
+        name: "{{user}}",
+        content: {
+          text: "I think @OtherPlayer is {{sentiment}}.",
+          actions: ["UPDATE_SENTIMENT"],
+        },
+      },
+    ],
+  ],
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     return (
       typeof message.content === "object" &&

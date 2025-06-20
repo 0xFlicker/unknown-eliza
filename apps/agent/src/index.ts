@@ -7,7 +7,6 @@ import {
 } from "@elizaos/core";
 import pluginSql from "@elizaos/plugin-sql";
 import { socialStrategyPlugin } from "@elizaos/plugin-social-strategy";
-import { rolodexPlugin } from "@elizaos/plugin-rolodex";
 
 /**
  * Represents a "floater" character in a social strategy game.
@@ -20,8 +19,6 @@ export const character: Character = {
   name: "Alex",
   plugins: [
     "@elizaos/plugin-sql",
-    "@elizaos/plugin-social-strategy",
-    "@elizaos/plugin-rolodex",
     ...(!process.env.CI
       ? [
           "@elizaos-plugins/plugin-image",
@@ -206,7 +203,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => initCharacter({ runtime }),
-  plugins: [pluginSql, socialStrategyPlugin, rolodexPlugin],
+  plugins: [pluginSql, socialStrategyPlugin],
 };
 const project: Project = {
   agents: [projectAgent],

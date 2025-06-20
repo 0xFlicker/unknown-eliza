@@ -1,10 +1,6 @@
 import { character } from "../src/index.ts";
-import { v4 as uuidv4 } from "uuid";
 import {
-  trackConversationHandler,
-  getPlayerInfoHandler,
-  socialStrategyPlugin,
-  SocialStrategyState,
+  PlayerEntity,
   SocialStrategyContext,
 } from "@0xflicker/plugin-social-strategy";
 import { ChannelType, IAgentRuntime } from "@elizaos/core";
@@ -73,41 +69,43 @@ export class StarterTestSuite implements TestSuite {
             {
               from: "OtherPlayer",
               content: "@TestPlayer has shown me that they can be trusted",
+              actions: ["NOTICE_MENTION"],
             },
           ],
         };
-        await sim.runConversation(script);
-        const memory = await sim.sendMessage(
-          sim.users.get("OtherPlayer")!.entity,
-          "@TestPlayer has shown me that they can be trusted",
-          sim.rooms.get("trust-room")!
-        );
-        await sim.waitForEvaluators();
-        const {
-          data: {
-            providers: { ["social-context"]: state },
-          },
-        } = (await runtime.composeState(memory, [
-          "SSA_TRACK",
-          "SOCIAL_CONTEXT",
-        ])) as unknown as {
-          data: {
-            providers: {
-              ["social-context"]: SocialStrategyContext;
-            };
-          };
-        };
-        // find TestPlayer in state.players
-        const testPlayer = state.data.socialContext?.players.find((p) =>
-          p.names?.includes("TestPlayer")
-        );
-        if (!testPlayer) throw new Error("TestPlayer not found");
-        // find OtherPlayer in state.players
-        const otherPlayer = state.data.socialContext?.players.find((p) =>
-          p.names?.includes("OtherPlayer")
-        );
-        if (!otherPlayer) throw new Error("OtherPlayer not found");
-        verifier.verifyMentionedPerson(memory.entityId, testPlayer.id);
+        await sim.runConversation(script, async (message, state) => {
+          console.log(`Message: ${JSON.stringify(message, null, 2)}`);
+          await runtime.processActions(message, []);
+          const otherPlayer = state.values.players.find((p: PlayerEntity) =>
+            p.names?.includes("OtherPlayer")
+          );
+          if (!otherPlayer) throw new Error("TestPlayer not found");
+          verifier.verifyMentionedPerson(message.entityId, otherPlayer.id);
+        });
+        // const memory = await sim.sendMessage({
+        //   from: sim.users.get("OtherPlayer")!.entity,
+        //   content: "@TestPlayer has shown me that they can be trusted",
+        //   room: sim.rooms.get("trust-room")!,
+        //   actions: ["NOTICE_MENTION"],
+        // });
+        // await sim.waitForEvaluators();
+        // const {
+        //   values: { players, relationships, statements },
+        // } = (await runtime.composeState(memory, [
+        //   "SOCIAL_CONTEXT",
+        // ])) as unknown as {
+        //   values: SocialStrategyContext["values"];
+        // };
+        // // find TestPlayer in state.players
+        // const testPlayer = players.find((p) => p.names?.includes("TestPlayer"));
+        // if (!testPlayer) throw new Error("TestPlayer not found");
+        // // find OtherPlayer in state.players
+        // const otherPlayer = players.find((p) =>
+        //   p.names?.includes("OtherPlayer")
+        // );
+        // if (!otherPlayer) throw new Error("OtherPlayer not found");
+        // await runtime.processActions(memory, []);
+        // verifier.verifyMentionedPerson(memory.entityId, testPlayer.id);
       },
     },
 

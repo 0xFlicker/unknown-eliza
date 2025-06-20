@@ -18,13 +18,12 @@ This eliza plugin that is a conversation tracker for a social strategy game play
 
 Writing best-in-class Typescript, develop an eliza plugin that creates, updates, and evaluates conversations against those memories.
 
+# Building
+
+Getting cross-package types to work correctly requires a build at root via: `bun run build`
+
 # Running Tests
 
-in apps/agent there are unit and e2e tests:
-- unit: bun test:component
-- e2e: bun test:e2e
+Focus on the e2e tests for now.
 
-otherwise, one can run:
-- bun run test
-
-Before running tests, the plugins need to be build. Running `bun run build` at the root of the repo will re-build everything.
+They can be run from the root via: `bun run test:e2e`

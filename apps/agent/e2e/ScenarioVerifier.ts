@@ -358,8 +358,9 @@ export class ScenarioVerifier {
     //   unique: true,
     // });
     console.log(`Getting components for ${mentionedBy}`);
-    const components = await this.runtime.getComponents(mentionedBy);
-    const memories = components.filter(
+    const entity = await this.runtime.getEntityById(mentionedBy);
+    console.log(`Entity: ${JSON.stringify(entity, null, 2)}`);
+    const memories = entity?.components?.filter(
       (c) => c.type === "social-strategy-statement"
     ) as PlayerStatement[];
 
