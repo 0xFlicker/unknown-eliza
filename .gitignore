@@ -17,3 +17,5 @@ packages/**/node_modules
 .eliza/
 
 *.code-workspace
+
+.turbo
