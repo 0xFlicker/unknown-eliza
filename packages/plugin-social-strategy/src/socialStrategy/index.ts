@@ -2,54 +2,17 @@ import {
   type Action,
   type IAgentRuntime,
   type Memory,
-  MemoryType,
   type Plugin,
   type Provider,
   type UUID,
   logger,
 } from "@elizaos/core";
 import { trackConversation } from "./actions/trackConversation";
-
-// Types for social strategy state
-export interface Player {
-  id: UUID;
-  handle: string;
-  discriminator: string;
-  trustScore: number;
-  relationship: "ally" | "neutral" | "rival";
-  lastSeen: number;
-  metadata: Record<string, any>;
-}
-
-export interface Relationship {
-  id: UUID;
-  sourceEntityId: UUID;
-  targetEntityId: UUID;
-  relationshipType: string;
-  strength: number;
-  metadata: Record<string, any>;
-}
-
-export interface Statement {
-  id: UUID;
-  sourceEntityId: UUID;
-  targetEntityId: UUID;
-  content: string;
-  statementType: string;
-  sentiment: "positive" | "negative" | "neutral";
-  confidence: number;
-  metadata: Record<string, any>;
-}
-
-export interface SocialStrategyState {
-  players: Record<UUID, Player>;
-  relationships: Relationship[];
-  statements: Statement[];
-  metadata: {
-    lastAnalysis: number;
-    version: string;
-  };
-}
+import type {
+  SocialStrategyState,
+  PlayerRelationship,
+  PlayerStatement,
+} from "./types";
 
 // Helper function to build analysis prompts
 export function buildAnalysisPrompt(
@@ -66,7 +29,7 @@ Conversation: "${text}"
 Speaker: ${speakingPlayer || "Unknown"}
 Mentioned Players: ${playerList}
 
-Please provide a JSON response with the following structure:
+Please provide a JSON response ONLY with the following structure:
 {
   "trustScore": <number between 0-100>,
   "relationship": "<ally|neutral|rival>",
@@ -78,39 +41,101 @@ Please provide a JSON response with the following structure:
   }
 }
 
+No additional text or formatting, just the JSON object.
+
 Analysis:`;
 }
 
 export const socialStrategyPlugin: Plugin = {
+  // Ensure connections default to conversation when type is undefined
+  init: async (_config, runtime) => {
+    const originalEnsureConnection = runtime.ensureConnection.bind(runtime);
+    runtime.ensureConnection = async (params) => {
+      const fixedType = params.type ?? "conversation";
+      return originalEnsureConnection({ ...params, type: fixedType });
+    };
+  },
   name: "social-strategy",
   description:
     "Tracks and manages player relationships and trust scores for social strategy analysis",
   providers: [
     {
-      name: "social-strategy-state",
-      description: "Provides the current social strategy state",
-      get: async (runtime, message, state) => {
-        // Get the social strategy memory
-        const memories = await runtime.getMemoriesByIds([
-          `${runtime.agentId}:social-strategy`,
-        ]);
-
-        const socialStrategyMemory = memories.find(
-          (memory) => memory.metadata?.type === MemoryType.CUSTOM
-        );
-
-        if (!socialStrategyMemory) {
-          return { text: "" };
+      name: "social-context",
+      description:
+        "Provides formatted social context (players, trust scores, top relationships, recent statements) for prompt injection",
+      get: async (runtime: IAgentRuntime, message: Memory) => {
+        const { roomId } = message;
+        // Fetch participants in the room via entity IDs to avoid date parsing issues
+        const participantIds = await runtime.getParticipantsForRoom(roomId);
+        const participants: Array<{ id?: UUID; names: string[] }> = [];
+        for (const id of participantIds) {
+          const ent = await runtime.getEntityById(id);
+          if (ent) {
+            participants.push({ id: ent.id, names: ent.names });
+          }
         }
-
-        // Parse the state from the memory content
-        const socialState = JSON.parse(
-          socialStrategyMemory.content.text || "{}"
-        ) as SocialStrategyState;
-
+        // Build players list
+        const players = participants.map((e) => ({
+          handle: e.names[0],
+          trustScore: 50, // default or extend with component data
+        }));
+        // Build a map for lookup
+        const playerMap: Record<string, string> = {};
+        for (const e of participants) {
+          if (e.id) {
+            playerMap[e.id] = e.names[0];
+          }
+        }
+        // Fetch relationships for each participant
+        const relSet = new Set<string>();
+        const relationships: Array<{
+          source: string;
+          target: string;
+          relationshipType: string;
+          strength: number;
+        }> = [];
+        for (const e of participants) {
+          if (!e.id) continue;
+          const rels = await runtime.getRelationships({ entityId: e.id });
+          for (const r of rels) {
+            const key = `${r.sourceEntityId}-${r.targetEntityId}`;
+            if (relSet.has(key)) continue;
+            relSet.add(key);
+            relationships.push({
+              source: playerMap[r.sourceEntityId] ?? r.sourceEntityId,
+              target: playerMap[r.targetEntityId] ?? r.targetEntityId,
+              relationshipType: r.tags?.[0] ?? "",
+              strength: (r.metadata as any)?.strength ?? 0,
+            });
+          }
+        }
+        // Fetch statements stored as components
+        const statements: Array<{
+          speaker: string;
+          target: string;
+          content: string;
+        }> = [];
+        for (const e of participants) {
+          if (!e.id) continue;
+          const comps = await runtime.getComponents(e.id);
+          for (const c of comps) {
+            if (c.type === "social-strategy-statement") {
+              const targetId = (c.data as any).targetEntityId as UUID;
+              statements.push({
+                speaker: playerMap[c.entityId] ?? c.entityId,
+                target: playerMap[targetId] ?? targetId,
+                content: (c.data as any).content,
+              });
+            }
+          }
+        }
+        const recentStatements = statements.slice(-5);
+        const socialContext = { players, relationships, recentStatements };
+        const contextString = JSON.stringify(socialContext);
         return {
-          text: "", // No text needed for this provider
-          data: { socialStrategyState: socialState }, // Make state available to actions
+          data: { socialContext },
+          values: { socialContext: contextString },
+          text: `Social Context: ${contextString}`,
         };
       },
     },
@@ -164,15 +189,20 @@ export const socialStrategyPlugin: Plugin = {
         }
 
         // Get relationships involving this player
-        const relationships = socialState.relationships.filter(
-          (rel) =>
-            rel.sourceEntityId === playerId || rel.targetEntityId === playerId
-        );
+        const relationships = socialState.relationships.filter((rel) => {
+          const sourceId =
+            (rel as any).sourceEntityId ?? (rel as any).sourcePlayerId;
+          const targetId =
+            (rel as any).targetEntityId ?? (rel as any).targetPlayerId;
+          return sourceId === playerId || targetId === playerId;
+        });
 
         // Get statements about this player
-        const statements = socialState.statements.filter(
-          (stmt) => stmt.targetEntityId === playerId
-        );
+        const statements = socialState.statements.filter((stmt) => {
+          const targetId =
+            (stmt as any).targetEntityId ?? (stmt as any).targetId;
+          return targetId === playerId;
+        });
 
         return {
           success: true,
@@ -186,37 +216,7 @@ export const socialStrategyPlugin: Plugin = {
     },
   ],
 
-  routes: [
-    {
-      path: "/social-strategy",
-      type: "GET",
-      handler: async (req, res, runtime) => {
-        // Get the social strategy memory
-        const memories = await runtime.getMemoriesByIds([
-          `${runtime.agentId}:social-strategy`,
-        ]);
-
-        const socialStrategyMemory = memories.find(
-          (memory) => memory.metadata?.type === MemoryType.CUSTOM
-        );
-
-        if (!socialStrategyMemory) {
-          return res.json({
-            players: {},
-            relationships: [],
-            statements: [],
-          });
-        }
-
-        // Parse the state from the memory content
-        const socialState = JSON.parse(
-          socialStrategyMemory.content.text || "{}"
-        ) as SocialStrategyState;
-
-        return res.json(socialState);
-      },
-    },
-  ],
+  // routes removed: global memory storage is deprecated
 };
 
 export { trackConversation } from "./actions/trackConversation";

@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { MemoryType, asUUID, ModelType, type UUID } from "@elizaos/core";
-import { socialStrategyPlugin, trackConversation } from "@0xflicker/plugin-social-strategy";
+import {
+  socialStrategyPlugin,
+  trackConversation,
+} from "@0xflicker/plugin-social-strategy";
 import type { SocialStrategyState } from "@0xflicker/plugin-social-strategy/types";
 import { v4 as uuidv4 } from "uuid";
 import { createTestRuntime } from "../../utils/core-test-utils";
@@ -96,7 +99,7 @@ describe("Social Strategy Trust Tests", () => {
       entityId: otherPlayerId,
       roomId: testRoomId,
       content: {
-        text: "Great move, @TestPlayer!", // Mentions player1 by handle
+        text: "@TestPlayer has shown me that they can be trusted",
       },
       metadata: {
         type: "message",

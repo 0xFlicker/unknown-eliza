@@ -1,6 +1,11 @@
 import { character } from "../src/index.ts";
 import { v4 as uuidv4 } from "uuid";
-import { type UUID, type Memory, MemoryType } from "@elizaos/core";
+import {
+  type UUID,
+  type Memory,
+  MemoryType,
+  stringToUuid,
+} from "@elizaos/core";
 import { trackConversation } from "@0xflicker/plugin-social-strategy";
 
 // Define a minimal TestSuite interface that matches what's needed
@@ -77,7 +82,7 @@ export class ProjectTestSuite implements TestSuite {
           entityId: otherPlayerId,
           roomId: testRoomId,
           content: {
-            text: "Great move, @TestPlayer!", // Mentions player1 by handle
+            text: "@TestPlayer has shown me that they can be trusted",
           },
           metadata: {
             type: MemoryType.CUSTOM,

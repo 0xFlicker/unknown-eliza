@@ -5,6 +5,7 @@ import {
   type IAgentRuntime,
   type Content,
   type Memory,
+  type Entity,
   ModelType,
   type UUID,
   type GenerateTextParams,
@@ -267,15 +268,16 @@ export const trackConversation: Action = {
       });
 
       // Extract text content
-      const textContent = (message.content as Content).text;
+      const textContent = message.content.text;
       console.log("🚀 [trackConversation] textContent:", textContent);
 
       // Extract entity information
       const entityId = message.entityId;
-      const entityName = (message.metadata as any)?.entityName || "Unknown";
-      const username = (message.metadata as any)?.username || "Unknown";
-      const discriminator = (message.metadata as any)?.discriminator || "0000";
-      const roomId = (message.metadata as any)?.roomId || uuidv4();
+      const meta = message.metadata as MessageMetadata;
+      const entityName = meta.entityName ?? "Unknown";
+      const username = meta.username ?? "Unknown";
+      const discriminator = meta.discriminator ?? "0000";
+      const roomId = message.roomId;
 
       console.log("🚀 [trackConversation] extracted entity info:", {
         entityId,
@@ -341,28 +343,26 @@ export const trackConversation: Action = {
       );
 
       for (const mentionedHandle of mentionedPlayers) {
+        // Removed DB createEntity for mentioned player; keep in-memory only
+        const targetId = stringToUuid(
+          `${agentId}:player:${mentionedHandle.toLowerCase()}`
+        );
         console.log(
           "🚀 [trackConversation] processing mentioned handle:",
           mentionedHandle
         );
 
-        const mentionedPlayerId = stringToUuid(
-          `${agentId}:player:${mentionedHandle.toLowerCase()}`
-        );
-        console.log(
-          "🚀 [trackConversation] mentionedPlayerId:",
-          mentionedPlayerId
-        );
+        console.log("🚀 [trackConversation] mentionedPlayerId:", targetId);
 
         // Create or update mentioned player
-        const existingMentionedPlayer = updatedPlayers[mentionedPlayerId];
+        const existingMentionedPlayer = updatedPlayers[targetId];
         console.log(
           "🚀 [trackConversation] existingMentionedPlayer:",
           existingMentionedPlayer
         );
 
-        const mentionedPlayer: Player = {
-          id: mentionedPlayerId,
+        const mentionedPlayer: PlayerEntity = {
+          id: targetId,
           handle: mentionedHandle,
           discriminator: "0000",
           trustScore: existingMentionedPlayer?.trustScore ?? 50,
@@ -379,7 +379,7 @@ export const trackConversation: Action = {
           "🚀 [trackConversation] mentionedPlayer created:",
           mentionedPlayer
         );
-        newPlayers[mentionedPlayerId] = mentionedPlayer;
+        newPlayers[targetId] = mentionedPlayer;
 
         // Create relationship between speaking and mentioned player
         const relationshipId = uuidv4() as UUID;
@@ -388,7 +388,7 @@ export const trackConversation: Action = {
         const relationship: Relationship = {
           id: relationshipId,
           sourceEntityId: speakingPlayerId,
-          targetEntityId: mentionedPlayerId,
+          targetEntityId: targetId,
           relationshipType: "mentions",
           strength: 1,
           metadata: {
@@ -407,10 +407,10 @@ export const trackConversation: Action = {
         const statementId = uuidv4() as UUID;
         console.log("🚀 [trackConversation] statementId:", statementId);
 
-        const statement: Statement = {
+        const statement: PlayerStatement = {
           id: statementId,
           sourceEntityId: speakingPlayerId,
-          targetEntityId: mentionedPlayerId,
+          targetEntityId: targetId,
           content: textContent,
           statementType: "mention",
           sentiment: "neutral",
@@ -563,7 +563,7 @@ export const trackConversation: Action = {
         finalStatements.length
       );
 
-      // Create updated state
+      // Create updated state with core state properties
       const updatedState: SocialStrategyState = {
         players: finalPlayers,
         relationships: finalRelationships,
@@ -572,6 +572,9 @@ export const trackConversation: Action = {
           lastAnalysis: Date.now(),
           version: "1.0.0",
         },
+        values: state.values,
+        data: state.data,
+        text: state.text,
       };
 
       console.log("🚀 [trackConversation] final state summary:", {
@@ -580,27 +583,13 @@ export const trackConversation: Action = {
         statementsCount: updatedState.statements.length,
       });
 
-      // Store the updated state in memory
-      console.log("🚀 [trackConversation] storing state in memory");
+      // Merge updated state into handler state
+      Object.assign(state, updatedState);
 
-      const memoryId = `${agentId}:social-strategy`;
-      console.log("🚀 [trackConversation] memoryId:", memoryId);
-
-      // Check if storeMemory method exists (may not be available in test environment)
-      runtime.createMemory({
-        id: memoryId as UUID,
-        content: {
-          text: JSON.stringify(updatedState),
-        },
-        metadata: {
-          type: MemoryType.CUSTOM,
-          source: "social-strategy",
-          timestamp: Date.now(),
-        },
-      });
-
+      // Return success with updated state
       return {
         success: true,
+        message: "Social strategy state updated",
         data: updatedState,
       };
     } catch (error) {

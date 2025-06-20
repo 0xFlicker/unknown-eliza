@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.2.15",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "bootstrap": "bun install",
-    "build": "bun lerna run build",
-    "dev": "bun lerna run dev",
-    "start": "bun lerna run start",
-    "test": "bun lerna run test",
-    "lint": "bun lerna run lint",
-    "format": "bun lerna run format"
+    "build": "bunx turbo build",
+    "dev": "bunx turbo dev",
+    "start": "bunx turbo start",
+    "test": "bunx turbo test",
+    "lint": "bunx turbo lint",
+    "format": "turbo format"
   }
 }

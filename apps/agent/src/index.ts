@@ -5,7 +5,8 @@ import {
   type Project,
   type ProjectAgent,
 } from "@elizaos/core";
-import { socialStrategyPlugin } from "@0xflicker/plugin-social-strategy";
+import pluginSql from "@elizaos/plugin-sql";
+import { socialStrategyPlugin } from "@elizaos/plugin-social-strategy";
 import { rolodexPlugin } from "@elizaos/plugin-rolodex";
 
 /**
@@ -19,10 +20,17 @@ export const character: Character = {
   name: "Alex",
   plugins: [
     "@elizaos/plugin-sql",
-    "@elizaos-plugins/plugin-image",
-    "@elizaos-plugins/plugin-image-generation",
-    "@elizaos-plugins/plugin-browser",
-    "@elizaos-plugins/plugin-discord",
+    "@elizaos/plugin-social-strategy",
+    "@elizaos/plugin-rolodex",
+    ...(!process.env.CI
+      ? [
+          "@elizaos-plugins/plugin-image",
+          "@elizaos-plugins/plugin-image-generation",
+          "@elizaos-plugins/plugin-discord",
+          "@elizaos-plugins/plugin-browser",
+        ]
+      : []),
+
     ...(process.env.ANTHROPIC_API_KEY ? ["@elizaos/plugin-anthropic"] : []),
     ...(process.env.OPENAI_API_KEY ? ["@elizaos/plugin-openai"] : []),
     ...(process.env.OLLAMA_MODEL ? ["@elizaos/plugin-ollama"] : []),
@@ -198,7 +206,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => initCharacter({ runtime }),
-  plugins: [socialStrategyPlugin, rolodexPlugin],
+  plugins: [pluginSql, socialStrategyPlugin, rolodexPlugin],
 };
 const project: Project = {
   agents: [projectAgent],

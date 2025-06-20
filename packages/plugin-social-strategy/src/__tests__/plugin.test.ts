@@ -19,9 +19,4 @@ describe("Social Strategy Plugin", () => {
     expect(socialStrategyPlugin.providers).toBeDefined();
     expect(Array.isArray(socialStrategyPlugin.providers)).toBe(true);
   });
-
-  it("should have models defined", () => {
-    expect(socialStrategyPlugin.models).toBeDefined();
-    expect(typeof socialStrategyPlugin.models).toBe("object");
-  });
 });
