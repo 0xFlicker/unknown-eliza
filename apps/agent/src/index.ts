@@ -5,6 +5,9 @@ import {
   type Project,
   type ProjectAgent,
 } from "@elizaos/core";
+import { imageGenerationPlugin } from "@elizaos/plugin-image-generation";
+import pluginDiscord from "@elizaos/plugin-discord";
+import { browserPlugin } from "@elizaos/plugin-browser";
 import pluginSql from "@elizaos/plugin-sql";
 import { socialStrategyPlugin } from "@elizaos/plugin-social-strategy";
 
@@ -18,13 +21,13 @@ import { socialStrategyPlugin } from "@elizaos/plugin-social-strategy";
 export const character: Character = {
   name: "Alex",
   plugins: [
-    "@elizaos/plugin-sql",
+    // "@elizaos/plugin-sql",
     ...(!process.env.CI
       ? [
-          "@elizaos-plugins/plugin-image",
-          "@elizaos-plugins/plugin-image-generation",
-          "@elizaos-plugins/plugin-discord",
-          "@elizaos-plugins/plugin-browser",
+          // "@elizaos-plugins/plugin-image",
+          // "@elizaos-plugins/plugin-image-generation",
+          // "@elizaos-plugins/plugin-discord",
+          // "@elizaos-plugins/plugin-browser",
         ]
       : []),
 
@@ -203,7 +206,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => initCharacter({ runtime }),
-  plugins: [pluginSql, socialStrategyPlugin],
+  plugins: [socialStrategyPlugin, ...(!process.env.CI ? [pluginDiscord] : [])],
 };
 const project: Project = {
   agents: [projectAgent],

@@ -286,6 +286,20 @@ async function addStatement({
   logger.info(`Adding statement: ${JSON.stringify(statement, null, 2)}`);
   state.statements.push(statement);
   await runtime.createComponent(statement);
+
+  // Also attach the component to the speaker entity so that runtime.getEntityById
+  // returns the statement in its `components` array – several test helpers rely
+  // on this convenience property.
+  const speakerEntity = await runtime.getEntityById(speakerId);
+  if (speakerEntity) {
+    type EntityWithComponents = typeof speakerEntity & {
+      components?: unknown[];
+    };
+    const entityWithComponents = speakerEntity as EntityWithComponents;
+    const existingComponents = entityWithComponents.components ?? [];
+    entityWithComponents.components = [...existingComponents, statement];
+    await runtime.updateEntity(entityWithComponents);
+  }
 }
 
 export const trackConversationHandler = async (
@@ -417,7 +431,7 @@ export const trackConversationHandler = async (
 };
 
 export const trackConversation: Action = {
-  name: "trackConversation",
+  name: "TRACK_CONVERSATION",
   description:
     "Analyze a message, identify player mentions, infer sentiment, and update the player graph. Called whenever a user mentions another player.",
   similes: ["UPDATE_SENTIMENT", "NOTICE_MENTION"],

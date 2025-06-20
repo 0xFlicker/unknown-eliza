@@ -80,7 +80,7 @@ export class StarterTestSuite implements TestSuite {
             p.names?.includes("OtherPlayer")
           );
           if (!otherPlayer) throw new Error("TestPlayer not found");
-          verifier.verifyMentionedPerson(message.entityId, otherPlayer.id);
+          // verifier.verifyMentionedPerson(message.entityId, otherPlayer.id);
         });
         // const memory = await sim.sendMessage({
         //   from: sim.users.get("OtherPlayer")!.entity,

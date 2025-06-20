@@ -23,6 +23,7 @@ import {
   type ModelWorkload,
 } from "./promptManager";
 import { getParticipantsForRoom } from "../safeUtils";
+import { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
 
 const logger = elizaLogger.child({
   plugin: "social-strategy",
@@ -240,6 +241,7 @@ export const socialStrategyPlugin: Plugin = {
           for (const r of relationships) {
             const sourcePlayer = playerMap[r.sourceEntityId];
             const targetPlayer = playerMap[r.targetEntityId];
+            if (!sourcePlayer || !targetPlayer) continue;
             friendlyContextLines.push(
               `- ${formatHandles(sourcePlayer.names)} -> ${formatHandles(targetPlayer.names)} (${r.metadata.relationshipType}, strength ${r.metadata.strength})`
             );
@@ -253,6 +255,7 @@ export const socialStrategyPlugin: Plugin = {
           for (const s of recentStatements) {
             const speakerPlayer = playerMap[s.data.speakerEntityId];
             const targetPlayer = playerMap[s.data.targetEntityId];
+            if (!speakerPlayer || !targetPlayer) continue;
             const snippet =
               s.data.content.length > 100
                 ? `${s.data.content.slice(0, 97)}…`
@@ -282,6 +285,10 @@ export const socialStrategyPlugin: Plugin = {
       },
     },
   ],
+
+  // Evaluators that passively listen to the conversation and keep the
+  // social graph up-to-date.
+  evaluators: [conversationTrackingEvaluator],
 
   actions: [
     trackConversation,
@@ -318,4 +325,5 @@ export const socialStrategyPlugin: Plugin = {
 };
 
 export { trackConversation } from "./actions/trackConversation";
+export { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
 export * from "./types";
