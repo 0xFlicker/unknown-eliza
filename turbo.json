@@ -52,6 +52,14 @@
         "*.test.*"
       ]
     },
+    "test:e2e": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
     "migrate": {
       "dependsOn": [
         "^build"

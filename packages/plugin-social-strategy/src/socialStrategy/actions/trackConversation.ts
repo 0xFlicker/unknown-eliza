@@ -97,31 +97,37 @@ function sentimentToRelationship(
 /**
  * Obtain (or create) a PlayerEntity for the given handle.
  */
-function getOrCreatePlayer(
+async function getOrCreatePlayer(
+  runtime: IAgentRuntime,
   state: SocialStrategyState,
-  agentId: string,
   handle: string
-): PlayerEntity {
-  const id = stringToUuid(`${agentId}:player:${handle.toLowerCase()}`);
+): Promise<PlayerEntity> {
+  const id = stringToUuid(`${runtime.agentId}:player:${handle.toLowerCase()}`);
+  const entity = await runtime.getEntityById(id);
+  if (entity) {
+    return entity as PlayerEntity;
+  }
   const now = Date.now();
   const existing = state.players[id];
   if (existing) {
-    existing.lastInteraction = now;
+    existing.metadata.lastInteraction = now;
     existing.metadata.interactionCount += 1;
     return existing;
   }
   const newPlayer: PlayerEntity = {
     id,
-    handle,
-    trustScore: BASE_TRUST,
-    firstInteraction: now,
-    lastInteraction: now,
+    agentId: runtime.agentId,
+    names: [handle],
     metadata: {
+      trustScore: BASE_TRUST,
+      firstInteraction: now,
+      lastInteraction: now,
       relationshipType: "neutral",
       interactionCount: 1,
     },
   };
   state.players[id] = newPlayer;
+  await runtime.createEntity(newPlayer);
   return newPlayer;
 }
 
@@ -129,22 +135,23 @@ function getOrCreatePlayer(
  * Update or create the relationship record from source → target with the provided type.
  * This is stored bidirectionally by calling this method twice with swapped arguments.
  */
-function upsertRelationship(
+async function upsertRelationship(
+  runtime: IAgentRuntime,
   state: SocialStrategyState,
   sourceId: UUID,
   targetId: UUID,
   relType: RelationshipType,
   description: string
-): void {
+) {
   const now = Date.now();
   const existing = state.relationships.find(
-    (r) => r.sourcePlayerId === sourceId && r.targetPlayerId === targetId
+    (r) => r.sourceEntityId === sourceId && r.targetEntityId === targetId
   );
   if (existing) {
-    existing.relationshipType = relType;
-    existing.lastUpdated = now;
-    existing.strength = clamp(existing.strength + 1, 0, 100);
-    existing.evidence.push({
+    existing.metadata.relationshipType = relType;
+    existing.metadata.lastUpdated = now;
+    existing.metadata.strength = clamp(existing.metadata.strength + 1, 0, 100);
+    existing.metadata.evidence.push({
       type: "direct_interaction",
       timestamp: now,
       description,
@@ -152,45 +159,130 @@ function upsertRelationship(
     });
     return;
   }
-  const newRel: PlayerRelationship = {
-    sourcePlayerId: sourceId,
-    targetPlayerId: targetId,
-    relationshipType: relType,
-    strength: 1,
-    lastUpdated: now,
-    evidence: [
-      {
-        type: "direct_interaction",
-        timestamp: now,
-        description,
-        source: sourceId,
-      },
-    ],
+  const newRel = {
+    agentId: runtime.agentId,
+    tags: [relType],
+    sourceEntityId: sourceId,
+    targetEntityId: targetId,
+    metadata: {
+      relationshipType: relType,
+      strength: 1,
+      lastUpdated: now,
+      evidence: [
+        {
+          type: "direct_interaction" as const,
+          timestamp: now,
+          description,
+          source: sourceId,
+        },
+      ],
+    },
   };
-  state.relationships.push(newRel);
+
+  // Persist relationship in database for provider lookup
+  let [existingRelationShipA, existingRelationShipB] = await Promise.all([
+    runtime.getRelationship({
+      sourceEntityId: sourceId,
+      targetEntityId: targetId,
+    }),
+    runtime.getRelationship({
+      sourceEntityId: targetId,
+      targetEntityId: sourceId,
+    }),
+  ]);
+  const [existingPlayerRelationShipA, existingPlayerRelationShipB] =
+    await Promise.all([
+      (existingRelationShipA
+        ? runtime.updateRelationship(existingRelationShipA)
+        : runtime.createRelationship({
+            sourceEntityId: sourceId,
+            targetEntityId: targetId,
+            tags: [relType],
+            metadata: newRel.metadata,
+          })
+      ).then(async () => {
+        const relationship = await runtime.getRelationship({
+          sourceEntityId: sourceId,
+          targetEntityId: targetId,
+        });
+        return { ...relationship! } as PlayerRelationship;
+      }),
+      (existingRelationShipB
+        ? runtime.updateRelationship(existingRelationShipB)
+        : runtime.createRelationship({
+            sourceEntityId: targetId,
+            targetEntityId: sourceId,
+            tags: [relType],
+            metadata: newRel.metadata,
+          })
+      ).then(async () => {
+        const relationship = await runtime.getRelationship({
+          sourceEntityId: targetId,
+          targetEntityId: sourceId,
+        });
+        return { ...relationship! } as PlayerRelationship;
+      }),
+    ]);
+  await runtime.createRelationship({
+    sourceEntityId: sourceId,
+    targetEntityId: targetId,
+    tags: [relType],
+    metadata: newRel.metadata,
+  });
+  await runtime.createRelationship({
+    sourceEntityId: targetId,
+    targetEntityId: sourceId,
+    tags: [relType],
+    metadata: newRel.metadata,
+  });
+  state.relationships.push(existingPlayerRelationShipA);
+  state.relationships.push(existingPlayerRelationShipB);
+  return newRel;
 }
 
 /**
  * Create a new PlayerStatement and append to state.
  */
-function addStatement(
-  state: SocialStrategyState,
-  speakerId: UUID,
-  targetId: UUID,
-  content: string,
-  sentiment: "positive" | "negative" | "neutral"
-): void {
+async function addStatement({
+  runtime,
+  state,
+  message,
+  speakerId,
+  targetId,
+  content,
+  sentiment,
+}: {
+  runtime: IAgentRuntime;
+  state: SocialStrategyState;
+  message: Memory;
+  speakerId: UUID;
+  targetId: UUID;
+  content: string;
+  sentiment: "positive" | "negative" | "neutral";
+}): Promise<void> {
   const now = Date.now();
   const statementId = stringToUuid(`statement:${speakerId}:${targetId}:${now}`);
   const statement: PlayerStatement = {
     id: statementId,
-    speakerId,
-    targetId,
-    content,
-    timestamp: now,
-    metadata: { sentiment, confidence: 1 },
+    agentId: runtime.agentId,
+    createdAt: now,
+    data: {
+      content,
+      speakerEntityId: speakerId,
+      targetEntityId: targetId,
+      timestamp: now,
+      sentiment,
+      confidence: 1,
+    },
+    type: "social-strategy-statement",
+    entityId: speakerId,
+    roomId: message.roomId,
+    worldId: message.worldId ?? runtime.agentId,
+    sourceEntityId: targetId,
   };
+  logger.info(`Adding statement: ${JSON.stringify(statement, null, 2)}`);
   state.statements.push(statement);
+  await runtime.createComponent(statement);
 }
 
 export const trackConversationHandler = async (
@@ -198,20 +290,16 @@ export const trackConversationHandler = async (
   message: Memory,
   state?: State
 ) => {
-  // Ensure we have a SocialStrategyState container on the shared state object.
-  const container = state as Record<string, unknown>;
-  if (!("socialStrategyState" in container)) {
-    container.socialStrategyState = {
-      players: {},
-      relationships: [],
-      statements: [],
-      metadata: { lastAnalysis: 0, version: "1.0.0" },
-      values: {},
-      data: {},
-      text: "",
-    } satisfies SocialStrategyState;
-  }
-  const socialState = container.socialStrategyState as SocialStrategyState;
+  logger.info(`Tracking conversation in room ${message.roomId}`);
+  const socialState: SocialStrategyState = {
+    players: {},
+    relationships: [],
+    statements: [],
+    metadata: { lastAnalysis: 0, version: "1.0.0" },
+    values: {},
+    data: {},
+    text: "",
+  };
 
   const textContent = (message.content as { text: string }).text;
 
@@ -220,16 +308,16 @@ export const trackConversationHandler = async (
     ((message.metadata ?? {}) as { username?: string }).username ??
     message.entityId;
 
-  const speakingPlayer = getOrCreatePlayer(
+  const speakingPlayer = await getOrCreatePlayer(
+    runtime,
     socialState,
-    runtime.agentId,
     username
   );
 
   // Extract mentions and process each
   const mentionedHandles = extractMentions(textContent);
   if (mentionedHandles.length === 0) {
-    speakingPlayer.lastInteraction = Date.now();
+    speakingPlayer.metadata.lastInteraction = Date.now();
     socialState.metadata.lastAnalysis = Date.now();
     return { success: true, message: "No player mentions found." };
   }
@@ -237,9 +325,9 @@ export const trackConversationHandler = async (
   logger.info(`${mentionedHandles.length} mentioned handles`);
 
   for (const targetHandle of mentionedHandles) {
-    const targetPlayer = getOrCreatePlayer(
+    const targetPlayer = await getOrCreatePlayer(
+      runtime,
       socialState,
-      runtime.agentId,
       targetHandle
     );
 
@@ -257,14 +345,14 @@ export const trackConversationHandler = async (
 
     // Update trust score of the TARGET based on sentiment
     if (relationshipType === "ally") {
-      targetPlayer.trustScore = clamp(
-        targetPlayer.trustScore + TRUST_DELTA,
+      targetPlayer.metadata.trustScore = clamp(
+        targetPlayer.metadata.trustScore + TRUST_DELTA,
         0,
         100
       );
     } else if (relationshipType === "rival") {
-      targetPlayer.trustScore = clamp(
-        targetPlayer.trustScore - TRUST_DELTA,
+      targetPlayer.metadata.trustScore = clamp(
+        targetPlayer.metadata.trustScore - TRUST_DELTA,
         0,
         100
       );
@@ -272,47 +360,25 @@ export const trackConversationHandler = async (
 
     // Upsert relationship in both directions
     const description = `Sentiment '${sentiment}' detected in message: "${textContent}"`;
-    upsertRelationship(
+    await upsertRelationship(
+      runtime,
       socialState,
       speakingPlayer.id,
       targetPlayer.id,
       relationshipType,
       description
     );
-    upsertRelationship(
-      socialState,
-      targetPlayer.id,
-      speakingPlayer.id,
-      relationshipType,
-      description
-    );
-
-    // Persist relationship in database for provider lookup
-    try {
-      await runtime.createRelationship({
-        sourceEntityId: speakingPlayer.id,
-        targetEntityId: targetPlayer.id,
-        tags: [relationshipType],
-        metadata: { strength: 1 },
-      });
-      await runtime.createRelationship({
-        sourceEntityId: targetPlayer.id,
-        targetEntityId: speakingPlayer.id,
-        tags: [relationshipType],
-        metadata: { strength: 1 },
-      });
-    } catch {
-      /* ignore adapter limitations */
-    }
 
     // Add statement record
-    addStatement(
-      socialState,
-      speakingPlayer.id,
-      targetPlayer.id,
-      textContent,
-      sentiment
-    );
+    await addStatement({
+      runtime,
+      state: socialState,
+      message,
+      speakerId: speakingPlayer.id,
+      targetId: targetPlayer.id,
+      content: textContent,
+      sentiment,
+    });
   }
 
   socialState.metadata.lastAnalysis = Date.now();

@@ -138,3 +138,8 @@ export function extractPromptMetadata(
  * //   tags: ["[[SSA:REL]]"]
  * // }
  */
+
+export function formatHandles(handles: string[]): string {
+  if (handles.length === 1) return handles[0];
+  return `known as ${handles.join(", ")}`;
+}

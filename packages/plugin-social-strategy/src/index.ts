@@ -5,5 +5,6 @@ export {
 export {
   socialStrategyPlugin,
   getPlayerInfoHandler,
+  SocialStrategyContext,
 } from "./socialStrategy/index";
 export * from "./types";

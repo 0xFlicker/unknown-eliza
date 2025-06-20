@@ -1,46 +1,55 @@
-import { type State, type UUID } from "@elizaos/core";
+import {
+  Component,
+  Entity,
+  Metadata,
+  Relationship,
+  type State,
+  type UUID,
+} from "@elizaos/core";
 
 export type RelationshipType = "ally" | "neutral" | "rival";
+export type Sentiment = "positive" | "negative" | "neutral";
+export type EvidenceType =
+  | "direct_interaction"
+  | "observed_interaction"
+  | "reported_interaction";
 
-export interface PlayerEntity {
+export interface PlayerEntity extends Entity {
   id: UUID;
-  handle: string;
-  trustScore: number; // 0-100 scale
-  firstInteraction: number; // timestamp
-  lastInteraction: number; // timestamp
   metadata: {
     relationshipType: RelationshipType;
     interactionCount: number;
+    trustScore: number; // 0-100 scale
+    firstInteraction: number; // timestamp
+    lastInteraction: number; // timestamp
   };
 }
 
-export interface PlayerRelationship {
-  sourcePlayerId: UUID;
-  targetPlayerId: UUID;
+export interface PlayerRelationshipMetadata extends Metadata {
   relationshipType: RelationshipType;
   strength: number; // 0-100 scale
   lastUpdated: number; // timestamp
   evidence: Array<{
-    type:
-      | "direct_interaction"
-      | "observed_interaction"
-      | "reported_interaction";
+    type: EvidenceType;
     timestamp: number;
     description: string;
     source: UUID;
   }>;
 }
 
-export interface PlayerStatement {
-  id: UUID;
-  speakerId: UUID;
-  targetId: UUID;
-  content: string;
-  timestamp: number;
-  metadata: {
-    sentiment?: string;
+export interface PlayerRelationship extends Relationship {
+  metadata: PlayerRelationshipMetadata;
+}
+
+export interface PlayerStatement extends Component {
+  type: "social-strategy-statement";
+  data: {
+    speakerEntityId: UUID;
+    targetEntityId: UUID;
+    content: string;
+    timestamp: number;
+    sentiment?: Sentiment;
     confidence?: number;
-    [key: string]: string | number | boolean | undefined;
   };
 }
 

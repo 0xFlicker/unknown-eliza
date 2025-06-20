@@ -609,7 +609,6 @@ export class InMemoryAdapter implements IDatabaseAdapter {
 export function createTestRuntime(plugins: any[]): AgentRuntime {
   const runtime = new AgentRuntime({
     plugins,
-    settings: { localMode: "true" },
   });
   // @ts-expect-error: test adapter does not implement full interface
   runtime.registerDatabaseAdapter(new InMemoryAdapter());
