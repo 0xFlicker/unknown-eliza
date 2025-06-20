@@ -19,7 +19,18 @@ import {
   createTestRuntime,
 } from "./utils/core-test-utils";
 import type { SocialStrategyState } from "@0xflicker/plugin-social-strategy/types";
-import { ModelAnalysis } from "@0xflicker/plugin-social-strategy/actions/trackConversation";
+import { stringToUuid } from "@elizaos/core";
+
+type ModelAnalysis = {
+  trustScore: number;
+  relationship: string;
+  statement: string;
+  metadata?: {
+    sentiment?: string;
+    confidence?: number;
+    [key: string]: any;
+  };
+};
 
 // Setup environment variables
 dotenv.config();
@@ -163,10 +174,10 @@ describe("Social Strategy Plugin Actions", () => {
           });
           expect(Object.keys(mockState.players)).toHaveLength(3);
           expect(
-            mockState.players[`${runtime.agentId}:player:player1`]
+            mockState.players[stringToUuid(`${runtime.agentId}:player:player1`)]
           ).toBeDefined();
           expect(
-            mockState.players[`${runtime.agentId}:player:player2`]
+            mockState.players[stringToUuid(`${runtime.agentId}:player:player2`)]
           ).toBeDefined();
         }
       });
@@ -181,7 +192,7 @@ describe("Social Strategy Plugin Actions", () => {
               statement: "player1 is a great player!",
             } as ModelAnalysis)
           );
-          const playerId = `${runtime.agentId}:player:player1`;
+          const playerId = stringToUuid(`${runtime.agentId}:player:player1`);
           const mockMessage = createMockMessage("Hello again @player1!");
 
           const mockState = createMockState() as State & SocialStrategyState;

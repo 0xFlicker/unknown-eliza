@@ -15,3 +15,5 @@ packages/**/node_modules
 
 # Ignore Eliza database files
 .eliza/
+
+*.code-workspace

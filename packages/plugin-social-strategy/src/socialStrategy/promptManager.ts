@@ -25,7 +25,7 @@ export interface PromptMetadata {
 export class SocialStrategyPromptBuilder {
   private prompt: string;
   private tags: Set<string>;
-  private metadata: Record<string, any>;
+  private metadata: Record<string, string | number | boolean>;
 
   constructor(initialPrompt: string = "") {
     this.prompt = initialPrompt;
@@ -52,7 +52,7 @@ export class SocialStrategyPromptBuilder {
   /**
    * Add custom metadata
    */
-  withMetadata(key: string, value: any): this {
+  withMetadata(key: string, value: string | number | boolean): this {
     this.metadata[key] = value;
     return this;
   }
@@ -101,8 +101,10 @@ export function analyzePrompt(prompt: string): PromptMetadata {
 /**
  * Extracts metadata from a prompt
  */
-export function extractPromptMetadata(prompt: string): Record<string, any> {
-  const metadata: Record<string, any> = {};
+export function extractPromptMetadata(
+  prompt: string
+): Record<string, string | number | boolean> {
+  const metadata: Record<string, string | number | boolean> = {};
   const metadataRegex = /\[\[SSA:([^=]+)=([^\]]+)\]\]/g;
   let match;
 

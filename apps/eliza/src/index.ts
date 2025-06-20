@@ -23,7 +23,10 @@ export const character: Character = {
     "@elizaos-plugins/plugin-discord",
     ...(process.env.ANTHROPIC_API_KEY ? ["@elizaos/plugin-anthropic"] : []),
     ...(process.env.OPENAI_API_KEY ? ["@elizaos/plugin-openai"] : []),
-    ...(!process.env.OPENAI_API_KEY ? ["@elizaos/plugin-local-ai"] : []),
+    ...(process.env.OLLAMA_MODEL ? ["@elizaos/plugin-ollama"] : []),
+    ...(!process.env.OPENAI_API_KEY && !process.env.OLLAMA_MODEL
+      ? ["@elizaos/plugin-local-ai"]
+      : []),
     ...(process.env.DISCORD_API_TOKEN ? ["@elizaos/plugin-discord"] : []),
     ...(process.env.TWITTER_USERNAME ? ["@elizaos/plugin-twitter"] : []),
     ...(process.env.TELEGRAM_BOT_TOKEN ? ["@elizaos/plugin-telegram"] : []),

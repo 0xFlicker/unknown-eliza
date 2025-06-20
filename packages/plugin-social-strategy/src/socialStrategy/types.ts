@@ -40,7 +40,7 @@ export interface PlayerStatement {
   metadata: {
     sentiment?: string;
     confidence?: number;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
 }
 
@@ -52,7 +52,7 @@ export interface SocialStrategyState extends State {
     lastAnalysis: number;
     version: string;
   };
-  values: Record<string, any>;
-  data: Record<string, any>;
+  values: Record<string, string | number | boolean>;
+  data: Record<string, string | number | boolean>;
   text: string;
 }

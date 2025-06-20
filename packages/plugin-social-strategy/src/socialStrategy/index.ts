@@ -1,134 +1,90 @@
 import {
-  type Plugin,
   type Action,
   type IAgentRuntime,
   type Memory,
-  type Content,
   MemoryType,
-  ModelType,
-  type GenerateTextParams,
-  ModelTypeName,
+  type Plugin,
+  type Provider,
+  type UUID,
+  logger,
 } from "@elizaos/core";
-import { z } from "zod";
 import { trackConversation } from "./actions/trackConversation";
-import { type SocialStrategyState } from "./types";
-import {
-  MODEL_TAGS,
-  type ModelWorkload,
-  analyzePrompt,
-  SocialStrategyPromptBuilder,
-} from "./promptManager";
 
-// Model configurations for different workloads
-export const MODEL_CONFIGS: Record<
-  ModelWorkload,
-  {
-    temperature: number;
-    frequencyPenalty: number;
-    presencePenalty: number;
-    maxTokens: number;
-  }
-> = {
-  // Quick sentiment analysis and basic relationship updates
-  QUICK_ANALYSIS: {
-    temperature: 0.3,
-    frequencyPenalty: 0.3,
-    presencePenalty: 0.3,
-    maxTokens: 256,
-  },
-  // Detailed relationship analysis and trust scoring
-  RELATIONSHIP_ANALYSIS: {
-    temperature: 0.5,
-    frequencyPenalty: 0.5,
-    presencePenalty: 0.5,
-    maxTokens: 512,
-  },
-  // Complex social strategy planning and prediction
-  STRATEGY_PLANNING: {
-    temperature: 0.7,
-    frequencyPenalty: 0.7,
-    presencePenalty: 0.7,
-    maxTokens: 1024,
-  },
-  // Creative social manipulation and deception detection
-  CREATIVE_ANALYSIS: {
-    temperature: 0.9,
-    frequencyPenalty: 0.9,
-    presencePenalty: 0.9,
-    maxTokens: 2048,
-  },
-};
+// Types for social strategy state
+export interface Player {
+  id: UUID;
+  handle: string;
+  discriminator: string;
+  trustScore: number;
+  relationship: "ally" | "neutral" | "rival";
+  lastSeen: number;
+  metadata: Record<string, any>;
+}
 
-// Local model responses for testing
-export const LOCAL_MODEL_RESPONSES = {
-  [ModelType.TEXT_SMALL]: JSON.stringify({
-    trustScore: 75,
-    relationship: "ally",
-    statement:
-      "This player has shown themselves to be trustworthy and helpful.",
-  }),
-  [ModelType.TEXT_LARGE]: JSON.stringify({
-    trustScore: 75,
-    relationship: "ally",
-    statement:
-      "Based on our interactions, I have a positive relationship with this player and trust them. They have demonstrated reliability and good intentions.",
-    metadata: {
-      interactionType: "positive",
-      sentiment: "positive",
-      confidence: 0.8,
-    },
-  }),
-};
+export interface Relationship {
+  id: UUID;
+  sourceEntityId: UUID;
+  targetEntityId: UUID;
+  relationshipType: string;
+  strength: number;
+  metadata: Record<string, any>;
+}
 
-/**
- * Utility function to make model inferences with appropriate configuration
- */
-export async function makeModelInference<
-  T extends typeof ModelType.TEXT_LARGE | typeof ModelType.TEXT_SMALL,
->(runtime: IAgentRuntime, params: GenerateTextParams, modelType?: T) {
-  // Check if we're in local mode
-  const isLocalMode = (runtime as any).settings?.localMode === true;
-  const resolvedModelType =
-    modelType ?? params.modelType ?? ModelType.TEXT_LARGE;
-  if (isLocalMode) {
-    console.log(
-      "LOCAL_MODEL_RESPONSES[resolvedModelType]",
-      LOCAL_MODEL_RESPONSES[resolvedModelType]
-    );
-    return LOCAL_MODEL_RESPONSES[resolvedModelType];
-  }
+export interface Statement {
+  id: UUID;
+  sourceEntityId: UUID;
+  targetEntityId: UUID;
+  content: string;
+  statementType: string;
+  sentiment: "positive" | "negative" | "neutral";
+  confidence: number;
+  metadata: Record<string, any>;
+}
 
-  // Analyze the prompt to determine the workload
-  const analysis = analyzePrompt(params.prompt || "");
-
-  // Get the appropriate config for the workload
-  const config = MODEL_CONFIGS[analysis.workload];
-
-  // Create a new prompt with the sanitized content
-  const newParams = {
-    ...params,
-    prompt: analysis.sanitizedPrompt,
-    ...config,
+export interface SocialStrategyState {
+  players: Record<UUID, Player>;
+  relationships: Relationship[];
+  statements: Statement[];
+  metadata: {
+    lastAnalysis: number;
+    version: string;
   };
+}
 
-  return runtime.useModel<T>(resolvedModelType as T, newParams);
+// Helper function to build analysis prompts
+export function buildAnalysisPrompt(
+  text: string,
+  speakingPlayer: string,
+  mentionedPlayers: string[]
+): string {
+  const playerList =
+    mentionedPlayers.length > 0 ? mentionedPlayers.join(", ") : "None";
+
+  return `Analyze this conversation and provide insights about player relationships and trust.
+
+Conversation: "${text}"
+Speaker: ${speakingPlayer || "Unknown"}
+Mentioned Players: ${playerList}
+
+Please provide a JSON response with the following structure:
+{
+  "trustScore": <number between 0-100>,
+  "relationship": "<ally|neutral|rival>",
+  "statement": "<brief analysis of the interaction>",
+  "metadata": {
+    "interactionType": "<positive|negative|neutral>",
+    "sentiment": "<positive|negative|neutral>",
+    "confidence": <number between 0-1>
+  }
+}
+
+Analysis:`;
 }
 
 export const socialStrategyPlugin: Plugin = {
   name: "social-strategy",
   description:
     "Tracks and manages player relationships and trust scores for social strategy analysis",
-  models: {
-    [ModelType.TEXT_LARGE]: async (
-      runtime: IAgentRuntime,
-      params: GenerateTextParams
-    ) => {
-      return await makeModelInference(runtime, params);
-    },
-    [ModelType.TEXT_SMALL]: async (runtime, params) => {
-      return await makeModelInference(runtime, params);
-    },
-  },
   providers: [
     {
       name: "social-strategy-state",
@@ -190,7 +146,13 @@ export const socialStrategyPlugin: Plugin = {
         );
       },
       handler: async (runtime: IAgentRuntime, message: Memory, state) => {
-        const socialState = state as SocialStrategyState;
+        const socialState = ((state as any)
+          ?.socialStrategyState as SocialStrategyState) || {
+          players: {},
+          relationships: [],
+          statements: [],
+          metadata: { lastAnalysis: Date.now(), version: "1.0.0" },
+        };
         const { playerId } = message.content as { playerId: string };
 
         const player = socialState.players[playerId];
@@ -204,12 +166,12 @@ export const socialStrategyPlugin: Plugin = {
         // Get relationships involving this player
         const relationships = socialState.relationships.filter(
           (rel) =>
-            rel.sourcePlayerId === playerId || rel.targetPlayerId === playerId
+            rel.sourceEntityId === playerId || rel.targetEntityId === playerId
         );
 
         // Get statements about this player
         const statements = socialState.statements.filter(
-          (stmt) => stmt.targetId === playerId
+          (stmt) => stmt.targetEntityId === playerId
         );
 
         return {
@@ -258,3 +220,4 @@ export const socialStrategyPlugin: Plugin = {
 };
 
 export { trackConversation } from "./actions/trackConversation";
+export * from "./types";
