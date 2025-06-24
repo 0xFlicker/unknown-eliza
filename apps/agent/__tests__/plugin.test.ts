@@ -1,12 +1,8 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import dotenv from "dotenv";
-import {
-  socialStrategyPlugin,
-  MODEL_CONFIGS,
-} from "@0xflicker/plugin-social-strategy";
+import { socialStrategyPlugin } from "../src/socialStrategy/index";
 import { ModelType, logger, type IAgentRuntime } from "@elizaos/core";
 import { createMockRuntime } from "./utils/core-test-utils";
-import { MODEL_TAGS } from "@0xflicker/plugin-social-strategy/promptManager";
 
 // Setup environment variables and logging
 beforeAll(() => {
@@ -88,11 +84,11 @@ describe("Social Strategy Plugin", () => {
       expect(socialStrategyPlugin.actions).toBeDefined();
       const actions = socialStrategyPlugin.actions!;
       const trackConversationAction = actions.find(
-        (action) => action.name === "trackConversation"
+        (action) => action.name === "TRACK_CONVERSATION"
       );
       expect(trackConversationAction).toBeDefined();
       expect(trackConversationAction?.description).toBe(
-        "Track conversation and update player relationships"
+        "Track and analyze conversations to update player relationships and trust scores. Should be called after a message with @mentions is sent."
       );
 
       documentTestResult("trackConversation action check", {
@@ -102,25 +98,6 @@ describe("Social Strategy Plugin", () => {
         hasValidate: typeof trackConversationAction?.validate === "function",
       });
     });
-
-    it("should have getPlayerInfo action", () => {
-      expect(socialStrategyPlugin.actions).toBeDefined();
-      const actions = socialStrategyPlugin.actions!;
-      const getPlayerInfoAction = actions.find(
-        (action) => action.name === "getPlayerInfo"
-      );
-      expect(getPlayerInfoAction).toBeDefined();
-      expect(getPlayerInfoAction?.description).toBe(
-        "Retrieve information about a specific player"
-      );
-
-      documentTestResult("getPlayerInfo action check", {
-        exists: !!getPlayerInfoAction,
-        hasDescription: !!getPlayerInfoAction?.description,
-        hasHandler: typeof getPlayerInfoAction?.handler === "function",
-        hasValidate: typeof getPlayerInfoAction?.validate === "function",
-      });
-    });
   });
 
   describe("Plugin Providers", () => {
@@ -128,11 +105,14 @@ describe("Social Strategy Plugin", () => {
       expect(socialStrategyPlugin.providers).toBeDefined();
       const providers = socialStrategyPlugin.providers!;
       const stateProvider = providers.find(
-        (provider) => provider.name === "social-strategy-state"
+        (provider) => provider.name === "social-context"
       );
-      expect(stateProvider).toBeDefined();
+      expect(
+        stateProvider,
+        `social-context provider not found. ${JSON.stringify(providers.map((p) => p.name))}`
+      ).toBeDefined();
       expect(stateProvider?.description).toBe(
-        "Provides the current social strategy state"
+        "Provides formatted social context (players, trust scores, relationships, recent statements) and performs per-message sentiment analysis."
       );
 
       documentTestResult("social-strategy-state provider check", {

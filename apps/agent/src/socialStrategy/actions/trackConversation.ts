@@ -226,7 +226,7 @@ export const trackConversation: Action = {
     const statements: PlayerStatement[] = state.values.statements;
 
     console.log("🚀 [trackConversation] handler started");
-    for (const player of players) {
+    for (const player of Object.values(players)) {
       if (player.metadata?.new) {
         delete player.metadata.new;
         await runtime.createEntity(player);

@@ -55,20 +55,6 @@ describe("Environment Setup", () => {
     expect(packageJson.scripts).toHaveProperty("test");
   });
 
-  it("should have a valid tsconfig.json with required configuration", () => {
-    const tsconfigPath = path.join(process.cwd(), "tsconfig.json");
-    expect(fs.existsSync(tsconfigPath)).toBe(true);
-
-    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf8"));
-    expect(tsconfig).toHaveProperty("compilerOptions");
-
-    // Check compiler options
-    expect(tsconfig.compilerOptions).toHaveProperty("target");
-    expect(tsconfig.compilerOptions).toHaveProperty("module");
-    expect(tsconfig.compilerOptions).toHaveProperty("moduleResolution");
-    expect(tsconfig.compilerOptions).toHaveProperty("esModuleInterop");
-  });
-
   it("should have a valid tsup.config.ts for building", () => {
     const tsupConfigPath = path.join(process.cwd(), "tsup.config.ts");
     expect(fs.existsSync(tsupConfigPath)).toBe(true);

@@ -3,8 +3,7 @@ import { type TestSuite, ChannelType, type State } from "@elizaos/core";
 import {
   socialStrategyPlugin,
   SocialStrategyState,
-  trackConversationHandler,
-} from "@0xflicker/plugin-social-strategy";
+} from "../../../src/socialStrategy/index";
 import { ConversationSimulator } from "../../../e2e/ConversationSimulator";
 import { ScenarioVerifier } from "../../../e2e/ScenarioVerifier";
 
@@ -53,10 +52,9 @@ export const trustScenarioSuite: TestSuite = {
         const otherEntityId = simulator.getUser("OtherPlayer")!.entity.id!;
 
         // Find TestPlayer ID via socialState
-        const socialState =
-          sharedState.socialStrategyState as SocialStrategyState;
-        const testPlayerEntry = Object.values(socialState.players).find((p) =>
-          p.names.includes("TestPlayer")
+        const socialState = sharedState as SocialStrategyState;
+        const testPlayerEntry = Object.values(socialState.values.players).find(
+          (p) => p.names.includes("TestPlayer")
         );
         if (!testPlayerEntry) throw new Error("TestPlayer not detected");
 

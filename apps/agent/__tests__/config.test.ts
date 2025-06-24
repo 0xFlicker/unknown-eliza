@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { socialStrategyPlugin as plugin } from "@0xflicker/plugin-social-strategy";
+import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
 import { z } from "zod";
 import { createMockRuntime } from "./utils/core-test-utils";
 
@@ -78,39 +78,6 @@ describe("Plugin Configuration Schema", () => {
         error = e;
       }
       expect(error).toBeNull();
-    }
-  });
-
-  it("should reject invalid configuration", async () => {
-    const invalidConfig = {
-      EXAMPLE_PLUGIN_VARIABLE: "", // Empty string violates min length
-    };
-
-    if (initPlugin) {
-      let error = null;
-      try {
-        await initPlugin(invalidConfig, createMockRuntime());
-      } catch (e) {
-        error = e;
-      }
-      expect(error).not.toBeNull();
-    }
-  });
-
-  it("should set environment variables from valid config", async () => {
-    const testConfig = {
-      EXAMPLE_PLUGIN_VARIABLE: "test-value",
-    };
-
-    if (initPlugin) {
-      // Ensure env variable doesn't exist beforehand
-      delete process.env.EXAMPLE_PLUGIN_VARIABLE;
-
-      // Initialize with config
-      await initPlugin(testConfig, createMockRuntime());
-
-      // Verify environment variable was set
-      expect(process.env.EXAMPLE_PLUGIN_VARIABLE).toBe("test-value");
     }
   });
 

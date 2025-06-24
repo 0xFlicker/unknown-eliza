@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
-import { socialStrategyPlugin as plugin } from "@0xflicker/plugin-social-strategy";
+import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
 import type { IAgentRuntime, Memory, State, Provider } from "@elizaos/core";
 import { logger, MemoryType } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
@@ -151,9 +151,12 @@ describe("Provider Tests", () => {
       if (plugin.providers) {
         expect(plugin.providers.length).toBeGreaterThan(0);
         const result = plugin.providers.find(
-          (p) => p.name === "social-strategy-state"
+          (p) => p.name === "social-context"
         );
-        expect(result).toBeDefined();
+        expect(
+          result,
+          `social-strategy provider not found. ${JSON.stringify(plugin.providers.map((p) => p.name))}`
+        ).toBeDefined();
         documentTestResult("Provider exists check", {
           found: !!result,
           providers: plugin.providers.map((p) => p.name),

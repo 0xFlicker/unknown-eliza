@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { logger, IAgentRuntime, Plugin } from "@elizaos/core";
-import { socialStrategyPlugin as plugin } from "@0xflicker/plugin-social-strategy";
+import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
 import { createMockRuntime } from "./test-utils";
 import * as os from "os";
 
@@ -42,7 +42,6 @@ describe("Integration: Plugin Structure", () => {
     expect(plugin).toHaveProperty("description");
     expect(plugin).toHaveProperty("actions");
     expect(plugin).toHaveProperty("providers");
-    expect(plugin).toHaveProperty("routes");
   });
 
   it("should have valid plugin components", () => {

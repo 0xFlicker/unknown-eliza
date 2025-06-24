@@ -21,6 +21,7 @@ import {
   type IDatabaseAdapter,
   type UUID,
 } from "@elizaos/core";
+import { SocialStrategyState } from "../../src/socialStrategy";
 
 /**
  * Utility functions for reusing core package tests in project-starter tests
@@ -209,9 +210,13 @@ export const createMockMessage = (text: string): Memory => {
 /**
  * Creates a mock state for testing
  */
-export const createMockState = (): State => {
+export const createMockState = (): SocialStrategyState => {
   return {
-    values: {},
+    values: {
+      players: {},
+      relationships: [],
+      statements: [],
+    },
     data: {},
     text: "",
   };
