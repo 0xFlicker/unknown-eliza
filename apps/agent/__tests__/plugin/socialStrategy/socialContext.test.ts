@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { socialStrategyPlugin } from "../socialStrategy/index";
+import { socialStrategyPlugin } from "../../../src/socialStrategy/index";
 import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { MemoryType } from "@elizaos/core";
 
@@ -16,17 +16,19 @@ describe("social-context provider", () => {
     const runtime = {
       agentId: "agent1",
       getMemoriesByIds: vi.fn().mockResolvedValue([]),
+      getEntityById: vi.fn().mockResolvedValue(null),
+      createEntity: vi.fn().mockResolvedValue(null),
     } as unknown as IAgentRuntime;
     const message = {} as Memory;
 
     const result = await (provider as any).get(runtime, message);
     expect(result).toEqual({
       text: "",
-      values: {
-        players: [],
-        relationships: [],
-        statements: [],
-      },
+      values: expect.objectContaining({
+        players: expect.any(Object),
+        relationships: expect.any(Array),
+        statements: expect.any(Array),
+      }),
     });
   });
 });

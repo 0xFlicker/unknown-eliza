@@ -36,6 +36,7 @@ export function createMockRuntime(
     getProviderResults: vi.fn().mockResolvedValue([]),
     evaluateProviders: vi.fn().mockResolvedValue([]),
     evaluate: vi.fn().mockResolvedValue([]),
+    getEntityById: vi.fn().mockResolvedValue(null),
     ...overrides,
   } as unknown as IAgentRuntime;
 

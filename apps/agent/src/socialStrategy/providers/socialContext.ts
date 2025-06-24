@@ -15,6 +15,7 @@ import type {
   PlayerRelationship,
   PlayerStatement,
   RelationshipType,
+  SocialStrategyState,
 } from "../types";
 import {
   formatHandles,
@@ -361,10 +362,10 @@ export const socialContextProvider: Provider = {
     return {
       text: "", // provider primarily returns structured values; prompt injection not required here
       values: {
-        players,
+        players: playerMap,
         relationships,
         statements: runtimeStatements,
       },
-    };
+    } as SocialStrategyState;
   },
 };
