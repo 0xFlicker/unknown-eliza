@@ -22,6 +22,7 @@ export interface PlayerEntity extends Entity {
     trustScore: number; // 0-100 scale
     firstInteraction: number; // timestamp
     lastInteraction: number; // timestamp
+    new?: boolean;
   };
 }
 
@@ -48,20 +49,29 @@ export interface PlayerStatement extends Component {
     targetEntityId: UUID;
     content: string;
     timestamp: number;
-    sentiment?: Sentiment;
-    confidence?: number;
+    sentiment: "positive" | "negative" | "neutral";
+    trustScore: number;
+    confidence: number;
   };
 }
 
+// export interface SocialStrategyState extends State {
+//   players: Record<UUID, PlayerEntity>;
+//   relationships: PlayerRelationship[];
+//   statements: PlayerStatement[];
+//   metadata: {
+//     lastAnalysis: number;
+//     version: string;
+//   };
+//   values: Record<string, string | number | boolean>;
+//   data: Record<string, string | number | boolean>;
+//   text: string;
+// }
+
 export interface SocialStrategyState extends State {
-  players: Record<UUID, PlayerEntity>;
-  relationships: PlayerRelationship[];
-  statements: PlayerStatement[];
-  metadata: {
-    lastAnalysis: number;
-    version: string;
+  values: {
+    players: Record<UUID, PlayerEntity>;
+    relationships: PlayerRelationship[];
+    statements: PlayerStatement[];
   };
-  values: Record<string, string | number | boolean>;
-  data: Record<string, string | number | boolean>;
-  text: string;
 }

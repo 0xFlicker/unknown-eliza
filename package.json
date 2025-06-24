@@ -1,20 +1,55 @@
 {
   "name": "social-strategy-agent",
   "version": "0.1.0",
-  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^22.15.3",
+    "@types/uuid": "^10.0.0",
+    "bun": "^1.2.15",
+    "husky": "^9.1.7",
+    "lerna": "8.1.4",
+    "tsup": "8.5.0",
+    "turbo": "^2.5.4",
+    "typescript": "5.8.2",
+    "vitest": "3.1.4"
+  },
   "packageManager": "bun@1.2.15",
+  "private": true,
+  "resolutions": {
+    "@nrwl/devkit": "19.8.4",
+    "@nrwl/tao": "19.8.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "@types/react": "19.1.5",
+    "typedoc-plugin-markdown": "4.2.10",
+    "typedoc": "0.27.9"
+  },
+  "scripts": {
+    "start": "turbo run start --filter=./packages/cli --log-prefix=none",
+    "start:debug": "cross-env NODE_NO_WARNINGS=1 LOG_LEVEL=debug elizaos start",
+    "start:app": "turbo run start --filter=./apps/agent",
+    "build": "turbo run build",
+    "format": "turbo run format --filter=./packages/*",
+    "format:check": "turbo run format:check --filter=./packages/*",
+    "clean": "turbo run clean --filter=./packages/* && rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo bun.lock* .eliza .elizadb && bun install && bun run build",
+    "lint": "turbo run lint --filter=./packages/* && prettier --write . && prettier --check .",
+    "test": "turbo run test --concurrency 20",
+    "test:app": "turbo run test --concurrency 20 --filter=./apps/agent"
+  },
+  "trustedDependencies": [
+    "@swc/core",
+    "bigint-buffer",
+    "bufferutil",
+    "bun",
+    "canvas",
+    "esbuild",
+    "husky",
+    "node-llama-cpp",
+    "protobufjs",
+    "utf-8-validate"
+  ],
   "workspaces": [
     "apps/*",
     "packages/*"
-  ],
-  "scripts": {
-    "bootstrap": "bun install",
-    "build": "bunx turbo build",
-    "dev": "bunx turbo dev",
-    "start": "bunx turbo start",
-    "test": "bunx turbo test",
-    "test:e2e": "bunx turbo test:e2e",
-    "lint": "bunx turbo lint",
-    "format": "turbo format"
-  }
+  ]
 }

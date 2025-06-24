@@ -8,6 +8,10 @@
       "env": [
         "LOG_LEVEL"
       ],
+      "inputs": [
+        "apps/**/*.ts",
+        "packages/**/*.ts"
+      ],
       "outputs": [
         "dist/**"
       ]

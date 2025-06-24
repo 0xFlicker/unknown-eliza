@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { socialStrategyPlugin } from "../index";
+import { socialStrategyPlugin } from "../socialStrategy/index";
 
 describe("Social Strategy Plugin", () => {
   it("should export the plugin correctly", () => {

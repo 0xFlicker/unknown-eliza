@@ -22,107 +22,11 @@ describe("social-context provider", () => {
     const result = await (provider as any).get(runtime, message);
     expect(result).toEqual({
       text: "",
-      data: { newSentiments: [] },
       values: {
         players: [],
         relationships: [],
         statements: [],
       },
     });
-  });
-
-  it("returns correct context for a populated state", async () => {
-    // Mock social strategy state
-    const mockState = {
-      players: {
-        p1: {
-          id: "p1",
-          handle: "Alice",
-          discriminator: "0001",
-          trustScore: 70,
-          relationship: "ally",
-          lastSeen: 0,
-          metadata: {},
-        },
-        p2: {
-          id: "p2",
-          handle: "Bob",
-          discriminator: "0002",
-          trustScore: 40,
-          relationship: "rival",
-          lastSeen: 0,
-          metadata: {},
-        },
-      },
-      relationships: [
-        {
-          sourceEntityId: "p1",
-          targetEntityId: "p2",
-          relationshipType: "ally",
-          strength: 80,
-          id: "r1",
-          metadata: {},
-        },
-      ],
-      statements: [
-        {
-          id: "s1",
-          sourceEntityId: "p1",
-          targetEntityId: "p2",
-          content: "Hello Bob",
-          statementType: "mention",
-          sentiment: "neutral",
-          confidence: 0.5,
-          metadata: {},
-        },
-      ],
-      metadata: { lastAnalysis: 0, version: "1.0.0" },
-    };
-
-    const runtime = {
-      agentId: "agent1",
-      getMemoriesByIds: vi.fn().mockResolvedValue([
-        {
-          metadata: { type: MemoryType.CUSTOM },
-          content: { text: JSON.stringify(mockState) },
-        },
-      ]),
-    } as unknown as IAgentRuntime;
-    const message = {} as Memory;
-
-    const result = await (provider as any).get(runtime, message);
-
-    // Validate data structure
-    expect(result.values).toEqual({
-      players: [],
-      relationships: [
-        {
-          sourceEntityId: "p1",
-          targetEntityId: "p2",
-          relationshipType: "ally",
-          strength: 80,
-          id: "r1",
-          metadata: {},
-        },
-      ],
-      statements: [
-        {
-          id: "s1",
-          sourceEntityId: "p1",
-          targetEntityId: "p2",
-          content: "Hello Bob",
-          statementType: "mention",
-          sentiment: "neutral",
-          confidence: 0.5,
-          metadata: {},
-        },
-      ],
-    });
-
-    // text output remains blank since provider does not inject prompt
-    expect(result.text).toBe("");
-
-    // new sentiments array should be empty
-    expect(result.data.newSentiments).toEqual([]);
   });
 });

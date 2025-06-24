@@ -11,12 +11,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@0xflicker/plugin-social-strategy": path.resolve(
-        __dirname,
-        "..",
-        "..",
-        "packages/plugin-social-strategy/src"
-      ),
+      // "@elizaos/plugin-social-strategy": path.resolve(
+      //   __dirname,
+      //   "..",
+      //   "..",
+      //   "packages/plugin-social-strategy/src"
+      // ),
     },
   },
 });
