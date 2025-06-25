@@ -1,0 +1,30 @@
+// tsup.config.ts
+import { defineConfig } from "tsup";
+var tsup_config_default = defineConfig({
+  entry: ["src/index.ts"],
+  outDir: "dist",
+  tsconfig: "./tsconfig.build.json",
+  // Use build-specific tsconfig
+  sourcemap: true,
+  clean: true,
+  format: ["esm"],
+  // Ensure you're targeting CommonJS
+  dts: true,
+  // require DTS so we get d.ts in the dist folder on npm
+  external: [
+    "dotenv",
+    // Externalize dotenv to prevent bundling
+    "fs",
+    // Externalize fs to use Node.js built-in module
+    "path",
+    // Externalize other built-ins if necessary
+    "https",
+    "http",
+    "@elizaos/core",
+    "zod"
+  ]
+});
+export {
+  tsup_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidHN1cC5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9faW5qZWN0ZWRfZmlsZW5hbWVfXyA9IFwiL2hvbWUvdXNlci9EZXZlbG9wbWVudC9zb2NpYWwtc3RyYXRlZ3ktYWdlbnQvcGFja2FnZXMvcGx1Z2luLXNvY2lhbC1zdHJhdGVneS90c3VwLmNvbmZpZy50c1wiO2NvbnN0IF9faW5qZWN0ZWRfZGlybmFtZV9fID0gXCIvaG9tZS91c2VyL0RldmVsb3BtZW50L3NvY2lhbC1zdHJhdGVneS1hZ2VudC9wYWNrYWdlcy9wbHVnaW4tc29jaWFsLXN0cmF0ZWd5XCI7Y29uc3QgX19pbmplY3RlZF9pbXBvcnRfbWV0YV91cmxfXyA9IFwiZmlsZTovLy9ob21lL3VzZXIvRGV2ZWxvcG1lbnQvc29jaWFsLXN0cmF0ZWd5LWFnZW50L3BhY2thZ2VzL3BsdWdpbi1zb2NpYWwtc3RyYXRlZ3kvdHN1cC5jb25maWcudHNcIjtpbXBvcnQgeyBkZWZpbmVDb25maWcgfSBmcm9tIFwidHN1cFwiO1xuXG5leHBvcnQgZGVmYXVsdCBkZWZpbmVDb25maWcoe1xuICBlbnRyeTogW1wic3JjL2luZGV4LnRzXCJdLFxuICBvdXREaXI6IFwiZGlzdFwiLFxuICB0c2NvbmZpZzogXCIuL3RzY29uZmlnLmJ1aWxkLmpzb25cIiwgLy8gVXNlIGJ1aWxkLXNwZWNpZmljIHRzY29uZmlnXG4gIHNvdXJjZW1hcDogdHJ1ZSxcbiAgY2xlYW46IHRydWUsXG4gIGZvcm1hdDogW1wiZXNtXCJdLCAvLyBFbnN1cmUgeW91J3JlIHRhcmdldGluZyBDb21tb25KU1xuICBkdHM6IHRydWUsIC8vIHJlcXVpcmUgRFRTIHNvIHdlIGdldCBkLnRzIGluIHRoZSBkaXN0IGZvbGRlciBvbiBucG1cbiAgZXh0ZXJuYWw6IFtcbiAgICBcImRvdGVudlwiLCAvLyBFeHRlcm5hbGl6ZSBkb3RlbnYgdG8gcHJldmVudCBidW5kbGluZ1xuICAgIFwiZnNcIiwgLy8gRXh0ZXJuYWxpemUgZnMgdG8gdXNlIE5vZGUuanMgYnVpbHQtaW4gbW9kdWxlXG4gICAgXCJwYXRoXCIsIC8vIEV4dGVybmFsaXplIG90aGVyIGJ1aWx0LWlucyBpZiBuZWNlc3NhcnlcbiAgICBcImh0dHBzXCIsXG4gICAgXCJodHRwXCIsXG4gICAgXCJAZWxpemFvcy9jb3JlXCIsXG4gICAgXCJ6b2RcIixcbiAgXSxcbn0pO1xuIl0sCiAgIm1hcHBpbmdzIjogIjtBQUFrWCxTQUFTLG9CQUFvQjtBQUUvWSxJQUFPLHNCQUFRLGFBQWE7QUFBQSxFQUMxQixPQUFPLENBQUMsY0FBYztBQUFBLEVBQ3RCLFFBQVE7QUFBQSxFQUNSLFVBQVU7QUFBQTtBQUFBLEVBQ1YsV0FBVztBQUFBLEVBQ1gsT0FBTztBQUFBLEVBQ1AsUUFBUSxDQUFDLEtBQUs7QUFBQTtBQUFBLEVBQ2QsS0FBSztBQUFBO0FBQUEsRUFDTCxVQUFVO0FBQUEsSUFDUjtBQUFBO0FBQUEsSUFDQTtBQUFBO0FBQUEsSUFDQTtBQUFBO0FBQUEsSUFDQTtBQUFBLElBQ0E7QUFBQSxJQUNBO0FBQUEsSUFDQTtBQUFBLEVBQ0Y7QUFDRixDQUFDOyIsCiAgIm5hbWVzIjogW10KfQo=

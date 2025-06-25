@@ -169,7 +169,7 @@ export class StarterTestSuite implements TestSuite {
 
         // // ----- Validate provider -----
         // const provider = socialStrategyPlugin.providers?.find(
-        //   (p) => p.name === "social-context"
+        //   (p) => p.name === "SOCIAL_CONTEXT"
         // );
         // if (!provider) throw new Error("social-context provider missing");
 

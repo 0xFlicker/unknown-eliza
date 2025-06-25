@@ -9,6 +9,8 @@ import {
   asUUID,
   validateUuid,
   elizaLogger,
+  EventType,
+  MessagePayload,
 } from "@elizaos/core";
 import { trackConversation } from "./actions/trackConversation";
 import type {
@@ -81,12 +83,31 @@ export const socialStrategyPlugin: Plugin = {
   },
   name: "social-strategy",
   description:
-    "Tracks and manages player relationships and trust scores for social strategy analysis",
+    "Tracks and manages player relationships and trust scores for social strategy analysis.",
   providers: [socialContextProvider],
-
+  // Update memory with new statements and relationships before replying
+  priority: 100,
   // Evaluators that passively listen to the conversation and keep the
   // social graph up-to-date.
   evaluators: [conversationTrackingEvaluator],
+  events: {
+    [EventType.MESSAGE_RECEIVED]: [
+      async ({
+        runtime,
+        message,
+        callback,
+        onComplete,
+      }: MessagePayload & { onComplete?: () => void }) => {
+        message.content.providers = Array.from(
+          new Set([
+            ...(message.content.providers || []),
+            "FACTS",
+            "RELATIONSHIPS",
+          ])
+        );
+      },
+    ],
+  },
   services: [AddPlayerService],
   // routes: [
   //   {

@@ -36,6 +36,7 @@ export interface PlayerRelationshipMetadata extends Metadata {
     description: string;
     source: UUID;
   }>;
+  new?: boolean;
 }
 
 export interface PlayerRelationship extends Relationship {
@@ -52,6 +53,7 @@ export interface PlayerStatement extends Component {
     sentiment: "positive" | "negative" | "neutral";
     trustScore: number;
     confidence: number;
+    new?: boolean;
   };
 }
 

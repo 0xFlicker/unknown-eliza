@@ -6,6 +6,8 @@ import {
   RelationshipType,
   SocialStrategyState,
 } from "../types";
+import { v4 as uuidv4 } from "uuid";
+import { MemoryType } from "@elizaos/core";
 
 const BASE_TRUST = 50;
 
@@ -211,6 +213,37 @@ export async function addStatement({
   //   entityWithComponents.components = [...existingComponents, statement];
   //   await runtime.updateEntity(entityWithComponents);
   // }
+}
+
+export async function addFact({
+  runtime,
+  statement,
+  message,
+}: {
+  runtime: IAgentRuntime;
+  statement: PlayerStatement;
+  message: Memory;
+}): Promise<void> {
+  const now = Date.now();
+  // Build a simple fact claim from the statement content
+  const claim = statement.data.content;
+  const factMem: Memory = {
+    id: stringToUuid(uuidv4()),
+    entityId: runtime.agentId!,
+    agentId: runtime.agentId!,
+    roomId: message.roomId,
+    content: { text: claim },
+    createdAt: now,
+    metadata: {
+      type: MemoryType.CUSTOM,
+      scope: "room",
+      timestamp: now,
+      tags: [],
+    },
+  };
+  // Embed and persist the fact
+  const embedded = await runtime.addEmbeddingToMemory(factMem);
+  await runtime.createMemory(embedded, "facts", true);
 }
 
 function clamp(num: number, min: number, max: number): number {

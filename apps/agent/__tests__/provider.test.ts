@@ -151,7 +151,7 @@ describe("Provider Tests", () => {
       if (plugin.providers) {
         expect(plugin.providers.length).toBeGreaterThan(0);
         const result = plugin.providers.find(
-          (p) => p.name === "social-context"
+          (p) => p.name === "SOCIAL_CONTEXT"
         );
         expect(
           result,

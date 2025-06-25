@@ -105,7 +105,7 @@ describe("Social Strategy Plugin", () => {
       expect(socialStrategyPlugin.providers).toBeDefined();
       const providers = socialStrategyPlugin.providers!;
       const stateProvider = providers.find(
-        (provider) => provider.name === "social-context"
+        (provider) => provider.name === "SOCIAL_CONTEXT"
       );
       expect(
         stateProvider,

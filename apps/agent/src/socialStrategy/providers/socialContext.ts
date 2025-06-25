@@ -82,8 +82,75 @@ export function parseJSONObjectFromText(
   return jsonData;
 }
 
+// FIRST_EDIT: add caching constants and helper
+const ANALYSIS_TTL_MS = 60_000;
+type CachedAnalysis = { ts: number; result: AnalysisResult };
+const analysisCache = new Map<string, CachedAnalysis>();
+const analysisInFlight = new Map<string, Promise<AnalysisResult>>();
+
+/**
+ * Clears the in-memory and in-flight analysis caches. For testing only.
+ */
+export function resetAnalysisCache(): void {
+  analysisCache.clear();
+  analysisInFlight.clear();
+}
+
+async function getAnalysis(
+  runtime: IAgentRuntime,
+  key: string,
+  prompt: string
+): Promise<AnalysisResult> {
+  const now = Date.now();
+  // 1) Try runtime cache
+  try {
+    const remote = await runtime.getCache<CachedAnalysis>(key);
+    if (remote) {
+      const age = now - remote.ts;
+      if (age >= 0 && age < ANALYSIS_TTL_MS) {
+        return remote.result;
+      }
+    }
+  } catch {}
+
+  // 2) Try in-memory cache
+  const mem = analysisCache.get(key);
+  if (mem) {
+    const age = now - mem.ts;
+    if (age >= 0 && age < ANALYSIS_TTL_MS) {
+      return mem.result;
+    }
+  }
+  // 3) Deduplicate in-flight calls
+  const inFlight = analysisInFlight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+  // 4) Perform analysis
+  const analysisPromise = (async () => {
+    const raw = await runtime.useModel(ModelType.TEXT_SMALL, {
+      prompt,
+      temperature: 0.3,
+      maxTokens: 512,
+    });
+    const parsed = parseJSONObjectFromText(
+      raw ?? "[]"
+    ) as AnalysisResult | null;
+    const result = parsed ?? [];
+    const entry: CachedAnalysis = { ts: Date.now(), result };
+    analysisCache.set(key, entry);
+    try {
+      await runtime.setCache(key, entry);
+    } catch {}
+    analysisInFlight.delete(key);
+    return result;
+  })();
+  analysisInFlight.set(key, analysisPromise);
+  return analysisPromise;
+}
+
 export const socialContextProvider: Provider = {
-  name: "social-context",
+  name: "SOCIAL_CONTEXT",
   description:
     "Provides formatted social context (players, trust scores, relationships, recent statements) and performs per-message sentiment analysis.",
   get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
@@ -134,6 +201,7 @@ export const socialContextProvider: Provider = {
     const relSet = new Set<string>();
     const runtimeRelationships: PlayerRelationship[] = [];
     const newRelationships: Omit<PlayerRelationship, "id" | "agentId">[] = [];
+    const newStatements: PlayerStatement[] = [];
     for (const id of Object.keys(playerMap)) {
       if (!validateUuid(id)) continue;
       const rels = await runtime.getRelationships({ entityId: asUUID(id) });
@@ -240,17 +308,11 @@ export const socialContextProvider: Provider = {
       };
       const prompt = buildAnalysisPrompt(text, speakerHandle, mentions);
 
+      // SECOND_EDIT: use cached analysis rather than direct useModel
       try {
-        const raw = await runtime.useModel(ModelType.TEXT_SMALL, {
-          prompt,
-          temperature: 0.3,
-          maxTokens: 512,
-        });
-        const parsed = parseJSONObjectFromText(
-          raw ?? "[]"
-        ) as AnalysisResult | null;
-
-        for (const p of parsed ?? []) {
+        const cacheKey = `social-strategy:analysis:${runtime.agentId}:${message.roomId}:${message.id}:${speakerHandle}`;
+        const analysis = await getAnalysis(runtime, cacheKey, prompt);
+        for (const p of analysis) {
           const sentiment = (p.sentiment ?? "neutral") as
             | "positive"
             | "negative"
@@ -280,6 +342,7 @@ export const socialContextProvider: Provider = {
                 sentiment,
                 confidence,
                 trustScore,
+                new: true,
               },
               type: "social-strategy-statement",
               entityId: speaker.id,
@@ -287,7 +350,6 @@ export const socialContextProvider: Provider = {
               worldId: message.worldId ?? runtime.agentId,
               sourceEntityId: target.id,
             };
-            runtimeStatements.push(statement);
             // --- Relationship update logic (inline, inspired by upsertRelationship) ---
             const relType = sentimentToRelationship(sentiment);
             const description = `Sentiment '${sentiment}' detected in message: \"${text}\"`;
@@ -333,6 +395,7 @@ export const socialContextProvider: Provider = {
                 },
               };
               newRelationships.push(newRel);
+              newStatements.push(statement);
             }
 
             console.log(
@@ -354,9 +417,10 @@ export const socialContextProvider: Provider = {
     // ----------------------------------------------------
     const players = [...new Set(Object.values(playerMap))];
     const relationships = [...runtimeRelationships, ...newRelationships];
+    const allStatements = [...runtimeStatements, ...newStatements];
     const duration = Date.now() - now;
     console.log(
-      `✅ Context ready: players=${players.length}, relationships=${relationships.length}, statements=${runtimeStatements.length}, duration=${duration}ms`
+      `✅ Context ready: players=${players.length}, relationships=${relationships.length}, statements=${allStatements.length}, duration=${duration}ms`
     );
 
     return {
@@ -364,7 +428,7 @@ export const socialContextProvider: Provider = {
       values: {
         players: playerMap,
         relationships,
-        statements: runtimeStatements,
+        statements: allStatements,
       },
     } as SocialStrategyState;
   },

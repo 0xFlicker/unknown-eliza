@@ -17,6 +17,7 @@ import {
   type RelationshipType,
 } from "../types";
 import { addStatement, upsertRelationship } from "../runtime/memory";
+import { addFact } from "../runtime/memory";
 
 const DEFAULT_TRUST_SCORE = 50;
 const TRUST_ADJUSTMENT = 10;
@@ -191,23 +192,132 @@ function extractMentionedPlayers(text: string): string[] {
 
 export const trackConversation: Action = {
   name: "TRACK_CONVERSATION",
-  description:
+
+  description: [
     "Track and analyze conversations to update player relationships and trust scores. Should be called after a message with @mentions is sent.",
+    "FACTS, RELATIONSHIPS and SOCIAL_CONTEXT are **required** providers when calling this action.",
+  ].join(""),
   similes: ["SAVE_RELATIONSHIP", "SAVE_STATEMENT"],
   examples: [
     [
+      /*  “Quick heads-up: I’m buying an extra die for tomorrow’s HoH—5 HC well spent if it keeps me off the block.”
+
+“@PlayerC, I’ll transfer you 8 HC if you promise to vote to save me on Day 3. React with ✅ if we have a deal.”
+
+“Strategy check: the pot is thinning fast. Anyone else think hoarding HC is smarter than rolling three dice this early?”
+
+“@PlayerF kept their word last cycle, so I’m rating them 9/10 for trustworthiness and aligning my vote with theirs.”
+
+“Public note: I’m skipping stakes this HoH. I’d rather stay liquid for the eviction vote—high stakes feel like a trap.”
+
+“I’m nominating @PlayerH and @PlayerJ. Nothing personal—just balancing the board after last round’s dice spree.”
+
+“If you’re feeling safe, lend me 4 HC for a last-minute die. I’ll repay 6 HC next faucet—DM me.”
+
+“Observations: @PlayerD has 65 HC left but zero extra dice. Big wallet, small threat in comps—worth keeping around.”
+
+“Reminder to self: never underestimate a single-die player in HoH; those puzzles swing the scores more than dice.”
+
+“Going to rate @PlayerA a solid 7/10. They voted to keep me, but that bribe from @PlayerE clearly influenced them.”
+
+“Just burned 15 HC on three votes to save @PlayerK. Hope it pays off or I’m broke next cycle.”
+
+“End-of-round recap: bought one die, staked 25 HC, finished 2nd in HoH, and still have 12 HC—calling that a win.”
+*/
       {
-        name: "user",
+        name: "{user}",
         content: {
-          text: "Player A said 'I trust Player B completely'",
-          actions: ["RELATIONSHIP_UPDATE"],
+          text: "I've been working with @PlayerB the past few rounds and we've been working really well together.  I'm going to give them a 10/10 for this round.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
         },
       },
       {
-        name: "agent",
+        name: "{user}",
         content: {
-          text: "Updated trust score for Player B based on Player A's statement.",
-          actions: ["CONVERSATION_TRACKING"],
+          text: "Quick heads-up: I’m buying an extra die for tomorrow’s HoH—5 HC well spent if it keeps me off the block.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "PlayerC, I’ll transfer you 8 HC if you promise to vote to save me on Day 3. React with ✅ if we have a deal.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Strategy check: the pot is thinning fast. Anyone else think hoarding HC is smarter than rolling three dice this early?",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "PlayerF kept their word last cycle, so I’m rating them 9/10 for trustworthiness and aligning my vote with theirs.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Public note: I’m skipping stakes this HoH. I’d rather stay liquid for the eviction vote—high stakes feel like a trap.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "I’m nominating @PlayerH and @PlayerJ. Nothing personal—just balancing the board after last round’s dice spree.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "If you’re feeling safe, lend me 4 HC for a last-minute die. I’ll repay 6 HC next faucet—DM me.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Observations: @PlayerD has 65 HC left but zero extra dice. Big wallet, small threat in comps—worth keeping around.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Reminder to self: never underestimate a single-die player in HoH; those puzzles swing the scores more than dice.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Going to rate @PlayerA a solid 7/10. They voted to keep me, but that bribe from @PlayerE clearly influenced them.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS"],
+        },
+      },
+      {
+        name: "{user}",
+        content: {
+          text: "Public note: I’m skipping stakes this HoH. I’d rather stay liquid for the eviction vote—high stakes feel like a trap.",
+          actions: ["TRACK_CONVERSATION"],
+          providers: ["SOCIAL_CONTEXT", "FACTS", "RELATIONSHIPS"],
         },
       },
     ],
@@ -237,9 +347,10 @@ export const trackConversation: Action = {
     }
 
     for (const statement of statements) {
-      if (statement.metadata?.new) {
-        delete statement.metadata.new;
+      if (statement.data.new) {
+        delete statement.data.new;
         await runtime.createComponent(statement);
+        await addFact({ runtime, statement, message });
       } else if (statement.metadata?.needsSave) {
         delete statement.metadata.needsSave;
         await runtime.updateComponent(statement);
