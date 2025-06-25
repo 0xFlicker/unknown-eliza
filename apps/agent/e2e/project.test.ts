@@ -6,7 +6,6 @@ import {
   MemoryType,
   stringToUuid,
 } from "@elizaos/core";
-import { trackConversation } from "@0xflicker/plugin-social-strategy";
 
 // Define a minimal TestSuite interface that matches what's needed
 interface TestSuite {

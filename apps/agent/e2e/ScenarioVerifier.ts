@@ -6,10 +6,7 @@ import {
   type Component,
   logger,
 } from "@elizaos/core";
-import {
-  PlayerRelationship,
-  PlayerStatement,
-} from "@elizaos/plugin-social-strategy";
+import { PlayerRelationship, PlayerStatement } from "../src/socialStrategy";
 
 export interface EntityExpectations {
   names?: string[];
