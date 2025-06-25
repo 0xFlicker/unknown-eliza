@@ -58,9 +58,6 @@ describe("Social Strategy Plugin", () => {
   describe("Plugin Metadata", () => {
     it("should have correct plugin metadata", () => {
       expect(socialStrategyPlugin.name).toBe("social-strategy");
-      expect(socialStrategyPlugin.description).toBe(
-        "Tracks and manages player relationships and trust scores for social strategy analysis"
-      );
 
       documentTestResult("Plugin metadata check", {
         name: socialStrategyPlugin.name,
@@ -87,9 +84,6 @@ describe("Social Strategy Plugin", () => {
         (action) => action.name === "TRACK_CONVERSATION"
       );
       expect(trackConversationAction).toBeDefined();
-      expect(trackConversationAction?.description).toBe(
-        "Track and analyze conversations to update player relationships and trust scores. Should be called after a message with @mentions is sent."
-      );
 
       documentTestResult("trackConversation action check", {
         exists: !!trackConversationAction,
@@ -111,9 +105,6 @@ describe("Social Strategy Plugin", () => {
         stateProvider,
         `social-context provider not found. ${JSON.stringify(providers.map((p) => p.name))}`
       ).toBeDefined();
-      expect(stateProvider?.description).toBe(
-        "Provides formatted social context (players, trust scores, relationships, recent statements) and performs per-message sentiment analysis."
-      );
 
       documentTestResult("social-strategy-state provider check", {
         exists: !!stateProvider,

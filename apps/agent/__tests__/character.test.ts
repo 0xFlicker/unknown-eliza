@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { character } from "../src/index.ts";
+import character from "../src/characters/alex";
 
 describe("Character Configuration", () => {
   it("should have all required fields", () => {

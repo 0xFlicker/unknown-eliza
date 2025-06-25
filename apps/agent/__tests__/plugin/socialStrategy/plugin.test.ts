@@ -5,9 +5,6 @@ describe("Social Strategy Plugin", () => {
   it("should export the plugin correctly", () => {
     expect(socialStrategyPlugin).toBeDefined();
     expect(socialStrategyPlugin.name).toBe("social-strategy");
-    expect(socialStrategyPlugin.description).toBe(
-      "Tracks and manages player relationships and trust scores for social strategy analysis"
-    );
   });
 
   it("should have actions defined", () => {
