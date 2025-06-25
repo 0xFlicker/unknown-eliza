@@ -1,8 +1,8 @@
-import { character } from "../src/index.ts";
+import character from "../src/characters/alex";
 import {
   PlayerEntity,
   SocialStrategyContext,
-} from "@0xflicker/plugin-social-strategy";
+} from "../src/socialStrategy/index";
 import { ChannelType, IAgentRuntime } from "@elizaos/core";
 import {
   ConversationScript,
