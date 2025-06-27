@@ -2,7 +2,7 @@ import { type UUID, type IAgentRuntime } from "@elizaos/core";
 
 export async function getParticipantsForRoom(
   runtime: IAgentRuntime,
-  roomId: UUID
+  roomId: UUID,
 ) {
   try {
     return await runtime.getParticipantsForRoom(roomId);

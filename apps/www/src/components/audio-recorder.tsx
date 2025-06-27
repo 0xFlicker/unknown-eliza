@@ -1,12 +1,16 @@
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
-import { cn } from '@/lib/utils';
-import type { UUID } from '@elizaos/core';
-import { useMutation } from '@tanstack/react-query';
-import { Ellipsis, Mic, Send, Trash } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { UUID } from "@elizaos/core";
+import { useMutation } from "@tanstack/react-query";
+import { Ellipsis, Mic, Send, Trash } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = {
   agentId: UUID;
@@ -27,10 +31,15 @@ let timerTimeout: ReturnType<typeof setTimeout>;
 
 // Utility function to pad a number with leading zeros
 const padWithLeadingZeros = (num: number, length: number): string => {
-  return String(num).padStart(length, '0');
+  return String(num).padStart(length, "0");
 };
 
-export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: Props) => {
+export const AudioRecorder = ({
+  className,
+  timerClassName,
+  agentId,
+  onChange,
+}: Props) => {
   const { toast } = useToast();
   // States
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -38,7 +47,7 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
   const [timer, setTimer] = useState<number>(0);
   const [currentRecord, setCurrentRecord] = useState<Record>({
     id: -1,
-    name: '',
+    name: "",
     file: null,
   });
   // Calculate the hours, minutes, and seconds from the timer
@@ -46,12 +55,12 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
   const seconds = timer % 60;
 
   const [minuteLeft, minuteRight] = useMemo(
-    () => padWithLeadingZeros(minutes, 2).split(''),
-    [minutes]
+    () => padWithLeadingZeros(minutes, 2).split(""),
+    [minutes],
   );
   const [secondLeft, secondRight] = useMemo(
-    () => padWithLeadingZeros(seconds, 2).split(''),
-    [seconds]
+    () => padWithLeadingZeros(seconds, 2).split(""),
+    [seconds],
   );
   // Refs
   const mediaRecorderRef = useRef<{
@@ -67,7 +76,7 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
   });
 
   const mutation = useMutation({
-    mutationKey: ['whisper'],
+    mutationKey: ["whisper"],
     mutationFn: (file: Blob) => apiClient.transcribeAudio(agentId, file),
     onSuccess: (data: { data: { text: string } }) => {
       if (data?.data?.text) {
@@ -76,8 +85,8 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
     },
     onError: (e) => {
       toast({
-        variant: 'destructive',
-        title: 'Unable to start recording',
+        variant: "destructive",
+        title: "Unable to start recording",
         description: e.message,
       });
       console.log(e);
@@ -105,14 +114,17 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
             audioContext: audioCtx,
           };
 
-          const mimeType = MediaRecorder.isTypeSupported('audio/mpeg')
-            ? 'audio/mpeg'
-            : MediaRecorder.isTypeSupported('audio/webm')
-              ? 'audio/webm'
-              : 'audio/wav';
+          const mimeType = MediaRecorder.isTypeSupported("audio/mpeg")
+            ? "audio/mpeg"
+            : MediaRecorder.isTypeSupported("audio/webm")
+              ? "audio/webm"
+              : "audio/wav";
 
           const options = { mimeType };
-          mediaRecorderRef.current.mediaRecorder = new MediaRecorder(stream, options);
+          mediaRecorderRef.current.mediaRecorder = new MediaRecorder(
+            stream,
+            options,
+          );
           mediaRecorderRef.current.mediaRecorder.start();
           recordingChunks = [];
           // ============ Recording ============
@@ -124,8 +136,8 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
         })
         .catch((e) => {
           toast({
-            variant: 'destructive',
-            title: 'Unable to start recording',
+            variant: "destructive",
+            title: "Unable to start recording",
             description: e.message,
           });
           console.log(e);
@@ -135,7 +147,7 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
   function stopRecording() {
     recorder.onstop = () => {
       const recordBlob = new Blob(recordingChunks, {
-        type: 'audio/wav',
+        type: "audio/wav",
       });
       mutation.mutate(recordBlob);
       setCurrentRecord({
@@ -153,7 +165,8 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
     clearTimeout(timerTimeout);
   }
   function resetRecording() {
-    const { mediaRecorder, stream, analyser, audioContext } = mediaRecorderRef.current;
+    const { mediaRecorder, stream, analyser, audioContext } =
+      mediaRecorderRef.current;
 
     if (mediaRecorder) {
       mediaRecorder.onstop = () => {
@@ -204,11 +217,11 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
   return (
     <div
       className={cn(
-        'flex items-center justify-center gap-2 border-l border-l-transparent border-opacity-0 transition-all duration-300',
+        "flex items-center justify-center gap-2 border-l border-l-transparent border-opacity-0 transition-all duration-300",
         {
-          'border-opacity-100 border-l-border pl-2': isRecording,
+          "border-opacity-100 border-l-border pl-2": isRecording,
         },
-        className
+        className,
       )}
     >
       {isRecording ? (
@@ -229,7 +242,7 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
         {isRecording ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={resetRecording} size={'icon'} variant="ghost">
+              <Button onClick={resetRecording} size={"icon"} variant="ghost">
                 <Trash className="size-4" />
               </Button>
             </TooltipTrigger>
@@ -243,7 +256,11 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
         <Tooltip>
           <TooltipTrigger asChild>
             {!isRecording ? (
-              <Button variant="ghost" size="icon" onClick={() => startRecording()}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => startRecording()}
+              >
                 <Mic className="size-4" />
                 <span className="sr-only">Use Microphone</span>
               </Button>
@@ -254,7 +271,7 @@ export const AudioRecorder = ({ className, timerClassName, agentId, onChange }: 
             )}
           </TooltipTrigger>
           <TooltipContent side="right">
-            <span>{!isRecording ? 'Start' : 'Send'} </span>
+            <span>{!isRecording ? "Start" : "Send"} </span>
           </TooltipContent>
         </Tooltip>
       </div>
@@ -277,7 +294,12 @@ const Timer = React.memo(
     timerClassName?: string;
   }) => {
     return (
-      <div className={cn('text-sm animate-in duration-1000 fade-in-0 select-none', timerClassName)}>
+      <div
+        className={cn(
+          "text-sm animate-in duration-1000 fade-in-0 select-none",
+          timerClassName,
+        )}
+      >
         <p>
           {minuteLeft}
           {minuteRight}:{secondLeft}
@@ -285,7 +307,7 @@ const Timer = React.memo(
         </p>
       </div>
     );
-  }
+  },
 );
 
-Timer.displayName = 'Timer';
+Timer.displayName = "Timer";

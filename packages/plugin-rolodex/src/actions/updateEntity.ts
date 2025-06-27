@@ -136,7 +136,7 @@ export const updateEntityAction: Action = {
   validate: async (
     _runtime: IAgentRuntime,
     _message: Memory,
-    _state?: State
+    _state?: State,
   ): Promise<boolean> => {
     // Check if we have any registered sources or existing components that could be updated
     // const worldId = message.roomId;
@@ -156,7 +156,7 @@ export const updateEntityAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<State | void> => {
     try {
       if (!state) {
@@ -247,7 +247,7 @@ export const updateEntityAction: Action = {
         entity.id!,
         componentType,
         worldId,
-        sourceEntityId
+        sourceEntityId,
       );
 
       // Create or update the component

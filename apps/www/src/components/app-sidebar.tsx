@@ -1,5 +1,5 @@
-import ConnectionStatus from '@/components/connection-status';
-import { Button } from '@/components/ui/button';
+import ConnectionStatus from "@/components/connection-status";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -11,34 +11,47 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
-} from '@/components/ui/sidebar';
-import ConfirmationDialog from '@/components/confirmation-dialog';
-import { useConfirmation } from '@/hooks/use-confirmation';
+} from "@/components/ui/sidebar";
+import ConfirmationDialog from "@/components/confirmation-dialog";
+import { useConfirmation } from "@/hooks/use-confirmation";
 
 import {
   useAgentsWithDetails, // New hook
   useChannels,
   useServers, // New hook
-} from '@/hooks/use-query-hooks';
-import info from '@/lib/info.json';
-import { cn, generateGroupName, getAgentAvatar, getEntityId } from '@/lib/utils';
+} from "@/hooks/use-query-hooks";
+import info from "@/lib/info.json";
+import {
+  cn,
+  generateGroupName,
+  getAgentAvatar,
+  getEntityId,
+} from "@/lib/utils";
 import type {
   MessageChannel as ClientMessageChannel,
   MessageServer as ClientMessageServer,
-} from '@/types';
+} from "@/types";
 import {
   AgentStatus as CoreAgentStatus,
   ChannelType as CoreChannelType,
   type Agent,
   type UUID,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
-import { useDeleteChannel } from '@/hooks/use-query-hooks';
-import clientLogger from '@/lib/logger'; // Added import
-import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
-import { Book, Cog, Hash, Plus, TerminalIcon, Trash2, Users } from 'lucide-react'; // Added Users icon for groups and Hash for channels
-import { useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { useDeleteChannel } from "@/hooks/use-query-hooks";
+import clientLogger from "@/lib/logger"; // Added import
+import { useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
+import {
+  Book,
+  Cog,
+  Hash,
+  Plus,
+  TerminalIcon,
+  Trash2,
+  Users,
+} from "lucide-react"; // Added Users icon for groups and Hash for channels
+import { useMemo, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom"; // Added useNavigate
 
 /* ---------- helpers ---------- */
 const partition = <T,>(src: T[], pred: (v: T) => boolean): [T[], T[]] => {
@@ -51,15 +64,15 @@ const partition = <T,>(src: T[], pred: (v: T) => boolean): [T[], T[]] => {
 /* ---------- tiny components ---------- */
 const SectionHeader = ({
   children,
-  className = '',
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
 }) => (
   <div
     className={cn(
-      'px-4 pt-1 pb-0 text-sm font-medium text-muted-foreground sidebar-section-header',
-      className
+      "px-4 pt-1 pb-0 text-sm font-medium text-muted-foreground sidebar-section-header",
+      className,
     )}
   >
     {children}
@@ -69,7 +82,7 @@ const SectionHeader = ({
 const SidebarSection = ({
   title,
   children,
-  className = '',
+  className = "",
 }: {
   title: string;
   children: React.ReactNode;
@@ -96,18 +109,21 @@ const AgentRow = ({
 }) => (
   <SidebarMenuItem className="h-16">
     <NavLink to={`/chat/${agent.id}`}>
-      <SidebarMenuButton isActive={active} className="px-4 py-2 my-2 h-full rounded-md">
+      <SidebarMenuButton
+        isActive={active}
+        className="px-4 py-2 my-2 h-full rounded-md"
+      >
         <div className="flex items-center gap-2">
           <div className="relative w-8 h-8 rounded-full bg-gray-600">
             <img
               src={getAgentAvatar(agent)}
-              alt={agent.name || 'avatar'}
+              alt={agent.name || "avatar"}
               className="object-cover w-full h-full rounded-full"
             />
             <span
               className={cn(
-                'absolute bottom-0 right-0 w-[10px] h-[10px] rounded-full border border-white',
-                isOnline ? 'bg-green-500' : 'bg-muted-foreground'
+                "absolute bottom-0 right-0 w-[10px] h-[10px] rounded-full border border-white",
+                isOnline ? "bg-green-500" : "bg-muted-foreground",
               )}
             />
           </div>
@@ -132,12 +148,19 @@ const GroupRow = ({
   return (
     <SidebarMenuItem className="h-12">
       <NavLink to={`/group/${channel.id}?serverId=${serverId}`}>
-        <SidebarMenuButton isActive={active} className="px-4 py-2 my-1 h-full rounded-md">
+        <SidebarMenuButton
+          isActive={active}
+          className="px-4 py-2 my-1 h-full rounded-md"
+        >
           <div className="flex items-center gap-3">
             <Hash className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm truncate max-w-32">
               {channel.name ||
-                generateGroupName(channel, (channel as any).participants || [], currentClientId)}
+                generateGroupName(
+                  channel,
+                  (channel as any).participants || [],
+                  currentClientId,
+                )}
             </span>
           </div>
         </SidebarMenuButton>
@@ -173,7 +196,7 @@ const GroupListSection = ({
   servers,
   isLoadingServers,
   activePath,
-  className = '',
+  className = "",
 }: {
   servers: ClientMessageServer[] | undefined;
   isLoadingServers: boolean;
@@ -183,14 +206,19 @@ const GroupListSection = ({
   const navigate = useNavigate();
 
   const handleCreateGroup = () => {
-    navigate('/group/new');
+    navigate("/group/new");
   };
 
   return (
     <>
       <div className="flex items-center justify-between px-4 pt-1 pb-0">
         <SectionHeader className="px-0 py-0">Groups</SectionHeader>
-        <Button variant="ghost" size="icon" onClick={handleCreateGroup} aria-label="Create Group">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCreateGroup}
+          aria-label="Create Group"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -212,7 +240,9 @@ const GroupListSection = ({
             ))}
             {(!servers || servers.length === 0) && !isLoadingServers && (
               <SidebarMenuItem>
-                <div className="p-4 text-xs text-muted-foreground">No groups found.</div>
+                <div className="p-4 text-xs text-muted-foreground">
+                  No groups found.
+                </div>
               </SidebarMenuItem>
             )}
           </SidebarMenu>
@@ -226,7 +256,7 @@ const GroupListSection = ({
 const GroupChannelListSection = ({
   servers,
   isLoadingServers,
-  className = '',
+  className = "",
   onManageServers,
 }: {
   servers: ClientMessageServer[] | undefined;
@@ -253,14 +283,16 @@ const GroupChannelListSection = ({
       ))}
       {(!servers || servers.length === 0) && !isLoadingServers && (
         <SidebarMenuItem>
-          <div className="p-4 text-xs text-muted-foreground">No groups found.</div>
+          <div className="p-4 text-xs text-muted-foreground">
+            No groups found.
+          </div>
         </SidebarMenuItem>
       )}
       <div className="flex justify-endtop-0">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/group/new')}
+          onClick={() => navigate("/group/new")}
           className="text-xs"
         >
           <Plus className="h-3 w-3 mr-1" /> New Group
@@ -277,15 +309,20 @@ const ChannelsForServer = ({
   serverId: UUID;
   navigate: ReturnType<typeof useNavigate>;
 }) => {
-  const { data: channelsData, isLoading: isLoadingChannels } = useChannels(serverId);
+  const { data: channelsData, isLoading: isLoadingChannels } =
+    useChannels(serverId);
   const currentClientId = getEntityId(); // Get current client/user ID
   const deleteChannelMutation = useDeleteChannel();
   const [deletingChannelId, setDeletingChannelId] = useState<UUID | null>(null);
-  const { confirm, isOpen, onOpenChange, onConfirm, options } = useConfirmation();
+  const { confirm, isOpen, onOpenChange, onConfirm, options } =
+    useConfirmation();
 
   const groupChannels = useMemo(
-    () => channelsData?.data?.channels?.filter((ch) => ch.type === CoreChannelType.GROUP) || [],
-    [channelsData]
+    () =>
+      channelsData?.data?.channels?.filter(
+        (ch) => ch.type === CoreChannelType.GROUP,
+      ) || [],
+    [channelsData],
   );
 
   const handleDeleteChannel = (e: React.MouseEvent, channelId: UUID) => {
@@ -294,21 +331,22 @@ const ChannelsForServer = ({
 
     confirm(
       {
-        title: 'Delete Group',
-        description: 'Are you sure you want to delete this group? This action cannot be undone.',
-        confirmText: 'Delete',
-        variant: 'destructive',
+        title: "Delete Group",
+        description:
+          "Are you sure you want to delete this group? This action cannot be undone.",
+        confirmText: "Delete",
+        variant: "destructive",
       },
       async () => {
         setDeletingChannelId(channelId);
         try {
           await deleteChannelMutation.mutateAsync({ channelId, serverId });
         } catch (error) {
-          console.error('Failed to delete channel:', error);
+          console.error("Failed to delete channel:", error);
         } finally {
           setDeletingChannelId(null);
         }
-      }
+      },
     );
   };
 
@@ -330,16 +368,20 @@ const ChannelsForServer = ({
           {groupChannels.map((channel) => (
             <SidebarMenuItem key={channel.id} className="h-12 group">
               <div className="flex items-center gap-1 w-full">
-                <NavLink to={`/group/${channel.id}?serverId=${serverId}`} className="flex-1">
+                <NavLink
+                  to={`/group/${channel.id}?serverId=${serverId}`}
+                  className="flex-1"
+                >
                   <SidebarMenuButton className="px-4 py-2 my-1 h-full rounded-md">
                     <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-muted-foreground" /> {/* Group icon */}
+                      <Users className="h-5 w-5 text-muted-foreground" />{" "}
+                      {/* Group icon */}
                       <span className="text-sm truncate max-w-32">
                         {/* Use generateGroupName - assumes channel.participants exists or will be added */}
                         {generateGroupName(
                           channel,
                           (channel as any).participants || [],
-                          currentClientId
+                          currentClientId,
                         )}
                       </span>
                     </div>
@@ -364,8 +406,8 @@ const ChannelsForServer = ({
       <ConfirmationDialog
         open={isOpen}
         onOpenChange={onOpenChange}
-        title={options?.title || ''}
-        description={options?.description || ''}
+        title={options?.title || ""}
+        description={options?.description || ""}
         confirmText={options?.confirmText}
         cancelText={options?.cancelText}
         variant={options?.variant}
@@ -382,11 +424,15 @@ const GroupChannelsForServer = ({
   serverId: UUID;
   activePath: string;
 }) => {
-  const { data: channelsData, isLoading: isLoadingChannels } = useChannels(serverId);
+  const { data: channelsData, isLoading: isLoadingChannels } =
+    useChannels(serverId);
 
   const groupChannels = useMemo(
-    () => channelsData?.data?.channels?.filter((ch) => ch.type === CoreChannelType.GROUP) || [],
-    [channelsData]
+    () =>
+      channelsData?.data?.channels?.filter(
+        (ch) => ch.type === CoreChannelType.GROUP,
+      ) || [],
+    [channelsData],
   );
 
   if (isLoadingChannels) {
@@ -451,41 +497,48 @@ export function AppSidebar({
   const { data: serversData, isLoading: isLoadingServers } = useServers();
 
   const agents = useMemo(() => agentsData?.agents || [], [agentsData]);
-  const servers = useMemo(() => serversData?.data?.servers || [], [serversData]);
+  const servers = useMemo(
+    () => serversData?.data?.servers || [],
+    [serversData],
+  );
 
   const [onlineAgents, offlineAgents] = useMemo(
     () => partition(agents, (a) => a.status === CoreAgentStatus.ACTIVE),
-    [agents]
+    [agents],
   );
 
   // const [isGroupPanelOpen, setGroupPanelOpen] = useState(false); // GroupPanel logic needs rethink
   const handleCreateAgent = () => {
-    navigate('/create'); // Navigate to agent creation route
+    navigate("/create"); // Navigate to agent creation route
   };
 
   const agentLoadError = agentsError
-    ? 'Error loading agents: NetworkError: Unable to connect to the server. Please check if the server is running.'
+    ? "Error loading agents: NetworkError: Unable to connect to the server. Please check if the server is running."
     : undefined;
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    clientLogger.info('[AppSidebar] handleLogoClick triggered', { currentPath: location.pathname });
+    clientLogger.info("[AppSidebar] handleLogoClick triggered", {
+      currentPath: location.pathname,
+    });
 
     // Invalidate queries that should be fresh on home page
-    queryClient.invalidateQueries({ queryKey: ['agents'] });
-    queryClient.invalidateQueries({ queryKey: ['agentsWithDetails'] }); // if this is a separate key
-    queryClient.invalidateQueries({ queryKey: ['servers'] });
-    queryClient.invalidateQueries({ queryKey: ['channels'] }); // This is broad, consider more specific invalidations if performance is an issue
+    queryClient.invalidateQueries({ queryKey: ["agents"] });
+    queryClient.invalidateQueries({ queryKey: ["agentsWithDetails"] }); // if this is a separate key
+    queryClient.invalidateQueries({ queryKey: ["servers"] });
+    queryClient.invalidateQueries({ queryKey: ["channels"] }); // This is broad, consider more specific invalidations if performance is an issue
     // Example: if you know active server IDs, invalidate ['channels', serverId]
 
-    if (location.pathname === '/') {
-      clientLogger.info('[AppSidebar] Already on home page. Calling refreshHomePage().');
+    if (location.pathname === "/") {
+      clientLogger.info(
+        "[AppSidebar] Already on home page. Calling refreshHomePage().",
+      );
       // refreshHomePage should ideally trigger a re-render/refetch in Home.tsx
       // This can be done by changing a key prop on Home.tsx or further query invalidations if needed.
       refreshHomePage();
     } else {
       clientLogger.info('[AppSidebar] Not on home page. Navigating to "/".');
-      navigate('/');
+      navigate("/");
     }
   };
 
@@ -493,9 +546,11 @@ export function AppSidebar({
     <>
       <Sidebar
         className={cn(
-          'bg-background border-r overflow-hidden',
-          isMobile ? 'p-3 pt-12 w-full h-full' : 'p-4 w-72 fixed left-0 top-0 z-40 h-screen',
-          !isMobile && 'hidden md:flex md:flex-col'
+          "bg-background border-r overflow-hidden",
+          isMobile
+            ? "p-3 pt-12 w-full h-full"
+            : "p-4 w-72 fixed left-0 top-0 z-40 h-screen",
+          !isMobile && "hidden md:flex md:flex-col",
         )}
         collapsible="none"
         data-testid="app-sidebar"
@@ -516,7 +571,9 @@ export function AppSidebar({
                       src="/elizaos-logo-light.png"
                       className="w-32 max-w-full"
                     />
-                    <span className="text-xs font-mono text-muted-foreground">v{info.version}</span>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      v{info.version}
+                    </span>
                   </div>
                 </a>
               </SidebarMenuButton>
@@ -537,7 +594,11 @@ export function AppSidebar({
               <SidebarMenuSkeleton />
             </SidebarSection>
           )}
-          {agentLoadError && <div className="px-4 py-2 text-xs text-red-500">{agentLoadError}</div>}
+          {agentLoadError && (
+            <div className="px-4 py-2 text-xs text-red-500">
+              {agentLoadError}
+            </div>
+          )}
 
           {!isLoadingAgents && !agentLoadError && (
             <>
@@ -581,7 +642,11 @@ export function AppSidebar({
         {/* ---------- footer ---------- */}
         <SidebarFooter className="px-4 py-4">
           <SidebarMenu>
-            <FooterLink to="https://eliza.how/" Icon={Book} label="Documentation" />
+            <FooterLink
+              to="https://eliza.how/"
+              Icon={Book}
+              label="Documentation"
+            />
             <FooterLink to="/logs" Icon={TerminalIcon} label="Logs" />
             <FooterLink to="/settings" Icon={Cog} label="Settings" />
             <ConnectionStatus />
@@ -595,8 +660,16 @@ export function AppSidebar({
 }
 
 /* ---------- footer link ---------- */
-const FooterLink = ({ to, Icon, label }: { to: string; Icon: typeof Book; label: string }) => {
-  const isExternal = to.startsWith('http://') || to.startsWith('https://');
+const FooterLink = ({
+  to,
+  Icon,
+  label,
+}: {
+  to: string;
+  Icon: typeof Book;
+  label: string;
+}) => {
+  const isExternal = to.startsWith("http://") || to.startsWith("https://");
 
   if (isExternal) {
     return (

@@ -1,6 +1,6 @@
-import React from 'react';
-import { useAgents } from '@/hooks/use-query-hooks';
-import type { Agent } from '@elizaos/core';
+import React from "react";
+import { useAgents } from "@/hooks/use-query-hooks";
+import type { Agent } from "@elizaos/core";
 
 const AgentList: React.FC = () => {
   const { data, isLoading, error } = useAgents();

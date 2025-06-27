@@ -1,9 +1,9 @@
-import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import type { Agent } from '@elizaos/core';
-import { AgentStatus } from '@elizaos/core';
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import type { Agent } from "@elizaos/core";
+import { AgentStatus } from "@elizaos/core";
 
 interface AgentDetailsPanelProps {
   agent: Agent;
@@ -13,17 +13,20 @@ export default function AgentDetailsPanel({ agent }: AgentDetailsPanelProps) {
   const isActive = agent.status === AgentStatus.ACTIVE;
 
   return (
-    <div className="h-full flex flex-col bg-background" data-testid="agent-details">
+    <div
+      className="h-full flex flex-col bg-background"
+      data-testid="agent-details"
+    >
       <div className="p-6 space-y-4">
         {/* Agent Header */}
         <div className="flex items-center gap-4">
           <Avatar className="size-16 border">
-            <AvatarImage src={agent.settings?.avatar || '/elizaos-icon.png'} />
+            <AvatarImage src={agent.settings?.avatar || "/elizaos-icon.png"} />
           </Avatar>
           <div className="flex-1">
             <h3 className="font-semibold text-lg">{agent.name}</h3>
-            <Badge variant={isActive ? 'default' : 'secondary'}>
-              {isActive ? 'Active' : 'Inactive'}
+            <Badge variant={isActive ? "default" : "secondary"}>
+              {isActive ? "Active" : "Inactive"}
             </Badge>
           </div>
         </div>
@@ -40,13 +43,20 @@ export default function AgentDetailsPanel({ agent }: AgentDetailsPanelProps) {
                 <p className="text-sm text-muted-foreground">
                   <span className="sm:hidden">
                     {/* Mobile: Show truncated bio */}
-                    {((text) => (text.length > 150 ? `${text.substring(0, 150)}...` : text))(
-                      Array.isArray(agent?.bio) ? agent?.bio.join(' ') : agent?.bio
+                    {((text) =>
+                      text.length > 150
+                        ? `${text.substring(0, 150)}...`
+                        : text)(
+                      Array.isArray(agent?.bio)
+                        ? agent?.bio.join(" ")
+                        : agent?.bio,
                     )}
                   </span>
                   <span className="hidden sm:block">
                     {/* Desktop: Show full bio */}
-                    {Array.isArray(agent?.bio) ? agent?.bio.join(' ') : agent?.bio}
+                    {Array.isArray(agent?.bio)
+                      ? agent?.bio.join(" ")
+                      : agent?.bio}
                   </span>
                 </p>
               </div>
@@ -100,12 +110,14 @@ export default function AgentDetailsPanel({ agent }: AgentDetailsPanelProps) {
                 <h4 className="font-medium text-sm mb-2">Settings</h4>
                 <div className="space-y-1">
                   {Object.entries(agent.settings)
-                    .filter(([key]) => key !== 'avatar' && key !== 'secrets')
+                    .filter(([key]) => key !== "avatar" && key !== "secrets")
                     .map(([key, value]) => (
                       <div key={key} className="text-xs">
-                        <span className="text-muted-foreground">{key}:</span>{' '}
+                        <span className="text-muted-foreground">{key}:</span>{" "}
                         <span className="font-mono">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          {typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value)}
                         </span>
                       </div>
                     ))}

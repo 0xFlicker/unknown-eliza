@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 import {
   stringToUuid,
   type IAgentRuntime,
@@ -8,25 +8,27 @@ import {
   type Room,
   type Metadata,
   type UUID,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
-export function createMockRuntime(overrides?: Partial<IAgentRuntime>): IAgentRuntime {
+export function createMockRuntime(
+  overrides?: Partial<IAgentRuntime>,
+): IAgentRuntime {
   const mockRoom: Room = {
-    id: stringToUuid('test-room'),
-    agentId: stringToUuid('test-agent'),
-    source: 'test',
-    type: 'SELF' as any, // Using any to avoid importing ChannelType enum
+    id: stringToUuid("test-room"),
+    agentId: stringToUuid("test-agent"),
+    source: "test",
+    type: "SELF" as any, // Using any to avoid importing ChannelType enum
   };
 
   const mockEntity: Entity = {
-    id: stringToUuid('test-entity'),
-    agentId: stringToUuid('test-agent'),
-    names: ['Test Entity'],
+    id: stringToUuid("test-entity"),
+    agentId: stringToUuid("test-agent"),
+    names: ["Test Entity"],
     metadata: {},
   };
 
   return {
-    agentId: stringToUuid('test-agent'),
+    agentId: stringToUuid("test-agent"),
     // Memory operations
     getMemories: vi.fn().mockResolvedValue([]),
     saveMemory: vi.fn().mockResolvedValue(undefined),
@@ -53,13 +55,13 @@ export function createMockRuntime(overrides?: Partial<IAgentRuntime>): IAgentRun
     // Component operations
     getComponents: vi.fn().mockResolvedValue([]),
     createComponent: vi.fn().mockResolvedValue({
-      id: stringToUuid('test-component'),
-      type: 'test',
-      agentId: stringToUuid('test-agent'),
-      entityId: stringToUuid('test-entity'),
-      roomId: stringToUuid('test-room'),
-      worldId: stringToUuid('test-world'),
-      sourceEntityId: stringToUuid('test-agent'),
+      id: stringToUuid("test-component"),
+      type: "test",
+      agentId: stringToUuid("test-agent"),
+      entityId: stringToUuid("test-entity"),
+      roomId: stringToUuid("test-room"),
+      worldId: stringToUuid("test-world"),
+      sourceEntityId: stringToUuid("test-agent"),
       data: {} as Metadata,
       createdAt: Date.now(),
     }),
@@ -81,7 +83,7 @@ export function createMockRuntime(overrides?: Partial<IAgentRuntime>): IAgentRun
     getService: vi.fn(),
 
     // Model operations
-    useModel: vi.fn().mockResolvedValue('test response'),
+    useModel: vi.fn().mockResolvedValue("test response"),
 
     // Settings
     getSetting: vi.fn(),
@@ -99,12 +101,12 @@ export function createMockRuntime(overrides?: Partial<IAgentRuntime>): IAgentRun
 
 export function createMockMemory(overrides?: Partial<Memory>): Memory {
   return {
-    id: stringToUuid('test-message'),
-    entityId: stringToUuid('test-user'),
+    id: stringToUuid("test-message"),
+    entityId: stringToUuid("test-user"),
     content: {
-      text: 'Test message',
+      text: "Test message",
     },
-    roomId: stringToUuid('test-room'),
+    roomId: stringToUuid("test-room"),
     createdAt: Date.now(),
     ...overrides,
   };
@@ -114,10 +116,10 @@ export function createMockState(overrides?: Partial<State>): State {
   return {
     values: {},
     data: {},
-    text: 'Test message',
-    agentId: stringToUuid('test-agent'),
-    roomId: stringToUuid('test-room'),
-    userId: stringToUuid('test-user'),
+    text: "Test message",
+    agentId: stringToUuid("test-agent"),
+    roomId: stringToUuid("test-room"),
+    userId: stringToUuid("test-user"),
     messages: [],
     memories: [],
     goals: [],
@@ -125,8 +127,8 @@ export function createMockState(overrides?: Partial<State>): State {
     knowledge: [],
     recentMessages: [],
     recentMessagesData: [],
-    bio: 'Test agent bio',
-    senderName: 'Test User',
+    bio: "Test agent bio",
+    senderName: "Test User",
     ...overrides,
   };
 }
@@ -134,7 +136,7 @@ export function createMockState(overrides?: Partial<State>): State {
 export function createMockEntity(name: string, id?: UUID): Entity {
   return {
     id: id || stringToUuid(`entity-${name}`),
-    agentId: stringToUuid('test-agent'),
+    agentId: stringToUuid("test-agent"),
     names: [name],
     metadata: {},
   };

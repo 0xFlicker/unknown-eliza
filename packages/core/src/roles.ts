@@ -1,9 +1,9 @@
 // File: /swarm/shared/ownership/core.ts
 // Updated to use world metadata instead of cache
 
-import { createUniqueUuid } from './entities';
-import { logger } from './logger';
-import { type IAgentRuntime, Role, type World } from './types';
+import { createUniqueUuid } from "./entities";
+import { logger } from "./logger";
+import { type IAgentRuntime, Role, type World } from "./types";
 
 /**
  * Represents the state of server ownership, including a mapping of server IDs to their respective World objects.
@@ -32,7 +32,7 @@ export interface ServerOwnershipState {
 export async function getUserServerRole(
   runtime: IAgentRuntime,
   entityId: string,
-  serverId: string
+  serverId: string,
 ): Promise<Role> {
   const worldId = createUniqueUuid(runtime, serverId);
   const world = await runtime.getWorld(worldId);
@@ -58,10 +58,10 @@ export async function getUserServerRole(
  */
 export async function findWorldsForOwner(
   runtime: IAgentRuntime,
-  entityId: string
+  entityId: string,
 ): Promise<World[] | null> {
   if (!entityId) {
-    logger.error('User ID is required to find server');
+    logger.error("User ID is required to find server");
     return null;
   }
 
@@ -69,7 +69,7 @@ export async function findWorldsForOwner(
   const worlds = await runtime.getAllWorlds();
 
   if (!worlds || worlds.length === 0) {
-    logger.info('No worlds found for this agent');
+    logger.info("No worlds found for this agent");
     return null;
   }
 

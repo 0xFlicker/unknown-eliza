@@ -1,7 +1,13 @@
-import { createContext, useState, useContext, ReactNode, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { ApiKeyDialog } from '@/components/api-key-dialog';
-import clientLogger from '@/lib/logger';
+import {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useCallback,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ApiKeyDialog } from "@/components/api-key-dialog";
+import clientLogger from "@/lib/logger";
 
 interface AuthContextType {
   openApiKeyDialog: () => void;
@@ -19,8 +25,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleApiKeySaved = useCallback(() => {
     setIsApiKeyDialogOpen(false);
-    clientLogger.info('API key saved via dialog, invalidating ping query.');
-    queryClient.invalidateQueries({ queryKey: ['ping'] });
+    clientLogger.info("API key saved via dialog, invalidating ping query.");
+    queryClient.invalidateQueries({ queryKey: ["ping"] });
   }, [queryClient]);
 
   return (
@@ -38,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

@@ -1,5 +1,11 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -7,36 +13,41 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useAgents, useServers } from '@/hooks/use-query-hooks';
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
-import type { UUID } from '@elizaos/core';
-import { Loader2, Plus, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+} from "@/components/ui/select";
+import { useAgents, useServers } from "@/hooks/use-query-hooks";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
+import type { UUID } from "@elizaos/core";
+import { Loader2, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ServerManagementProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ServerManagement({ open, onOpenChange }: ServerManagementProps) {
+export function ServerManagement({
+  open,
+  onOpenChange,
+}: ServerManagementProps) {
   const { toast } = useToast();
   const { data: serversData } = useServers();
   const { data: agentsData } = useAgents();
 
   const [selectedServerId, setSelectedServerId] = useState<UUID | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<UUID | null>(null);
-  const [serverAgents, setServerAgents] = useState<Map<UUID, UUID[]>>(new Map());
+  const [serverAgents, setServerAgents] = useState<Map<UUID, UUID[]>>(
+    new Map(),
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   // Load agents for each server
@@ -53,7 +64,10 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
             newServerAgents.set(server.id, response.data.agents);
           }
         } catch (error) {
-          console.error(`Failed to load agents for server ${server.id}:`, error);
+          console.error(
+            `Failed to load agents for server ${server.id}:`,
+            error,
+          );
         }
       }
 
@@ -66,9 +80,9 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
   const handleAddAgentToServer = async () => {
     if (!selectedServerId || !selectedAgentId) {
       toast({
-        title: 'Error',
-        description: 'Please select both a server and an agent',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please select both a server and an agent",
+        variant: "destructive",
       });
       return;
     }
@@ -88,17 +102,20 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
       });
 
       toast({
-        title: 'Success',
-        description: 'Agent added to server successfully',
+        title: "Success",
+        description: "Agent added to server successfully",
       });
 
       // Reset selection
       setSelectedAgentId(null);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add agent to server',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add agent to server",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -116,20 +133,23 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
         const agents = newMap.get(serverId) || [];
         newMap.set(
           serverId,
-          agents.filter((id) => id !== agentId)
+          agents.filter((id) => id !== agentId),
         );
         return newMap;
       });
 
       toast({
-        title: 'Success',
-        description: 'Agent removed from server successfully',
+        title: "Success",
+        description: "Agent removed from server successfully",
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove agent from server',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove agent from server",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -146,7 +166,7 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
 
     const currentAgents = serverAgents.get(selectedServerId) || [];
     return agentsData.data.agents.filter(
-      (agent) => agent.id && !currentAgents.includes(agent.id as UUID)
+      (agent) => agent.id && !currentAgents.includes(agent.id as UUID),
     );
   };
 
@@ -156,8 +176,8 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
         <DialogHeader>
           <DialogTitle>Server Management</DialogTitle>
           <DialogDescription>
-            Manage server-agent associations. Add or remove agents from servers to control which
-            agents can process messages.
+            Manage server-agent associations. Add or remove agents from servers
+            to control which agents can process messages.
           </DialogDescription>
         </DialogHeader>
 
@@ -187,30 +207,43 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Agents in Server</CardTitle>
-                <CardDescription>Agents currently associated with this server</CardDescription>
+                <CardDescription>
+                  Agents currently associated with this server
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-2">
                     {(serverAgents.get(selectedServerId) || []).length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No agents in this server</p>
+                      <p className="text-sm text-muted-foreground">
+                        No agents in this server
+                      </p>
                     ) : (
-                      (serverAgents.get(selectedServerId) || []).map((agentId) => (
-                        <div
-                          key={agentId}
-                          className="flex items-center justify-between p-2 rounded-lg border"
-                        >
-                          <span className="text-sm font-medium">{getAgentName(agentId)}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveAgentFromServer(selectedServerId, agentId)}
-                            disabled={isLoading}
+                      (serverAgents.get(selectedServerId) || []).map(
+                        (agentId) => (
+                          <div
+                            key={agentId}
+                            className="flex items-center justify-between p-2 rounded-lg border"
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))
+                            <span className="text-sm font-medium">
+                              {getAgentName(agentId)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                handleRemoveAgentFromServer(
+                                  selectedServerId,
+                                  agentId,
+                                )
+                              }
+                              disabled={isLoading}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ),
+                      )
                     )}
                   </div>
                 </ScrollArea>
@@ -238,7 +271,10 @@ export function ServerManagement({ open, onOpenChange }: ServerManagementProps) 
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddAgentToServer} disabled={!selectedAgentId || isLoading}>
+                <Button
+                  onClick={handleAddAgentToServer}
+                  disabled={!selectedAgentId || isLoading}
+                >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (

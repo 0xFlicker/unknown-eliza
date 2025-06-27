@@ -1,36 +1,52 @@
-import * as React from 'react';
-import { Button } from '@/components/ui/button';
+import * as React from "react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface SplitButtonAction {
   label: React.ReactNode;
   onClick: () => void;
   icon?: React.ReactNode;
   disabled?: boolean;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
 }
 
 export interface SplitButtonProps {
   mainAction: SplitButtonAction;
   actions: SplitButtonAction[];
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
+  variant?:
+    | "default"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "destructive";
+  size?: "default" | "sm" | "lg" | "icon";
   disabled?: boolean;
   className?: string;
 }
 
 export const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
-  ({ mainAction, actions, variant = 'default', size = 'default', disabled, className }, ref) => {
+  (
+    {
+      mainAction,
+      actions,
+      variant = "default",
+      size = "default",
+      disabled,
+      className,
+    },
+    ref,
+  ) => {
     return (
-      <div ref={ref} className={cn('flex w-full', className)}>
+      <div ref={ref} className={cn("flex w-full", className)}>
         <Button
           type="button"
           variant={variant}
@@ -38,8 +54,10 @@ export const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
           onClick={mainAction.onClick}
           disabled={disabled || mainAction.disabled}
           className={cn(
-            'rounded-r-none flex-1',
-            variant === 'destructive' ? 'border-r border-red-700' : 'border-r-0'
+            "rounded-r-none flex-1",
+            variant === "destructive"
+              ? "border-r border-red-700"
+              : "border-r-0",
           )}
         >
           {mainAction.icon && <span className="mr-2">{mainAction.icon}</span>}
@@ -66,8 +84,8 @@ export const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
                   onClick={action.onClick}
                   disabled={action.disabled}
                   className={cn(
-                    action.variant === 'destructive' &&
-                      'text-destructive focus:text-destructive hover:bg-red-50 dark:hover:bg-red-950/50'
+                    action.variant === "destructive" &&
+                      "text-destructive focus:text-destructive hover:bg-red-50 dark:hover:bg-red-950/50",
                   )}
                 >
                   {action.icon && <span className="mr-2">{action.icon}</span>}
@@ -80,7 +98,7 @@ export const SplitButton = React.forwardRef<HTMLDivElement, SplitButtonProps>(
         </DropdownMenu>
       </div>
     );
-  }
+  },
 );
 
-SplitButton.displayName = 'SplitButton';
+SplitButton.displayName = "SplitButton";

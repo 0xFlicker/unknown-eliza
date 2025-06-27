@@ -1,16 +1,16 @@
-import { useAgentManagement } from '@/hooks/use-agent-management';
-import { useToast } from '@/hooks/use-toast';
-import { exportCharacterAsJson } from '@/lib/export-utils';
-import { formatAgentName, moment } from '@/lib/utils';
-import type { Agent, UUID } from '@elizaos/core';
-import { AgentStatus } from '@elizaos/core';
-import { Brain, Cog, Loader2, Play, X, Download, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router';
-import { useAgent } from '../hooks/use-query-hooks';
-import StopAgentButton from './stop-agent-button';
-import { Button } from './ui/button';
-import { Card, CardContent, CardFooter, CardHeader } from './ui/card';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { useAgentManagement } from "@/hooks/use-agent-management";
+import { useToast } from "@/hooks/use-toast";
+import { exportCharacterAsJson } from "@/lib/export-utils";
+import { formatAgentName, moment } from "@/lib/utils";
+import type { Agent, UUID } from "@elizaos/core";
+import { AgentStatus } from "@elizaos/core";
+import { Brain, Cog, Loader2, Play, X, Download, Settings } from "lucide-react";
+import { useNavigate } from "react-router";
+import { useAgent } from "../hooks/use-query-hooks";
+import StopAgentButton from "./stop-agent-button";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface ProfileOverlayProps {
   isOpen: boolean;
@@ -29,7 +29,11 @@ interface ProfileOverlayProps {
  *
  * @returns The profile overlay component, or null if not open.
  */
-export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOverlayProps) {
+export default function ProfileOverlay({
+  isOpen,
+  onClose,
+  agentId,
+}: ProfileOverlayProps) {
   if (!isOpen) return null;
 
   const { startAgent, isAgentStarting, isAgentStopping } = useAgentManagement();
@@ -47,12 +51,12 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
 
   // Start button configuration
   const startButtonConfig = {
-    label: 'Start',
+    label: "Start",
     icon: <Play className="w-4 h-4" />,
   };
 
   if (isStarting) {
-    startButtonConfig.label = 'Starting...';
+    startButtonConfig.label = "Starting...";
     startButtonConfig.icon = <Loader2 className="animate-spin w-4 h-4" />;
   }
 
@@ -81,7 +85,7 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
       onClick={onClose}
       onKeyUp={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           onClose();
         }
       }}
@@ -109,17 +113,19 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      formatAgentName(agent?.name ?? '')
+                      formatAgentName(agent?.name ?? "")
                     )}
                   </div>
                   <div
                     className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-background ${
-                      isActive ? 'bg-emerald-500' : 'bg-muted-foreground'
+                      isActive ? "bg-emerald-500" : "bg-muted-foreground"
                     }`}
                   />
                 </div>
                 <div className="flex flex-col justify-center mr-4">
-                  <div className="text-xl font-bold truncate max-w-48">{agent?.name}</div>
+                  <div className="text-xl font-bold truncate max-w-48">
+                    {agent?.name}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -132,7 +138,7 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
                             }
                           }}
                           onKeyUp={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
+                            if (e.key === "Enter" || e.key === " ") {
                               e.stopPropagation();
                               if (agent?.id) {
                                 navigator.clipboard.writeText(agent.id);
@@ -140,7 +146,7 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
                             }
                           }}
                         >
-                          ID: {agent?.id ?? 'N/A'}
+                          ID: {agent?.id ?? "N/A"}
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">
@@ -157,7 +163,9 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
         <CardContent className="p-6 overflow-auto">
           <div className="rounded-md bg-muted p-4 mb-6 max-h-60 overflow-y-auto">
             <p className="font-medium text-sm mb-2">About Me</p>
-            <p className="font-light text-sm text-gray-500">{agentData?.data?.system}</p>
+            <p className="font-light text-sm text-gray-500">
+              {agentData?.data?.system}
+            </p>
           </div>
 
           <div className="space-y-6">
@@ -165,9 +173,11 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
               <p className="font-medium text-sm mb-2">Status</p>
               <div className="flex items-center">
                 <div
-                  className={`w-3 h-3 rounded-full mr-2 ${isActive ? 'bg-green-500' : 'bg-gray-400'}`}
+                  className={`w-3 h-3 rounded-full mr-2 ${isActive ? "bg-green-500" : "bg-gray-400"}`}
                 />
-                <span className="text-sm">{isActive ? 'Active' : 'Inactive'}</span>
+                <span className="text-sm">
+                  {isActive ? "Active" : "Inactive"}
+                </span>
               </div>
             </div>
 
@@ -175,14 +185,18 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
               <p className="font-medium text-sm mb-2">Model</p>
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">{agent?.settings?.model || 'Default'}</span>
+                <span className="text-sm">
+                  {agent?.settings?.model || "Default"}
+                </span>
               </div>
             </div>
 
             <div>
               <p className="font-medium text-sm mb-2">Created</p>
               <p className="text-sm text-gray-500">
-                {agent?.createdAt ? moment(agent.createdAt).format('LLL') : moment().format('LLL')}
+                {agent?.createdAt
+                  ? moment(agent.createdAt).format("LLL")
+                  : moment().format("LLL")}
               </p>
             </div>
 
@@ -193,8 +207,8 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
                   agent.plugins.map((plugin, index) => {
                     // Extract plugin name by removing the prefix
                     const pluginName = plugin
-                      .replace('@elizaos/plugin-', '')
-                      .replace('@elizaos-plugins/plugin-', '');
+                      .replace("@elizaos/plugin-", "")
+                      .replace("@elizaos-plugins/plugin-", "");
                     return (
                       <span
                         key={index}
@@ -215,7 +229,12 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
         <CardFooter className="flex justify-between items-center p-4 border-t">
           <div className="flex items-center gap-2">
             {isActive ? (
-              <StopAgentButton agent={agent} showIcon={true} size="default" className="h-9" />
+              <StopAgentButton
+                agent={agent}
+                showIcon={true}
+                size="default"
+                className="h-9"
+              />
             ) : (
               <Button
                 variant="default"
@@ -266,7 +285,11 @@ export default function ProfileOverlay({ isOpen, onClose, agentId }: ProfileOver
           </div>
 
           {isActive && (
-            <Button variant="default" className="h-9" onClick={() => navigate(`/chat/${agent.id}`)}>
+            <Button
+              variant="default"
+              className="h-9"
+              onClick={() => navigate(`/chat/${agent.id}`)}
+            >
               Message
             </Button>
           )}

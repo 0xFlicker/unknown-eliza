@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from './ui/input';
-import { Check, Eye, EyeOff, MoreVertical, Settings, X } from 'lucide-react';
-import { Button } from './ui/button';
-import { apiClient } from '@/lib/api';
-import { ApiKeyDialog } from './api-key-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useRef, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "./ui/input";
+import { Check, Eye, EyeOff, MoreVertical, Settings, X } from "lucide-react";
+import { Button } from "./ui/button";
+import { apiClient } from "@/lib/api";
+import { ApiKeyDialog } from "./api-key-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function EnvSettings() {
-  const [name, setName] = useState('');
-  const [value, setValue] = useState('');
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editedValue, setEditedValue] = useState('');
+  const [editedValue, setEditedValue] = useState("");
   const [localEnvs, setLocalEnvs] = useState<Record<string, string>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -22,14 +22,17 @@ export default function EnvSettings() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setOpenIndex(null);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -47,8 +50,8 @@ export default function EnvSettings() {
 
     setEditingIndex(null);
     setOpenIndex(null);
-    setName('');
-    setValue('');
+    setName("");
+    setValue("");
   };
 
   const handleEdit = (key: string) => {
@@ -80,14 +83,14 @@ export default function EnvSettings() {
       [name]: value,
     });
 
-    setName('');
-    setValue('');
+    setName("");
+    setValue("");
     setEditingIndex(null);
   };
 
   // Dummy function for onApiKeySaved
   const handleApiKeySaved = () => {
-    console.log('API Key was saved');
+    console.log("API Key was saved");
     // Potentially refetch envs or perform other actions here
   };
 
@@ -104,7 +107,10 @@ export default function EnvSettings() {
           <h1 className="text-3xl font-bold">Envs settings</h1>
           <p className="text-muted-foreground mt-1">Envs settings</p>
         </div>
-        <Button onClick={() => setIsApiKeyDialogOpen(true)} aria-label="Manage API Key">
+        <Button
+          onClick={() => setIsApiKeyDialogOpen(true)}
+          aria-label="Manage API Key"
+        >
           <Settings className="h-5 w-5" />
           Manage API Key
         </Button>
@@ -114,10 +120,15 @@ export default function EnvSettings() {
         <CardContent className="p-6">
           <div className="space-y-6">
             <div className="rounded-lg w-full flex flex-col gap-3">
-              <h2 className="text-xl font-bold mb-4 pb-5 ml-1">Environment Settings</h2>
+              <h2 className="text-xl font-bold mb-4 pb-5 ml-1">
+                Environment Settings
+              </h2>
               <div className="grid grid-cols-[1fr_2fr_auto] gap-4 items-end w-full pb-4">
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="secret-name" className="ml-2 text-xs font-medium text-gray-400">
+                  <label
+                    htmlFor="secret-name"
+                    className="ml-2 text-xs font-medium text-gray-400"
+                  >
                     NAME
                   </label>
                   <Input
@@ -128,13 +139,16 @@ export default function EnvSettings() {
                   />
                 </div>
                 <div className="flex flex-col gap-1 relative">
-                  <label htmlFor="secret-value" className="ml-2 text-xs font-medium text-gray-400">
+                  <label
+                    htmlFor="secret-value"
+                    className="ml-2 text-xs font-medium text-gray-400"
+                  >
                     VALUE
                   </label>
                   <div className="relative">
                     <Input
                       id="secret-value"
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       placeholder="i9ju23nfsdf56"
                       value={value}
                       onChange={(e) => setValue(e.target.value)}
@@ -179,7 +193,10 @@ export default function EnvSettings() {
                           <Button variant="ghost" onClick={() => saveEdit(key)}>
                             <Check className="w-5 h-5 text-green-500" />
                           </Button>
-                          <Button variant="ghost" onClick={() => setEditingIndex(null)}>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setEditingIndex(null)}
+                          >
                             <X className="w-5 h-5 text-red-500" />
                           </Button>
                         </div>
@@ -191,7 +208,9 @@ export default function EnvSettings() {
                       <Button
                         variant="ghost"
                         className="p-2 text-gray-500"
-                        onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                        onClick={() =>
+                          setOpenIndex(openIndex === index ? null : index)
+                        }
                       >
                         <MoreVertical className="h-5 w-5" />
                       </Button>
@@ -237,14 +256,14 @@ export default function EnvSettings() {
             try {
               await apiClient.updateLocalEnvs(localEnvs);
               toast({
-                title: 'Success',
-                description: 'Environment variables updated successfully!',
+                title: "Success",
+                description: "Environment variables updated successfully!",
               });
             } catch (error) {
               toast({
-                title: 'Error',
-                description: 'Failed to update environment variables.',
-                variant: 'destructive',
+                title: "Error",
+                description: "Failed to update environment variables.",
+                variant: "destructive",
               });
             } finally {
               setIsUpdating(false);

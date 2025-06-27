@@ -1,11 +1,11 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
-import { ScrollArea, ScrollBar } from './scroll-area';
+import React from "react";
+import { ScrollArea, ScrollBar } from "./scroll-area";
 
-describe('ScrollArea Component', () => {
-  it('renders basic scroll area', () => {
+describe("ScrollArea Component", () => {
+  it("renders basic scroll area", () => {
     cy.mountRadix(
       <ScrollArea className="h-[200px] w-[350px] rounded-md border p-4">
         {Array.from({ length: 20 }).map((_, i) => (
@@ -13,14 +13,14 @@ describe('ScrollArea Component', () => {
             Item {i + 1}
           </div>
         ))}
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.get('[data-radix-scroll-area-viewport]').should('exist');
-    cy.contains('Item 1').should('be.visible');
+    cy.get("[data-radix-scroll-area-viewport]").should("exist");
+    cy.contains("Item 1").should("be.visible");
   });
 
-  it('handles vertical scrolling', () => {
+  it("handles vertical scrolling", () => {
     cy.mountRadix(
       <ScrollArea className="h-[200px] w-[350px] rounded-md border">
         <div className="p-4">
@@ -30,18 +30,18 @@ describe('ScrollArea Component', () => {
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.contains('Long content item 1').should('be.visible');
-    cy.contains('Long content item 50').should('not.be.visible');
+    cy.contains("Long content item 1").should("be.visible");
+    cy.contains("Long content item 50").should("not.be.visible");
 
     // Scroll to bottom
-    cy.get('[data-radix-scroll-area-viewport]').scrollTo('bottom');
-    cy.contains('Long content item 50').should('be.visible');
+    cy.get("[data-radix-scroll-area-viewport]").scrollTo("bottom");
+    cy.contains("Long content item 50").should("be.visible");
   });
 
-  it('handles horizontal scrolling', () => {
+  it("handles horizontal scrolling", () => {
     cy.mountRadix(
       <ScrollArea className="w-[300px] rounded-md border">
         <div className="flex w-max space-x-4 p-4">
@@ -55,16 +55,16 @@ describe('ScrollArea Component', () => {
           ))}
         </div>
         <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.contains('Card 1').should('be.visible');
+    cy.contains("Card 1").should("be.visible");
 
     // Scroll horizontally
-    cy.get('[data-radix-scroll-area-viewport]').scrollTo('right');
+    cy.get("[data-radix-scroll-area-viewport]").scrollTo("right");
   });
 
-  it('renders with custom ScrollBar', () => {
+  it("renders with custom ScrollBar", () => {
     cy.mountRadix(
       <ScrollArea className="h-72 w-48 rounded-md border">
         <div className="p-4">
@@ -76,24 +76,24 @@ describe('ScrollArea Component', () => {
           ))}
         </div>
         <ScrollBar className="bg-red-500" />
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.get('[data-radix-scroll-area-viewport]').should('exist');
-    cy.contains('Tags').should('be.visible');
+    cy.get("[data-radix-scroll-area-viewport]").should("exist");
+    cy.contains("Tags").should("be.visible");
   });
 
-  it('applies custom className', () => {
+  it("applies custom className", () => {
     cy.mountRadix(
       <ScrollArea className="custom-scroll-area h-[200px] w-[200px]">
         <div className="p-4">Content</div>
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.get('[data-radix-scroll-area-viewport]').should('exist');
+    cy.get("[data-radix-scroll-area-viewport]").should("exist");
   });
 
-  it('handles dynamic content updates', () => {
+  it("handles dynamic content updates", () => {
     const TestComponent = () => {
       const [items, setItems] = React.useState(5);
 
@@ -115,15 +115,15 @@ describe('ScrollArea Component', () => {
 
     cy.mountRadix(<TestComponent />);
 
-    cy.contains('Item 5').should('be.visible');
-    cy.contains('Item 10').should('not.exist');
+    cy.contains("Item 5").should("be.visible");
+    cy.contains("Item 10").should("not.exist");
 
     // Add more items
-    cy.contains('button', 'Add More').click();
-    cy.contains('Item 10').should('exist');
+    cy.contains("button", "Add More").click();
+    cy.contains("Item 10").should("exist");
   });
 
-  it('works with nested scroll areas', () => {
+  it("works with nested scroll areas", () => {
     cy.mountRadix(
       <ScrollArea className="h-[400px] w-[600px] rounded-md border">
         <div className="p-4">
@@ -143,14 +143,17 @@ describe('ScrollArea Component', () => {
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.contains('Outer Scroll Area').should('be.visible');
-    cy.get('[data-radix-scroll-area-viewport]').should('have.length.at.least', 5);
+    cy.contains("Outer Scroll Area").should("be.visible");
+    cy.get("[data-radix-scroll-area-viewport]").should(
+      "have.length.at.least",
+      5,
+    );
   });
 
-  it('preserves scroll position', () => {
+  it("preserves scroll position", () => {
     const TestComponent = () => {
       const [show, setShow] = React.useState(true);
 
@@ -175,13 +178,13 @@ describe('ScrollArea Component', () => {
     cy.mountRadix(<TestComponent />);
 
     // Scroll to middle
-    cy.get('[data-radix-scroll-area-viewport]').scrollTo(0, 500);
+    cy.get("[data-radix-scroll-area-viewport]").scrollTo(0, 500);
 
     // Check that scroll position is maintained
-    cy.get('[data-radix-scroll-area-viewport]').should('exist');
+    cy.get("[data-radix-scroll-area-viewport]").should("exist");
   });
 
-  it('handles content with images', () => {
+  it("handles content with images", () => {
     cy.mountRadix(
       <ScrollArea className="h-[300px] w-[400px] rounded-md border">
         <div className="p-4">
@@ -194,19 +197,21 @@ describe('ScrollArea Component', () => {
               />
               <div>
                 <h4 className="font-medium">Image {i + 1}</h4>
-                <p className="text-sm text-muted-foreground">Description for image {i + 1}</p>
+                <p className="text-sm text-muted-foreground">
+                  Description for image {i + 1}
+                </p>
               </div>
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.contains('Image 1').should('be.visible');
-    cy.get('img').should('have.length', 10);
+    cy.contains("Image 1").should("be.visible");
+    cy.get("img").should("have.length", 10);
   });
 
-  it('works with tables', () => {
+  it("works with tables", () => {
     cy.mountRadix(
       <ScrollArea className="h-[300px] w-full rounded-md border">
         <table className="w-full">
@@ -224,19 +229,21 @@ describe('ScrollArea Component', () => {
                 <td className="p-2">{i + 1}</td>
                 <td className="p-2">Item {i + 1}</td>
                 <td className="p-2">Active</td>
-                <td className="p-2">2024-01-{String(i + 1).padStart(2, '0')}</td>
+                <td className="p-2">
+                  2024-01-{String(i + 1).padStart(2, "0")}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </ScrollArea>
+      </ScrollArea>,
     );
 
-    cy.get('table').should('be.visible');
-    cy.contains('Item 1').should('be.visible');
+    cy.get("table").should("be.visible");
+    cy.contains("Item 1").should("be.visible");
 
     // Scroll to see more items
-    cy.get('[data-radix-scroll-area-viewport]').scrollTo('bottom');
-    cy.contains('Item 50').should('be.visible');
+    cy.get("[data-radix-scroll-area-viewport]").scrollTo("bottom");
+    cy.contains("Item 50").should("be.visible");
   });
 });

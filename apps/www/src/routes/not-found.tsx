@@ -1,6 +1,6 @@
-import { AlertCircle, Home, ArrowLeft } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { AlertCircle, Home, ArrowLeft } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   const location = useLocation();
@@ -8,10 +8,10 @@ export default function NotFound() {
 
   // Determine if this is likely an API endpoint that doesn't exist
   const isLikelyApiEndpoint =
-    path.startsWith('/api/') ||
-    path.includes('/agents/') ||
-    path.includes('/memory/') ||
-    path.includes('/speech/');
+    path.startsWith("/api/") ||
+    path.includes("/agents/") ||
+    path.includes("/memory/") ||
+    path.includes("/speech/");
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center">
@@ -27,7 +27,9 @@ export default function NotFound() {
         {isLikelyApiEndpoint ? (
           <>
             <p className="text-lg mb-6 text-muted-foreground">
-              The endpoint <span className="font-mono text-red-400">{path}</span> does not exist.
+              The endpoint{" "}
+              <span className="font-mono text-red-400">{path}</span> does not
+              exist.
             </p>
             <div className="bg-red-900/20 border border-red-800/30 rounded-md p-4 mb-8 text-left">
               <h3 className="text-red-400 font-medium mb-2 flex items-center">
@@ -35,7 +37,8 @@ export default function NotFound() {
                 Endpoint Not Found
               </h3>
               <p className="text-sm text-red-300/80 mb-2">
-                The requested API endpoint does not exist on this server. Please check that:
+                The requested API endpoint does not exist on this server. Please
+                check that:
               </p>
               <ul className="text-sm text-red-300/80 list-disc pl-5 space-y-1">
                 <li>The URL is spelled correctly</li>

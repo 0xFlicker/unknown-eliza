@@ -1,5 +1,8 @@
-declare module 'stream-browserify' {
-  import { PassThrough as NodePassThrough, Readable as NodeReadable } from 'stream';
+declare module "stream-browserify" {
+  import {
+    PassThrough as NodePassThrough,
+    Readable as NodeReadable,
+  } from "stream";
 
   interface StreamBrowserify {
     PassThrough: typeof NodePassThrough;

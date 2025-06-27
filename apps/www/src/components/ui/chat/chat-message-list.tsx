@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { ArrowDown } from 'lucide-react';
-import * as React from 'react';
+import { Button } from "@/components/ui/button";
+import { ArrowDown } from "lucide-react";
+import * as React from "react";
 
 interface ChatMessageListProps extends React.HTMLAttributes<HTMLDivElement> {
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -23,7 +23,7 @@ const ChatMessageList = React.forwardRef<HTMLDivElement, ChatMessageListProps>(
       disableAutoScroll,
       ...props
     },
-    _ref
+    _ref,
   ) => {
     return (
       <div className="relative w-full h-full overflow-hidden">
@@ -53,9 +53,9 @@ const ChatMessageList = React.forwardRef<HTMLDivElement, ChatMessageListProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
-ChatMessageList.displayName = 'ChatMessageList';
+ChatMessageList.displayName = "ChatMessageList";
 
 export { ChatMessageList };

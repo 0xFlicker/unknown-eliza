@@ -1,13 +1,29 @@
-import type React from 'react';
-import { useUpdateMemory, useDeleteMemory } from '@/hooks/use-query-hooks';
-import type { Memory, UUID } from '@elizaos/core';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { Trash, X, Save, AlertTriangle, Check, RotateCcw, Copy, Eye, EyeOff } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import type React from "react";
+import { useUpdateMemory, useDeleteMemory } from "@/hooks/use-query-hooks";
+import type { Memory, UUID } from "@elizaos/core";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  Trash,
+  X,
+  Save,
+  AlertTriangle,
+  Check,
+  RotateCcw,
+  Copy,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MemoryEditOverlayProps {
   isOpen: boolean;
@@ -26,7 +42,7 @@ export default function MemoryEditOverlay({
   const { mutate: updateMemory, isPending: isUpdating } = useUpdateMemory();
   const { mutate: deleteMemory, isPending: isDeleting } = useDeleteMemory();
 
-  const [editedContent, setEditedContent] = useState('');
+  const [editedContent, setEditedContent] = useState("");
   const [isValidJson, setIsValidJson] = useState(true);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -71,9 +87,11 @@ export default function MemoryEditOverlay({
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         if (hasUnsavedChanges) {
-          if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+          if (
+            confirm("You have unsaved changes. Are you sure you want to close?")
+          ) {
             onClose();
           }
         } else {
@@ -82,25 +100,25 @@ export default function MemoryEditOverlay({
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, hasUnsavedChanges, onClose]);
 
   const handleSave = useCallback(() => {
     if (!editedContent.trim()) {
       toast({
-        title: 'Error',
-        description: 'Memory content cannot be empty',
-        variant: 'destructive',
+        title: "Error",
+        description: "Memory content cannot be empty",
+        variant: "destructive",
       });
       return;
     }
 
     if (!isValidJson) {
       toast({
-        title: 'Invalid JSON',
-        description: 'Please fix JSON syntax errors before saving',
-        variant: 'destructive',
+        title: "Invalid JSON",
+        description: "Please fix JSON syntax errors before saving",
+        variant: "destructive",
       });
       return;
     }
@@ -120,30 +138,42 @@ export default function MemoryEditOverlay({
           onSuccess: () => {
             onClose();
             toast({
-              title: 'Memory Updated',
-              description: 'The memory content has been successfully updated',
+              title: "Memory Updated",
+              description: "The memory content has been successfully updated",
             });
           },
           onError: (error) => {
             toast({
-              title: 'Update Failed',
-              description: error.message || 'Failed to update memory',
-              variant: 'destructive',
+              title: "Update Failed",
+              description: error.message || "Failed to update memory",
+              variant: "destructive",
             });
           },
-        }
+        },
       );
     } catch (error) {
       toast({
-        title: 'Invalid JSON',
-        description: 'Please enter valid JSON format',
-        variant: 'destructive',
+        title: "Invalid JSON",
+        description: "Please enter valid JSON format",
+        variant: "destructive",
       });
     }
-  }, [editedContent, isValidJson, updateMemory, agentId, memory.id, onClose, toast]);
+  }, [
+    editedContent,
+    isValidJson,
+    updateMemory,
+    agentId,
+    memory.id,
+    onClose,
+    toast,
+  ]);
 
   const handleDelete = useCallback(() => {
-    if (confirm('Are you sure you want to delete this memory? This action cannot be undone.')) {
+    if (
+      confirm(
+        "Are you sure you want to delete this memory? This action cannot be undone.",
+      )
+    ) {
       deleteMemory(
         {
           agentId,
@@ -153,18 +183,18 @@ export default function MemoryEditOverlay({
           onSuccess: () => {
             onClose();
             toast({
-              title: 'Memory Deleted',
-              description: 'The memory has been successfully removed',
+              title: "Memory Deleted",
+              description: "The memory has been successfully removed",
             });
           },
           onError: (error) => {
             toast({
-              title: 'Delete Failed',
-              description: error.message || 'Failed to delete memory',
-              variant: 'destructive',
+              title: "Delete Failed",
+              description: error.message || "Failed to delete memory",
+              variant: "destructive",
             });
           },
-        }
+        },
       );
     }
   }, [deleteMemory, agentId, memory.id, onClose, toast]);
@@ -174,20 +204,20 @@ export default function MemoryEditOverlay({
       const parsed = JSON.parse(editedContent);
       setEditedContent(JSON.stringify(parsed, null, 2));
       toast({
-        title: 'Formatted',
-        description: 'JSON has been formatted',
+        title: "Formatted",
+        description: "JSON has been formatted",
       });
     } catch (error) {
       toast({
-        title: 'Format Error',
-        description: 'Cannot format invalid JSON',
-        variant: 'destructive',
+        title: "Format Error",
+        description: "Cannot format invalid JSON",
+        variant: "destructive",
       });
     }
   }, [editedContent, toast]);
 
   const handleReset = useCallback(() => {
-    if (confirm('Reset to original content? All changes will be lost.')) {
+    if (confirm("Reset to original content? All changes will be lost.")) {
       setEditedContent(originalContent);
     }
   }, [originalContent]);
@@ -196,14 +226,14 @@ export default function MemoryEditOverlay({
     try {
       await navigator.clipboard.writeText(editedContent);
       toast({
-        title: 'Copied',
-        description: 'Content copied to clipboard',
+        title: "Copied",
+        description: "Content copied to clipboard",
       });
     } catch (error) {
       toast({
-        title: 'Copy Failed',
-        description: 'Failed to copy to clipboard',
-        variant: 'destructive',
+        title: "Copy Failed",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
       });
     }
   }, [editedContent, toast]);
@@ -215,7 +245,9 @@ export default function MemoryEditOverlay({
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       if (hasUnsavedChanges) {
-        if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+        if (
+          confirm("You have unsaved changes. Are you sure you want to close?")
+        ) {
           onClose();
         }
       } else {
@@ -249,7 +281,12 @@ export default function MemoryEditOverlay({
               </span>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close dialog">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -262,7 +299,10 @@ export default function MemoryEditOverlay({
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-amber-800 dark:text-amber-200">
               <p className="font-medium mb-1">Editing Raw Memory Content</p>
-              <p>Changes may affect agent behavior. Ensure JSON format is valid before saving.</p>
+              <p>
+                Changes may affect agent behavior. Ensure JSON format is valid
+                before saving.
+              </p>
             </div>
           </div>
 
@@ -271,7 +311,9 @@ export default function MemoryEditOverlay({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">ID:</span>
-                <code className="text-xs bg-muted px-1 rounded">{memory.id}</code>
+                <code className="text-xs bg-muted px-1 rounded">
+                  {memory.id}
+                </code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Created:</span>
@@ -281,18 +323,22 @@ export default function MemoryEditOverlay({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Room:</span>
-                <code className="text-xs bg-muted px-1 rounded">{memory.roomId}</code>
+                <code className="text-xs bg-muted px-1 rounded">
+                  {memory.roomId}
+                </code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Type:</span>
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
                     memory.entityId === agentId
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : 'bg-white-100 text-white dark:bg-white-800 dark:text-white'
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      : "bg-white-100 text-white dark:bg-white-800 dark:text-white"
                   }`}
                 >
-                  {memory.entityId === agentId ? 'Agent Message' : 'User Message'}
+                  {memory.entityId === agentId
+                    ? "Agent Message"
+                    : "User Message"}
                 </span>
               </div>
             </div>
@@ -310,8 +356,10 @@ export default function MemoryEditOverlay({
                 ) : (
                   <AlertTriangle className="h-3 w-3 text-red-500" />
                 )}
-                <span className={`text-xs ${isValidJson ? 'text-green-600' : 'text-red-600'}`}>
-                  {isValidJson ? 'Valid JSON' : 'Invalid JSON'}
+                <span
+                  className={`text-xs ${isValidJson ? "text-green-600" : "text-red-600"}`}
+                >
+                  {isValidJson ? "Valid JSON" : "Invalid JSON"}
                 </span>
               </div>
             </div>
@@ -322,9 +370,17 @@ export default function MemoryEditOverlay({
                 size="sm"
                 onClick={() => setIsPreviewMode(!isPreviewMode)}
                 disabled={isProcessing}
-                title={isPreviewMode ? 'Switch to edit mode' : 'Switch to preview mode'}
+                title={
+                  isPreviewMode
+                    ? "Switch to edit mode"
+                    : "Switch to preview mode"
+                }
               >
-                {isPreviewMode ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {isPreviewMode ? (
+                  <EyeOff className="h-3 w-3" />
+                ) : (
+                  <Eye className="h-3 w-3" />
+                )}
               </Button>
               <Button
                 variant="outline"
@@ -361,7 +417,9 @@ export default function MemoryEditOverlay({
             {isPreviewMode ? (
               <div className="flex-1 border rounded-md p-3 bg-muted/50 overflow-auto">
                 <pre className="text-sm whitespace-pre-wrap">
-                  {isValidJson ? JSON.stringify(JSON.parse(editedContent), null, 2) : editedContent}
+                  {isValidJson
+                    ? JSON.stringify(JSON.parse(editedContent), null, 2)
+                    : editedContent}
                 </pre>
               </div>
             ) : (
@@ -371,7 +429,7 @@ export default function MemoryEditOverlay({
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
                 className={`flex-1 resize-none font-mono text-sm min-h-[300px] ${
-                  !isValidJson ? 'border-red-300 focus:border-red-500' : ''
+                  !isValidJson ? "border-red-300 focus:border-red-500" : ""
                 }`}
                 placeholder="Memory content in JSON format..."
                 disabled={isProcessing}
@@ -379,14 +437,21 @@ export default function MemoryEditOverlay({
               />
             )}
 
-            <p id="json-help" className="text-xs text-muted-foreground mt-2 flex-shrink-0">
+            <p
+              id="json-help"
+              className="text-xs text-muted-foreground mt-2 flex-shrink-0"
+            >
               Edit the JSON directly. Use Ctrl+A to select all, Ctrl+Z to undo.
             </p>
           </div>
         </CardContent>
 
         <CardFooter className="flex justify-between flex-shrink-0">
-          <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isProcessing}
+          >
             <Trash className="mr-2 h-4 w-4" />
             Delete Memory
           </Button>
@@ -400,7 +465,7 @@ export default function MemoryEditOverlay({
               disabled={isProcessing || !isValidJson || !hasUnsavedChanges}
             >
               <Save className="mr-2 h-4 w-4" />
-              {isUpdating ? 'Saving...' : 'Save Changes'}
+              {isUpdating ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </CardFooter>

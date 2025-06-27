@@ -71,7 +71,7 @@ export const relationshipExtractionEvaluator: Evaluator = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
     // Always run for messages in conversations
     return !!(message.content?.text && message.content.text.length > 0);
@@ -80,7 +80,7 @@ export const relationshipExtractionEvaluator: Evaluator = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<State | null> => {
     try {
       const rolodexService = runtime.getService("rolodex") as RolodexService;
@@ -214,7 +214,7 @@ function extractPlatformIdentities(text: string): PlatformIdentity[] {
 async function storePlatformIdentities(
   runtime: IAgentRuntime,
   entityId: UUID,
-  identities: PlatformIdentity[]
+  identities: PlatformIdentity[],
 ) {
   const entity = await runtime.getEntityById(entityId);
   if (!entity) return;
@@ -228,7 +228,8 @@ async function storePlatformIdentities(
 
     // Check if we already have this identity
     const existing = platformIdentities.find(
-      (pi) => pi.platform === identity.platform && pi.handle === identity.handle
+      (pi) =>
+        pi.platform === identity.platform && pi.handle === identity.handle,
     );
 
     if (!existing) {
@@ -253,7 +254,7 @@ interface DisputeInfo {
 
 function detectDispute(
   text: string,
-  recentMessages: Memory[]
+  recentMessages: Memory[],
 ): DisputeInfo | null {
   const disputePhrases = [
     /that'?s not (actually|really) their (\w+)/i,
@@ -280,7 +281,7 @@ function detectDispute(
 async function handleDispute(
   runtime: IAgentRuntime,
   dispute: DisputeInfo,
-  message: Memory
+  message: Memory,
 ) {
   dispute.disputer = message.entityId;
 
@@ -303,7 +304,7 @@ async function handleDispute(
 async function analyzeRelationships(
   runtime: IAgentRuntime,
   messages: Memory[],
-  rolodexService: RolodexService
+  rolodexService: RolodexService,
 ) {
   // Group messages by sender
   const messagesBySender = new Map<UUID, Memory[]>();
@@ -334,7 +335,7 @@ async function analyzeRelationships(
 
 function analyzeInteraction(
   messagesA: Memory[],
-  messagesB: Memory[]
+  messagesB: Memory[],
 ): RelationshipIndicator[] {
   const indicators: RelationshipIndicator[] = [];
 
@@ -451,14 +452,14 @@ async function updateRelationship(
   runtime: IAgentRuntime,
   entityA: UUID,
   entityB: UUID,
-  indicators: RelationshipIndicator[]
+  indicators: RelationshipIndicator[],
 ) {
   // Get existing relationships
   const relationships = await runtime.getRelationships({ entityId: entityA });
   let relationship = relationships.find(
     (r) =>
       (r.sourceEntityId === entityA && r.targetEntityId === entityB) ||
-      (r.sourceEntityId === entityB && r.targetEntityId === entityA)
+      (r.sourceEntityId === entityB && r.targetEntityId === entityA),
   );
 
   // Determine primary relationship type
@@ -467,7 +468,7 @@ async function updateRelationship(
       acc[ind.type] = (acc[ind.type] || 0) + 1;
       return acc;
     },
-    {} as Record<string, number>
+    {} as Record<string, number>,
   );
 
   const primaryType =
@@ -564,7 +565,7 @@ function extractMentionedPeople(text: string): MentionedPerson[] {
 async function createOrUpdateMentionedEntity(
   runtime: IAgentRuntime,
   person: MentionedPerson,
-  mentionedBy: UUID
+  mentionedBy: UUID,
 ) {
   // Search for existing entity by checking memories
   let existing: Entity | null = null;
@@ -583,7 +584,7 @@ async function createOrUpdateMentionedEntity(
       if (
         entity &&
         entity.names.some(
-          (name) => name.toLowerCase() === person.name.toLowerCase()
+          (name) => name.toLowerCase() === person.name.toLowerCase(),
         )
       ) {
         existing = entity;
@@ -623,7 +624,7 @@ async function createOrUpdateMentionedEntity(
 async function assessTrustIndicators(
   runtime: IAgentRuntime,
   entityId: UUID,
-  messages: Memory[]
+  messages: Memory[],
 ) {
   const userMessages = messages.filter((m) => m.entityId === entityId);
   if (userMessages.length === 0) return;
@@ -655,7 +656,7 @@ async function assessTrustIndicators(
     // Suspicious indicators - enhanced detection
     if (
       text.match(
-        /delete all|give me access|send me your|password|private key|update my permissions|i'?m the new admin|give me.*details|send me.*keys/
+        /delete all|give me access|send me your|password|private key|update my permissions|i'?m the new admin|give me.*details|send me.*keys/,
       )
     ) {
       suspiciousCount += 2; // Double weight for security threats
@@ -666,11 +667,11 @@ async function assessTrustIndicators(
   const totalMessages = userMessages.length || 1;
   trustMetrics.helpfulness = Math.min(
     1,
-    trustMetrics.helpfulness * 0.8 + (helpfulCount / totalMessages) * 0.2
+    trustMetrics.helpfulness * 0.8 + (helpfulCount / totalMessages) * 0.2,
   );
   trustMetrics.suspicionLevel = Math.min(
     1,
-    trustMetrics.suspicionLevel * 0.8 + (suspiciousCount / totalMessages) * 0.2
+    trustMetrics.suspicionLevel * 0.8 + (suspiciousCount / totalMessages) * 0.2,
   );
   trustMetrics.engagement = userMessages.length;
   trustMetrics.lastAssessed = Date.now();
@@ -712,7 +713,7 @@ function detectPrivacyBoundaries(text: string): PrivacyInfo | null {
 async function handlePrivacyBoundary(
   runtime: IAgentRuntime,
   privacyInfo: PrivacyInfo,
-  message: Memory
+  message: Memory,
 ) {
   const entity = await runtime.getEntityById(message.entityId);
   if (!entity) return;
@@ -741,14 +742,14 @@ async function handlePrivacyBoundary(
 
   logger.info(
     "[RelationshipExtraction] Privacy boundary recorded",
-    privacyInfo
+    privacyInfo,
   );
 }
 
 async function handleAdminUpdates(
   runtime: IAgentRuntime,
   message: Memory,
-  recentMessages: Memory[]
+  recentMessages: Memory[],
 ) {
   // Check if user has admin role
   const entity = await runtime.getEntityById(message.entityId);
@@ -769,7 +770,7 @@ async function handleAdminUpdates(
     const targetEntity = await findEntityByName(
       runtime,
       targetName,
-      message.roomId
+      message.roomId,
     );
     if (targetEntity) {
       const metadata = targetEntity.metadata || {};
@@ -790,7 +791,7 @@ async function handleAdminUpdates(
 async function findEntityByName(
   runtime: IAgentRuntime,
   name: string,
-  roomId: UUID
+  roomId: UUID,
 ): Promise<Entity | null> {
   const entities = await runtime.getEntitiesForRoom(roomId);
 

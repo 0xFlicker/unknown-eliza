@@ -1,23 +1,34 @@
-import { type Provider, type IAgentRuntime, type Memory, type State, logger } from '@elizaos/core';
-import { FollowUpService } from '../services/FollowUpService';
+import {
+  type Provider,
+  type IAgentRuntime,
+  type Memory,
+  type State,
+  logger,
+} from "@elizaos/core";
+import { FollowUpService } from "../services/FollowUpService";
 
 export const followUpsProvider: Provider = {
-  name: 'FOLLOW_UPS',
-  description: 'Provides information about upcoming follow-ups and reminders',
+  name: "FOLLOW_UPS",
+  description: "Provides information about upcoming follow-ups and reminders",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     try {
-      const followUpService = runtime.getService('follow_up') as FollowUpService;
+      const followUpService = runtime.getService(
+        "follow_up",
+      ) as FollowUpService;
       if (!followUpService) {
-        logger.warn('[FollowUpsProvider] FollowUpService not available');
-        return { text: '' };
+        logger.warn("[FollowUpsProvider] FollowUpService not available");
+        return { text: "" };
       }
 
       // Get upcoming follow-ups for the next 7 days
-      const upcomingFollowUps = await followUpService.getUpcomingFollowUps(7, true);
+      const upcomingFollowUps = await followUpService.getUpcomingFollowUps(
+        7,
+        true,
+      );
 
       if (upcomingFollowUps.length === 0) {
         return {
-          text: 'No upcoming follow-ups scheduled.',
+          text: "No upcoming follow-ups scheduled.",
           values: { followUpCount: 0, followUps: [] },
         };
       }
@@ -39,26 +50,28 @@ export const followUpsProvider: Provider = {
       });
 
       // Build text summary
-      let textSummary = `You have ${upcomingFollowUps.length} follow-up${upcomingFollowUps.length !== 1 ? 's' : ''} scheduled:\n`;
+      let textSummary = `You have ${upcomingFollowUps.length} follow-up${upcomingFollowUps.length !== 1 ? "s" : ""} scheduled:\n`;
 
       if (overdue.length > 0) {
         textSummary += `\nOverdue (${overdue.length}):\n`;
         for (const f of overdue) {
           const entity = await runtime.getEntityById(f.contact.entityId);
-          const name = entity?.names[0] || 'Unknown';
+          const name = entity?.names[0] || "Unknown";
           const scheduledAt = f.task.metadata?.scheduledAt
             ? new Date(f.task.metadata.scheduledAt as string)
             : null;
 
           textSummary += `- ${name}`;
           if (scheduledAt) {
-            const daysOverdue = Math.floor((now - scheduledAt.getTime()) / (1000 * 60 * 60 * 24));
-            textSummary += ` (${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue)`;
+            const daysOverdue = Math.floor(
+              (now - scheduledAt.getTime()) / (1000 * 60 * 60 * 24),
+            );
+            textSummary += ` (${daysOverdue} day${daysOverdue !== 1 ? "s" : ""} overdue)`;
           }
           if (f.task.metadata?.reason) {
             textSummary += ` - ${f.task.metadata.reason}`;
           }
-          textSummary += '\n';
+          textSummary += "\n";
         }
       }
 
@@ -66,18 +79,20 @@ export const followUpsProvider: Provider = {
         textSummary += `\nUpcoming (${upcoming.length}):\n`;
         for (const f of upcoming) {
           const entity = await runtime.getEntityById(f.contact.entityId);
-          const name = entity?.names[0] || 'Unknown';
+          const name = entity?.names[0] || "Unknown";
           const scheduledAt = f.task.metadata?.scheduledAt
             ? new Date(f.task.metadata.scheduledAt as string)
             : null;
 
           textSummary += `- ${name}`;
           if (scheduledAt) {
-            const daysUntil = Math.ceil((scheduledAt.getTime() - now) / (1000 * 60 * 60 * 24));
+            const daysUntil = Math.ceil(
+              (scheduledAt.getTime() - now) / (1000 * 60 * 60 * 24),
+            );
             if (daysUntil === 0) {
-              textSummary += ' (today)';
+              textSummary += " (today)";
             } else if (daysUntil === 1) {
-              textSummary += ' (tomorrow)';
+              textSummary += " (tomorrow)";
             } else {
               textSummary += ` (in ${daysUntil} days)`;
             }
@@ -85,7 +100,7 @@ export const followUpsProvider: Provider = {
           if (f.task.metadata?.reason) {
             textSummary += ` - ${f.task.metadata.reason}`;
           }
-          textSummary += '\n';
+          textSummary += "\n";
         }
       }
 
@@ -119,8 +134,8 @@ export const followUpsProvider: Provider = {
         },
       };
     } catch (error) {
-      logger.error('[FollowUpsProvider] Error getting follow-ups:', error);
-      return { text: 'Error retrieving follow-up information.' };
+      logger.error("[FollowUpsProvider] Error getting follow-ups:", error);
+      return { text: "Error retrieving follow-up information." };
     }
   },
 };

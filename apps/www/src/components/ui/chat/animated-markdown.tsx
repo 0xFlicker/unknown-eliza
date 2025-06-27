@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import AIWriter from 'react-aiwriter';
-import { Markdown } from './markdown';
+import * as React from "react";
+import AIWriter from "react-aiwriter";
+import { Markdown } from "./markdown";
 
 interface AnimatedMarkdownProps {
   children: string;
   className?: string;
-  variant?: 'user' | 'agent';
+  variant?: "user" | "agent";
   shouldAnimate?: boolean;
   messageId?: string;
 }
@@ -15,11 +15,12 @@ interface AnimatedMarkdownProps {
 export const AnimatedMarkdown: React.FC<AnimatedMarkdownProps> = ({
   children,
   className,
-  variant = 'agent',
+  variant = "agent",
   shouldAnimate = false,
   messageId,
 }) => {
-  const [animationComplete, setAnimationComplete] = React.useState(!shouldAnimate);
+  const [animationComplete, setAnimationComplete] =
+    React.useState(!shouldAnimate);
 
   // Reset animation state when message changes
   React.useEffect(() => {

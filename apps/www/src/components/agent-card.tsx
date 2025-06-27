@@ -1,16 +1,34 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Assuming Card components
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatAgentName, cn } from '@/lib/utils';
-import type { Agent, UUID, Character } from '@elizaos/core';
-import { AgentStatus as CoreAgentStatus } from '@elizaos/core';
-import { InfoIcon, MessageSquare, Settings, Play, UserX, Loader2, PowerOff } from 'lucide-react'; // Icons for actions
-import { useAgentManagement } from '@/hooks/use-agent-management'; // For start/stop logic
-import type { AgentWithStatus } from '@/types';
-import clientLogger from '@/lib/logger'; // Assuming you have a logger
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"; // Assuming Card components
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { formatAgentName, cn } from "@/lib/utils";
+import type { Agent, UUID, Character } from "@elizaos/core";
+import { AgentStatus as CoreAgentStatus } from "@elizaos/core";
+import {
+  InfoIcon,
+  MessageSquare,
+  Settings,
+  Play,
+  UserX,
+  Loader2,
+  PowerOff,
+} from "lucide-react"; // Icons for actions
+import { useAgentManagement } from "@/hooks/use-agent-management"; // For start/stop logic
+import type { AgentWithStatus } from "@/types";
+import clientLogger from "@/lib/logger"; // Assuming you have a logger
 
 interface AgentCardProps {
   agent: Partial<AgentWithStatus>; // Use AgentWithStatus from client types
@@ -21,10 +39,11 @@ interface AgentCardProps {
 
 const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
   const navigate = useNavigate();
-  const { startAgent, stopAgent, isAgentStarting, isAgentStopping } = useAgentManagement();
+  const { startAgent, stopAgent, isAgentStarting, isAgentStopping } =
+    useAgentManagement();
 
   if (!agent || !agent.id) {
-    clientLogger.error('[AgentCard] Agent data or ID is missing', { agent });
+    clientLogger.error("[AgentCard] Agent data or ID is missing", { agent });
     return (
       <Card className="p-4 min-h-[220px] flex items-center justify-center text-muted-foreground">
         Agent data not available.
@@ -32,7 +51,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
     );
   }
   const agentIdForNav = agent.id; // Store for logging
-  const agentName = agent.name || 'Unnamed Agent';
+  const agentName = agent.name || "Unnamed Agent";
   const avatarUrl = agent.settings?.avatar;
   const isActive = agent.status === CoreAgentStatus.ACTIVE;
   const isStarting = isAgentStarting(agent.id);
@@ -42,7 +61,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
     id: agent.id!,
     name: agentName,
     username: agent.username || agentName,
-    bio: agent.bio || '',
+    bio: agent.bio || "",
     messageExamples: agent.messageExamples || [],
     postExamples: agent.postExamples || [],
     topics: agent.topics || [],
@@ -54,10 +73,12 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
     style: agent.style || {},
     system: agent.system || undefined,
     templates: agent.templates || {},
-    enabled: typeof agent.enabled === 'boolean' ? agent.enabled : true,
+    enabled: typeof agent.enabled === "boolean" ? agent.enabled : true,
     status: agent.status || CoreAgentStatus.INACTIVE,
-    createdAt: typeof agent.createdAt === 'number' ? agent.createdAt : Date.now(),
-    updatedAt: typeof agent.updatedAt === 'number' ? agent.updatedAt : Date.now(),
+    createdAt:
+      typeof agent.createdAt === "number" ? agent.createdAt : Date.now(),
+    updatedAt:
+      typeof agent.updatedAt === "number" ? agent.updatedAt : Date.now(),
   };
 
   const handleStart = (e: React.MouseEvent) => {
@@ -71,17 +92,19 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    clientLogger.info('[AgentCard] handleCardClick triggered', {
+    clientLogger.info("[AgentCard] handleCardClick triggered", {
       agentId: agentIdForNav,
       currentStatus: agent.status,
       isActive,
     });
     if (!isActive) {
-      clientLogger.info(`[AgentCard] Agent is not active. Navigating to /chat/${agentIdForNav}`);
+      clientLogger.info(
+        `[AgentCard] Agent is not active. Navigating to /chat/${agentIdForNav}`,
+      );
       navigate(`/chat/${agentIdForNav}`);
     } else {
       clientLogger.info(
-        '[AgentCard] Agent is active. Click intended for chat button or other actions.'
+        "[AgentCard] Agent is active. Click intended for chat button or other actions.",
       );
       handleChatClick(e);
     }
@@ -95,8 +118,8 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
   return (
     <Card
       className={cn(
-        'w-full aspect-square flex flex-col transition-all hover:shadow-xl cursor-pointer relative',
-        isActive ? '' : 'opacity-75 hover:opacity-100'
+        "w-full aspect-square flex flex-col transition-all hover:shadow-xl cursor-pointer relative",
+        isActive ? "" : "opacity-75 hover:opacity-100",
       )}
       onClick={handleCardClick}
       data-testid="agent-card"
@@ -115,13 +138,16 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
           </CardTitle>
           <div className="flex items-center gap-1.5 mt-1">
             <div
-              className={cn('w-2.5 h-2.5 rounded-full', isActive ? 'bg-green-500' : 'bg-red-500')}
+              className={cn(
+                "w-2.5 h-2.5 rounded-full",
+                isActive ? "bg-green-500" : "bg-red-500",
+              )}
             />
             <p className="text-xs text-muted-foreground">
               {isStarting
-                ? 'Starting...'
+                ? "Starting..."
                 : isStopping
-                  ? 'Stopping...'
+                  ? "Stopping..."
                   : agent.status?.toString() || CoreAgentStatus.INACTIVE}
             </p>
           </div>
@@ -153,7 +179,9 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
               <TooltipContent>Stop Agent</TooltipContent>
             </Tooltip>
           )}
-          {isStopping && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          {isStopping && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
       </CardHeader>
       <CardContent className="flex-grow flex items-center justify-center p-0 overflow-hidden">
@@ -162,8 +190,8 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
             src={avatarUrl}
             alt={agentName}
             className={cn(
-              'w-full aspect-square object-cover rounded-lg',
-              isActive ? '' : 'grayscale'
+              "w-full aspect-square object-cover rounded-lg",
+              isActive ? "" : "grayscale",
             )}
           />
         ) : (
@@ -195,7 +223,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onChat }) => {
               ) : (
                 <Play className="h-4 w-4" />
               )}
-              {isStarting ? 'Starting...' : 'Start'}
+              {isStarting ? "Starting..." : "Start"}
             </Button>
           )}
         </div>

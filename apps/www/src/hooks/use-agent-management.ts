@@ -1,9 +1,9 @@
-import type { Agent, UUID } from '@elizaos/core';
-import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStartAgent, useStopAgent } from './use-query-hooks';
-import { useToast } from './use-toast';
+import type { Agent, UUID } from "@elizaos/core";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useStartAgent, useStopAgent } from "./use-query-hooks";
+import { useToast } from "./use-toast";
 
 /**
  * Custom hook for managing agents (starting, stopping, and tracking status)
@@ -33,9 +33,9 @@ export function useAgentManagement() {
   const startAgent = async (agent: Agent) => {
     if (!agent.id) {
       toast({
-        title: 'Error',
-        description: 'Agent ID is missing',
-        variant: 'destructive',
+        title: "Error",
+        description: "Agent ID is missing",
+        variant: "destructive",
       });
       return;
     }
@@ -54,12 +54,13 @@ export function useAgentManagement() {
       // Start the agent
       await startAgentMutation.mutateAsync(agentId);
     } catch (error) {
-      console.error('Failed to start agent:', error);
+      console.error("Failed to start agent:", error);
 
       toast({
-        title: 'Error Starting Agent',
-        description: error instanceof Error ? error.message : 'Failed to start agent',
-        variant: 'destructive',
+        title: "Error Starting Agent",
+        description:
+          error instanceof Error ? error.message : "Failed to start agent",
+        variant: "destructive",
       });
     } finally {
       // Remove agent from starting list regardless of success/failure
@@ -73,9 +74,9 @@ export function useAgentManagement() {
   const stopAgent = async (agent: Agent) => {
     if (!agent.id) {
       toast({
-        title: 'Error',
-        description: 'Agent ID is missing',
-        variant: 'destructive',
+        title: "Error",
+        description: "Agent ID is missing",
+        variant: "destructive",
       });
       return;
     }
@@ -95,16 +96,17 @@ export function useAgentManagement() {
       await stopAgentMutation.mutateAsync(agentId);
 
       toast({
-        title: 'Agent Stopped',
+        title: "Agent Stopped",
         description: `${agent.name} has been stopped`,
       });
     } catch (error) {
-      console.error('Failed to stop agent:', error);
+      console.error("Failed to stop agent:", error);
 
       toast({
-        title: 'Error Stopping Agent',
-        description: error instanceof Error ? error.message : 'Failed to stop agent',
-        variant: 'destructive',
+        title: "Error Stopping Agent",
+        description:
+          error instanceof Error ? error.message : "Failed to stop agent",
+        variant: "destructive",
       });
     } finally {
       // Remove agent from stopping list regardless of success/failure

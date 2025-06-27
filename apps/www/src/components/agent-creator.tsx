@@ -1,25 +1,29 @@
-import CharacterForm from '@/components/character-form';
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
-import type { Agent } from '@elizaos/core';
-import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AvatarPanel from './avatar-panel';
-import PluginsPanel from './plugins-panel';
-import { SecretPanel } from './secret-panel';
-import { useAgentUpdate } from '@/hooks/use-agent-update';
-import { getTemplateById } from '@/config/agent-templates';
+import CharacterForm from "@/components/character-form";
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
+import type { Agent } from "@elizaos/core";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import AvatarPanel from "./avatar-panel";
+import PluginsPanel from "./plugins-panel";
+import { SecretPanel } from "./secret-panel";
+import { useAgentUpdate } from "@/hooks/use-agent-update";
+import { getTemplateById } from "@/config/agent-templates";
 
 // Define a partial agent for initialization from the "none" template
-const defaultCharacter: Partial<Agent> = getTemplateById('none')?.template || {
-  name: '',
-  username: '',
-  system: '',
+const defaultCharacter: Partial<Agent> = getTemplateById("none")?.template || {
+  name: "",
+  username: "",
+  system: "",
   bio: [] as string[],
   topics: [] as string[],
   adjectives: [] as string[],
-  plugins: ['@elizaos/plugin-sql', '@elizaos/plugin-openai', '@elizaos/plugin-bootstrap'],
+  plugins: [
+    "@elizaos/plugin-sql",
+    "@elizaos/plugin-openai",
+    "@elizaos/plugin-bootstrap",
+  ],
   settings: { secrets: {} },
 };
 
@@ -60,19 +64,20 @@ export default function AgentCreator() {
       });
 
       // Invalidate the characters query to refresh the characters list
-      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ["characters"] });
 
       toast({
-        title: 'Success',
-        description: 'Agent created successfully!',
+        title: "Success",
+        description: "Agent created successfully!",
       });
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
-      navigate('/');
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      navigate("/");
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create agent',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to create agent",
+        variant: "destructive",
       });
     }
   };
@@ -86,18 +91,21 @@ export default function AgentCreator() {
       onSubmit={handleSubmit}
       onReset={() => agentState.reset()}
       onDelete={() => {
-        navigate('/');
+        navigate("/");
       }}
       isAgent={true}
       customComponents={[
         {
-          name: 'Plugins',
+          name: "Plugins",
           component: (
-            <PluginsPanel characterValue={agentState.agent} setCharacterValue={agentState} />
+            <PluginsPanel
+              characterValue={agentState.agent}
+              setCharacterValue={agentState}
+            />
           ),
         },
         {
-          name: 'Secret',
+          name: "Secret",
           component: (
             <SecretPanel
               characterValue={agentState.agent}
@@ -108,9 +116,12 @@ export default function AgentCreator() {
           ),
         },
         {
-          name: 'Avatar',
+          name: "Avatar",
           component: (
-            <AvatarPanel characterValue={agentState.agent} setCharacterValue={agentState} />
+            <AvatarPanel
+              characterValue={agentState.agent}
+              setCharacterValue={agentState}
+            />
           ),
         },
       ]}

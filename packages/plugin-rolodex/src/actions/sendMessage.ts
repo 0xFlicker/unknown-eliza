@@ -166,7 +166,7 @@ export const sendMessageAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    _state?: State
+    _state?: State,
   ): Promise<boolean> => {
     // Check if we have permission to send messages
     const worldId = message.roomId;
@@ -176,7 +176,7 @@ export const sendMessageAction: Action = {
     const roomComponents = await runtime.getComponents(
       message.roomId,
       worldId,
-      agentId
+      agentId,
     );
 
     // Get source types from room components
@@ -195,7 +195,7 @@ export const sendMessageAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<State | void> => {
     try {
       if (!state) {
@@ -275,7 +275,7 @@ export const sendMessageAction: Action = {
           targetEntity.id!,
           source,
           worldId,
-          sourceEntityId
+          sourceEntityId,
         );
 
         if (!userComponent) {
@@ -318,7 +318,7 @@ export const sendMessageAction: Action = {
             targetEntity.id!,
             source,
             message.content.text,
-            worldId
+            worldId,
           );
 
           await callback({
@@ -397,7 +397,7 @@ export const sendMessageAction: Action = {
             targetRoom.id,
             source,
             message.content.text,
-            worldId
+            worldId,
           );
 
           await callback({

@@ -7,7 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -17,7 +17,7 @@ interface ConfirmationDialogProps {
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
 }
 
 export default function ConfirmationDialog({
@@ -25,10 +25,10 @@ export default function ConfirmationDialog({
   onOpenChange,
   title,
   description,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
-  variant = 'destructive',
+  variant = "destructive",
 }: ConfirmationDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -47,7 +47,9 @@ export default function ConfirmationDialog({
           <AlertDialogAction
             onClick={handleConfirm}
             className={
-              variant === 'destructive' ? 'bg-destructive text-destructive-foreground' : undefined
+              variant === "destructive"
+                ? "bg-destructive text-destructive-foreground"
+                : undefined
             }
           >
             {confirmText}

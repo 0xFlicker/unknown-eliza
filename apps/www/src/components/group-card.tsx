@@ -1,17 +1,26 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 // import { Avatar, AvatarGroup } from '@/components/ui/avatar'; // AvatarGroup removed
-import type { UUID, Agent } from '@elizaos/core';
-import type { MessageChannel as ClientMessageChannel } from '@/types';
-import { Users, MessageCircle } from 'lucide-react';
-import { generateGroupName, getEntityId } from '@/lib/utils';
+import type { UUID, Agent } from "@elizaos/core";
+import type { MessageChannel as ClientMessageChannel } from "@/types";
+import { Users, MessageCircle } from "lucide-react";
+import { generateGroupName, getEntityId } from "@/lib/utils";
 
 // The group prop will be a central channel, enriched with server_id for navigation context
 // Assume group.participants might be available or added later.
 interface GroupCardProps {
-  group: ClientMessageChannel & { server_id: UUID; participants?: Partial<Agent>[] };
+  group: ClientMessageChannel & {
+    server_id: UUID;
+    participants?: Partial<Agent>[];
+  };
   // onEdit?: (group: ClientMessageChannel) => void;
 }
 
@@ -27,7 +36,11 @@ const GroupCard: React.FC<GroupCardProps> = ({ group /*, onEdit */ }) => {
     );
   }
 
-  const groupName = generateGroupName(group, group.participants || [], currentClientId);
+  const groupName = generateGroupName(
+    group,
+    group.participants || [],
+    currentClientId,
+  );
   // Assuming participant count might come from metadata or a separate query in the parent component
   const participantCount =
     group.metadata?.participantCount ||
@@ -59,14 +72,23 @@ const GroupCard: React.FC<GroupCardProps> = ({ group /*, onEdit */ }) => {
       <CardContent className="flex-grow">
         {/* Placeholder for participant avatars or count */}
         {participantCount > 0 && (
-          <p className="text-xs text-muted-foreground">{participantCount} members</p>
+          <p className="text-xs text-muted-foreground">
+            {participantCount} members
+          </p>
         )}
         {group.topic && (
-          <p className="text-sm text-muted-foreground mt-1 Dtruncate">{group.topic}</p>
+          <p className="text-sm text-muted-foreground mt-1 Dtruncate">
+            {group.topic}
+          </p>
         )}
       </CardContent>
       <CardFooter className="p-3">
-        <Button onClick={handleChatClick} className="w-full" variant="outline" size="sm">
+        <Button
+          onClick={handleChatClick}
+          className="w-full"
+          variant="outline"
+          size="sm"
+        >
           <MessageCircle className="mr-2 h-4 w-4" /> Open Group
         </Button>
         {/* {onEdit && (

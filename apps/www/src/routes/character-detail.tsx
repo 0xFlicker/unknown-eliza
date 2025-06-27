@@ -1,5 +1,5 @@
-import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React from "react";
+import { useParams, Link } from "react-router-dom";
 
 const CharacterDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,8 +9,8 @@ const CharacterDetail: React.FC = () => {
   const character = {
     id,
     name: `Character ${id}`,
-    description: 'This is a character description.',
-    traits: ['Friendly', 'Intelligent', 'Curious'],
+    description: "This is a character description.",
+    traits: ["Friendly", "Intelligent", "Curious"],
   };
 
   return (

@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import { AgentRuntime } from '../runtime';
-import { AgentRuntime as CoreAgentRuntime } from '../../../runtime';
-import { MemoryType, ModelType } from '../types';
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { AgentRuntime } from "../runtime";
+import { AgentRuntime as CoreAgentRuntime } from "../../../runtime";
+import { MemoryType, ModelType } from "../types";
 import type {
   Action,
   Character,
@@ -12,8 +12,8 @@ import type {
   Provider,
   State,
   UUID,
-} from '../types';
-import { v4 as uuidv4 } from 'uuid';
+} from "../types";
+import { v4 as uuidv4 } from "uuid";
 const stringToUuid = (id: string): UUID => id as UUID;
 
 // --- Mocks ---
@@ -23,11 +23,11 @@ const mockSplitChunks = mock();
 const mockSafeReplacer = mock((_key, value) => value);
 
 // Mock modules using bun:test
-mock.module('../utils', () => ({
+mock.module("../utils", () => ({
   splitChunks: mockSplitChunks,
 }));
 
-mock.module('./index', () => ({
+mock.module("./index", () => ({
   safeReplacer: () => mockSafeReplacer,
 }));
 
@@ -98,14 +98,14 @@ const mockDatabaseAdapter: IDatabaseAdapter = {
   deleteLog: mock(async () => undefined),
   removeWorld: mock(async () => undefined),
   deleteRoomsByWorldId: function (_worldId: UUID): Promise<void> {
-    throw new Error('Function not implemented.');
+    throw new Error("Function not implemented.");
   },
   getMemoriesByWorldId: function (_params: {
     worldId: UUID;
     count?: number;
     tableName?: string;
   }): Promise<Memory[]> {
-    throw new Error('Function not implemented.');
+    throw new Error("Function not implemented.");
   },
   deleteManyMemories: mock(async () => undefined),
 };
@@ -126,7 +126,7 @@ const createMockMemory = (
   id?: UUID,
   entityId?: UUID,
   roomId?: UUID,
-  agentId?: UUID
+  agentId?: UUID,
 ): Memory => ({
   id: id ?? stringToUuid(uuidv4()),
   entityId: entityId ?? stringToUuid(uuidv4()),
@@ -138,7 +138,7 @@ const createMockMemory = (
 });
 
 // Mock State creator
-const createMockState = (text = '', values = {}, data = {}): State => ({
+const createMockState = (text = "", values = {}, data = {}): State => ({
   values,
   data,
   text,
@@ -147,10 +147,10 @@ const createMockState = (text = '', values = {}, data = {}): State => ({
 // Mock Character
 const mockCharacter: Character = {
   id: stringToUuid(uuidv4()),
-  name: 'Test Character',
-  plugins: ['@elizaos/plugin-sql'],
-  username: 'test',
-  bio: ['Test bio'],
+  name: "Test Character",
+  plugins: ["@elizaos/plugin-sql"],
+  username: "test",
+  bio: ["Test bio"],
   messageExamples: [], // Ensure required fields are present
   postExamples: [],
   topics: [],
@@ -165,7 +165,7 @@ const mockCharacter: Character = {
 
 // --- Test Suite ---
 
-describe('AgentRuntime (Non-Instrumented Baseline)', () => {
+describe("AgentRuntime (Non-Instrumented Baseline)", () => {
   let runtime: AgentRuntime;
   let agentId: UUID;
 
@@ -173,7 +173,7 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
     // Clear all mocks before each test
     // Note: bun:test doesn't have a global clearAllMocks equivalent
     // Only clear mocks that need to be reset between tests
-    if (mockDatabaseAdapter.log && 'mockReset' in mockDatabaseAdapter.log) {
+    if (mockDatabaseAdapter.log && "mockReset" in mockDatabaseAdapter.log) {
       (mockDatabaseAdapter.log as any).mockReset();
     }
 
@@ -188,33 +188,36 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
     });
   });
 
-  it('should construct without errors', () => {
+  it("should construct without errors", () => {
     expect(runtime).toBeInstanceOf(AgentRuntime);
     expect(runtime.agentId).toEqual(agentId);
     expect(runtime.character).toEqual(mockCharacter);
     expect(runtime.adapter).toBe(mockDatabaseAdapter);
   });
 
-  it('should register database adapter via constructor', () => {
+  it("should register database adapter via constructor", () => {
     // This is implicitly tested by the constructor test above
     expect(runtime.adapter).toBeDefined();
     expect(runtime.adapter).toEqual(mockDatabaseAdapter);
   });
 
-  describe('Plugin Registration', () => {
-    it('should register a simple plugin', async () => {
-      const mockPlugin: Plugin = { name: 'TestPlugin', description: 'A test plugin' };
+  describe("Plugin Registration", () => {
+    it("should register a simple plugin", async () => {
+      const mockPlugin: Plugin = {
+        name: "TestPlugin",
+        description: "A test plugin",
+      };
       await runtime.registerPlugin(mockPlugin);
-      console.log('runtime.plugins', runtime.plugins);
+      console.log("runtime.plugins", runtime.plugins);
       // Check if the plugin is added to the internal list
-      expect(runtime.plugins.some((p) => p.name === 'TestPlugin')).toBe(true);
+      expect(runtime.plugins.some((p) => p.name === "TestPlugin")).toBe(true);
     });
 
-    it('should call plugin init function', async () => {
+    it("should call plugin init function", async () => {
       const initMock = mock(async () => undefined);
       const mockPlugin: Plugin = {
-        name: 'InitPlugin',
-        description: 'Plugin with init',
+        name: "InitPlugin",
+        description: "Plugin with init",
         init: initMock,
       };
       await runtime.registerPlugin(mockPlugin);
@@ -222,23 +225,23 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       expect(initMock).toHaveBeenCalledWith(expect.anything(), runtime); // Check if called with config and runtime
     });
 
-    it('should register plugin features (actions, providers, models) when initialized', async () => {
+    it("should register plugin features (actions, providers, models) when initialized", async () => {
       const actionHandler = mock();
-      const providerGet = mock(async () => ({ text: 'provider_text' }));
-      const modelHandler = mock(async () => 'model_result');
+      const providerGet = mock(async () => ({ text: "provider_text" }));
+      const modelHandler = mock(async () => "model_result");
 
       const mockPlugin: Plugin = {
-        name: 'FeaturesPlugin',
-        description: 'Plugin with features',
+        name: "FeaturesPlugin",
+        description: "Plugin with features",
         actions: [
           {
-            name: 'TestAction',
-            description: 'Test action',
+            name: "TestAction",
+            description: "Test action",
             handler: actionHandler,
             validate: async () => true,
           },
         ],
-        providers: [{ name: 'TestProvider', get: providerGet }],
+        providers: [{ name: "TestProvider", get: providerGet }],
         models: { [ModelType.TEXT_SMALL]: modelHandler },
       };
 
@@ -258,27 +261,37 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
         updatedAt: Date.now(),
         enabled: true,
       }));
-      (mockDatabaseAdapter.updateAgent as any).mockImplementation(async () => true);
-      (mockDatabaseAdapter.getEntityByIds as any).mockImplementation(async () => [
-        {
-          id: agentId,
-          agentId: agentId,
-          names: [mockCharacter.name],
-        },
-      ]);
-      (mockDatabaseAdapter.getRoomsByIds as any).mockImplementation(async () => []);
-      (mockDatabaseAdapter.getParticipantsForRoom as any).mockImplementation(async () => []);
+      (mockDatabaseAdapter.updateAgent as any).mockImplementation(
+        async () => true,
+      );
+      (mockDatabaseAdapter.getEntityByIds as any).mockImplementation(
+        async () => [
+          {
+            id: agentId,
+            agentId: agentId,
+            names: [mockCharacter.name],
+          },
+        ],
+      );
+      (mockDatabaseAdapter.getRoomsByIds as any).mockImplementation(
+        async () => [],
+      );
+      (mockDatabaseAdapter.getParticipantsForRoom as any).mockImplementation(
+        async () => [],
+      );
 
       await runtime.initialize(); // Initialize to process registrations
 
-      expect(runtime.actions.some((a) => a.name === 'TestAction')).toBe(true);
-      expect(runtime.providers.some((p) => p.name === 'TestProvider')).toBe(true);
+      expect(runtime.actions.some((a) => a.name === "TestAction")).toBe(true);
+      expect(runtime.providers.some((p) => p.name === "TestProvider")).toBe(
+        true,
+      );
     });
   });
 
-  describe('Initialization', () => {
-    it('should call the core runtime initialize method', async () => {
-      const coreInitializeSpy = spyOn(CoreAgentRuntime.prototype, 'initialize');
+  describe("Initialization", () => {
+    it("should call the core runtime initialize method", async () => {
+      const coreInitializeSpy = spyOn(CoreAgentRuntime.prototype, "initialize");
       (coreInitializeSpy as any).mockImplementation(async () => {});
 
       await runtime.initialize();
@@ -288,7 +301,7 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       coreInitializeSpy.mockRestore();
     });
 
-    it('should throw if adapter is not available during initialize', async () => {
+    it("should throw if adapter is not available during initialize", async () => {
       // Create runtime without passing adapter
       const runtimeWithoutAdapter = new AgentRuntime({
         character: mockCharacter,
@@ -296,30 +309,42 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       });
 
       // We expect the core runtime's initialize to throw, so we can mock it to simulate the error
-      const coreInitializeSpy = spyOn(CoreAgentRuntime.prototype, 'initialize');
+      const coreInitializeSpy = spyOn(CoreAgentRuntime.prototype, "initialize");
       (coreInitializeSpy as any).mockImplementation(async () => {
-        throw new Error('Database adapter not initialized');
+        throw new Error("Database adapter not initialized");
       });
 
       await expect(runtimeWithoutAdapter.initialize()).rejects.toThrow(
-        /Database adapter not initialized/
+        /Database adapter not initialized/,
       );
 
       coreInitializeSpy.mockRestore();
     });
   });
 
-  describe('State Composition', () => {
-    it('should call provider get methods', async () => {
-      const provider1Get = mock(async () => ({ text: 'p1_text', values: { p1_val: 1 } }));
-      const provider2Get = mock(async () => ({ text: 'p2_text', values: { p2_val: 2 } }));
-      const provider1: Provider = { name: 'P1', get: provider1Get };
-      const provider2: Provider = { name: 'P2', get: provider2Get };
+  describe("State Composition", () => {
+    it("should call provider get methods", async () => {
+      const provider1Get = mock(async () => ({
+        text: "p1_text",
+        values: { p1_val: 1 },
+      }));
+      const provider2Get = mock(async () => ({
+        text: "p2_text",
+        values: { p2_val: 2 },
+      }));
+      const provider1: Provider = { name: "P1", get: provider1Get };
+      const provider2: Provider = { name: "P2", get: provider2Get };
 
       runtime.registerProvider(provider1);
       runtime.registerProvider(provider2);
 
-      const message = createMockMemory('test message', undefined, undefined, undefined, agentId);
+      const message = createMockMemory(
+        "test message",
+        undefined,
+        undefined,
+        undefined,
+        agentId,
+      );
       const state = await runtime.composeState(message);
 
       expect(provider1Get).toHaveBeenCalledTimes(1);
@@ -327,52 +352,58 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       expect(provider1Get).toHaveBeenCalledWith(runtime, message, {
         values: {},
         data: {},
-        text: '',
+        text: "",
       });
       expect(provider2Get).toHaveBeenCalledTimes(1);
       expect(provider2Get).toHaveBeenCalledWith(runtime, message, {
         values: {},
         data: {},
-        text: '',
+        text: "",
       });
-      expect(state.text).toContain('p1_text');
-      expect(state.text).toContain('p2_text');
-      expect(state.values).toHaveProperty('p1_val', 1);
-      expect(state.values).toHaveProperty('p2_val', 2);
+      expect(state.text).toContain("p1_text");
+      expect(state.text).toContain("p2_text");
+      expect(state.values).toHaveProperty("p1_val", 1);
+      expect(state.values).toHaveProperty("p2_val", 2);
       // Check combined values includes provider outputs
-      expect(state.values).toHaveProperty('providers'); // Check if the combined text is stored
+      expect(state.values).toHaveProperty("providers"); // Check if the combined text is stored
       expect(state.data.providers.P1.values).toEqual({ p1_val: 1 }); // Check provider data cache
       expect(state.data.providers.P2.values).toEqual({ p2_val: 2 });
     });
 
-    it('should filter providers', async () => {
-      const provider1Get = mock(async () => ({ text: 'p1_text' }));
-      const provider2Get = mock(async () => ({ text: 'p2_text' }));
-      const provider1: Provider = { name: 'P1', get: provider1Get };
-      const provider2: Provider = { name: 'P2', get: provider2Get };
+    it("should filter providers", async () => {
+      const provider1Get = mock(async () => ({ text: "p1_text" }));
+      const provider2Get = mock(async () => ({ text: "p2_text" }));
+      const provider1: Provider = { name: "P1", get: provider1Get };
+      const provider2: Provider = { name: "P2", get: provider2Get };
 
       runtime.registerProvider(provider1);
       runtime.registerProvider(provider2);
 
-      const message = createMockMemory('test message', undefined, undefined, undefined, agentId);
-      const state = await runtime.composeState(message, ['P1'], true); // Filter to only P1
+      const message = createMockMemory(
+        "test message",
+        undefined,
+        undefined,
+        undefined,
+        agentId,
+      );
+      const state = await runtime.composeState(message, ["P1"], true); // Filter to only P1
 
       expect(provider1Get).toHaveBeenCalledTimes(1);
       expect(provider2Get).not.toHaveBeenCalled();
-      expect(state.text).toBe('p1_text');
+      expect(state.text).toBe("p1_text");
     });
 
     // Add tests for includeList, caching behavior
   });
 
-  describe('Model Usage', () => {
-    it('should call registered model handler', async () => {
-      const modelHandler = mock(async () => ({ result: 'success' }));
+  describe("Model Usage", () => {
+    it("should call registered model handler", async () => {
+      const modelHandler = mock(async () => ({ result: "success" }));
       const modelType = ModelType.TEXT_LARGE;
 
       runtime.registerModel(modelType, modelHandler);
 
-      const params = { prompt: 'test prompt', someOption: true };
+      const params = { prompt: "test prompt", someOption: true };
       const result = await runtime.useModel(modelType, params);
 
       expect(modelHandler).toHaveBeenCalledTimes(1);
@@ -384,21 +415,23 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       expect(paramsArg.someOption).toBe(params.someOption);
       expect(paramsArg.runtime).toBeDefined();
       expect(paramsArg.runtime.agentId).toBe(runtime.agentId);
-      expect(result).toEqual({ result: 'success' });
+      expect(result).toEqual({ result: "success" });
       // Check if log was called (part of useModel logic)
       expect(mockDatabaseAdapter.log).toHaveBeenCalledWith(
-        expect.objectContaining({ type: `useModel:${modelType}` })
+        expect.objectContaining({ type: `useModel:${modelType}` }),
       );
     });
 
-    it('should throw if model type is not registered', async () => {
-      const modelType = 'UNREGISTERED_MODEL' as ModelTypeName;
-      const params = { prompt: 'test' };
-      await expect(runtime.useModel(modelType, params)).rejects.toThrow(/No handler found/);
+    it("should throw if model type is not registered", async () => {
+      const modelType = "UNREGISTERED_MODEL" as ModelTypeName;
+      const params = { prompt: "test" };
+      await expect(runtime.useModel(modelType, params)).rejects.toThrow(
+        /No handler found/,
+      );
     });
   });
 
-  describe('Action Processing', () => {
+  describe("Action Processing", () => {
     let mockActionHandler: any; // Use 'any' or specific function type
     let testAction: Action;
     let message: Memory;
@@ -406,30 +439,36 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
 
     beforeEach(() => {
       mockActionHandler = mock(async () => undefined);
-      testAction = createMockAction('TestAction');
+      testAction = createMockAction("TestAction");
       testAction.handler = mockActionHandler; // Assign mock handler
 
       runtime.registerAction(testAction);
 
-      message = createMockMemory('user message', undefined, undefined, undefined, agentId);
+      message = createMockMemory(
+        "user message",
+        undefined,
+        undefined,
+        undefined,
+        agentId,
+      );
       responseMemory = createMockMemory(
-        'agent response',
+        "agent response",
         undefined,
         undefined,
         message.roomId,
-        agentId
+        agentId,
       ); // Same room
-      responseMemory.content.actions = ['TestAction']; // Specify action to run
+      responseMemory.content.actions = ["TestAction"]; // Specify action to run
 
       // Mock the internal _runtime's composeState method
       // @ts-ignore - accessing private property for testing
-      const composeStateSpy = spyOn(runtime._runtime, 'composeState');
+      const composeStateSpy = spyOn(runtime._runtime, "composeState");
       (composeStateSpy as any).mockImplementation(async () =>
-        createMockState('composed state text')
+        createMockState("composed state text"),
       );
     });
 
-    it('should find and execute the correct action handler', async () => {
+    it("should find and execute the correct action handler", async () => {
       await runtime.processActions(message, [responseMemory]);
 
       expect(mockActionHandler).toHaveBeenCalledTimes(1);
@@ -437,40 +476,46 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       expect(mockActionHandler).toHaveBeenCalledWith(
         runtime,
         message,
-        expect.objectContaining({ text: 'composed state text' }), // Check composed state
+        expect.objectContaining({ text: "composed state text" }), // Check composed state
         {}, // options
         undefined, // callback
-        [responseMemory] // responses array
+        [responseMemory], // responses array
       );
       expect(mockDatabaseAdapter.log).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'action',
-          body: expect.objectContaining({ action: 'TestAction' }),
-        })
+          type: "action",
+          body: expect.objectContaining({ action: "TestAction" }),
+        }),
       );
     });
 
     // Add tests for action not found, simile matching, handler errors
-    it('should not execute if no action name matches', async () => {
-      responseMemory.content.actions = ['NonExistentAction'];
+    it("should not execute if no action name matches", async () => {
+      responseMemory.content.actions = ["NonExistentAction"];
       await runtime.processActions(message, [responseMemory]);
       expect(mockActionHandler).not.toHaveBeenCalled();
       expect(mockDatabaseAdapter.log).not.toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'action' })
+        expect.objectContaining({ type: "action" }),
       );
     });
   });
 
   // --- Adapter Passthrough Tests ---
-  describe('Adapter Passthrough', () => {
-    it('createEntity should call adapter.createEntities', async () => {
-      const entityData = { id: stringToUuid(uuidv4()), agentId: agentId, names: ['Test Entity'] };
+  describe("Adapter Passthrough", () => {
+    it("createEntity should call adapter.createEntities", async () => {
+      const entityData = {
+        id: stringToUuid(uuidv4()),
+        agentId: agentId,
+        names: ["Test Entity"],
+      };
       await runtime.createEntity(entityData);
       expect(mockDatabaseAdapter.createEntities).toHaveBeenCalledTimes(1);
-      expect(mockDatabaseAdapter.createEntities).toHaveBeenCalledWith([entityData]);
+      expect(mockDatabaseAdapter.createEntities).toHaveBeenCalledWith([
+        entityData,
+      ]);
     });
 
-    it('getMemoryById should call adapter.getMemoryById', async () => {
+    it("getMemoryById should call adapter.getMemoryById", async () => {
       const memoryId = stringToUuid(uuidv4());
       await runtime.getMemoryById(memoryId);
       expect(mockDatabaseAdapter.getMemoryById).toHaveBeenCalledTimes(1);
@@ -480,11 +525,11 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
   });
 
   // --- Event Emitter Tests ---
-  describe('Event Emitter (on/emit/off)', () => {
-    it('should register and emit events', () => {
+  describe("Event Emitter (on/emit/off)", () => {
+    it("should register and emit events", () => {
       const handler = mock();
-      const eventName = 'testEvent';
-      const eventData = { info: 'data' };
+      const eventName = "testEvent";
+      const eventData = { info: "data" };
 
       runtime.on(eventName, handler);
       runtime.emit(eventName, eventData);
@@ -493,26 +538,26 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
       expect(handler).toHaveBeenCalledWith(eventData);
     });
 
-    it('should remove event handler with off', () => {
+    it("should remove event handler with off", () => {
       const handler = mock();
-      const eventName = 'testEvent';
+      const eventName = "testEvent";
 
       runtime.on(eventName, handler);
       runtime.off(eventName, handler);
-      runtime.emit(eventName, { info: 'data' });
+      runtime.emit(eventName, { info: "data" });
 
       expect(handler).not.toHaveBeenCalled();
     });
   });
 
   // --- Tests from original suite ---
-  describe('Original Suite Tests', () => {
+  describe("Original Suite Tests", () => {
     // Note: These might need slight adaptation if they relied on Jest specifics
     // or different mock setups.
 
     // Copied from your original suite:
-    describe('model provider management', () => {
-      it('should provide access to the configured model provider', () => {
+    describe("model provider management", () => {
+      it("should provide access to the configured model provider", () => {
         // In this refactored structure, 'provider' likely refers to the runtime instance itself
         // which acts as the primary interface.
         const provider = runtime; // The runtime instance manages models
@@ -523,45 +568,49 @@ describe('AgentRuntime (Non-Instrumented Baseline)', () => {
     });
 
     // Copied from your original suite:
-    describe('state management', () => {
-      it('should compose state with additional keys', async () => {
+    describe("state management", () => {
+      it("should compose state with additional keys", async () => {
         // Use the helper function for consistency
         const message: Memory = createMockMemory(
-          'test message',
-          stringToUuid('11111111-e89b-12d3-a456-426614174003'), // Use valid UUIDs
-          stringToUuid('22222222-e89b-12d3-a456-426614174004'),
-          stringToUuid('33333333-e89b-12d3-a456-426614174003'), // Room ID
-          agentId
+          "test message",
+          stringToUuid("11111111-e89b-12d3-a456-426614174003"), // Use valid UUIDs
+          stringToUuid("22222222-e89b-12d3-a456-426614174004"),
+          stringToUuid("33333333-e89b-12d3-a456-426614174003"), // Room ID
+          agentId,
         );
 
         // Mock provider needed by composeState
-        const providerGet = mock(async () => ({ text: 'provider text' }));
-        runtime.registerProvider({ name: 'TestProvider', get: providerGet });
+        const providerGet = mock(async () => ({ text: "provider text" }));
+        runtime.registerProvider({ name: "TestProvider", get: providerGet });
 
         const state = await runtime.composeState(message);
-        expect(state).toHaveProperty('values');
-        expect(state).toHaveProperty('text');
-        expect(state).toHaveProperty('data');
+        expect(state).toHaveProperty("values");
+        expect(state).toHaveProperty("text");
+        expect(state).toHaveProperty("data");
         // Add more specific state checks if needed
-        expect(state.text).toContain('provider text'); // Check provider text is included
+        expect(state.text).toContain("provider text"); // Check provider text is included
       });
     });
 
     // Copied from your original suite:
-    describe('action management', () => {
-      it('should register an action', () => {
-        const action = createMockAction('testAction');
+    describe("action management", () => {
+      it("should register an action", () => {
+        const action = createMockAction("testAction");
         runtime.registerAction(action);
-        expect(runtime.actions.some((a) => a.name === 'testAction')).toBe(true);
+        expect(runtime.actions.some((a) => a.name === "testAction")).toBe(true);
       });
 
-      it('should allow registering multiple actions', () => {
-        const action1 = createMockAction('testAction1');
-        const action2 = createMockAction('testAction2');
+      it("should allow registering multiple actions", () => {
+        const action1 = createMockAction("testAction1");
+        const action2 = createMockAction("testAction2");
         runtime.registerAction(action1);
         runtime.registerAction(action2);
-        expect(runtime.actions.some((a) => a.name === 'testAction1')).toBe(true);
-        expect(runtime.actions.some((a) => a.name === 'testAction2')).toBe(true);
+        expect(runtime.actions.some((a) => a.name === "testAction1")).toBe(
+          true,
+        );
+        expect(runtime.actions.some((a) => a.name === "testAction2")).toBe(
+          true,
+        );
       });
     });
   });

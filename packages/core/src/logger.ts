@@ -1,11 +1,16 @@
-import pino, { type DestinationStream, type LogFn } from 'pino';
-import { Sentry } from './sentry/instrument';
+import pino, { type DestinationStream, type LogFn } from "pino";
+import { Sentry } from "./sentry/instrument";
 
 // Local utility function to avoid circular dependency
 function parseBooleanFromText(value: string | undefined | null): boolean {
   if (!value) return false;
   const normalized = value.toLowerCase().trim();
-  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  return (
+    normalized === "true" ||
+    normalized === "1" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
 }
 
 /**
@@ -54,7 +59,7 @@ class InMemoryDestination implements DestinationStream {
     let logEntry: LogEntry;
     let stringData: string;
 
-    if (typeof data === 'string') {
+    if (typeof data === "string") {
       stringData = data;
       try {
         logEntry = JSON.parse(data);
@@ -76,7 +81,8 @@ class InMemoryDestination implements DestinationStream {
     }
 
     // Filter out service registration logs unless in debug mode
-    const isDebugMode = (process?.env?.LOG_LEVEL || '').toLowerCase() === 'debug';
+    const isDebugMode =
+      (process?.env?.LOG_LEVEL || "").toLowerCase() === "debug";
     const isLoggingDiagnostic = Boolean(process?.env?.LOG_DIAGNOSTIC);
 
     if (isLoggingDiagnostic) {
@@ -87,18 +93,18 @@ class InMemoryDestination implements DestinationStream {
     if (!isDebugMode) {
       // Check if this is a service or agent log that we want to filter
       if (logEntry.agentName && logEntry.agentId) {
-        const msg = logEntry.msg || '';
+        const msg = logEntry.msg || "";
         // Filter only service/agent registration logs, not all agent logs
         if (
-          typeof msg === 'string' &&
-          (msg.includes('registered successfully') ||
-            msg.includes('Registering') ||
-            msg.includes('Success:') ||
-            msg.includes('linked to') ||
-            msg.includes('Started'))
+          typeof msg === "string" &&
+          (msg.includes("registered successfully") ||
+            msg.includes("Registering") ||
+            msg.includes("Success:") ||
+            msg.includes("linked to") ||
+            msg.includes("Started"))
         ) {
           if (isLoggingDiagnostic) {
-            console.error('Filtered log:', stringData);
+            console.error("Filtered log:", stringData);
           }
           // This is a service registration/agent log, skip it
           return;
@@ -154,53 +160,55 @@ const customLevels: Record<string, number> = {
 const raw = parseBooleanFromText(process?.env?.LOG_JSON_FORMAT) || false;
 
 // Set default log level to info to allow regular logs, but still filter service logs
-const isDebugMode = (process?.env?.LOG_LEVEL || '').toLowerCase() === 'debug';
-const effectiveLogLevel = isDebugMode ? 'debug' : process?.env?.DEFAULT_LOG_LEVEL || 'info';
+const isDebugMode = (process?.env?.LOG_LEVEL || "").toLowerCase() === "debug";
+const effectiveLogLevel = isDebugMode
+  ? "debug"
+  : process?.env?.DEFAULT_LOG_LEVEL || "info";
 
 // Create a function to generate the pretty configuration
 const createPrettyConfig = () => ({
   colorize: true,
-  translateTime: 'yyyy-mm-dd HH:MM:ss',
-  ignore: 'pid,hostname',
+  translateTime: "yyyy-mm-dd HH:MM:ss",
+  ignore: "pid,hostname",
   levelColors: {
-    60: 'red', // fatal
-    50: 'red', // error
-    40: 'yellow', // warn
-    30: 'blue', // info
-    29: 'green', // log
-    28: 'cyan', // progress
-    27: 'greenBright', // success
-    20: 'magenta', // debug
-    10: 'grey', // trace
-    '*': 'white', // default for any unspecified level
+    60: "red", // fatal
+    50: "red", // error
+    40: "yellow", // warn
+    30: "blue", // info
+    29: "green", // log
+    28: "cyan", // progress
+    27: "greenBright", // success
+    20: "magenta", // debug
+    10: "grey", // trace
+    "*": "white", // default for any unspecified level
   },
   customPrettifiers: {
     level: (inputData: any) => {
       let level;
-      if (typeof inputData === 'object' && inputData !== null) {
+      if (typeof inputData === "object" && inputData !== null) {
         level = inputData.level || inputData.value;
       } else {
         level = inputData;
       }
 
       const levelNames: Record<number, string> = {
-        10: 'TRACE',
-        20: 'DEBUG',
-        27: 'SUCCESS',
-        28: 'PROGRESS',
-        29: 'LOG',
-        30: 'INFO',
-        40: 'WARN',
-        50: 'ERROR',
-        60: 'FATAL',
+        10: "TRACE",
+        20: "DEBUG",
+        27: "SUCCESS",
+        28: "PROGRESS",
+        29: "LOG",
+        30: "INFO",
+        40: "WARN",
+        50: "ERROR",
+        60: "FATAL",
       };
 
-      if (typeof level === 'number') {
+      if (typeof level === "number") {
         return levelNames[level] || `LEVEL${level}`;
       }
 
       if (level === undefined || level === null) {
-        return 'UNKNOWN';
+        return "UNKNOWN";
       }
 
       return String(level).toUpperCase();
@@ -208,10 +216,10 @@ const createPrettyConfig = () => ({
     // Add a custom prettifier for error messages
     msg: (msg: string) => {
       // Replace "ERROR (TypeError):" pattern with just "ERROR:"
-      return msg.replace(/ERROR \([^)]+\):/g, 'ERROR:');
+      return msg.replace(/ERROR \([^)]+\):/g, "ERROR:");
     },
   },
-  messageFormat: '{msg}',
+  messageFormat: "{msg}",
 });
 
 const createStream = async () => {
@@ -219,7 +227,7 @@ const createStream = async () => {
     return undefined;
   }
   // dynamically import pretty to avoid importing it in the browser
-  const pretty = await import('pino-pretty');
+  const pretty = await import("pino-pretty");
   return pretty.default(createPrettyConfig());
 };
 
@@ -228,9 +236,12 @@ const options = {
   level: effectiveLogLevel, // Use more restrictive level unless in debug mode
   customLevels,
   hooks: {
-    logMethod(inputArgs: [string | Record<string, unknown>, ...unknown[]], method: LogFn): void {
+    logMethod(
+      inputArgs: [string | Record<string, unknown>, ...unknown[]],
+      method: LogFn,
+    ): void {
       const [arg1, ...rest] = inputArgs;
-      if (process.env.SENTRY_LOGGING !== 'false') {
+      if (process.env.SENTRY_LOGGING !== "false") {
         if (arg1 instanceof Error) {
           Sentry.captureException(arg1);
         } else {
@@ -244,10 +255,10 @@ const options = {
 
       const formatError = (err: Error) => ({
         message: `(${err.name}) ${err.message}`,
-        stack: err.stack?.split('\n').map((line) => line.trim()),
+        stack: err.stack?.split("\n").map((line) => line.trim()),
       });
 
-      if (typeof arg1 === 'object') {
+      if (typeof arg1 === "object") {
         if (arg1 instanceof Error) {
           method.apply(this, [
             {
@@ -256,9 +267,9 @@ const options = {
           ]);
         } else {
           const messageParts = rest.map((arg) =>
-            typeof arg === 'string' ? arg : JSON.stringify(arg)
+            typeof arg === "string" ? arg : JSON.stringify(arg),
           );
-          const message = messageParts.join(' ');
+          const message = messageParts.join(" ");
           method.apply(this, [arg1, message]);
         }
       } else {
@@ -267,10 +278,14 @@ const options = {
           if (arg instanceof Error) {
             return formatError(arg);
           }
-          return typeof arg === 'string' ? arg : arg;
+          return typeof arg === "string" ? arg : arg;
         });
-        const message = messageParts.filter((part) => typeof part === 'string').join(' ');
-        const jsonParts = messageParts.filter((part) => typeof part === 'object');
+        const message = messageParts
+          .filter((part) => typeof part === "string")
+          .join(" ");
+        const jsonParts = messageParts.filter(
+          (part) => typeof part === "object",
+        );
 
         Object.assign(context, ...jsonParts);
 
@@ -287,11 +302,11 @@ const createLogger = (bindings: any | boolean = false) => {
     //opts.level = process.env.LOG_LEVEL || 'info'
     opts.base = bindings; // shallow change
     opts.transport = {
-      target: 'pino-pretty', // this is just a string, not a dynamic import
+      target: "pino-pretty", // this is just a string, not a dynamic import
       options: {
         colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
+        translateTime: "SYS:standard",
+        ignore: "pid,hostname",
       },
     };
   }
@@ -307,7 +322,7 @@ interface LoggerWithClear extends pino.Logger {
 }
 
 // Enhance logger with custom destination in Node.js environment
-if (typeof process !== 'undefined') {
+if (typeof process !== "undefined") {
   // Create the destination with in-memory logging
   // Instead of async initialization, initialize synchronously to avoid race conditions
   let stream = null;
@@ -316,18 +331,20 @@ if (typeof process !== 'undefined') {
     // If we're in a Node.js environment where require is available, use require for pino-pretty
     // This will ensure synchronous loading
     try {
-      const pretty = require('pino-pretty');
+      const pretty = require("pino-pretty");
       stream = pretty.default ? pretty.default(createPrettyConfig()) : null;
     } catch (e) {
       // Fall back to async loading if synchronous loading fails
       createStream().then((prettyStream) => {
         const destination = new InMemoryDestination(prettyStream);
         logger = pino(options, destination);
-        (logger as unknown)[Symbol.for('pino-destination')] = destination;
+        (logger as unknown)[Symbol.for("pino-destination")] = destination;
 
         // Add clear method to logger
         (logger as unknown as LoggerWithClear).clear = () => {
-          const destination = (logger as unknown)[Symbol.for('pino-destination')];
+          const destination = (logger as unknown)[
+            Symbol.for("pino-destination")
+          ];
           if (destination instanceof InMemoryDestination) {
             destination.clear();
           }
@@ -340,11 +357,11 @@ if (typeof process !== 'undefined') {
   if (stream !== null || raw) {
     const destination = new InMemoryDestination(stream);
     logger = pino(options, destination);
-    (logger as unknown)[Symbol.for('pino-destination')] = destination;
+    (logger as unknown)[Symbol.for("pino-destination")] = destination;
 
     // Add clear method to logger
     (logger as unknown as LoggerWithClear).clear = () => {
-      const destination = (logger as unknown)[Symbol.for('pino-destination')];
+      const destination = (logger as unknown)[Symbol.for("pino-destination")];
       if (destination instanceof InMemoryDestination) {
         destination.clear();
       }

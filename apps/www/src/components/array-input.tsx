@@ -1,10 +1,10 @@
-import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
-import { useState } from 'react';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 type TagProps = {
   tag: string;
@@ -55,7 +55,7 @@ const TagInput = ({ value, onChange, onKeyDown }: TagInputProps) => (
     onChange={onChange}
     onKeyDown={onKeyDown}
     placeholder="Type and press Enter to add..."
-    className={cn('bg-background', !value && 'text-muted-foreground')}
+    className={cn("bg-background", !value && "text-muted-foreground")}
   />
 );
 
@@ -66,15 +66,15 @@ type ArrayInputProps = {
 };
 
 export default function ArrayInput({ title, data, onChange }: ArrayInputProps) {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       const trimmedValue = inputValue.trim();
       if (trimmedValue && !data.includes(trimmedValue)) {
         onChange([...data, trimmedValue]);
-        setInputValue('');
+        setInputValue("");
       }
     }
   };

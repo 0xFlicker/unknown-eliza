@@ -1,7 +1,7 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { useAgent } from '@/hooks/use-query-hooks';
-import { UUID } from '@elizaos/core';
+import React from "react";
+import { useParams } from "react-router-dom";
+import { useAgent } from "@/hooks/use-query-hooks";
+import { UUID } from "@elizaos/core";
 
 const AgentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

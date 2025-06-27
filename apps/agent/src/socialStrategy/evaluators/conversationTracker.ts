@@ -33,7 +33,7 @@ export const conversationTrackingEvaluator: Evaluator = {
    */
   validate: async (
     _runtime: IAgentRuntime,
-    message: Memory
+    message: Memory,
   ): Promise<boolean> => {
     const content = message.content as { text?: unknown } | undefined;
     return !!content && hasMentions(content.text);
@@ -47,7 +47,7 @@ export const conversationTrackingEvaluator: Evaluator = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<State | void> => {
     // Re-use the action handler – we intentionally ignore the returned value
     // and let the side-effects (entities, relationships, components) carry

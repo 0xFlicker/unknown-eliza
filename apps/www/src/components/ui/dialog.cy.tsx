@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,11 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-} from './dialog';
-import { Button } from './button';
+} from "./dialog";
+import { Button } from "./button";
 
-describe('Dialog Component', () => {
-  it('renders dialog with trigger', () => {
+describe("Dialog Component", () => {
+  it("renders dialog with trigger", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger asChild>
@@ -27,37 +27,37 @@ describe('Dialog Component', () => {
             <DialogDescription>This is a dialog description.</DialogDescription>
           </DialogHeader>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('button', 'Open Dialog').should('be.visible');
-    cy.contains('Dialog Title').should('not.exist');
+    cy.contains("button", "Open Dialog").should("be.visible");
+    cy.contains("Dialog Title").should("not.exist");
 
     // Open dialog
-    cy.contains('button', 'Open Dialog').click();
-    cy.contains('Dialog Title').should('be.visible');
-    cy.contains('This is a dialog description.').should('be.visible');
+    cy.contains("button", "Open Dialog").click();
+    cy.contains("Dialog Title").should("be.visible");
+    cy.contains("This is a dialog description.").should("be.visible");
   });
 
-  it('closes dialog when clicking outside', () => {
+  it("closes dialog when clicking outside", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger>Open</DialogTrigger>
         <DialogContent>
           <DialogTitle>Click Outside Test</DialogTitle>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open').click();
-    cy.contains('Click Outside Test').should('be.visible');
+    cy.contains("Open").click();
+    cy.contains("Click Outside Test").should("be.visible");
 
     // Test escape key instead of clicking outside
-    cy.get('body').type('{esc}');
-    cy.contains('Click Outside Test').should('not.exist');
+    cy.get("body").type("{esc}");
+    cy.contains("Click Outside Test").should("not.exist");
   });
 
-  it('renders with footer actions', () => {
+  it("renders with footer actions", () => {
     const onSave = cy.stub();
     const onCancel = cy.stub();
 
@@ -67,7 +67,9 @@ describe('Dialog Component', () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription>Make changes to your profile here.</DialogDescription>
+            <DialogDescription>
+              Make changes to your profile here.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <input placeholder="Name" className="w-full p-2 border rounded" />
@@ -79,17 +81,17 @@ describe('Dialog Component', () => {
             <Button onClick={onSave}>Save changes</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open Form').click();
-    cy.get('input[placeholder="Name"]').should('be.visible');
+    cy.contains("Open Form").click();
+    cy.get('input[placeholder="Name"]').should("be.visible");
 
-    cy.contains('button', 'Save changes').click({ force: true });
-    cy.wrap(onSave).should('have.been.called');
+    cy.contains("button", "Save changes").click({ force: true });
+    cy.wrap(onSave).should("have.been.called");
   });
 
-  it('works as controlled component', () => {
+  it("works as controlled component", () => {
     const TestComponent = () => {
       const [open, setOpen] = React.useState(false);
 
@@ -110,15 +112,15 @@ describe('Dialog Component', () => {
 
     cy.mount(<TestComponent />);
 
-    cy.contains('Controlled Dialog').should('not.exist');
-    cy.contains('External Open').click();
-    cy.contains('Controlled Dialog').should('be.visible');
+    cy.contains("Controlled Dialog").should("not.exist");
+    cy.contains("External Open").click();
+    cy.contains("Controlled Dialog").should("be.visible");
 
-    cy.contains('button', 'Close').click({ force: true });
-    cy.contains('Controlled Dialog').should('not.exist');
+    cy.contains("button", "Close").click({ force: true });
+    cy.contains("Controlled Dialog").should("not.exist");
   });
 
-  it('handles keyboard navigation', () => {
+  it("handles keyboard navigation", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger>Open</DialogTrigger>
@@ -127,33 +129,33 @@ describe('Dialog Component', () => {
           <button>First Button</button>
           <button>Second Button</button>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open').click();
-    cy.contains('Keyboard Test').should('be.visible');
+    cy.contains("Open").click();
+    cy.contains("Keyboard Test").should("be.visible");
 
     // ESC key should close
-    cy.get('body').type('{esc}');
-    cy.contains('Keyboard Test').should('not.exist');
+    cy.get("body").type("{esc}");
+    cy.contains("Keyboard Test").should("not.exist");
   });
 
-  it('supports custom className', () => {
+  it("supports custom className", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger>Open</DialogTrigger>
         <DialogContent className="bg-blue-50 max-w-lg">
           <DialogTitle>Custom Styled Dialog</DialogTitle>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open').click();
-    cy.get('[role="dialog"]').should('have.class', 'bg-blue-50');
-    cy.get('[role="dialog"]').should('have.class', 'max-w-lg');
+    cy.contains("Open").click();
+    cy.get('[role="dialog"]').should("have.class", "bg-blue-50");
+    cy.get('[role="dialog"]').should("have.class", "max-w-lg");
   });
 
-  it('renders form inside dialog', () => {
+  it("renders form inside dialog", () => {
     const onSubmit = cy.stub();
 
     cy.mount(
@@ -163,7 +165,7 @@ describe('Dialog Component', () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              onSubmit('submitted');
+              onSubmit("submitted");
             }}
           >
             <DialogHeader>
@@ -184,19 +186,19 @@ describe('Dialog Component', () => {
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Add Item').click();
-    cy.get('input[name="title"]').type('Test Item');
-    cy.get('textarea[name="description"]').type('Test Description');
+    cy.contains("Add Item").click();
+    cy.get('input[name="title"]').type("Test Item");
+    cy.get('textarea[name="description"]').type("Test Description");
     cy.get('[role="dialog"]').within(() => {
-      cy.contains('button', 'Add').click({ force: true });
+      cy.contains("button", "Add").click({ force: true });
     });
-    cy.wrap(onSubmit).should('have.been.calledWith', 'submitted');
+    cy.wrap(onSubmit).should("have.been.calledWith", "submitted");
   });
 
-  it('prevents closing when modal', () => {
+  it("prevents closing when modal", () => {
     cy.mount(
       <Dialog modal={true}>
         <DialogTrigger>Open Modal</DialogTrigger>
@@ -206,14 +208,14 @@ describe('Dialog Component', () => {
             This dialog is modal and requires explicit action to close.
           </DialogDescription>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open Modal').click();
-    cy.contains('Modal Dialog').should('be.visible');
+    cy.contains("Open Modal").click();
+    cy.contains("Modal Dialog").should("be.visible");
   });
 
-  it('supports nested content', () => {
+  it("supports nested content", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger>View Details</DialogTrigger>
@@ -233,16 +235,16 @@ describe('Dialog Component', () => {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('View Details').click();
-    cy.contains('John Doe').should('be.visible');
-    cy.contains('john@example.com').should('be.visible');
-    cy.contains('Administrator').should('be.visible');
+    cy.contains("View Details").click();
+    cy.contains("John Doe").should("be.visible");
+    cy.contains("john@example.com").should("be.visible");
+    cy.contains("Administrator").should("be.visible");
   });
 
-  it('handles long content with scroll', () => {
+  it("handles long content with scroll", () => {
     cy.mount(
       <Dialog>
         <DialogTrigger>Open Long Content</DialogTrigger>
@@ -253,27 +255,28 @@ describe('Dialog Component', () => {
           <div className="overflow-y-auto max-h-[200px]">
             {Array.from({ length: 50 }, (_, i) => (
               <p key={i} className="py-2">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-                incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-                exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+                enim ad minim veniam, quis nostrud exercitation ullamco laboris
+                nisi ut aliquip ex ea commodo consequat.
               </p>
             ))}
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
-    cy.contains('Open Long Content').click();
+    cy.contains("Open Long Content").click();
 
     // Wait for dialog to open and verify scroll container exists
-    cy.get('[role="dialog"]').should('be.visible');
-    cy.get('.overflow-y-auto').should('exist');
+    cy.get('[role="dialog"]').should("be.visible");
+    cy.get(".overflow-y-auto").should("exist");
 
     // Verify the container has the correct CSS classes for scrolling
-    cy.get('.overflow-y-auto').should('have.class', 'overflow-y-auto');
-    cy.get('.overflow-y-auto').should('have.class', 'max-h-[200px]');
+    cy.get(".overflow-y-auto").should("have.class", "overflow-y-auto");
+    cy.get(".overflow-y-auto").should("have.class", "max-h-[200px]");
 
     // Check that content exists inside the scroll container
-    cy.get('.overflow-y-auto p').should('have.length', 50);
+    cy.get(".overflow-y-auto p").should("have.length", 50);
   });
 });

@@ -1,7 +1,11 @@
-import type { Entity, Relationship, UUID } from '@elizaos/core';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { Entity, Relationship, UUID } from "@elizaos/core";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 // @ts-ignore - react-force-graph-2d doesn't have type declarations
-import ForceGraph2D, { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
+import ForceGraph2D, {
+  ForceGraphMethods,
+  LinkObject,
+  NodeObject,
+} from "react-force-graph-2d";
 
 // Type definitions for react-force-graph-2d
 interface NodeObject {
@@ -35,7 +39,7 @@ interface EntityNode extends NodeObject {
   name: string;
   val?: number; // Node size
   entity: Entity;
-  type: 'person' | 'bot' | 'organization';
+  type: "person" | "bot" | "organization";
   trustLevel?: number;
 }
 
@@ -43,8 +47,8 @@ interface RelationshipLink extends LinkObject {
   source: UUID;
   target: UUID;
   value?: number; // Link strength/thickness
-  type: 'friend' | 'colleague' | 'community' | 'acquaintance' | 'unknown';
-  sentiment: 'positive' | 'negative' | 'neutral';
+  type: "friend" | "colleague" | "community" | "acquaintance" | "unknown";
+  sentiment: "positive" | "negative" | "neutral";
   strength: number;
 }
 
@@ -56,17 +60,20 @@ interface EntityGraphProps {
 }
 
 // Process graph data
-const processGraphData = (entities: Entity[], relationships: Relationship[]) => {
+const processGraphData = (
+  entities: Entity[],
+  relationships: Relationship[],
+) => {
   const nodes: EntityNode[] = entities.map((entity) => {
     const metadata = entity.metadata || {};
-    const trustMetrics = metadata.trustMetrics as any || {};
-    
+    const trustMetrics = (metadata.trustMetrics as any) || {};
+
     return {
       id: entity.id!,
       name: entity.names[0] || entity.id!.substring(0, 8),
       entity: entity,
       val: 5 + (trustMetrics.engagement || 0) / 2, // Size based on engagement
-      type: (metadata.type || 'person') as 'person' | 'bot' | 'organization',
+      type: (metadata.type || "person") as "person" | "bot" | "organization",
       trustLevel: trustMetrics.helpfulness - trustMetrics.suspicionLevel,
     };
   });
@@ -77,8 +84,16 @@ const processGraphData = (entities: Entity[], relationships: Relationship[]) => 
       source: rel.sourceEntityId,
       target: rel.targetEntityId,
       value: (rel.strength || 0.5) * 3, // Convert strength to link thickness
-      type: (metadata.type || 'unknown') as 'friend' | 'colleague' | 'community' | 'acquaintance' | 'unknown',
-      sentiment: (metadata.sentiment || 'neutral') as 'positive' | 'negative' | 'neutral',
+      type: (metadata.type || "unknown") as
+        | "friend"
+        | "colleague"
+        | "community"
+        | "acquaintance"
+        | "unknown",
+      sentiment: (metadata.sentiment || "neutral") as
+        | "positive"
+        | "negative"
+        | "neutral",
       strength: rel.strength || 0.5,
     };
   });
@@ -86,16 +101,26 @@ const processGraphData = (entities: Entity[], relationships: Relationship[]) => 
   return { nodes, links };
 };
 
-export function EntityGraph({ entities, relationships, onNodeClick, selectedEntityId }: EntityGraphProps) {
+export function EntityGraph({
+  entities,
+  relationships,
+  onNodeClick,
+  selectedEntityId,
+}: EntityGraphProps) {
   const graphRef = useRef<any>(undefined);
   const [initialized, setInitialized] = useState(false);
-  const [graphData, setGraphData] = useState<{ nodes: EntityNode[]; links: RelationshipLink[] }>({
+  const [graphData, setGraphData] = useState<{
+    nodes: EntityNode[];
+    links: RelationshipLink[];
+  }>({
     nodes: [],
     links: [],
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [selectedRelationType, setSelectedRelationType] = useState<string | null>(null);
+  const [selectedRelationType, setSelectedRelationType] = useState<
+    string | null
+  >(null);
 
   const NODE_REL_SIZE = 4;
 
@@ -118,17 +143,19 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
     };
 
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener("resize", updateDimensions);
 
     return () => {
-      window.removeEventListener('resize', updateDimensions);
+      window.removeEventListener("resize", updateDimensions);
     };
   }, []);
 
   // Highlight selected node
   useEffect(() => {
     if (initialized && graphRef.current && selectedEntityId) {
-      const node = graphData.nodes.find((n: EntityNode) => n.id === selectedEntityId);
+      const node = graphData.nodes.find(
+        (n: EntityNode) => n.id === selectedEntityId,
+      );
       if (node) {
         graphRef.current.centerAt(node.x, node.y, 1000);
         graphRef.current.zoom(2.5, 1000);
@@ -141,12 +168,12 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
     graphRef.current = graph;
 
     if (graph) {
-      const chargeForce = graph.d3Force('charge');
+      const chargeForce = graph.d3Force("charge");
       if (chargeForce) {
         chargeForce.strength(-200); // Stronger repulsion for entities
       }
 
-      const linkForce = graph.d3Force('link');
+      const linkForce = graph.d3Force("link");
       if (linkForce) {
         linkForce.distance(80); // More distance between entities
       }
@@ -159,15 +186,15 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
   // Get color for relationship type
   const getRelationshipColor = (link: RelationshipLink) => {
     if (selectedRelationType && link.type !== selectedRelationType) {
-      return 'hsla(var(--muted-foreground), 0.1)';
+      return "hsla(var(--muted-foreground), 0.1)";
     }
 
     const colors = {
-      friend: 'hsl(120, 70%, 50%)', // Green
-      colleague: 'hsl(210, 70%, 50%)', // Blue
-      community: 'hsl(280, 70%, 50%)', // Purple
-      acquaintance: 'hsl(60, 70%, 50%)', // Yellow
-      unknown: 'hsl(0, 0%, 50%)', // Gray
+      friend: "hsl(120, 70%, 50%)", // Green
+      colleague: "hsl(210, 70%, 50%)", // Blue
+      community: "hsl(280, 70%, 50%)", // Purple
+      acquaintance: "hsl(60, 70%, 50%)", // Yellow
+      unknown: "hsl(0, 0%, 50%)", // Gray
     };
 
     return colors[link.type] || colors.unknown;
@@ -176,9 +203,9 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
   // Get node color based on trust level
   const getNodeColor = (node: EntityNode) => {
     const trustLevel = node.trustLevel || 0;
-    if (trustLevel > 0.5) return 'hsl(120, 70%, 50%)'; // Green - trusted
-    if (trustLevel < -0.5) return 'hsl(0, 70%, 50%)'; // Red - suspicious
-    return 'hsl(210, 70%, 50%)'; // Blue - neutral
+    if (trustLevel > 0.5) return "hsl(120, 70%, 50%)"; // Green - trusted
+    if (trustLevel < -0.5) return "hsl(0, 70%, 50%)"; // Red - suspicious
+    return "hsl(210, 70%, 50%)"; // Blue - neutral
   };
 
   // Legend with filters
@@ -197,17 +224,23 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
         <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
         <span>Suspicious</span>
       </div>
-      
+
       <div className="font-medium mb-2 text-xs">Relationship Types</div>
-      {['friend', 'colleague', 'community', 'acquaintance'].map((type) => (
-        <div 
+      {["friend", "colleague", "community", "acquaintance"].map((type) => (
+        <div
           key={type}
-          className={`flex items-center mb-1 cursor-pointer hover:opacity-80 ${selectedRelationType === type ? 'font-bold' : ''}`}
-          onClick={() => setSelectedRelationType(selectedRelationType === type ? null : type)}
+          className={`flex items-center mb-1 cursor-pointer hover:opacity-80 ${selectedRelationType === type ? "font-bold" : ""}`}
+          onClick={() =>
+            setSelectedRelationType(selectedRelationType === type ? null : type)
+          }
         >
-          <div 
-            className="w-8 h-1 mr-2" 
-            style={{ backgroundColor: getRelationshipColor({ type } as RelationshipLink) }}
+          <div
+            className="w-8 h-1 mr-2"
+            style={{
+              backgroundColor: getRelationshipColor({
+                type,
+              } as RelationshipLink),
+            }}
           ></div>
           <span className="capitalize">{type}</span>
         </div>
@@ -218,14 +251,19 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
   // Stats panel
   const renderStats = () => {
     const totalRelationships = graphData.links.length;
-    const avgStrength = totalRelationships > 0 
-      ? graphData.links.reduce((sum, link) => sum + link.strength, 0) / totalRelationships 
-      : 0;
-    
-    const relationshipCounts = graphData.links.reduce((acc, link) => {
-      acc[link.type] = (acc[link.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const avgStrength =
+      totalRelationships > 0
+        ? graphData.links.reduce((sum, link) => sum + link.strength, 0) /
+          totalRelationships
+        : 0;
+
+    const relationshipCounts = graphData.links.reduce(
+      (acc, link) => {
+        acc[link.type] = (acc[link.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return (
       <div className="absolute bottom-4 left-4 p-3 bg-card/90 text-card-foreground border border-border rounded-md shadow-sm text-xs backdrop-blur-sm">
@@ -265,8 +303,10 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
           nodeColor={(node: EntityNode) => getNodeColor(node)}
           nodeLabel={(node: EntityNode) => {
             const metadata = node.entity.metadata || {};
-            const platformIds = metadata.platformIdentities as any[] || [];
-            const platforms = platformIds.map(p => `${p.platform}: ${p.handle}`).join('\n');
+            const platformIds = (metadata.platformIdentities as any[]) || [];
+            const platforms = platformIds
+              .map((p) => `${p.platform}: ${p.handle}`)
+              .join("\n");
             return `${node.name}\n${platforms}\nTrust: ${(node.trustLevel || 0).toFixed(2)}`;
           }}
           onNodeClick={(node: EntityNode) => {
@@ -285,7 +325,7 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
           }}
           cooldownTicks={100}
           nodeCanvasObjectMode={(node: EntityNode) =>
-            selectedEntityId === node.id ? 'after' : 'replace'
+            selectedEntityId === node.id ? "after" : "replace"
           }
           nodeCanvasObject={(node: EntityNode, ctx, globalScale) => {
             const { x, y } = node;
@@ -300,32 +340,39 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
             ctx.fill();
 
             // Border
-            ctx.strokeStyle = isSelected ? '#fff' : 'rgba(0,0,0,0.2)';
+            ctx.strokeStyle = isSelected ? "#fff" : "rgba(0,0,0,0.2)";
             ctx.lineWidth = isSelected ? 2 : 1;
             ctx.stroke();
 
             // Label
             if (globalScale >= 1.4 || isSelected) {
               const label = node.name;
-              ctx.font = `${isSelected ? 'bold ' : ''}${fontSize}px Arial`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
+              ctx.font = `${isSelected ? "bold " : ""}${fontSize}px Arial`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
 
               // Text outline
-              ctx.strokeStyle = 'hsla(var(--background), 0.8)';
+              ctx.strokeStyle = "hsla(var(--background), 0.8)";
               ctx.lineWidth = 3;
               ctx.strokeText(label, x || 0, y || 0);
 
               // Text
-              ctx.fillStyle = 'hsla(var(--foreground), 0.9)';
+              ctx.fillStyle = "hsla(var(--foreground), 0.9)";
               ctx.fillText(label, x || 0, y || 0);
             }
 
             // Selected glow
             if (isSelected) {
-              const gradient = ctx.createRadialGradient(x || 0, y || 0, size, x || 0, y || 0, size * 2);
-              gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-              gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+              const gradient = ctx.createRadialGradient(
+                x || 0,
+                y || 0,
+                size,
+                x || 0,
+                y || 0,
+                size * 2,
+              );
+              gradient.addColorStop(0, "rgba(255, 255, 255, 0.3)");
+              gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
               ctx.fillStyle = gradient;
               ctx.beginPath();
               ctx.arc(x || 0, y || 0, size * 2, 0, 2 * Math.PI);
@@ -336,4 +383,4 @@ export function EntityGraph({ entities, relationships, onNodeClick, selectedEnti
       )}
     </div>
   );
-} 
+}

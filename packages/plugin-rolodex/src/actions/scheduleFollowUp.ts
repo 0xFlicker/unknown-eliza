@@ -97,7 +97,7 @@ export const scheduleFollowUpAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
     // Check if both services are available
     const rolodexService = runtime.getService("rolodex") as RolodexService;
@@ -128,7 +128,7 @@ export const scheduleFollowUpAction: Action = {
     message: Memory,
     state?: State,
     _options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<State | void> => {
     const rolodexService = runtime.getService("rolodex") as RolodexService;
     const followUpService = runtime.getService("follow_up") as FollowUpService;
@@ -173,7 +173,7 @@ export const scheduleFollowUpAction: Action = {
         (!parsedResponse.contactName && !parsedResponse.entityId)
       ) {
         logger.warn(
-          "[ScheduleFollowUp] Failed to parse follow-up information from response"
+          "[ScheduleFollowUp] Failed to parse follow-up information from response",
         );
         throw new Error("Could not extract follow-up information");
       }
@@ -191,7 +191,7 @@ export const scheduleFollowUpAction: Action = {
           entityId = entity.id as any;
         } else {
           throw new Error(
-            `Contact "${parsedResponse.contactName}" not found in rolodex`
+            `Contact "${parsedResponse.contactName}" not found in rolodex`,
           );
         }
       }
@@ -218,11 +218,11 @@ export const scheduleFollowUpAction: Action = {
         scheduledAt,
         parsedResponse.reason || "Follow-up",
         parsedResponse.priority || "medium",
-        parsedResponse.message
+        parsedResponse.message,
       );
 
       logger.info(
-        `[ScheduleFollowUp] Scheduled follow-up for ${parsedResponse.contactName} at ${scheduledAt.toISOString()}`
+        `[ScheduleFollowUp] Scheduled follow-up for ${parsedResponse.contactName} at ${scheduledAt.toISOString()}`,
       );
 
       // Prepare response

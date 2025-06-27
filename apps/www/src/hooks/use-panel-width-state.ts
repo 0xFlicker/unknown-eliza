@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import clientLogger from '@/lib/logger';
+import { useState, useEffect, useCallback } from "react";
+import clientLogger from "@/lib/logger";
 
 // Keys for storing panel width state in localStorage
-const MAIN_PANEL_WIDTH_KEY = 'eliza-main-panel-width';
-const SIDEBAR_PANEL_WIDTH_KEY = 'eliza-sidebar-panel-width';
-const FLOATING_THRESHOLD_KEY = 'eliza-floating-threshold';
+const MAIN_PANEL_WIDTH_KEY = "eliza-main-panel-width";
+const SIDEBAR_PANEL_WIDTH_KEY = "eliza-sidebar-panel-width";
+const FLOATING_THRESHOLD_KEY = "eliza-floating-threshold";
 
 // Default panel sizes
 const DEFAULT_MAIN_PANEL_SIZE = 70;
@@ -16,10 +16,16 @@ const DEFAULT_FLOATING_THRESHOLD = 1400; // Switch to floating mode below this w
  * Includes resize detection for automatic floating mode switching
  */
 export function usePanelWidthState() {
-  const [mainPanelSize, setMainPanelSize] = useState<number>(DEFAULT_MAIN_PANEL_SIZE);
-  const [sidebarPanelSize, setSidebarPanelSize] = useState<number>(DEFAULT_SIDEBAR_PANEL_SIZE);
+  const [mainPanelSize, setMainPanelSize] = useState<number>(
+    DEFAULT_MAIN_PANEL_SIZE,
+  );
+  const [sidebarPanelSize, setSidebarPanelSize] = useState<number>(
+    DEFAULT_SIDEBAR_PANEL_SIZE,
+  );
   const [isFloatingMode, setIsFloatingMode] = useState<boolean>(false);
-  const [floatingThreshold, setFloatingThreshold] = useState<number>(DEFAULT_FLOATING_THRESHOLD);
+  const [floatingThreshold, setFloatingThreshold] = useState<number>(
+    DEFAULT_FLOATING_THRESHOLD,
+  );
 
   // Load panel sizes from localStorage on mount
   useEffect(() => {
@@ -30,14 +36,22 @@ export function usePanelWidthState() {
 
       if (storedMainSize !== null) {
         const parsedMainSize = parseFloat(storedMainSize);
-        if (!isNaN(parsedMainSize) && parsedMainSize > 0 && parsedMainSize <= 100) {
+        if (
+          !isNaN(parsedMainSize) &&
+          parsedMainSize > 0 &&
+          parsedMainSize <= 100
+        ) {
           setMainPanelSize(parsedMainSize);
         }
       }
 
       if (storedSidebarSize !== null) {
         const parsedSidebarSize = parseFloat(storedSidebarSize);
-        if (!isNaN(parsedSidebarSize) && parsedSidebarSize > 0 && parsedSidebarSize <= 100) {
+        if (
+          !isNaN(parsedSidebarSize) &&
+          parsedSidebarSize > 0 &&
+          parsedSidebarSize <= 100
+        ) {
           setSidebarPanelSize(parsedSidebarSize);
         }
       }
@@ -49,7 +63,7 @@ export function usePanelWidthState() {
         }
       }
     } catch (error) {
-      clientLogger.error('Error reading panel sizes from localStorage:', error);
+      clientLogger.error("Error reading panel sizes from localStorage:", error);
       // Use defaults if there's an error
       setMainPanelSize(DEFAULT_MAIN_PANEL_SIZE);
       setSidebarPanelSize(DEFAULT_SIDEBAR_PANEL_SIZE);
@@ -68,10 +82,10 @@ export function usePanelWidthState() {
     checkFloatingMode();
 
     // Add resize listener
-    window.addEventListener('resize', checkFloatingMode);
+    window.addEventListener("resize", checkFloatingMode);
 
     return () => {
-      window.removeEventListener('resize', checkFloatingMode);
+      window.removeEventListener("resize", checkFloatingMode);
     };
   }, [floatingThreshold]);
 
@@ -84,7 +98,10 @@ export function usePanelWidthState() {
     try {
       localStorage.setItem(MAIN_PANEL_WIDTH_KEY, validatedSize.toString());
     } catch (error) {
-      clientLogger.error('Error saving main panel size to localStorage:', error);
+      clientLogger.error(
+        "Error saving main panel size to localStorage:",
+        error,
+      );
     }
   }, []);
 
@@ -97,7 +114,10 @@ export function usePanelWidthState() {
     try {
       localStorage.setItem(SIDEBAR_PANEL_WIDTH_KEY, validatedSize.toString());
     } catch (error) {
-      clientLogger.error('Error saving sidebar panel size to localStorage:', error);
+      clientLogger.error(
+        "Error saving sidebar panel size to localStorage:",
+        error,
+      );
     }
   }, []);
 
@@ -107,9 +127,15 @@ export function usePanelWidthState() {
     setFloatingThreshold(validatedThreshold);
 
     try {
-      localStorage.setItem(FLOATING_THRESHOLD_KEY, validatedThreshold.toString());
+      localStorage.setItem(
+        FLOATING_THRESHOLD_KEY,
+        validatedThreshold.toString(),
+      );
     } catch (error) {
-      clientLogger.error('Error saving floating threshold to localStorage:', error);
+      clientLogger.error(
+        "Error saving floating threshold to localStorage:",
+        error,
+      );
     }
   }, []);
 
@@ -129,7 +155,10 @@ export function usePanelWidthState() {
       localStorage.removeItem(SIDEBAR_PANEL_WIDTH_KEY);
       localStorage.removeItem(FLOATING_THRESHOLD_KEY);
     } catch (error) {
-      clientLogger.error('Error clearing panel sizes from localStorage:', error);
+      clientLogger.error(
+        "Error clearing panel sizes from localStorage:",
+        error,
+      );
     }
   }, []);
 

@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   Sheet,
   SheetClose,
@@ -11,11 +11,11 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from './sheet';
-import { Button } from './button';
+} from "./sheet";
+import { Button } from "./button";
 
-describe('Sheet Component', () => {
-  it('renders basic sheet from right', () => {
+describe("Sheet Component", () => {
+  it("renders basic sheet from right", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger asChild>
@@ -27,19 +27,19 @@ describe('Sheet Component', () => {
             <SheetDescription>This is a sheet description.</SheetDescription>
           </SheetHeader>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('button', 'Open Sheet').should('be.visible');
-    cy.contains('Sheet Title').should('not.exist');
+    cy.contains("button", "Open Sheet").should("be.visible");
+    cy.contains("Sheet Title").should("not.exist");
 
     // Open sheet
-    cy.contains('button', 'Open Sheet').click();
-    cy.contains('Sheet Title').should('be.visible');
-    cy.contains('This is a sheet description.').should('be.visible');
+    cy.contains("button", "Open Sheet").click();
+    cy.contains("Sheet Title").should("be.visible");
+    cy.contains("This is a sheet description.").should("be.visible");
   });
 
-  it('renders sheet from different sides', () => {
+  it("renders sheet from different sides", () => {
     cy.mount(
       <div className="flex gap-4">
         <Sheet>
@@ -62,38 +62,38 @@ describe('Sheet Component', () => {
             <SheetTitle>Left Sheet</SheetTitle>
           </SheetContent>
         </Sheet>
-      </div>
+      </div>,
     );
 
     // Test top sheet
-    cy.contains('From Top').click();
-    cy.contains('Top Sheet').should('be.visible');
-    cy.get('body').type('{esc}');
+    cy.contains("From Top").click();
+    cy.contains("Top Sheet").should("be.visible");
+    cy.get("body").type("{esc}");
 
     // Test bottom sheet
-    cy.contains('From Bottom').click();
-    cy.contains('Bottom Sheet').should('be.visible');
+    cy.contains("From Bottom").click();
+    cy.contains("Bottom Sheet").should("be.visible");
   });
 
-  it('closes sheet when clicking overlay', () => {
+  it("closes sheet when clicking overlay", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger>Open</SheetTrigger>
         <SheetContent>
           <SheetTitle>Click Outside Test</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Open').click();
-    cy.contains('Click Outside Test').should('be.visible');
+    cy.contains("Open").click();
+    cy.contains("Click Outside Test").should("be.visible");
 
     // Use escape key instead of clicking overlay
-    cy.get('body').type('{esc}');
-    cy.contains('Click Outside Test').should('not.exist');
+    cy.get("body").type("{esc}");
+    cy.contains("Click Outside Test").should("not.exist");
   });
 
-  it('renders with footer actions', () => {
+  it("renders with footer actions", () => {
     const onSave = cy.stub();
     const onCancel = cy.stub();
 
@@ -103,7 +103,9 @@ describe('Sheet Component', () => {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Edit Profile</SheetTitle>
-            <SheetDescription>Make changes to your profile here.</SheetDescription>
+            <SheetDescription>
+              Make changes to your profile here.
+            </SheetDescription>
           </SheetHeader>
           <div className="py-4">
             <input placeholder="Name" className="w-full p-2 border rounded" />
@@ -117,17 +119,17 @@ describe('Sheet Component', () => {
             <Button onClick={onSave}>Save changes</Button>
           </SheetFooter>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Edit Profile').click();
-    cy.get('input[placeholder="Name"]').should('be.visible');
+    cy.contains("Edit Profile").click();
+    cy.get('input[placeholder="Name"]').should("be.visible");
 
-    cy.contains('button', 'Save changes').click();
-    cy.wrap(onSave).should('have.been.called');
+    cy.contains("button", "Save changes").click();
+    cy.wrap(onSave).should("have.been.called");
   });
 
-  it('works as controlled component', () => {
+  it("works as controlled component", () => {
     const TestComponent = () => {
       const [open, setOpen] = React.useState(false);
 
@@ -146,15 +148,15 @@ describe('Sheet Component', () => {
 
     cy.mount(<TestComponent />);
 
-    cy.contains('Controlled Sheet').should('not.exist');
-    cy.contains('External Open').click();
-    cy.contains('Controlled Sheet').should('be.visible');
+    cy.contains("Controlled Sheet").should("not.exist");
+    cy.contains("External Open").click();
+    cy.contains("Controlled Sheet").should("be.visible");
 
-    cy.contains('button', 'Close Sheet').click();
-    cy.contains('Controlled Sheet').should('not.exist');
+    cy.contains("button", "Close Sheet").click();
+    cy.contains("Controlled Sheet").should("not.exist");
   });
 
-  it('handles keyboard navigation', () => {
+  it("handles keyboard navigation", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger>Open</SheetTrigger>
@@ -163,33 +165,33 @@ describe('Sheet Component', () => {
           <button>First Button</button>
           <button>Second Button</button>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Open').click();
-    cy.contains('Keyboard Test').should('be.visible');
+    cy.contains("Open").click();
+    cy.contains("Keyboard Test").should("be.visible");
 
     // ESC key should close
-    cy.get('body').type('{esc}');
-    cy.contains('Keyboard Test').should('not.exist');
+    cy.get("body").type("{esc}");
+    cy.contains("Keyboard Test").should("not.exist");
   });
 
-  it('supports custom className', () => {
+  it("supports custom className", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger className="custom-trigger">Open</SheetTrigger>
         <SheetContent className="bg-blue-50 custom-content">
           <SheetTitle>Custom Styled Sheet</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.get('.custom-trigger').should('exist');
-    cy.contains('Open').click();
-    cy.get('.custom-content').should('have.class', 'bg-blue-50');
+    cy.get(".custom-trigger").should("exist");
+    cy.contains("Open").click();
+    cy.get(".custom-content").should("have.class", "bg-blue-50");
   });
 
-  it('renders form inside sheet', () => {
+  it("renders form inside sheet", () => {
     const onSubmit = cy.stub();
 
     cy.mount(
@@ -199,7 +201,7 @@ describe('Sheet Component', () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              onSubmit('submitted');
+              onSubmit("submitted");
             }}
           >
             <SheetHeader>
@@ -220,17 +222,17 @@ describe('Sheet Component', () => {
             </SheetFooter>
           </form>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Add Item').click();
-    cy.get('input[name="title"]').type('Test Item');
-    cy.get('textarea[name="description"]').type('Test Description');
-    cy.get('form').submit();
-    cy.wrap(onSubmit).should('have.been.calledWith', 'submitted');
+    cy.contains("Add Item").click();
+    cy.get('input[name="title"]').type("Test Item");
+    cy.get('textarea[name="description"]').type("Test Description");
+    cy.get("form").submit();
+    cy.wrap(onSubmit).should("have.been.calledWith", "submitted");
   });
 
-  it('handles long content with scroll', () => {
+  it("handles long content with scroll", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger>View Content</SheetTrigger>
@@ -241,20 +243,20 @@ describe('Sheet Component', () => {
           <div className="py-4">
             {Array.from({ length: 50 }, (_, i) => (
               <p key={i} className="py-2">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
-                incididunt ut labore et dolore magna aliqua.
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+                eiusmod tempor incididunt ut labore et dolore magna aliqua.
               </p>
             ))}
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('View Content').click();
-    cy.get('.overflow-y-auto').should('be.visible');
+    cy.contains("View Content").click();
+    cy.get(".overflow-y-auto").should("be.visible");
   });
 
-  it('renders navigation menu in sheet', () => {
+  it("renders navigation menu in sheet", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger>Menu</SheetTrigger>
@@ -287,18 +289,18 @@ describe('Sheet Component', () => {
             </ul>
           </nav>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Menu').click();
-    cy.contains('Navigation').should('be.visible');
-    cy.contains('Home').should('be.visible');
-    cy.contains('About').should('be.visible');
-    cy.contains('Services').should('be.visible');
-    cy.contains('Contact').should('be.visible');
+    cy.contains("Menu").click();
+    cy.contains("Navigation").should("be.visible");
+    cy.contains("Home").should("be.visible");
+    cy.contains("About").should("be.visible");
+    cy.contains("Services").should("be.visible");
+    cy.contains("Contact").should("be.visible");
   });
 
-  it('maintains focus management', () => {
+  it("maintains focus management", () => {
     cy.mount(
       <Sheet>
         <SheetTrigger>Open Sheet</SheetTrigger>
@@ -312,13 +314,13 @@ describe('Sheet Component', () => {
             <button>Action Button</button>
           </div>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
-    cy.contains('Open Sheet').click();
+    cy.contains("Open Sheet").click();
 
     // Focus should be trapped within sheet
     cy.get('input[placeholder="First input"]').focus();
-    cy.focused().should('have.attr', 'placeholder', 'First input');
+    cy.focused().should("have.attr", "placeholder", "First input");
   });
 });

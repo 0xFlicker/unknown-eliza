@@ -4,26 +4,36 @@
 
 export interface MediaInfo {
   url: string;
-  type: 'image' | 'video' | 'unknown';
+  type: "image" | "video" | "unknown";
   isEmbed: boolean;
 }
 
 // Common image extensions
 const IMAGE_EXTENSIONS = new Set([
-  'jpg',
-  'jpeg',
-  'png',
-  'gif',
-  'webp',
-  'svg',
-  'bmp',
-  'ico',
-  'tiff',
-  'avif',
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "ico",
+  "tiff",
+  "avif",
 ]);
 
 // Common video extensions
-const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v', 'ogv']);
+const VIDEO_EXTENSIONS = new Set([
+  "mp4",
+  "webm",
+  "mov",
+  "avi",
+  "mkv",
+  "flv",
+  "wmv",
+  "m4v",
+  "ogv",
+]);
 
 // Video platforms that support embedding
 const VIDEO_PLATFORMS = {
@@ -47,10 +57,10 @@ function getFileExtension(url: string): string {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
-    const extension = pathname.split('.').pop()?.toLowerCase();
-    return extension || '';
+    const extension = pathname.split(".").pop()?.toLowerCase();
+    return extension || "";
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -74,7 +84,7 @@ export function isVideoFileUrl(url: string): boolean {
  * Checks if a URL is from a supported video platform
  */
 export function getVideoPlatformInfo(
-  url: string
+  url: string,
 ): { platform: string; id: string; embedUrl: string } | null {
   for (const [platform, config] of Object.entries(VIDEO_PLATFORMS)) {
     for (const pattern of config.patterns) {
@@ -104,12 +114,12 @@ export function parseMediaFromText(text: string): MediaInfo[] {
   return urls
     .map((url) => {
       // Remove trailing punctuation that might be captured
-      const cleanUrl = url.replace(/[.,!?;)]*$/, '');
+      const cleanUrl = url.replace(/[.,!?;)]*$/, "");
 
       if (isImageUrl(cleanUrl)) {
         return {
           url: cleanUrl,
-          type: 'image' as const,
+          type: "image" as const,
           isEmbed: false,
         };
       }
@@ -117,7 +127,7 @@ export function parseMediaFromText(text: string): MediaInfo[] {
       if (isVideoFileUrl(cleanUrl)) {
         return {
           url: cleanUrl,
-          type: 'video' as const,
+          type: "video" as const,
           isEmbed: false,
         };
       }
@@ -126,24 +136,27 @@ export function parseMediaFromText(text: string): MediaInfo[] {
       if (platformInfo) {
         return {
           url: platformInfo.embedUrl,
-          type: 'video' as const,
+          type: "video" as const,
           isEmbed: true,
         };
       }
 
       return {
         url: cleanUrl,
-        type: 'unknown' as const,
+        type: "unknown" as const,
         isEmbed: false,
       };
     })
-    .filter((media) => media.type !== 'unknown');
+    .filter((media) => media.type !== "unknown");
 }
 
 /**
  * Removes media URLs from text to avoid duplication in display
  */
-export function removeMediaUrlsFromText(text: string, mediaInfos: MediaInfo[]): string {
+export function removeMediaUrlsFromText(
+  text: string,
+  mediaInfos: MediaInfo[],
+): string {
   let cleanText = text;
 
   mediaInfos.forEach((media) => {
@@ -154,15 +167,15 @@ export function removeMediaUrlsFromText(text: string, mediaInfos: MediaInfo[]): 
       const urls = text.match(urlRegex) || [];
 
       for (const url of urls) {
-        const cleanUrl = url.replace(/[.,!?;)]*$/, '');
+        const cleanUrl = url.replace(/[.,!?;)]*$/, "");
         const platformInfo = getVideoPlatformInfo(cleanUrl);
         if (platformInfo && platformInfo.embedUrl === media.url) {
-          cleanText = cleanText.replace(url, '').trim();
+          cleanText = cleanText.replace(url, "").trim();
           break;
         }
       }
     } else {
-      cleanText = cleanText.replace(media.url, '').trim();
+      cleanText = cleanText.replace(media.url, "").trim();
     }
   });
 

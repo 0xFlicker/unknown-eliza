@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import React from 'react';
-import { RolodexTab } from './ui/rolodex-tab.js';
-import type { UUID } from '@elizaos/core';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import React from "react";
+import { RolodexTab } from "./ui/rolodex-tab.js";
+import type { UUID } from "@elizaos/core";
 
 const queryClient = new QueryClient();
 
@@ -29,13 +29,15 @@ function KnowledgeRoute() {
 
   // Apply dark mode to the root element
   React.useEffect(() => {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add("dark");
   }, []);
 
   if (!agentId) {
     return (
       <div className="p-4 text-center">
-        <div className="text-red-600 font-medium">Error: Agent ID not found</div>
+        <div className="text-red-600 font-medium">
+          Error: Agent ID not found
+        </div>
         <div className="text-sm text-gray-600 mt-2">
           The server should inject the agent ID configuration.
         </div>
@@ -58,7 +60,7 @@ function KnowledgeProvider({ agentId }: { agentId: UUID }) {
 }
 
 // Initialize the application - no router needed for iframe
-const rootElement = document.getElementById('root');
+const rootElement = document.getElementById("root");
 if (rootElement) {
   createRoot(rootElement).render(<KnowledgeRoute />);
 }
@@ -80,20 +82,22 @@ interface KnowledgePanelProps {
 /**
  * Knowledge panel component for the plugin system
  */
-const KnowledgePanelComponent: React.FC<KnowledgePanelProps> = ({ agentId }) => {
+const KnowledgePanelComponent: React.FC<KnowledgePanelProps> = ({
+  agentId,
+}) => {
   return <RolodexTab agentId={agentId as UUID} />;
 };
 
 // Export the panel configuration for integration with the agent UI
 export const panels: AgentPanel[] = [
   {
-    name: 'Knowledge',
-    path: 'knowledge',
+    name: "Knowledge",
+    path: "knowledge",
     component: KnowledgePanelComponent,
-    icon: 'Book',
+    icon: "Book",
     public: false,
-    shortLabel: 'Know',
+    shortLabel: "Know",
   },
 ];
 
-export * from './utils';
+export * from "./utils";

@@ -1,19 +1,27 @@
-import PageTitle from '@/components/page-title';
-import ProfileOverlay from '@/components/profile-overlay';
-import { useAgentsWithDetails, useChannels, useServers } from '@/hooks/use-query-hooks';
-import { getEntityId } from '@/lib/utils';
-import { type Agent, type UUID, ChannelType as CoreChannelType } from '@elizaos/core';
-import { Plus } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AddAgentCard from '@/components/add-agent-card';
-import AgentCard from '@/components/agent-card';
-import GroupCard from '@/components/group-card';
-import GroupPanel from '@/components/group-panel';
-import { apiClient } from '@/lib/api';
-import { Button } from '../components/ui/button';
-import { Separator } from '../components/ui/separator';
-import clientLogger from '@/lib/logger';
+import PageTitle from "@/components/page-title";
+import ProfileOverlay from "@/components/profile-overlay";
+import {
+  useAgentsWithDetails,
+  useChannels,
+  useServers,
+} from "@/hooks/use-query-hooks";
+import { getEntityId } from "@/lib/utils";
+import {
+  type Agent,
+  type UUID,
+  ChannelType as CoreChannelType,
+} from "@elizaos/core";
+import { Plus } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import AddAgentCard from "@/components/add-agent-card";
+import AgentCard from "@/components/agent-card";
+import GroupCard from "@/components/group-card";
+import GroupPanel from "@/components/group-panel";
+import { apiClient } from "@/lib/api";
+import { Button } from "../components/ui/button";
+import { Separator } from "../components/ui/separator";
+import clientLogger from "@/lib/logger";
 
 /**
  * Renders the main dashboard for managing agents and groups, providing interactive controls for viewing, starting, messaging, and configuring agents, as well as creating and editing groups.
@@ -21,7 +29,12 @@ import clientLogger from '@/lib/logger';
  * Displays lists of agents and groups with status indicators, action buttons, and overlays for detailed views and settings. Handles loading and error states, and supports navigation to chat and settings pages.
  */
 export default function Home() {
-  const { data: agentsData, isLoading, isError, error } = useAgentsWithDetails();
+  const {
+    data: agentsData,
+    isLoading,
+    isError,
+    error,
+  } = useAgentsWithDetails();
   const navigate = useNavigate();
   const currentClientEntityId = getEntityId();
 
@@ -33,7 +46,9 @@ export default function Home() {
 
   const [isOverlayOpen, setOverlayOpen] = useState(false);
   const [isGroupPanelOpen, setIsGroupPanelOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<Partial<Agent> | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<Partial<Agent> | null>(
+    null,
+  );
   const [selectedGroupId, setSelectedGroupId] = useState<UUID | null>(null);
 
   const openOverlay = (agent: Partial<Agent>) => {
@@ -53,11 +68,13 @@ export default function Home() {
   };
 
   const handleCreateGroup = () => {
-    navigate('/group/new');
+    navigate("/group/new");
   };
 
   useEffect(() => {
-    clientLogger.info('[Home] Component mounted/re-rendered. Key might have changed.');
+    clientLogger.info(
+      "[Home] Component mounted/re-rendered. Key might have changed.",
+    );
     // You might want to trigger data re-fetching here if it's not automatic
     // e.g., queryClient.invalidateQueries(['agents']);
   }, []); // Empty dependency array means this runs on mount and when key changes
@@ -70,7 +87,7 @@ export default function Home() {
             <PageTitle title="Agents" />
             <Button
               variant="outline"
-              onClick={() => navigate('/create')}
+              onClick={() => navigate("/create")}
               className="create-agent-button"
             >
               <Plus className="w-4 h-4" />
@@ -78,11 +95,14 @@ export default function Home() {
           </div>
           <Separator />
 
-          {isLoading && <div className="text-center py-8">Loading agents...</div>}
+          {isLoading && (
+            <div className="text-center py-8">Loading agents...</div>
+          )}
 
           {isError && (
             <div className="text-center py-8">
-              Error loading agents: {error instanceof Error ? error.message : 'Unknown error'}
+              Error loading agents:{" "}
+              {error instanceof Error ? error.message : "Unknown error"}
             </div>
           )}
 
@@ -112,7 +132,11 @@ export default function Home() {
           )}
           <div className="flex items-center justify-between gap-2 p-2">
             <PageTitle title="Groups" />
-            <Button variant="outline" onClick={handleCreateGroup} className="groups-create-button">
+            <Button
+              variant="outline"
+              onClick={handleCreateGroup}
+              className="groups-create-button"
+            >
               <Plus className="w-2 h-2" />
             </Button>
           </div>
@@ -129,7 +153,11 @@ export default function Home() {
       </div>
 
       {selectedAgent?.id && (
-        <ProfileOverlay isOpen={isOverlayOpen} onClose={closeOverlay} agentId={selectedAgent.id} />
+        <ProfileOverlay
+          isOpen={isOverlayOpen}
+          onClose={closeOverlay}
+          agentId={selectedAgent.id}
+        />
       )}
 
       {isGroupPanelOpen && (
@@ -147,15 +175,23 @@ export default function Home() {
 
 // Sub-component to fetch and display channels for a given server
 const ServerChannels = ({ serverId }: { serverId: UUID }) => {
-  const { data: channelsData, isLoading: isLoadingChannels } = useChannels(serverId);
+  const { data: channelsData, isLoading: isLoadingChannels } =
+    useChannels(serverId);
   const groupChannels = useMemo(
-    () => channelsData?.data?.channels?.filter((ch) => ch.type === CoreChannelType.GROUP) || [],
-    [channelsData]
+    () =>
+      channelsData?.data?.channels?.filter(
+        (ch) => ch.type === CoreChannelType.GROUP,
+      ) || [],
+    [channelsData],
   );
 
   if (isLoadingChannels) return <p>Loading channels for server...</p>;
   if (!groupChannels || groupChannels.length === 0)
-    return <p className="text-sm text-muted-foreground">No group channels in this server.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        No group channels in this server.
+      </p>
+    );
 
   return (
     <>

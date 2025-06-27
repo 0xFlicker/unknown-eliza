@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,11 +12,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from './alert-dialog';
-import { Button } from './button';
+} from "./alert-dialog";
+import { Button } from "./button";
 
-describe('AlertDialog Component', () => {
-  it('renders basic alert dialog', () => {
+describe("AlertDialog Component", () => {
+  it("renders basic alert dialog", () => {
     cy.mount(
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -26,8 +26,8 @@ describe('AlertDialog Component', () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your account and remove
-              your data from our servers.
+              This action cannot be undone. This will permanently delete your
+              account and remove your data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -35,19 +35,19 @@ describe('AlertDialog Component', () => {
             <AlertDialogAction>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.contains('button', 'Delete Item').should('be.visible');
-    cy.contains('Are you absolutely sure?').should('not.exist');
+    cy.contains("button", "Delete Item").should("be.visible");
+    cy.contains("Are you absolutely sure?").should("not.exist");
 
     // Open dialog
-    cy.contains('button', 'Delete Item').click();
-    cy.contains('Are you absolutely sure?').should('be.visible');
-    cy.contains('This action cannot be undone').should('be.visible');
+    cy.contains("button", "Delete Item").click();
+    cy.contains("Are you absolutely sure?").should("be.visible");
+    cy.contains("This action cannot be undone").should("be.visible");
   });
 
-  it('handles action button click', () => {
+  it("handles action button click", () => {
     const onAction = cy.stub();
 
     cy.mount(
@@ -63,26 +63,26 @@ describe('AlertDialog Component', () => {
             <AlertDialogAction onClick={onAction}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
     // Open the dialog
-    cy.contains('Delete').click();
+    cy.contains("Delete").click();
 
     // Wait for dialog to appear and ensure it's visible
-    cy.contains('Confirm Deletion').should('be.visible');
+    cy.contains("Confirm Deletion").should("be.visible");
 
     // Try clicking the specific action button using a more precise selector
     cy.get('[role="alertdialog"]').within(() => {
-      cy.contains('button', 'Delete').click({ force: true });
+      cy.contains("button", "Delete").click({ force: true });
     });
-    cy.wrap(onAction).should('have.been.called');
+    cy.wrap(onAction).should("have.been.called");
 
     // Dialog should close
-    cy.contains('Confirm Deletion').should('not.exist');
+    cy.contains("Confirm Deletion").should("not.exist");
   });
 
-  it('handles cancel button click', () => {
+  it("handles cancel button click", () => {
     const onCancel = cy.stub();
 
     cy.mount(
@@ -90,24 +90,26 @@ describe('AlertDialog Component', () => {
         <AlertDialogTrigger>Show Alert</AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogTitle>Warning</AlertDialogTitle>
-          <AlertDialogDescription>This is a warning message.</AlertDialogDescription>
+          <AlertDialogDescription>
+            This is a warning message.
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
             <AlertDialogAction>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.contains('Show Alert').click();
-    cy.contains('button', 'Cancel').click({ force: true });
-    cy.wrap(onCancel).should('have.been.called');
+    cy.contains("Show Alert").click();
+    cy.contains("button", "Cancel").click({ force: true });
+    cy.wrap(onCancel).should("have.been.called");
 
     // Dialog should close
-    cy.contains('Warning').should('not.exist');
+    cy.contains("Warning").should("not.exist");
   });
 
-  it('works as controlled component', () => {
+  it("works as controlled component", () => {
     const TestComponent = () => {
       const [open, setOpen] = React.useState(false);
       const [confirmed, setConfirmed] = React.useState(false);
@@ -115,12 +117,14 @@ describe('AlertDialog Component', () => {
       return (
         <div>
           <button onClick={() => setOpen(true)}>Open Alert</button>
-          <p>Confirmed: {confirmed ? 'Yes' : 'No'}</p>
+          <p>Confirmed: {confirmed ? "Yes" : "No"}</p>
 
           <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogContent>
               <AlertDialogTitle>Confirm Action</AlertDialogTitle>
-              <AlertDialogDescription>Do you want to proceed?</AlertDialogDescription>
+              <AlertDialogDescription>
+                Do you want to proceed?
+              </AlertDialogDescription>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
@@ -140,39 +144,41 @@ describe('AlertDialog Component', () => {
 
     cy.mount(<TestComponent />);
 
-    cy.contains('Confirmed: No').should('be.visible');
-    cy.contains('Open Alert').click();
-    cy.contains('Confirm Action').should('be.visible');
+    cy.contains("Confirmed: No").should("be.visible");
+    cy.contains("Open Alert").click();
+    cy.contains("Confirm Action").should("be.visible");
 
-    cy.contains('button', 'Confirm').click({ force: true });
-    cy.contains('Confirmed: Yes').should('be.visible');
-    cy.contains('Confirm Action').should('not.exist');
+    cy.contains("button", "Confirm").click({ force: true });
+    cy.contains("Confirmed: Yes").should("be.visible");
+    cy.contains("Confirm Action").should("not.exist");
   });
 
-  it('prevents closing on escape by default', () => {
+  it("prevents closing on escape by default", () => {
     cy.mount(
       <AlertDialog>
         <AlertDialogTrigger>Important Action</AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogTitle>Critical Decision</AlertDialogTitle>
-          <AlertDialogDescription>This requires your explicit action.</AlertDialogDescription>
+          <AlertDialogDescription>
+            This requires your explicit action.
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction>Proceed</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.contains('Important Action').click();
-    cy.contains('Critical Decision').should('be.visible');
+    cy.contains("Important Action").click();
+    cy.contains("Critical Decision").should("be.visible");
 
     // Try to close with ESC
-    cy.get('body').type('{esc}');
-    cy.contains('Critical Decision').should('be.visible');
+    cy.get("body").type("{esc}");
+    cy.contains("Critical Decision").should("be.visible");
   });
 
-  it('supports custom className', () => {
+  it("supports custom className", () => {
     cy.mount(
       <AlertDialog>
         <AlertDialogTrigger className="custom-trigger">Open</AlertDialogTrigger>
@@ -185,16 +191,16 @@ describe('AlertDialog Component', () => {
             <AlertDialogAction className="bg-red-600">OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.get('.custom-trigger').should('exist');
-    cy.contains('Open').click();
-    cy.get('.custom-content').should('have.class', 'bg-red-50');
-    cy.get('.text-red-900').should('contain', 'Error');
+    cy.get(".custom-trigger").should("exist");
+    cy.contains("Open").click();
+    cy.get(".custom-content").should("have.class", "bg-red-50");
+    cy.get(".text-red-900").should("contain", "Error");
   });
 
-  it('handles async operations', () => {
+  it("handles async operations", () => {
     const TestComponent = () => {
       const [loading, setLoading] = React.useState(false);
       const [open, setOpen] = React.useState(false);
@@ -220,7 +226,7 @@ describe('AlertDialog Component', () => {
             <AlertDialogFooter>
               <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} disabled={loading}>
-                {loading ? 'Deleting...' : 'Delete'}
+                {loading ? "Deleting..." : "Delete"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -231,21 +237,21 @@ describe('AlertDialog Component', () => {
     cy.mount(<TestComponent />);
 
     // Open the dialog
-    cy.contains('button', 'Delete').click();
+    cy.contains("button", "Delete").click();
 
     // Wait for dialog content to appear
-    cy.contains('Delete Item').should('be.visible');
+    cy.contains("Delete Item").should("be.visible");
 
     // Click the action button within the dialog
     cy.get('[role="alertdialog"]').within(() => {
-      cy.contains('button', 'Delete').click({ force: true });
+      cy.contains("button", "Delete").click({ force: true });
     });
-    cy.contains('Deleting...').should('be.visible');
+    cy.contains("Deleting...").should("be.visible");
     cy.wait(150);
-    cy.contains('Delete Item').should('not.exist');
+    cy.contains("Delete Item").should("not.exist");
   });
 
-  it('supports warning variant styling', () => {
+  it("supports warning variant styling", () => {
     cy.mount(
       <AlertDialog>
         <AlertDialogTrigger>
@@ -265,15 +271,15 @@ describe('AlertDialog Component', () => {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.contains('Show Warning').click();
-    cy.contains('⚠️ Warning').should('be.visible');
-    cy.get('.bg-yellow-600').should('contain', 'I Understand');
+    cy.contains("Show Warning").click();
+    cy.contains("⚠️ Warning").should("be.visible");
+    cy.get(".bg-yellow-600").should("contain", "I Understand");
   });
 
-  it('handles multiple dialogs', () => {
+  it("handles multiple dialogs", () => {
     cy.mount(
       <div className="space-x-4">
         <AlertDialog>
@@ -295,20 +301,20 @@ describe('AlertDialog Component', () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+      </div>,
     );
 
     // Open first dialog
-    cy.contains('First Dialog').click();
-    cy.contains('First Alert').should('be.visible');
-    cy.contains('button', 'OK').click();
+    cy.contains("First Dialog").click();
+    cy.contains("First Alert").should("be.visible");
+    cy.contains("button", "OK").click();
 
     // Open second dialog
-    cy.contains('Second Dialog').click();
-    cy.contains('Second Alert').should('be.visible');
+    cy.contains("Second Dialog").click();
+    cy.contains("Second Alert").should("be.visible");
   });
 
-  it('maintains focus management', () => {
+  it("maintains focus management", () => {
     cy.mount(
       <AlertDialog>
         <AlertDialogTrigger>Open Alert</AlertDialogTrigger>
@@ -322,12 +328,12 @@ describe('AlertDialog Component', () => {
             <AlertDialogAction>Confirm</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>,
     );
 
-    cy.contains('Open Alert').click();
+    cy.contains("Open Alert").click();
 
     // Focus should be within dialog
-    cy.focused().should('exist');
+    cy.focused().should("exist");
   });
 });

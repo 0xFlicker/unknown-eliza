@@ -6,11 +6,11 @@ import {
   type IAgentRuntime,
   type Metadata,
   type Relationship,
-  type UUID
-} from '@elizaos/core';
+  type UUID,
+} from "@elizaos/core";
 
 // Import our local calculateRelationshipStrength function since it's not exported from core yet
-import { calculateRelationshipStrength } from '../utils/relationshipStrength';
+import { calculateRelationshipStrength } from "../utils/relationshipStrength";
 
 // Extended Relationship interface with new fields (until core is updated)
 interface ExtendedRelationship extends Relationship {
@@ -31,7 +31,7 @@ export interface ContactPreferences {
   preferredCommunicationChannel?: string;
   timezone?: string;
   language?: string;
-  contactFrequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  contactFrequency?: "daily" | "weekly" | "monthly" | "quarterly";
   doNotDisturb?: boolean;
   notes?: string;
 }
@@ -42,7 +42,7 @@ export interface ContactInfo {
   tags: string[];
   preferences: ContactPreferences;
   customFields: Record<string, any>;
-  privacyLevel: 'public' | 'private' | 'restricted';
+  privacyLevel: "public" | "private" | "restricted";
   lastModified: string;
 }
 
@@ -59,17 +59,17 @@ export interface FollowUpSchedule {
   entityId: UUID;
   scheduledAt: string;
   reason: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   completed: boolean;
   taskId?: UUID;
 }
 
 // Entity lifecycle event types (local until exported from core)
 export enum EntityLifecycleEvent {
-  CREATED = 'entity:created',
-  UPDATED = 'entity:updated',
-  MERGED = 'entity:merged',
-  RESOLVED = 'entity:resolved',
+  CREATED = "entity:created",
+  UPDATED = "entity:updated",
+  MERGED = "entity:merged",
+  RESOLVED = "entity:resolved",
 }
 
 export interface EntityEventData {
@@ -81,9 +81,10 @@ export interface EntityEventData {
 }
 
 export class RolodexService extends Service {
-  static serviceType = 'rolodex' as const;
+  static serviceType = "rolodex" as const;
 
-  capabilityDescription = 'Comprehensive contact and relationship management service';
+  capabilityDescription =
+    "Comprehensive contact and relationship management service";
 
   private initialized: boolean = false;
 
@@ -97,19 +98,19 @@ export class RolodexService extends Service {
 
     // Initialize default categories
     this.categoriesCache = [
-      { id: 'friend', name: 'Friend', color: '#4CAF50' },
-      { id: 'family', name: 'Family', color: '#2196F3' },
-      { id: 'colleague', name: 'Colleague', color: '#FF9800' },
-      { id: 'acquaintance', name: 'Acquaintance', color: '#9E9E9E' },
-      { id: 'vip', name: 'VIP', color: '#9C27B0' },
-      { id: 'business', name: 'Business', color: '#795548' },
+      { id: "friend", name: "Friend", color: "#4CAF50" },
+      { id: "family", name: "Family", color: "#2196F3" },
+      { id: "colleague", name: "Colleague", color: "#FF9800" },
+      { id: "acquaintance", name: "Acquaintance", color: "#9E9E9E" },
+      { id: "vip", name: "VIP", color: "#9C27B0" },
+      { id: "business", name: "Business", color: "#795548" },
     ];
 
     // Load existing contact info from components
     await this.loadContactInfoFromComponents();
 
     this.initialized = true;
-    logger.info('[RolodexService] Initialized successfully');
+    logger.info("[RolodexService] Initialized successfully");
   }
 
   async stop(): Promise<void> {
@@ -118,7 +119,7 @@ export class RolodexService extends Service {
     this.analyticsCache.clear();
     this.categoriesCache = [];
     this.initialized = false;
-    logger.info('[RolodexService] Stopped successfully');
+    logger.info("[RolodexService] Stopped successfully");
   }
 
   static async start(runtime: IAgentRuntime): Promise<Service> {
@@ -130,7 +131,9 @@ export class RolodexService extends Service {
   private async loadContactInfoFromComponents(): Promise<void> {
     try {
       // Get all rooms for the agent to find entities
-      const rooms = await this.runtime.getRooms(stringToUuid('world-' + this.runtime.agentId));
+      const rooms = await this.runtime.getRooms(
+        stringToUuid("world-" + this.runtime.agentId),
+      );
       const entityIds = new Set<UUID>();
 
       // Collect unique entity IDs from all rooms
@@ -143,7 +146,8 @@ export class RolodexService extends Service {
       for (const entityId of entityIds) {
         const components = await this.runtime.getComponents(entityId);
         const contactComponent = components.find(
-          (c) => c.type === 'contact_info' && c.agentId === this.runtime.agentId
+          (c) =>
+            c.type === "contact_info" && c.agentId === this.runtime.agentId,
         );
 
         if (contactComponent) {
@@ -152,18 +156,20 @@ export class RolodexService extends Service {
         }
       }
 
-      logger.info(`[RolodexService] Loaded ${this.contactInfoCache.size} contacts from components`);
+      logger.info(
+        `[RolodexService] Loaded ${this.contactInfoCache.size} contacts from components`,
+      );
     } catch (error) {
-      logger.error('[RolodexService] Error loading contact info:', error);
+      logger.error("[RolodexService] Error loading contact info:", error);
     }
   }
 
   // Contact Management Methods
   async addContact(
     entityId: UUID,
-    categories: string[] = ['acquaintance'],
+    categories: string[] = ["acquaintance"],
     preferences?: ContactPreferences,
-    customFields?: Record<string, any>
+    customFields?: Record<string, any>,
   ): Promise<ContactInfo> {
     const contactInfo: ContactInfo = {
       entityId,
@@ -171,18 +177,18 @@ export class RolodexService extends Service {
       tags: [],
       preferences: preferences || {},
       customFields: customFields || {},
-      privacyLevel: 'private',
+      privacyLevel: "private",
       lastModified: new Date().toISOString(),
     };
 
     // Save as component
     await this.runtime.createComponent({
       id: stringToUuid(`contact-${entityId}-${this.runtime.agentId}`),
-      type: 'contact_info',
+      type: "contact_info",
       agentId: this.runtime.agentId,
       entityId,
-      roomId: stringToUuid('rolodex-' + this.runtime.agentId),
-      worldId: stringToUuid('rolodex-world-' + this.runtime.agentId),
+      roomId: stringToUuid("rolodex-" + this.runtime.agentId),
+      worldId: stringToUuid("rolodex-world-" + this.runtime.agentId),
       sourceEntityId: this.runtime.agentId,
       data: contactInfo as unknown as Metadata,
       createdAt: Date.now(),
@@ -195,18 +201,21 @@ export class RolodexService extends Service {
     if (entity) {
       const eventData: EntityEventData = {
         entity,
-        source: 'rolodex',
+        source: "rolodex",
       };
       await this.runtime.emitEvent(EntityLifecycleEvent.UPDATED, eventData);
     }
 
     logger.info(
-      `[RolodexService] Added contact ${entityId} with categories: ${categories.join(', ')}`
+      `[RolodexService] Added contact ${entityId} with categories: ${categories.join(", ")}`,
     );
     return contactInfo;
   }
 
-  async updateContact(entityId: UUID, updates: Partial<ContactInfo>): Promise<ContactInfo | null> {
+  async updateContact(
+    entityId: UUID,
+    updates: Partial<ContactInfo>,
+  ): Promise<ContactInfo | null> {
     const existing = await this.getContact(entityId);
     if (!existing) {
       logger.warn(`[RolodexService] Contact ${entityId} not found`);
@@ -223,7 +232,7 @@ export class RolodexService extends Service {
     // Update component
     const components = await this.runtime.getComponents(entityId);
     const contactComponent = components.find(
-      (c) => c.type === 'contact_info' && c.agentId === this.runtime.agentId
+      (c) => c.type === "contact_info" && c.agentId === this.runtime.agentId,
     );
 
     if (contactComponent) {
@@ -248,7 +257,7 @@ export class RolodexService extends Service {
     // Load from component if not in cache
     const components = await this.runtime.getComponents(entityId);
     const contactComponent = components.find(
-      (c) => c.type === 'contact_info' && c.agentId === this.runtime.agentId
+      (c) => c.type === "contact_info" && c.agentId === this.runtime.agentId,
     );
 
     if (contactComponent) {
@@ -270,7 +279,7 @@ export class RolodexService extends Service {
     // Remove component
     const components = await this.runtime.getComponents(entityId);
     const contactComponent = components.find(
-      (c) => c.type === 'contact_info' && c.agentId === this.runtime.agentId
+      (c) => c.type === "contact_info" && c.agentId === this.runtime.agentId,
     );
 
     if (contactComponent) {
@@ -298,12 +307,17 @@ export class RolodexService extends Service {
       // Check categories
       if (criteria.categories && criteria.categories.length > 0) {
         matches =
-          matches && criteria.categories.some((cat) => contactInfo.categories.includes(cat));
+          matches &&
+          criteria.categories.some((cat) =>
+            contactInfo.categories.includes(cat),
+          );
       }
 
       // Check tags
       if (criteria.tags && criteria.tags.length > 0) {
-        matches = matches && criteria.tags.some((tag) => contactInfo.tags.includes(tag));
+        matches =
+          matches &&
+          criteria.tags.some((tag) => contactInfo.tags.includes(tag));
       }
 
       // Check privacy level
@@ -324,7 +338,7 @@ export class RolodexService extends Service {
         if (
           entity &&
           entity.names.some((name) =>
-            name.toLowerCase().includes(criteria.searchTerm!.toLowerCase())
+            name.toLowerCase().includes(criteria.searchTerm!.toLowerCase()),
           )
         ) {
           filteredResults.push(contact);
@@ -339,7 +353,7 @@ export class RolodexService extends Service {
   // Relationship Analytics Methods
   async analyzeRelationship(
     sourceEntityId: UUID,
-    targetEntityId: UUID
+    targetEntityId: UUID,
   ): Promise<RelationshipAnalytics | null> {
     const cacheKey = `${sourceEntityId}-${targetEntityId}`;
 
@@ -361,7 +375,9 @@ export class RolodexService extends Service {
     });
 
     const relationship = relationships.find(
-      (r) => r.targetEntityId === targetEntityId || r.sourceEntityId === targetEntityId
+      (r) =>
+        r.targetEntityId === targetEntityId ||
+        r.sourceEntityId === targetEntityId,
     ) as ExtendedRelationship | undefined;
 
     if (!relationship) {
@@ -370,7 +386,7 @@ export class RolodexService extends Service {
 
     // Get recent messages between entities
     const messages = await this.runtime.getMemories({
-      tableName: 'messages',
+      tableName: "messages",
       entityId: sourceEntityId,
       count: 100,
     });
@@ -378,7 +394,8 @@ export class RolodexService extends Service {
     const interactions = messages.filter(
       (m) =>
         m.content.inReplyTo === targetEntityId ||
-        (m.entityId === targetEntityId && m.content.inReplyTo === sourceEntityId)
+        (m.entityId === targetEntityId &&
+          m.content.inReplyTo === sourceEntityId),
     );
 
     // Calculate metrics
@@ -396,19 +413,26 @@ export class RolodexService extends Service {
       const current = interactions[i];
       const next = interactions[i + 1];
 
-      if (current.entityId !== next.entityId && current.createdAt && next.createdAt) {
-        const timeDiff = new Date(next.createdAt).getTime() - new Date(current.createdAt).getTime();
+      if (
+        current.entityId !== next.entityId &&
+        current.createdAt &&
+        next.createdAt
+      ) {
+        const timeDiff =
+          new Date(next.createdAt).getTime() -
+          new Date(current.createdAt).getTime();
         totalResponseTime += timeDiff;
         responseCount++;
       }
     }
 
-    const averageResponseTime = responseCount > 0 ? totalResponseTime / responseCount : undefined;
+    const averageResponseTime =
+      responseCount > 0 ? totalResponseTime / responseCount : undefined;
 
     // Extract topics (simplified - could use NLP)
     const topicsSet = new Set<string>();
     interactions.forEach((msg) => {
-      const text = msg.content.text || '';
+      const text = msg.content.text || "";
       // Simple keyword extraction - could be enhanced with NLP
       const keywords = text.match(/\b[A-Z][a-z]+\b/g) || [];
       keywords.forEach((k) => topicsSet.add(k));
@@ -444,7 +468,7 @@ export class RolodexService extends Service {
       // Update relationship using components instead of non-existent updateRelationship
       const relationshipComponent = {
         id: stringToUuid(`relationship-${relationship.id}`),
-        type: 'relationship_update',
+        type: "relationship_update",
         agentId: this.runtime.agentId,
         entityId: relationship.sourceEntityId,
         roomId: stringToUuid(`rolodex-${this.runtime.agentId}`),
@@ -468,19 +492,31 @@ export class RolodexService extends Service {
   }
 
   async getRelationshipInsights(entityId: UUID): Promise<{
-    strongestRelationships: Array<{ entity: Entity; analytics: RelationshipAnalytics }>;
+    strongestRelationships: Array<{
+      entity: Entity;
+      analytics: RelationshipAnalytics;
+    }>;
     needsAttention: Array<{ entity: Entity; daysSinceContact: number }>;
     recentInteractions: Array<{ entity: Entity; lastInteraction: string }>;
   }> {
     const relationships = await this.runtime.getRelationships({ entityId });
     const insights = {
-      strongestRelationships: [] as Array<{ entity: Entity; analytics: RelationshipAnalytics }>,
+      strongestRelationships: [] as Array<{
+        entity: Entity;
+        analytics: RelationshipAnalytics;
+      }>,
       needsAttention: [] as Array<{ entity: Entity; daysSinceContact: number }>,
-      recentInteractions: [] as Array<{ entity: Entity; lastInteraction: string }>,
+      recentInteractions: [] as Array<{
+        entity: Entity;
+        lastInteraction: string;
+      }>,
     };
 
     for (const rel of relationships) {
-      const targetId = rel.sourceEntityId === entityId ? rel.targetEntityId : rel.sourceEntityId;
+      const targetId =
+        rel.sourceEntityId === entityId
+          ? rel.targetEntityId
+          : rel.sourceEntityId;
 
       const entity = await this.runtime.getEntityById(targetId);
       if (!entity) continue;
@@ -496,10 +532,14 @@ export class RolodexService extends Service {
       // Needs attention (no contact in 30+ days)
       if (analytics.lastInteractionAt) {
         const daysSince =
-          (Date.now() - new Date(analytics.lastInteractionAt).getTime()) / (1000 * 60 * 60 * 24);
+          (Date.now() - new Date(analytics.lastInteractionAt).getTime()) /
+          (1000 * 60 * 60 * 24);
 
         if (daysSince > 30) {
-          insights.needsAttention.push({ entity, daysSinceContact: Math.round(daysSince) });
+          insights.needsAttention.push({
+            entity,
+            daysSinceContact: Math.round(daysSince),
+          });
         }
 
         // Recent interactions (last 7 days)
@@ -513,10 +553,16 @@ export class RolodexService extends Service {
     }
 
     // Sort by relevance
-    insights.strongestRelationships.sort((a, b) => b.analytics.strength - a.analytics.strength);
-    insights.needsAttention.sort((a, b) => b.daysSinceContact - a.daysSinceContact);
+    insights.strongestRelationships.sort(
+      (a, b) => b.analytics.strength - a.analytics.strength,
+    );
+    insights.needsAttention.sort(
+      (a, b) => b.daysSinceContact - a.daysSinceContact,
+    );
     insights.recentInteractions.sort(
-      (a, b) => new Date(b.lastInteraction).getTime() - new Date(a.lastInteraction).getTime()
+      (a, b) =>
+        new Date(b.lastInteraction).getTime() -
+        new Date(a.lastInteraction).getTime(),
     );
 
     return insights;
@@ -539,7 +585,7 @@ export class RolodexService extends Service {
   // Privacy Management
   async setContactPrivacy(
     entityId: UUID,
-    privacyLevel: 'public' | 'private' | 'restricted'
+    privacyLevel: "public" | "private" | "restricted",
   ): Promise<boolean> {
     const contact = await this.getContact(entityId);
     if (!contact) return false;
@@ -547,11 +593,16 @@ export class RolodexService extends Service {
     contact.privacyLevel = privacyLevel;
     await this.updateContact(entityId, { privacyLevel });
 
-    logger.info(`[RolodexService] Set privacy level for ${entityId} to ${privacyLevel}`);
+    logger.info(
+      `[RolodexService] Set privacy level for ${entityId} to ${privacyLevel}`,
+    );
     return true;
   }
 
-  async canAccessContact(requestingEntityId: UUID, targetEntityId: UUID): Promise<boolean> {
+  async canAccessContact(
+    requestingEntityId: UUID,
+    targetEntityId: UUID,
+  ): Promise<boolean> {
     const contact = await this.getContact(targetEntityId);
     if (!contact) return false;
 
@@ -560,12 +611,12 @@ export class RolodexService extends Service {
 
     // Check privacy level
     switch (contact.privacyLevel) {
-      case 'public':
+      case "public":
         return true;
-      case 'private':
+      case "private":
         // Only agent and the entity itself
         return requestingEntityId === targetEntityId;
-      case 'restricted':
+      case "restricted":
         // Only agent
         return false;
       default:

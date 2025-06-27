@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   Command,
   CommandDialog,
@@ -12,10 +12,10 @@ import {
   CommandList,
   CommandSeparator,
   CommandShortcut,
-} from './command';
+} from "./command";
 
-describe('Command Component', () => {
-  it('renders basic command palette', () => {
+describe("Command Component", () => {
+  it("renders basic command palette", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Type a command or search..." />
@@ -27,17 +27,19 @@ describe('Command Component', () => {
             <CommandItem>Calculator</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.get('input[placeholder="Type a command or search..."]').should('be.visible');
-    cy.contains('Suggestions').should('be.visible');
-    cy.contains('Calendar').should('be.visible');
-    cy.contains('Search Emoji').should('be.visible');
-    cy.contains('Calculator').should('be.visible');
+    cy.get('input[placeholder="Type a command or search..."]').should(
+      "be.visible",
+    );
+    cy.contains("Suggestions").should("be.visible");
+    cy.contains("Calendar").should("be.visible");
+    cy.contains("Search Emoji").should("be.visible");
+    cy.contains("Calculator").should("be.visible");
   });
 
-  it('filters items based on search', () => {
+  it("filters items based on search", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -50,19 +52,19 @@ describe('Command Component', () => {
             <CommandItem>Date</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
     // Type in search
-    cy.get('input[placeholder="Search..."]').type('an');
+    cy.get('input[placeholder="Search..."]').type("an");
 
     // Should show items containing 'an'
-    cy.contains('Banana').should('be.visible');
-    cy.contains('Apple').should('not.exist');
-    cy.contains('Cherry').should('not.exist');
+    cy.contains("Banana").should("be.visible");
+    cy.contains("Apple").should("not.exist");
+    cy.contains("Cherry").should("not.exist");
   });
 
-  it('shows empty state when no matches', () => {
+  it("shows empty state when no matches", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -73,14 +75,14 @@ describe('Command Component', () => {
             <CommandItem>Item 2</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.get('input[placeholder="Search..."]').type('xyz');
-    cy.contains('No results found.').should('be.visible');
+    cy.get('input[placeholder="Search..."]').type("xyz");
+    cy.contains("No results found.").should("be.visible");
   });
 
-  it('handles item selection', () => {
+  it("handles item selection", () => {
     const onSelect = cy.stub();
 
     cy.mount(
@@ -88,18 +90,20 @@ describe('Command Component', () => {
         <CommandInput placeholder="Search..." />
         <CommandList>
           <CommandGroup>
-            <CommandItem onSelect={() => onSelect('calendar')}>Calendar</CommandItem>
-            <CommandItem onSelect={() => onSelect('email')}>Email</CommandItem>
+            <CommandItem onSelect={() => onSelect("calendar")}>
+              Calendar
+            </CommandItem>
+            <CommandItem onSelect={() => onSelect("email")}>Email</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.contains('Calendar').click();
-    cy.wrap(onSelect).should('have.been.calledWith', 'calendar');
+    cy.contains("Calendar").click();
+    cy.wrap(onSelect).should("have.been.calledWith", "calendar");
   });
 
-  it('renders with multiple groups', () => {
+  it("renders with multiple groups", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -115,15 +119,15 @@ describe('Command Component', () => {
             <CommandItem>Preferences</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.contains('Apps').should('be.visible');
-    cy.contains('Settings').should('be.visible');
-    cy.get('[role="separator"]').should('exist');
+    cy.contains("Apps").should("be.visible");
+    cy.contains("Settings").should("be.visible");
+    cy.get('[role="separator"]').should("exist");
   });
 
-  it('renders with shortcuts', () => {
+  it("renders with shortcuts", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -143,15 +147,15 @@ describe('Command Component', () => {
             </CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.contains('⌘C').should('be.visible');
-    cy.contains('⌘V').should('be.visible');
-    cy.contains('⌘X').should('be.visible');
+    cy.contains("⌘C").should("be.visible");
+    cy.contains("⌘V").should("be.visible");
+    cy.contains("⌘X").should("be.visible");
   });
 
-  it('supports keyboard navigation', () => {
+  it("supports keyboard navigation", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -162,27 +166,27 @@ describe('Command Component', () => {
             <CommandItem>Third Item</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
     // Verify all items are present
-    cy.contains('First Item').should('exist');
-    cy.contains('Second Item').should('exist');
-    cy.contains('Third Item').should('exist');
+    cy.contains("First Item").should("exist");
+    cy.contains("Second Item").should("exist");
+    cy.contains("Third Item").should("exist");
 
     // Focus input and verify keyboard interaction works
-    cy.get('input').focus();
-    cy.get('input').should('have.focus');
+    cy.get("input").focus();
+    cy.get("input").should("have.focus");
 
     // Test that arrow keys work (even if selection behavior varies)
-    cy.get('input').type('{downarrow}');
-    cy.get('input').type('{downarrow}');
+    cy.get("input").type("{downarrow}");
+    cy.get("input").type("{downarrow}");
 
     // Command component should still be interactive
-    cy.get('input').should('have.focus');
+    cy.get("input").should("have.focus");
   });
 
-  it('renders in dialog mode', () => {
+  it("renders in dialog mode", () => {
     const TestComponent = () => {
       const [open, setOpen] = React.useState(false);
 
@@ -206,13 +210,13 @@ describe('Command Component', () => {
 
     cy.mount(<TestComponent />);
 
-    cy.contains('New File').should('not.exist');
-    cy.contains('Open Command').click();
-    cy.contains('New File').should('be.visible');
-    cy.contains('Open File').should('be.visible');
+    cy.contains("New File").should("not.exist");
+    cy.contains("Open Command").click();
+    cy.contains("New File").should("be.visible");
+    cy.contains("Open File").should("be.visible");
   });
 
-  it('applies custom className', () => {
+  it("applies custom className", () => {
     cy.mount(
       <Command className="custom-command border-2">
         <CommandInput className="custom-input" placeholder="Search..." />
@@ -221,17 +225,17 @@ describe('Command Component', () => {
             <CommandItem className="custom-item">Item</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.get('.custom-command').should('have.class', 'border-2');
-    cy.get('.custom-input').should('exist');
-    cy.get('.custom-list').should('exist');
-    cy.get('.custom-group').should('exist');
-    cy.get('.custom-item').should('exist');
+    cy.get(".custom-command").should("have.class", "border-2");
+    cy.get(".custom-input").should("exist");
+    cy.get(".custom-list").should("exist");
+    cy.get(".custom-group").should("exist");
+    cy.get(".custom-item").should("exist");
   });
 
-  it('handles disabled items', () => {
+  it("handles disabled items", () => {
     const onSelect = cy.stub();
 
     cy.mount(
@@ -245,17 +249,17 @@ describe('Command Component', () => {
             </CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.contains('Enabled').click();
-    cy.wrap(onSelect).should('have.been.calledOnce');
+    cy.contains("Enabled").click();
+    cy.wrap(onSelect).should("have.been.calledOnce");
 
-    cy.contains('Disabled').click({ force: true });
-    cy.wrap(onSelect).should('have.been.calledOnce'); // Still only once
+    cy.contains("Disabled").click({ force: true });
+    cy.wrap(onSelect).should("have.been.calledOnce"); // Still only once
   });
 
-  it('supports icons in items', () => {
+  it("supports icons in items", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search..." />
@@ -275,15 +279,15 @@ describe('Command Component', () => {
             </CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
-    cy.contains('📅').should('be.visible');
-    cy.contains('📧').should('be.visible');
-    cy.contains('⚙️').should('be.visible');
+    cy.contains("📅").should("be.visible");
+    cy.contains("📧").should("be.visible");
+    cy.contains("⚙️").should("be.visible");
   });
 
-  it('handles complex filtering scenarios', () => {
+  it("handles complex filtering scenarios", () => {
     cy.mount(
       <Command>
         <CommandInput placeholder="Search files..." />
@@ -300,14 +304,14 @@ describe('Command Component', () => {
             <CommandItem>Videos</CommandItem>
           </CommandGroup>
         </CommandList>
-      </Command>
+      </Command>,
     );
 
     // Search for 'doc'
-    cy.get('input').type('doc');
-    cy.contains('document.pdf').should('be.visible');
-    cy.contains('Documents').should('be.visible');
-    cy.contains('image.png').should('not.exist');
-    cy.contains('Videos').should('not.exist');
+    cy.get("input").type("doc");
+    cy.contains("document.pdf").should("be.visible");
+    cy.contains("Documents").should("be.visible");
+    cy.contains("image.png").should("not.exist");
+    cy.contains("Videos").should("not.exist");
   });
 });

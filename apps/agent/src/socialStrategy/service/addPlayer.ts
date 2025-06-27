@@ -44,7 +44,7 @@ export class AddPlayerService extends Service {
   async getOrCreatePlayer({ handle }: { handle: string }) {
     logger.info("*** Adding player to memories ***");
     const id = stringToUuid(
-      `${this.runtime.agentId}:player:${handle.toLowerCase()}`
+      `${this.runtime.agentId}:player:${handle.toLowerCase()}`,
     );
     const entity = await this.runtime.getEntityById(id);
     if (entity) {

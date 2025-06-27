@@ -84,7 +84,7 @@ export const searchContactsAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
     // Check if RolodexService is available
     const rolodexService = runtime.getService("rolodex") as RolodexService;
@@ -115,7 +115,7 @@ export const searchContactsAction: Action = {
     message: Memory,
     state?: State,
     _options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<State | void> => {
     const rolodexService = runtime.getService("rolodex") as RolodexService;
 
@@ -187,7 +187,7 @@ export const searchContactsAction: Action = {
             entity,
             name: entity?.names[0] || "Unknown",
           };
-        })
+        }),
       );
 
       // Format response
@@ -208,7 +208,7 @@ export const searchContactsAction: Action = {
               });
               return acc;
             },
-            {} as Record<string, typeof contactDetails>
+            {} as Record<string, typeof contactDetails>,
           );
 
           responseText = `I found ${contactDetails.length} contact${contactDetails.length !== 1 ? "s" : ""}:\n\n`;

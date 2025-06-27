@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ChevronDown, X } from 'lucide-react';
-import { formatAgentName } from '@/lib/utils';
+import { useState, useRef, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown, X } from "lucide-react";
+import { formatAgentName } from "@/lib/utils";
 
 interface Option {
   icon: string;
@@ -19,7 +19,7 @@ interface MultiSelectComboboxProps {
 
 export default function MultiSelectCombobox({
   options = [],
-  className = '',
+  className = "",
   onSelect,
   initialSelected = [],
 }: MultiSelectComboboxProps) {
@@ -29,19 +29,25 @@ export default function MultiSelectCombobox({
 
   // Apply initialSelected when it changes - improved to handle both initial load and updates
   useEffect(() => {
-    console.log('[MultiSelectCombobox] initialSelected changed:', initialSelected);
+    console.log(
+      "[MultiSelectCombobox] initialSelected changed:",
+      initialSelected,
+    );
     setSelected(initialSelected);
   }, [initialSelected]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (comboboxRef.current && !comboboxRef.current.contains(event.target as Node)) {
+      if (
+        comboboxRef.current &&
+        !comboboxRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Helper function to compare options using id if available, fallback to label
@@ -65,7 +71,7 @@ export default function MultiSelectCombobox({
   };
 
   const toggleSelection = (option: Option) => {
-    console.log('[MultiSelectCombobox] toggleSelection called with:', option);
+    console.log("[MultiSelectCombobox] toggleSelection called with:", option);
     setSelected((prev) => {
       const isCurrentlySelected = isOptionSelected(option);
       let newSelection: Option[];
@@ -83,7 +89,7 @@ export default function MultiSelectCombobox({
         newSelection = [...prev, option];
       }
 
-      console.log('[MultiSelectCombobox] New selection:', newSelection);
+      console.log("[MultiSelectCombobox] New selection:", newSelection);
       if (onSelect) onSelect(newSelection);
       return newSelection;
     });
@@ -113,7 +119,7 @@ export default function MultiSelectCombobox({
   return (
     <div className={`relative w-80 ${className}`} ref={comboboxRef}>
       <div
-        className={`flex items-center gap-2 border p-2 bg-background rounded cursor-pointer ${isOpen ? 'border-primary' : 'border-input'}`}
+        className={`flex items-center gap-2 border p-2 bg-background rounded cursor-pointer ${isOpen ? "border-primary" : "border-input"}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex flex-wrap gap-1 w-full">
@@ -156,13 +162,15 @@ export default function MultiSelectCombobox({
       {isOpen && (
         <Card className="absolute left-0 mt-2 w-full shadow-md border border-border rounded z-40 max-h-60 overflow-y-auto">
           {options.length === 0 ? (
-            <div className="p-2 text-muted-foreground text-sm">No agents available</div>
+            <div className="p-2 text-muted-foreground text-sm">
+              No agents available
+            </div>
           ) : (
             options.map((option, index) => (
               <div
                 key={option.id || option.label || index}
                 className={`flex items-center gap-2 p-2 cursor-pointer rounded hover:bg-muted ${
-                  isOptionSelected(option) ? 'bg-muted' : 'bg-card'
+                  isOptionSelected(option) ? "bg-muted" : "bg-card"
                 }`}
                 onClick={() => toggleSelection(option)}
               >

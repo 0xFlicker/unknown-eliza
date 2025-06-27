@@ -1,8 +1,8 @@
-import { Button } from '@/components/ui/button';
-import type { Agent } from '@elizaos/core';
-import { Image as ImageIcon, Upload, X, Info } from 'lucide-react';
-import { useRef, useState, useEffect } from 'react';
-import { compressImage } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import type { Agent } from "@elizaos/core";
+import { Image as ImageIcon, Upload, X, Info } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { compressImage } from "@/lib/utils";
 
 interface AvatarPanelProps {
   characterValue: Agent;
@@ -14,8 +14,13 @@ interface AvatarPanelProps {
   };
 }
 
-export default function AvatarPanel({ characterValue, setCharacterValue }: AvatarPanelProps) {
-  const [avatar, setAvatar] = useState<string | null>(characterValue?.settings?.avatar || null);
+export default function AvatarPanel({
+  characterValue,
+  setCharacterValue,
+}: AvatarPanelProps) {
+  const [avatar, setAvatar] = useState<string | null>(
+    characterValue?.settings?.avatar || null,
+  );
   const [hasChanged, setHasChanged] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +30,9 @@ export default function AvatarPanel({ characterValue, setCharacterValue }: Avata
     setHasChanged(false);
   }, [characterValue.id]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
@@ -36,7 +43,7 @@ export default function AvatarPanel({ characterValue, setCharacterValue }: Avata
         // Only update when there's a real change
         updateCharacterAvatar(compressedImage);
       } catch (error) {
-        console.error('Error compressing image:', error);
+        console.error("Error compressing image:", error);
       }
     }
   };
@@ -45,7 +52,7 @@ export default function AvatarPanel({ characterValue, setCharacterValue }: Avata
     if (avatar) {
       setAvatar(null);
       setHasChanged(true);
-      updateCharacterAvatar('');
+      updateCharacterAvatar("");
     }
   };
 
@@ -56,10 +63,10 @@ export default function AvatarPanel({ characterValue, setCharacterValue }: Avata
       setCharacterValue.updateAvatar(avatarUrl);
     } else if (setCharacterValue.updateSetting) {
       // Use updateSetting as fallback
-      setCharacterValue.updateSetting('avatar', avatarUrl);
+      setCharacterValue.updateSetting("avatar", avatarUrl);
     } else if (setCharacterValue.updateField) {
       // Last resort - use the generic field update
-      setCharacterValue.updateField('settings.avatar', avatarUrl);
+      setCharacterValue.updateField("settings.avatar", avatarUrl);
     }
   };
 
@@ -105,18 +112,24 @@ export default function AvatarPanel({ characterValue, setCharacterValue }: Avata
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-5 h-5" />
-              {avatar ? 'Replace' : 'Upload'}
+              {avatar ? "Replace" : "Upload"}
             </Button>
 
             {avatar && (
-              <Button variant="outline" className="flex items-center" onClick={handleRemoveAvatar}>
+              <Button
+                variant="outline"
+                className="flex items-center"
+                onClick={handleRemoveAvatar}
+              >
                 <X className="w-5 h-5" />
               </Button>
             )}
           </div>
 
           {hasChanged && (
-            <div className="text-sm text-blue-500 mt-1 text-center">Avatar has been updated</div>
+            <div className="text-sm text-blue-500 mt-1 text-center">
+              Avatar has been updated
+            </div>
           )}
 
           <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-1">

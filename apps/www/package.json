@@ -5,6 +5,8 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "start": "vite",
+    "dev": "vite --host 0.0.0.0 --port 5173",
     "start:client": "vite",
     "dev:client": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
@@ -22,7 +24,8 @@
     "test:e2e": "cypress run --e2e",
     "test:e2e:with-server": "./scripts/test-e2e-with-server.sh",
     "cypress:open": "cypress open",
-    "type-check": "cd cypress && npx tsc --noEmit --project tsconfig.json"
+    "type-check": "cd cypress && npx tsc --noEmit --project tsconfig.json",
+    "typecheck": "bun run build"
   },
   "dependencies": {
     "@elizaos/api-client": "^1.0.12",

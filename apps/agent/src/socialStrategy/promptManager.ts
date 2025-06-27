@@ -102,7 +102,7 @@ export function analyzePrompt(prompt: string): PromptMetadata {
  * Extracts metadata from a prompt
  */
 export function extractPromptMetadata(
-  prompt: string
+  prompt: string,
 ): Record<string, string | number | boolean> {
   const metadata: Record<string, string | number | boolean> = {};
   const metadataRegex = /\[\[SSA:([^=]+)=([^\]]+)\]\]/g;
@@ -156,7 +156,7 @@ export type AnalysisResult = {
 export function buildAnalysisPrompt(
   text: string,
   speakingPlayer: string,
-  mentionedPlayers: string[]
+  mentionedPlayers: string[],
 ): string {
   const playerList =
     mentionedPlayers.length > 0 ? mentionedPlayers.join(", ") : "None";

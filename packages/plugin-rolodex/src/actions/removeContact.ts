@@ -35,7 +35,7 @@ export const removeContactAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
     const hasService = !!runtime.getService("rolodex");
     const hasIntent = message.content.text
@@ -49,7 +49,7 @@ export const removeContactAction: Action = {
     message: Memory,
     state?: State,
     _options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<State | void> => {
     try {
       const rolodexService = runtime.getService("rolodex") as RolodexService;

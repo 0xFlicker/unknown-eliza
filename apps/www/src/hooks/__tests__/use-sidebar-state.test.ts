@@ -1,21 +1,21 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'bun:test';
-import { useSidebarState } from '../use-sidebar-state';
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "bun:test";
+import { useSidebarState } from "../use-sidebar-state";
 
-describe('useSidebarState', () => {
+describe("useSidebarState", () => {
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear();
   });
 
-  it('should initialize with false when no stored state exists', () => {
+  it("should initialize with false when no stored state exists", () => {
     const { result } = renderHook(() => useSidebarState());
 
     expect(result.current.isVisible).toBe(false);
   });
 
-  it('should load stored state when it exists', async () => {
-    localStorage.setItem('eliza-agent-sidebar-visible', 'true');
+  it("should load stored state when it exists", async () => {
+    localStorage.setItem("eliza-agent-sidebar-visible", "true");
 
     const { result } = renderHook(() => useSidebarState());
 
@@ -24,7 +24,7 @@ describe('useSidebarState', () => {
     });
   });
 
-  it('should save state when setSidebarVisible is called', async () => {
+  it("should save state when setSidebarVisible is called", async () => {
     const { result } = renderHook(() => useSidebarState());
 
     act(() => {
@@ -35,10 +35,10 @@ describe('useSidebarState', () => {
       expect(result.current.isVisible).toBe(true);
     });
 
-    expect(localStorage.getItem('eliza-agent-sidebar-visible')).toBe('true');
+    expect(localStorage.getItem("eliza-agent-sidebar-visible")).toBe("true");
   });
 
-  it('should toggle state when toggleSidebar is called', async () => {
+  it("should toggle state when toggleSidebar is called", async () => {
     const { result } = renderHook(() => useSidebarState());
 
     // Initially false
@@ -53,7 +53,7 @@ describe('useSidebarState', () => {
       expect(result.current.isVisible).toBe(true);
     });
 
-    expect(localStorage.getItem('eliza-agent-sidebar-visible')).toBe('true');
+    expect(localStorage.getItem("eliza-agent-sidebar-visible")).toBe("true");
 
     // Toggle back to false
     act(() => {
@@ -64,12 +64,12 @@ describe('useSidebarState', () => {
       expect(result.current.isVisible).toBe(false);
     });
 
-    expect(localStorage.getItem('eliza-agent-sidebar-visible')).toBe('false');
+    expect(localStorage.getItem("eliza-agent-sidebar-visible")).toBe("false");
   });
 
-  it('should handle localStorage errors gracefully', () => {
+  it("should handle localStorage errors gracefully", () => {
     // Set up invalid JSON
-    localStorage.setItem('eliza-agent-sidebar-visible', 'invalid-json');
+    localStorage.setItem("eliza-agent-sidebar-visible", "invalid-json");
 
     const { result } = renderHook(() => useSidebarState());
 
@@ -77,11 +77,11 @@ describe('useSidebarState', () => {
     expect(result.current.isVisible).toBe(false);
   });
 
-  it('should handle localStorage save errors gracefully', async () => {
+  it("should handle localStorage save errors gracefully", async () => {
     // Mock localStorage to throw an error on setItem
     const originalSetItem = localStorage.setItem;
     localStorage.setItem = () => {
-      throw new Error('localStorage save error');
+      throw new Error("localStorage save error");
     };
 
     const { result } = renderHook(() => useSidebarState());
@@ -99,8 +99,8 @@ describe('useSidebarState', () => {
     localStorage.setItem = originalSetItem;
   });
 
-  it('should handle invalid JSON in localStorage', () => {
-    localStorage.setItem('eliza-agent-sidebar-visible', 'invalid-json');
+  it("should handle invalid JSON in localStorage", () => {
+    localStorage.setItem("eliza-agent-sidebar-visible", "invalid-json");
 
     const { result } = renderHook(() => useSidebarState());
 

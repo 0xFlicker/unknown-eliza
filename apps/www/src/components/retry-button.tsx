@@ -1,6 +1,10 @@
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { RotateCcw } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { RotateCcw } from "lucide-react";
 
 interface RetryButtonProps {
   onClick: () => void;

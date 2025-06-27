@@ -1,13 +1,13 @@
 // Update the IAttachment interface
 
-import { Agent, UUID } from '@elizaos/core';
+import { Agent, UUID } from "@elizaos/core";
 import type {
   Agent as CoreAgent,
   Character as CoreCharacter,
   Room as CoreRoom,
   AgentStatus as CoreAgentStatus,
   ChannelType as CoreChannelType,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Interface representing an attachment.
@@ -30,7 +30,7 @@ export interface AgentWithStatus extends Partial<CoreAgent> {
   characterName?: string; // From core Agent, which extends Character
   bio?: string | string[];
   status: CoreAgentStatus; // Use the enum from @elizaos/core
-  settings?: CoreCharacter['settings']; // From core Character
+  settings?: CoreCharacter["settings"]; // From core Character
   // any other client-specific properties
 }
 

@@ -1,11 +1,11 @@
 // Test setup file for Bun:test
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
-import { afterEach, beforeEach, expect, mock } from 'bun:test';
-import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom/matchers';
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { afterEach, beforeEach, expect, mock } from "bun:test";
+import { cleanup } from "@testing-library/react";
+import * as matchers from "@testing-library/jest-dom/matchers";
 
 // Import React to access internal state
-import React from 'react';
+import React from "react";
 
 // Set up DOM environment with Happy DOM (recommended by Bun)
 GlobalRegistrator.register();
@@ -43,26 +43,26 @@ const createLocalStorageMock = () => {
 // Set up fresh localStorage and sessionStorage for each test
 beforeEach(() => {
   // Create fresh storage instances for each test
-  Object.defineProperty(window, 'localStorage', {
+  Object.defineProperty(window, "localStorage", {
     value: createLocalStorageMock(),
     writable: true,
     configurable: true,
   });
 
-  Object.defineProperty(window, 'sessionStorage', {
+  Object.defineProperty(window, "sessionStorage", {
     value: createLocalStorageMock(),
     writable: true,
     configurable: true,
   });
 
   // Reset window dimensions to default
-  Object.defineProperty(window, 'innerWidth', {
+  Object.defineProperty(window, "innerWidth", {
     writable: true,
     configurable: true,
     value: 1500,
   });
 
-  Object.defineProperty(window, 'innerHeight', {
+  Object.defineProperty(window, "innerHeight", {
     writable: true,
     configurable: true,
     value: 900,
@@ -84,7 +84,8 @@ afterEach(() => {
   // Force React to clear any cached hook state
   // This helps prevent cross-test contamination when running multiple test files
   if ((React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
-    const internals = (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+    const internals = (React as any)
+      .__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
     if (internals.ReactCurrentDispatcher) {
       internals.ReactCurrentDispatcher.current = null;
     }
@@ -96,7 +97,7 @@ afterEach(() => {
 
 // React 19 specific setup - add missing APIs for testing-library compatibility
 try {
-  const React = require('react');
+  const React = require("react");
 
   // Add React.createRef polyfill for React 19 compatibility with testing-library
   if (!React.createRef) {
@@ -105,11 +106,14 @@ try {
     };
   }
 } catch (e) {
-  console.warn('Failed to set up React internals:', e instanceof Error ? e.message : String(e));
+  console.warn(
+    "Failed to set up React internals:",
+    e instanceof Error ? e.message : String(e),
+  );
 }
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({
     matches: false,
@@ -126,7 +130,7 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock IntersectionObserver
 global.IntersectionObserver = class MockIntersectionObserver {
   root = null;
-  rootMargin = '';
+  rootMargin = "";
   thresholds = [];
 
   constructor() {}

@@ -1,6 +1,6 @@
-import type { DirectoryItem } from './knowledge';
-import type { Content, UUID } from './primitives';
-import type { State } from './state';
+import type { DirectoryItem } from "./knowledge";
+import type { Content, UUID } from "./primitives";
+import type { State } from "./state";
 
 /**
  * Example message for demonstration
@@ -91,8 +91,8 @@ export interface Character {
 }
 
 export enum AgentStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
+  ACTIVE = "active",
+  INACTIVE = "inactive",
 }
 
 /**

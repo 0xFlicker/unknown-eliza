@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   Select,
   SelectContent,
@@ -11,10 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
   SelectSeparator,
-} from './select';
+} from "./select";
 
-describe('Select Component', () => {
-  it('renders correctly with default props', () => {
+describe("Select Component", () => {
+  it("renders correctly with default props", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -25,14 +25,14 @@ describe('Select Component', () => {
           <SelectItem value="option2">Option 2</SelectItem>
           <SelectItem value="option3">Option 3</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
-    cy.get('[role="combobox"]').should('exist');
-    cy.get('[role="combobox"]').should('contain', 'Select an option');
+    cy.get('[role="combobox"]').should("exist");
+    cy.get('[role="combobox"]').should("contain", "Select an option");
   });
 
-  it('opens and closes dropdown', () => {
+  it("opens and closes dropdown", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -43,20 +43,20 @@ describe('Select Component', () => {
           <SelectItem value="banana">Banana</SelectItem>
           <SelectItem value="orange">Orange</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     // Initially closed
-    cy.contains('Apple').should('not.exist');
+    cy.contains("Apple").should("not.exist");
 
     // Click to open
     cy.get('[role="combobox"]').click();
-    cy.contains('Apple').should('be.visible');
-    cy.contains('Banana').should('be.visible');
-    cy.contains('Orange').should('be.visible');
+    cy.contains("Apple").should("be.visible");
+    cy.contains("Banana").should("be.visible");
+    cy.contains("Orange").should("be.visible");
   });
 
-  it('selects an option', () => {
+  it("selects an option", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -67,17 +67,17 @@ describe('Select Component', () => {
           <SelectItem value="banana">Banana</SelectItem>
           <SelectItem value="orange">Orange</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     cy.get('[role="combobox"]').click();
-    cy.contains('Banana').click();
-    cy.get('[role="combobox"]').should('contain', 'Banana');
+    cy.contains("Banana").click();
+    cy.get('[role="combobox"]').should("contain", "Banana");
   });
 
-  it('works as controlled component', () => {
+  it("works as controlled component", () => {
     const TestComponent = () => {
-      const [value, setValue] = React.useState('');
+      const [value, setValue] = React.useState("");
 
       return (
         <div>
@@ -91,20 +91,20 @@ describe('Select Component', () => {
               <SelectItem value="3">Three</SelectItem>
             </SelectContent>
           </Select>
-          <p>Selected: {value || 'none'}</p>
+          <p>Selected: {value || "none"}</p>
         </div>
       );
     };
 
     cy.mount(<TestComponent />);
 
-    cy.contains('Selected: none').should('exist');
+    cy.contains("Selected: none").should("exist");
     cy.get('[role="combobox"]').click();
-    cy.contains('Two').click();
-    cy.contains('Selected: 2').should('exist');
+    cy.contains("Two").click();
+    cy.contains("Selected: 2").should("exist");
   });
 
-  it('can be disabled', () => {
+  it("can be disabled", () => {
     cy.mount(
       <Select disabled>
         <SelectTrigger>
@@ -113,15 +113,15 @@ describe('Select Component', () => {
         <SelectContent>
           <SelectItem value="1">Option 1</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
-    cy.get('[role="combobox"]').should('have.attr', 'data-disabled');
+    cy.get('[role="combobox"]').should("have.attr", "data-disabled");
     cy.get('[role="combobox"]').click({ force: true });
-    cy.contains('Option 1').should('not.exist');
+    cy.contains("Option 1").should("not.exist");
   });
 
-  it('supports grouped options', () => {
+  it("supports grouped options", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -140,17 +140,17 @@ describe('Select Component', () => {
             <SelectItem value="lettuce">Lettuce</SelectItem>
           </SelectGroup>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     cy.get('[role="combobox"]').click();
-    cy.contains('Fruits').should('be.visible');
-    cy.contains('Vegetables').should('be.visible');
-    cy.contains('Apple').should('be.visible');
-    cy.contains('Carrot').should('be.visible');
+    cy.contains("Fruits").should("be.visible");
+    cy.contains("Vegetables").should("be.visible");
+    cy.contains("Apple").should("be.visible");
+    cy.contains("Carrot").should("be.visible");
   });
 
-  it('supports custom className', () => {
+  it("supports custom className", () => {
     cy.mount(
       <Select>
         <SelectTrigger className="w-[200px] custom-select">
@@ -159,14 +159,14 @@ describe('Select Component', () => {
         <SelectContent>
           <SelectItem value="1">Option 1</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
-    cy.get('[role="combobox"]').should('have.class', 'w-[200px]');
-    cy.get('[role="combobox"]').should('have.class', 'custom-select');
+    cy.get('[role="combobox"]').should("have.class", "w-[200px]");
+    cy.get('[role="combobox"]').should("have.class", "custom-select");
   });
 
-  it('handles keyboard navigation', () => {
+  it("handles keyboard navigation", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -177,23 +177,23 @@ describe('Select Component', () => {
           <SelectItem value="2">Second</SelectItem>
           <SelectItem value="3">Third</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     // Open with Enter key
     cy.get('[role="combobox"]').focus();
-    cy.get('[role="combobox"]').type('{enter}');
-    cy.contains('First').should('be.visible');
+    cy.get('[role="combobox"]').type("{enter}");
+    cy.contains("First").should("be.visible");
 
     // Navigate with arrow keys
-    cy.get('body').type('{downarrow}');
-    cy.get('body').type('{downarrow}');
-    cy.get('body').type('{enter}');
+    cy.get("body").type("{downarrow}");
+    cy.get("body").type("{downarrow}");
+    cy.get("body").type("{enter}");
 
-    cy.get('[role="combobox"]').should('contain', 'Third');
+    cy.get('[role="combobox"]').should("contain", "Third");
   });
 
-  it('supports disabled items', () => {
+  it("supports disabled items", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -206,14 +206,14 @@ describe('Select Component', () => {
           </SelectItem>
           <SelectItem value="3">Also Available</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     cy.get('[role="combobox"]').click();
-    cy.get('[data-disabled]').should('contain', 'Not Available');
+    cy.get("[data-disabled]").should("contain", "Not Available");
   });
 
-  it('displays long option text properly', () => {
+  it("displays long option text properly", () => {
     cy.mount(
       <Select>
         <SelectTrigger className="w-[300px]">
@@ -225,14 +225,14 @@ describe('Select Component', () => {
           </SelectItem>
           <SelectItem value="2">Short</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     cy.get('[role="combobox"]').click();
-    cy.contains('This is a very long option text').should('be.visible');
+    cy.contains("This is a very long option text").should("be.visible");
   });
 
-  it('works in forms', () => {
+  it("works in forms", () => {
     cy.mount(
       <form>
         <label htmlFor="country">Country</label>
@@ -246,17 +246,17 @@ describe('Select Component', () => {
             <SelectItem value="ca">Canada</SelectItem>
           </SelectContent>
         </Select>
-      </form>
+      </form>,
     );
 
     cy.get('[role="combobox"]').click();
     cy.get('[role="listbox"]').within(() => {
-      cy.contains('United Kingdom').click({ force: true });
+      cy.contains("United Kingdom").click({ force: true });
     });
-    cy.get('[role="combobox"]').should('contain', 'United Kingdom');
+    cy.get('[role="combobox"]').should("contain", "United Kingdom");
   });
 
-  it('maintains focus after selection', () => {
+  it("maintains focus after selection", () => {
     cy.mount(
       <Select>
         <SelectTrigger>
@@ -266,12 +266,12 @@ describe('Select Component', () => {
           <SelectItem value="1">Option 1</SelectItem>
           <SelectItem value="2">Option 2</SelectItem>
         </SelectContent>
-      </Select>
+      </Select>,
     );
 
     cy.get('[role="combobox"]').focus();
     cy.get('[role="combobox"]').click();
-    cy.contains('Option 1').click();
-    cy.get('[role="combobox"]').should('have.focus');
+    cy.contains("Option 1").click();
+    cy.get('[role="combobox"]').should("have.focus");
   });
 });

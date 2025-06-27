@@ -92,7 +92,7 @@ export const addContactAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
     // Check if RolodexService is available
     const rolodexService = runtime.getService("rolodex") as RolodexService;
@@ -120,7 +120,7 @@ export const addContactAction: Action = {
     message: Memory,
     state?: State,
     _options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<State> => {
     const rolodexService = runtime.getService("rolodex") as RolodexService;
 
@@ -160,7 +160,7 @@ export const addContactAction: Action = {
       const parsedResponse = parseKeyValueXml(response);
       if (!parsedResponse || !parsedResponse.contactName) {
         logger.warn(
-          "[AddContact] Failed to parse contact information from response"
+          "[AddContact] Failed to parse contact information from response",
         );
         throw new Error("Could not extract contact information");
       }
@@ -179,7 +179,7 @@ export const addContactAction: Action = {
         } else {
           // Create a new entity ID based on the name
           entityId = stringToUuid(
-            `contact-${parsedResponse.contactName}-${runtime.agentId}`
+            `contact-${parsedResponse.contactName}-${runtime.agentId}`,
           );
         }
       }
@@ -205,11 +205,11 @@ export const addContactAction: Action = {
       const contact = await rolodexService.addContact(
         entityId,
         categories,
-        preferences
+        preferences,
       );
 
       logger.info(
-        `[AddContact] Added contact ${parsedResponse.contactName} (${entityId})`
+        `[AddContact] Added contact ${parsedResponse.contactName} (${entityId})`,
       );
 
       // Prepare response

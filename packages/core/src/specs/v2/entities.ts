@@ -3,16 +3,16 @@ import {
   findEntityByName as coreFindEntityByName,
   formatEntities as coreFormatEntities,
   getEntityDetails as coreGetEntityDetails,
-} from '../../entities';
+} from "../../entities";
 
-import { type Entity, type IAgentRuntime, type Memory } from './types';
+import { type Entity, type IAgentRuntime, type Memory } from "./types";
 
 import {
   type IAgentRuntime as coreIAgentRuntime,
   type Memory as coreMemory,
   type State,
   type UUID,
-} from '../../types';
+} from "../../types";
 
 /**
  * Finds an entity by name in the given runtime environment.
@@ -25,10 +25,14 @@ import {
 export async function findEntityByName(
   runtime: IAgentRuntime,
   message: Memory,
-  state: State
+  state: State,
 ): Promise<Entity | null> {
   const rt: any = runtime;
-  return coreFindEntityByName(rt as coreIAgentRuntime, message as coreMemory, state);
+  return coreFindEntityByName(
+    rt as coreIAgentRuntime,
+    message as coreMemory,
+    state,
+  );
 }
 
 /**
@@ -38,7 +42,10 @@ export async function findEntityByName(
  * @param {UUID|string} baseUserId - The base user ID to use in generating the UUID.
  * @returns {UUID} - The unique UUID generated based on the runtime and base user ID.
  */
-export const createUniqueUuid = (runtime: IAgentRuntime, baseUserId: UUID | string): UUID => {
+export const createUniqueUuid = (
+  runtime: IAgentRuntime,
+  baseUserId: UUID | string,
+): UUID => {
   return coreCreateUniqueUuid(runtime, baseUserId);
 };
 

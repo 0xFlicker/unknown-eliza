@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'bun:test';
-import { computePca } from './pca';
+import { describe, it, expect } from "bun:test";
+import { computePca } from "./pca";
 
-describe('computePca', () => {
-  it('projects 3D vectors to 2D deterministically', () => {
+describe("computePca", () => {
+  it("projects 3D vectors to 2D deterministically", () => {
     const data = [
       [1, 0, 0],
       [0, 1, 0],

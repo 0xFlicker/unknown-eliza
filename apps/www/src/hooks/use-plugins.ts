@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
-import clientLogger from '@/lib/logger';
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
+import clientLogger from "@/lib/logger";
 
 // Registry configuration - centralized for maintainability
-const REGISTRY_ORG = 'elizaos-plugins';
-const REGISTRY_REPO = 'registry';
+const REGISTRY_ORG = "elizaos-plugins";
+const REGISTRY_REPO = "registry";
 const REGISTRY_URL = `https://raw.githubusercontent.com/${REGISTRY_ORG}/${REGISTRY_REPO}/refs/heads/main/generated-registry.json`;
 
 interface GitVersionInfo {
@@ -46,7 +46,7 @@ interface RegistryResponse {
  */
 export function usePlugins() {
   return useQuery({
-    queryKey: ['plugins'],
+    queryKey: ["plugins"],
     queryFn: async () => {
       try {
         // Fetch plugins from registry and agent data in parallel
@@ -62,14 +62,15 @@ export function usePlugins() {
         const registryPlugins = Object.entries(registryData.registry || {})
           .filter(([name, data]: [string, PluginInfo]) => {
             // Check if it's a plugin and has v1 support
-            const isPlugin = name.includes('plugin');
+            const isPlugin = name.includes("plugin");
             const hasV1Support = data.supports.v1 === true;
             const hasV1Version =
-              data.npm.v1 !== null || (data.git.v1.version !== null && data.git.v1.branch !== null);
+              data.npm.v1 !== null ||
+              (data.git.v1.version !== null && data.git.v1.branch !== null);
 
             return isPlugin && hasV1Support && hasV1Version;
           })
-          .map(([name]) => name.replace(/^@elizaos-plugins\//, '@elizaos/'))
+          .map(([name]) => name.replace(/^@elizaos-plugins\//, "@elizaos/"))
           .sort();
 
         // Process agent plugins from the parallel fetch
@@ -78,10 +79,12 @@ export function usePlugins() {
           if (agentsResponse.data?.agents?.length > 0) {
             // Get plugins from the first active agent
             const activeAgent = agentsResponse.data.agents.find(
-              (agent) => agent.status === 'active'
+              (agent) => agent.status === "active",
             );
             if (activeAgent && activeAgent.id) {
-              const agentDetailResponse = await apiClient.getAgent(activeAgent.id);
+              const agentDetailResponse = await apiClient.getAgent(
+                activeAgent.id,
+              );
 
               if (agentDetailResponse.data?.plugins) {
                 agentPlugins = agentDetailResponse.data.plugins;
@@ -89,27 +92,30 @@ export function usePlugins() {
             }
           }
         } catch (agentError) {
-          clientLogger.warn('Could not fetch agent plugins:', agentError);
+          clientLogger.warn("Could not fetch agent plugins:", agentError);
         }
 
         // Merge registry plugins with agent plugins and remove duplicates
         const allPlugins = [...new Set([...registryPlugins, ...agentPlugins])];
         return allPlugins.sort();
       } catch (error) {
-        clientLogger.error('Failed to fetch from registry, falling back to basic list:', error);
+        clientLogger.error(
+          "Failed to fetch from registry, falling back to basic list:",
+          error,
+        );
 
         // Return fallback plugins with basic info
         return [
-          '@elizaos/plugin-bootstrap',
-          '@elizaos/plugin-evm',
-          '@elizaos/plugin-discord',
-          '@elizaos/plugin-elevenlabs',
-          '@elizaos/plugin-anthropic',
-          '@elizaos/plugin-browser',
-          '@elizaos/plugin-farcaster',
-          '@elizaos/plugin-groq',
+          "@elizaos/plugin-bootstrap",
+          "@elizaos/plugin-evm",
+          "@elizaos/plugin-discord",
+          "@elizaos/plugin-elevenlabs",
+          "@elizaos/plugin-anthropic",
+          "@elizaos/plugin-browser",
+          "@elizaos/plugin-farcaster",
+          "@elizaos/plugin-groq",
         ]
-          .filter((name) => name.includes('plugin'))
+          .filter((name) => name.includes("plugin"))
           .sort();
       }
     },

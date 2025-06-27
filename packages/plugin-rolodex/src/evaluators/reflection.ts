@@ -45,7 +45,7 @@ const reflectionSchema = z.object({
       type: z.string(),
       in_bio: z.boolean(),
       already_known: z.boolean(),
-    })
+    }),
   ),
   relationships: z.array(relationshipSchema),
 });
@@ -126,7 +126,7 @@ function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
   // First try exact UUID match
   if (
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      entityId
+      entityId,
     )
   ) {
     return entityId as UUID;
@@ -148,7 +148,7 @@ function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
 
   // Try name match as last resort
   entity = entities.find((a) =>
-    a.names.some((n) => n.toLowerCase().includes(entityId.toLowerCase()))
+    a.names.some((n) => n.toLowerCase().includes(entityId.toLowerCase())),
   );
   if (entity?.id) {
     return entity.id;
@@ -159,7 +159,7 @@ function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
 async function handler(
   runtime: IAgentRuntime,
   message: Memory,
-  state?: State
+  state?: State,
 ): Promise<State | void> {
   const { agentId, roomId } = message;
 
@@ -211,7 +211,7 @@ async function handler(
     if (!reflection.facts || !Array.isArray(reflection.facts)) {
       logger.warn(
         "Getting reflection failed - invalid facts structure",
-        reflection
+        reflection,
       );
       return;
     }
@@ -219,7 +219,7 @@ async function handler(
     if (!reflection.relationships || !Array.isArray(reflection.relationships)) {
       logger.warn(
         "Getting reflection failed - invalid relationships structure",
-        reflection
+        reflection,
       );
       return;
     }
@@ -234,7 +234,7 @@ async function handler(
           !fact.in_bio &&
           fact.claim &&
           typeof fact.claim === "string" &&
-          fact.claim.trim() !== ""
+          fact.claim.trim() !== "",
       ) || [];
 
     await Promise.all(
@@ -247,7 +247,7 @@ async function handler(
           createdAt: Date.now(),
         });
         return runtime.createMemory(factMemory, "facts", true);
-      })
+      }),
     );
 
     // Update or create relationships
@@ -278,7 +278,7 @@ async function handler(
         };
 
         const updatedTags = Array.from(
-          new Set([...(existingRelationship.tags || []), ...relationship.tags])
+          new Set([...(existingRelationship.tags || []), ...relationship.tags]),
         );
 
         await runtime.updateRelationship({
@@ -301,7 +301,7 @@ async function handler(
 
     await runtime.setCache<string>(
       `${message.roomId}-reflection-last-processed`,
-      message?.id || ""
+      message?.id || "",
     );
 
     return {
@@ -331,10 +331,10 @@ export const reflectionEvaluator: Evaluator = {
   ],
   validate: async (
     runtime: IAgentRuntime,
-    message: Memory
+    message: Memory,
   ): Promise<boolean> => {
     const lastMessageId = await runtime.getCache<string>(
-      `${message.roomId}-reflection-last-processed`
+      `${message.roomId}-reflection-last-processed`,
     );
     const messages = await runtime.getMemories({
       tableName: "messages",
@@ -344,7 +344,7 @@ export const reflectionEvaluator: Evaluator = {
 
     if (lastMessageId) {
       const lastMessageIndex = messages.findIndex(
-        (msg) => msg.id === lastMessageId
+        (msg) => msg.id === lastMessageId,
       );
       if (lastMessageIndex !== -1) {
         messages.splice(0, lastMessageIndex + 1);

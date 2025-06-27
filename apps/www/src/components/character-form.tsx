@@ -1,16 +1,20 @@
-import ArrayInput from '@/components/array-input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { AVATAR_IMAGE_MAX_SIZE, FIELD_REQUIREMENT_TYPE, FIELD_REQUIREMENTS } from '@/constants';
-import { useToast } from '@/hooks/use-toast';
-import { exportCharacterAsJson } from '@/lib/export-utils';
-import { compressImage } from '@/lib/utils';
-import type { Agent } from '@elizaos/core';
-import type React from 'react';
+import ArrayInput from "@/components/array-input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AVATAR_IMAGE_MAX_SIZE,
+  FIELD_REQUIREMENT_TYPE,
+  FIELD_REQUIREMENTS,
+} from "@/constants";
+import { useToast } from "@/hooks/use-toast";
+import { exportCharacterAsJson } from "@/lib/export-utils";
+import { compressImage } from "@/lib/utils";
+import type { Agent } from "@elizaos/core";
+import type React from "react";
 import {
   type FormEvent,
   type ReactNode,
@@ -19,28 +23,45 @@ import {
   useCallback,
   useRef,
   useEffect,
-} from 'react';
+} from "react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { getAllVoiceModels, getVoiceModelByValue, providerPluginMap } from '../config/voice-models';
-import { useElevenLabsVoices } from '@/hooks/use-elevenlabs-voices';
-import { Trash, Loader2, RotateCcw, Download, Upload, Save, StopCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { agentTemplates, getTemplateById } from '@/config/agent-templates';
-import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { SplitButton } from '@/components/ui/split-button';
+} from "@/components/ui/select";
+import {
+  getAllVoiceModels,
+  getVoiceModelByValue,
+  providerPluginMap,
+} from "../config/voice-models";
+import { useElevenLabsVoices } from "@/hooks/use-elevenlabs-voices";
+import {
+  Trash,
+  Loader2,
+  RotateCcw,
+  Download,
+  Upload,
+  Save,
+  StopCircle,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { agentTemplates, getTemplateById } from "@/config/agent-templates";
+import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SplitButton } from "@/components/ui/split-button";
 
 export type InputField = {
   name: string;
   title: string;
   description?: string;
-  fieldType: 'text' | 'textarea' | 'email' | 'url' | 'checkbox' | 'select';
+  fieldType: "text" | "textarea" | "email" | "url" | "checkbox" | "select";
   getValue: (agent: Agent) => string;
   options?: { value: string; label: string }[];
   tooltip?: string;
@@ -55,8 +76,8 @@ export type ArrayField = {
 };
 
 enum SECTION_TYPE {
-  INPUT = 'input',
-  ARRAY = 'array',
+  INPUT = "input",
+  ARRAY = "array",
 }
 
 type customComponent = {
@@ -128,10 +149,11 @@ export default function CharacterForm({
   customComponents = [],
 }: CharacterFormProps) {
   const { toast } = useToast();
-  const { data: elevenlabsVoices, isLoading: isLoadingVoices } = useElevenLabsVoices();
+  const { data: elevenlabsVoices, isLoading: isLoadingVoices } =
+    useElevenLabsVoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('none');
-  const [activeTab, setActiveTab] = useState('basic');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("none");
+  const [activeTab, setActiveTab] = useState("basic");
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftScroll, setShowLeftScroll] = useState(false);
   const [showRightScroll, setShowRightScroll] = useState(false);
@@ -154,23 +176,23 @@ export default function CharacterForm({
     if (!container) return;
 
     checkScrollButtons();
-    container.addEventListener('scroll', checkScrollButtons);
-    window.addEventListener('resize', checkScrollButtons);
+    container.addEventListener("scroll", checkScrollButtons);
+    window.addEventListener("resize", checkScrollButtons);
 
     return () => {
-      container.removeEventListener('scroll', checkScrollButtons);
-      window.removeEventListener('resize', checkScrollButtons);
+      container.removeEventListener("scroll", checkScrollButtons);
+      window.removeEventListener("resize", checkScrollButtons);
     };
   }, [checkScrollButtons, customComponents.length]);
 
-  const scrollTabs = (direction: 'left' | 'right') => {
+  const scrollTabs = (direction: "left" | "right") => {
     const container = tabsContainerRef.current;
     if (!container) return;
 
     const scrollAmount = container.clientWidth * 0.8;
     container.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
     });
   };
 
@@ -181,7 +203,9 @@ export default function CharacterForm({
     // If we have dynamically loaded ElevenLabs voices, replace the static ones
     if (elevenlabsVoices && !isLoadingVoices) {
       // Filter out the static ElevenLabs voices
-      const nonElevenLabsModels = staticModels.filter((model) => model.provider !== 'elevenlabs');
+      const nonElevenLabsModels = staticModels.filter(
+        (model) => model.provider !== "elevenlabs",
+      );
       // Return combined models with dynamic ElevenLabs voices
       return [...nonElevenLabsModels, ...elevenlabsVoices];
     }
@@ -194,117 +218,125 @@ export default function CharacterForm({
   const AGENT_FORM_SCHEMA = useMemo(
     () => [
       {
-        sectionTitle: 'Basic Info',
-        sectionValue: 'basic',
+        sectionTitle: "Basic Info",
+        sectionValue: "basic",
         sectionType: SECTION_TYPE.INPUT,
         fields: [
           {
-            title: 'Name',
-            name: 'name',
-            description: 'The primary identifier for this agent',
-            fieldType: 'text',
-            getValue: (char) => char.name || '',
+            title: "Name",
+            name: "name",
+            description: "The primary identifier for this agent",
+            fieldType: "text",
+            getValue: (char) => char.name || "",
             tooltip:
-              'Display name that will be visible to users. Required for identification purposes.',
+              "Display name that will be visible to users. Required for identification purposes.",
           },
           {
-            title: 'Username',
-            name: 'username',
-            description: 'Used in URLs and API endpoints',
-            fieldType: 'text',
-            getValue: (char) => char.username || '',
-            tooltip: 'Unique identifier for your agent. Used in APIs/URLs and Rooms.',
-          },
-          {
-            title: 'System',
-            name: 'system',
-            description: 'System prompt defining agent behavior',
-            fieldType: 'textarea',
-            getValue: (char) => char.system || '',
+            title: "Username",
+            name: "username",
+            description: "Used in URLs and API endpoints",
+            fieldType: "text",
+            getValue: (char) => char.username || "",
             tooltip:
-              'Instructions for the AI model that establish core behavior patterns and personality traits.',
+              "Unique identifier for your agent. Used in APIs/URLs and Rooms.",
           },
           {
-            title: 'Voice Model',
-            name: 'settings.voice.model',
-            description: 'Voice model for audio synthesis',
-            fieldType: 'select',
-            getValue: (char) => char.settings?.voice?.model || '',
+            title: "System",
+            name: "system",
+            description: "System prompt defining agent behavior",
+            fieldType: "textarea",
+            getValue: (char) => char.system || "",
+            tooltip:
+              "Instructions for the AI model that establish core behavior patterns and personality traits.",
+          },
+          {
+            title: "Voice Model",
+            name: "settings.voice.model",
+            description: "Voice model for audio synthesis",
+            fieldType: "select",
+            getValue: (char) => char.settings?.voice?.model || "",
             options: allVoiceModels.map((model) => ({
               value: model.value,
               label: model.label,
             })),
-            tooltip: "Select a voice that aligns with the agent's intended persona.",
+            tooltip:
+              "Select a voice that aligns with the agent's intended persona.",
           },
         ] as InputField[],
       },
       {
-        sectionTitle: 'Content',
-        sectionValue: 'content',
+        sectionTitle: "Content",
+        sectionValue: "content",
         sectionType: SECTION_TYPE.ARRAY,
         fields: [
           {
-            title: 'Bio',
-            description: 'Bio data for this agent',
-            path: 'bio',
+            title: "Bio",
+            description: "Bio data for this agent",
+            path: "bio",
             getData: (char) => (Array.isArray(char.bio) ? char.bio : []),
-            tooltip: "Biographical details that establish the agent's background and context.",
+            tooltip:
+              "Biographical details that establish the agent's background and context.",
           },
           {
-            title: 'Topics',
-            description: 'Topics this agent can talk about',
-            path: 'topics',
+            title: "Topics",
+            description: "Topics this agent can talk about",
+            path: "topics",
             getData: (char) => char.topics || [],
-            tooltip: 'Subject domains the agent can discuss with confidence.',
+            tooltip: "Subject domains the agent can discuss with confidence.",
           },
           {
-            title: 'Adjectives',
-            description: 'Descriptive personality traits',
-            path: 'adjectives',
+            title: "Adjectives",
+            description: "Descriptive personality traits",
+            path: "adjectives",
             getData: (char) => char.adjectives || [],
-            tooltip: "Key personality attributes that define the agent's character.",
+            tooltip:
+              "Key personality attributes that define the agent's character.",
           },
         ] as ArrayField[],
       },
       {
-        sectionTitle: 'Style',
-        sectionValue: 'style',
+        sectionTitle: "Style",
+        sectionValue: "style",
         sectionType: SECTION_TYPE.ARRAY,
         fields: [
           {
-            title: 'All Styles',
-            description: 'Writing style for all content types',
-            path: 'style.all',
+            title: "All Styles",
+            description: "Writing style for all content types",
+            path: "style.all",
             getData: (char) => char.style?.all || [],
-            tooltip: 'Core writing style guidelines applied across all content formats.',
+            tooltip:
+              "Core writing style guidelines applied across all content formats.",
           },
           {
-            title: 'Chat Style',
-            description: 'Style specific to chat interactions',
-            path: 'style.chat',
+            title: "Chat Style",
+            description: "Style specific to chat interactions",
+            path: "style.chat",
             getData: (char) => char.style?.chat || [],
-            tooltip: 'Writing style specific to conversational exchanges.',
+            tooltip: "Writing style specific to conversational exchanges.",
           },
           {
-            title: 'Post Style',
-            description: 'Style for long-form content',
-            path: 'style.post',
+            title: "Post Style",
+            description: "Style for long-form content",
+            path: "style.post",
             getData: (char) => char.style?.post || [],
-            tooltip: 'Writing style for structured content such as articles or posts.',
+            tooltip:
+              "Writing style for structured content such as articles or posts.",
           },
         ] as ArrayField[],
       },
     ],
-    [allVoiceModels]
+    [allVoiceModels],
   );
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
-    if (type === 'checkbox') {
+    if (type === "checkbox") {
       setCharacterValue.updateField(name, checked);
-    } else if (name.startsWith('settings.')) {
+    } else if (name.startsWith("settings.")) {
       // Handle nested settings fields like settings.voice.model
       const path = name.substring(9); // Remove 'settings.' prefix
 
@@ -321,7 +353,7 @@ export default function CharacterForm({
   };
 
   const handleVoiceModelChange = (value: string, name: string) => {
-    if (name.startsWith('settings.')) {
+    if (name.startsWith("settings.")) {
       const path = name.substring(9); // Remove 'settings.' prefix
 
       if (setCharacterValue.updateSetting) {
@@ -329,13 +361,15 @@ export default function CharacterForm({
         setCharacterValue.updateSetting(path, value);
 
         // Handle voice model change and required plugins
-        if (path === 'voice.model' && value) {
+        if (path === "voice.model" && value) {
           const voiceModel = getVoiceModelByValue(value);
           if (voiceModel) {
             const currentPlugins = Array.isArray(characterValue.plugins)
               ? [...characterValue.plugins]
               : [];
-            const previousVoiceModel = getVoiceModelByValue(characterValue.settings?.voice?.model);
+            const previousVoiceModel = getVoiceModelByValue(
+              characterValue.settings?.voice?.model,
+            );
 
             // Get the required plugin for the new voice model
             const requiredPlugin = providerPluginMap[voiceModel.provider];
@@ -350,13 +384,13 @@ export default function CharacterForm({
             if (setCharacterValue.setPlugins) {
               setCharacterValue.setPlugins(newPlugins);
             } else if (setCharacterValue.updateField) {
-              setCharacterValue.updateField('plugins', newPlugins);
+              setCharacterValue.updateField("plugins", newPlugins);
             }
 
             // Show toast notification
             if (previousVoiceModel?.provider !== voiceModel.provider) {
               toast({
-                title: 'Plugin Updated',
+                title: "Plugin Updated",
                 description: `${requiredPlugin} plugin has been set for the selected voice model.`,
               });
             }
@@ -373,17 +407,20 @@ export default function CharacterForm({
 
   const updateArray = (path: string, newData: string[]) => {
     // If the path is a simple field name
-    if (!path.includes('.')) {
+    if (!path.includes(".")) {
       setCharacterValue.updateField(path, newData);
       return;
     }
 
     // Handle nested paths (e.g. style.all)
-    const parts = path.split('.');
-    if (parts.length === 2 && parts[0] === 'style') {
+    const parts = path.split(".");
+    if (parts.length === 2 && parts[0] === "style") {
       // For style arrays, use the setStyleArray method if available
       if (setCharacterValue.setStyleArray) {
-        setCharacterValue.setStyleArray(parts[1] as 'all' | 'chat' | 'post', newData);
+        setCharacterValue.setStyleArray(
+          parts[1] as "all" | "chat" | "post",
+          newData,
+        );
       } else {
         setCharacterValue.updateField(path, newData);
       }
@@ -400,10 +437,13 @@ export default function CharacterForm({
       img.src = char.settings.avatar;
       await new Promise((resolve) => (img.onload = resolve));
 
-      if (img.width > AVATAR_IMAGE_MAX_SIZE || img.height > AVATAR_IMAGE_MAX_SIZE) {
+      if (
+        img.width > AVATAR_IMAGE_MAX_SIZE ||
+        img.height > AVATAR_IMAGE_MAX_SIZE
+      ) {
         const response = await fetch(char.settings.avatar);
         const blob = await response.blob();
-        const file = new File([blob], 'avatar.jpg', { type: blob.type });
+        const file = new File([blob], "avatar.jpg", { type: blob.type });
         const compressedImage = await compressImage(file);
         return {
           ...char,
@@ -426,9 +466,10 @@ export default function CharacterForm({
       await onSubmit(updatedCharacter);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update agent',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to update agent",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -438,7 +479,7 @@ export default function CharacterForm({
   const renderInputField = (field: InputField) => (
     <div
       key={field.name}
-      className={`space-y-2 w-full ${field.name === 'name' ? 'agent-form-name' : ''} ${field.name === 'system' ? 'agent-form-system-prompt' : ''}`}
+      className={`space-y-2 w-full ${field.name === "name" ? "agent-form-name" : ""} ${field.name === "system" ? "agent-form-system-prompt" : ""}`}
     >
       <div className="flex items-center gap-2">
         <TooltipProvider>
@@ -447,8 +488,11 @@ export default function CharacterForm({
               <Label htmlFor={field.name} className="flex items-center gap-1">
                 {field.title}
                 {field.name in FIELD_REQUIREMENTS &&
-                  (FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>)[field.name] ===
-                    FIELD_REQUIREMENT_TYPE.REQUIRED && <p className="text-red-500">*</p>}
+                  (
+                    FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>
+                  )[field.name] === FIELD_REQUIREMENT_TYPE.REQUIRED && (
+                    <p className="text-red-500">*</p>
+                  )}
               </Label>
             </TooltipTrigger>
             {field.tooltip && (
@@ -460,9 +504,11 @@ export default function CharacterForm({
         </TooltipProvider>
       </div>
 
-      {field.description && <p className="text-sm text-muted-foreground">{field.description}</p>}
+      {field.description && (
+        <p className="text-sm text-muted-foreground">{field.description}</p>
+      )}
 
-      {field.fieldType === 'textarea' ? (
+      {field.fieldType === "textarea" ? (
         <Textarea
           id={field.name}
           name={field.name}
@@ -470,15 +516,17 @@ export default function CharacterForm({
           onChange={handleChange}
           className="min-h-[120px] resize-y"
         />
-      ) : field.fieldType === 'checkbox' ? (
+      ) : field.fieldType === "checkbox" ? (
         <Input
           id={field.name}
           name={field.name}
           type="checkbox"
-          checked={(characterValue as Record<string, any>)[field.name] === 'true'}
+          checked={
+            (characterValue as Record<string, any>)[field.name] === "true"
+          }
           onChange={handleChange}
         />
-      ) : field.fieldType === 'select' ? (
+      ) : field.fieldType === "select" ? (
         <Select
           name={field.name}
           value={field.getValue(characterValue)}
@@ -487,9 +535,9 @@ export default function CharacterForm({
           <SelectTrigger>
             <SelectValue
               placeholder={
-                field.name.includes('voice.model') && isLoadingVoices
-                  ? 'Loading voice models...'
-                  : 'Select a voice model'
+                field.name.includes("voice.model") && isLoadingVoices
+                  ? "Loading voice models..."
+                  : "Select a voice model"
               }
             />
           </SelectTrigger>
@@ -522,8 +570,11 @@ export default function CharacterForm({
               <Label htmlFor={field.path} className="flex items-center gap-1">
                 {field.title}
                 {field.path in FIELD_REQUIREMENTS &&
-                  (FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>)[field.path] ===
-                    FIELD_REQUIREMENT_TYPE.REQUIRED && <p className="text-red-500">*</p>}
+                  (
+                    FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>
+                  )[field.path] === FIELD_REQUIREMENT_TYPE.REQUIRED && (
+                    <p className="text-red-500">*</p>
+                  )}
               </Label>
             </TooltipTrigger>
             {field.tooltip && (
@@ -534,7 +585,9 @@ export default function CharacterForm({
           </Tooltip>
         </TooltipProvider>
       </div>
-      {field.description && <p className="text-sm text-muted-foreground">{field.description}</p>}
+      {field.description && (
+        <p className="text-sm text-muted-foreground">{field.description}</p>
+      )}
       <ArrayInput
         data={field.getData(characterValue)}
         onChange={(newData) => updateArray(field.path, newData)}
@@ -546,7 +599,9 @@ export default function CharacterForm({
     exportCharacterAsJson(characterValue, toast);
   };
 
-  const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportJSON = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -556,12 +611,15 @@ export default function CharacterForm({
 
       // Check for required fields using FIELD_REQUIREMENTS
       const missingFields = (
-        Object.keys(FIELD_REQUIREMENTS) as Array<keyof typeof FIELD_REQUIREMENTS>
+        Object.keys(FIELD_REQUIREMENTS) as Array<
+          keyof typeof FIELD_REQUIREMENTS
+        >
       ).filter((field) => {
-        if (FIELD_REQUIREMENTS[field] !== FIELD_REQUIREMENT_TYPE.REQUIRED) return false;
+        if (FIELD_REQUIREMENTS[field] !== FIELD_REQUIREMENT_TYPE.REQUIRED)
+          return false;
 
         // Handle nested fields like style.all
-        const parts = field.split('.');
+        const parts = field.split(".");
         let current: any = json;
 
         for (const part of parts) {
@@ -574,9 +632,9 @@ export default function CharacterForm({
 
       if (missingFields.length > 0) {
         toast({
-          title: 'Import Failed',
-          description: `Missing required fields: ${missingFields.join(', ')}`,
-          variant: 'destructive',
+          title: "Import Failed",
+          description: `Missing required fields: ${missingFields.join(", ")}`,
+          variant: "destructive",
         });
         return;
       }
@@ -584,21 +642,22 @@ export default function CharacterForm({
       if (setCharacterValue.importAgent) {
         setCharacterValue.importAgent(json);
       } else {
-        console.warn('Missing importAgent method');
+        console.warn("Missing importAgent method");
       }
 
       toast({
-        title: 'Agent Imported',
-        description: 'Agent data has been successfully loaded.',
+        title: "Agent Imported",
+        description: "Agent data has been successfully loaded.",
       });
     } catch (error) {
       toast({
-        title: 'Import Failed',
-        description: error instanceof Error ? error.message : 'Invalid JSON file',
-        variant: 'destructive',
+        title: "Import Failed",
+        description:
+          error instanceof Error ? error.message : "Invalid JSON file",
+        variant: "destructive",
       });
     } finally {
-      event.target.value = '';
+      event.target.value = "";
     }
   };
 
@@ -615,16 +674,16 @@ export default function CharacterForm({
 
     if (onStopAgent) {
       options.push({
-        label: 'Stop Agent',
-        description: 'Stop running',
+        label: "Stop Agent",
+        description: "Stop running",
         onClick: onStopAgent,
       });
     }
 
     if (onDelete) {
       options.push({
-        label: 'Delete Agent',
-        description: 'Delete permanently',
+        label: "Delete Agent",
+        description: "Delete permanently",
         onClick: () => onDelete(),
       });
     }
@@ -640,7 +699,7 @@ export default function CharacterForm({
       setSelectedTemplate(templateId);
 
       // If "None" is selected, reset to blank form if reset function is available
-      if (templateId === 'none' && onReset) {
+      if (templateId === "none" && onReset) {
         onReset();
         return;
       }
@@ -652,7 +711,7 @@ export default function CharacterForm({
         setCharacterValue.importAgent(template.template as Agent);
       }
     },
-    [onReset, setCharacterValue]
+    [onReset, setCharacterValue],
   );
 
   // Create all tabs data with better short labels
@@ -660,12 +719,12 @@ export default function CharacterForm({
     ...AGENT_FORM_SCHEMA.map((section) => ({
       value: section.sectionValue,
       label: section.sectionTitle,
-      shortLabel: section.sectionTitle.split(' ')[0], // Use first word for mobile
+      shortLabel: section.sectionTitle.split(" ")[0], // Use first word for mobile
     })),
     ...customComponents.map((component) => ({
       value: `custom-${component.name}`,
       label: component.name,
-      shortLabel: (component as any).shortLabel || component.name.split(' ')[0], // Use first word
+      shortLabel: (component as any).shortLabel || component.name.split(" ")[0], // Use first word
     })),
   ];
 
@@ -673,9 +732,9 @@ export default function CharacterForm({
     <div ref={containerRef} className="w-full max-w-full mx-auto p-4 sm:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">{title || 'Agent Settings'}</h1>
+          <h1 className="text-3xl font-bold">{title || "Agent Settings"}</h1>
           <p className="text-muted-foreground mt-1">
-            {description || 'Configure your agent settings'}
+            {description || "Configure your agent settings"}
           </p>
         </div>
       </div>
@@ -718,22 +777,25 @@ export default function CharacterForm({
                 variant="ghost"
                 size="sm"
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-background/80 backdrop-blur-sm shadow-md"
-                onClick={() => scrollTabs('left')}
+                onClick={() => scrollTabs("left")}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
 
             {/* Tabs container */}
-            <div ref={tabsContainerRef} className="overflow-x-auto scrollbar-hide">
+            <div
+              ref={tabsContainerRef}
+              className="overflow-x-auto scrollbar-hide"
+            >
               <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-full">
                 {allTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
                     className={cn(
-                      'whitespace-nowrap px-3 py-1.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:rounded-md data-[state=active]:border-0',
-                      !showLabels && 'px-2 text-xs' // Smaller padding and text on mobile
+                      "whitespace-nowrap px-3 py-1.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:rounded-md data-[state=active]:border-0",
+                      !showLabels && "px-2 text-xs", // Smaller padding and text on mobile
                     )}
                   >
                     {showLabels ? tab.label : tab.shortLabel}
@@ -749,7 +811,7 @@ export default function CharacterForm({
                 variant="ghost"
                 size="sm"
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-background/80 backdrop-blur-sm shadow-md"
-                onClick={() => scrollTabs('right')}
+                onClick={() => scrollTabs("right")}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -770,7 +832,10 @@ export default function CharacterForm({
                 </TabsContent>
               ))}
               {customComponents.map((component) => (
-                <TabsContent key={`custom-${component.name}`} value={`custom-${component.name}`}>
+                <TabsContent
+                  key={`custom-${component.name}`}
+                  value={`custom-${component.name}`}
+                >
                   {component.component}
                 </TabsContent>
               ))}
@@ -784,12 +849,12 @@ export default function CharacterForm({
             <SplitButton
               mainAction={{
                 label:
-                  stopDeleteOptions[0].label === 'Stop Agent' && isStopping
-                    ? 'Stopping...'
+                  stopDeleteOptions[0].label === "Stop Agent" && isStopping
+                    ? "Stopping..."
                     : stopDeleteOptions[0].label,
                 onClick: stopDeleteOptions[0].onClick,
                 icon:
-                  stopDeleteOptions[0].label === 'Stop Agent' ? (
+                  stopDeleteOptions[0].label === "Stop Agent" ? (
                     isStopping ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -798,13 +863,19 @@ export default function CharacterForm({
                   ) : (
                     <Trash className="h-4 w-4" />
                   ),
-                disabled: stopDeleteOptions[0].label === 'Stop Agent' ? isStopping : false,
+                disabled:
+                  stopDeleteOptions[0].label === "Stop Agent"
+                    ? isStopping
+                    : false,
               }}
               actions={stopDeleteOptions.slice(1).map((option) => ({
-                label: option.label === 'Stop Agent' && isStopping ? 'Stopping...' : option.label,
+                label:
+                  option.label === "Stop Agent" && isStopping
+                    ? "Stopping..."
+                    : option.label,
                 onClick: option.onClick,
                 icon:
-                  option.label === 'Stop Agent' ? (
+                  option.label === "Stop Agent" ? (
                     isStopping ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -813,8 +884,8 @@ export default function CharacterForm({
                   ) : (
                     <Trash className="h-4 w-4" />
                   ),
-                variant: 'destructive' as const,
-                disabled: option.label === 'Stop Agent' ? isStopping : false,
+                variant: "destructive" as const,
+                disabled: option.label === "Stop Agent" ? isStopping : false,
               }))}
               variant="destructive"
               disabled={isDeleting}
@@ -846,13 +917,13 @@ export default function CharacterForm({
           {/* Import/Export Split Button */}
           <SplitButton
             mainAction={{
-              label: 'Export JSON',
+              label: "Export JSON",
               onClick: handleExportJSON,
               icon: <Download className="h-4 w-4" />,
             }}
             actions={[
               {
-                label: 'Import JSON',
+                label: "Import JSON",
                 onClick: handleImportClick,
                 icon: <Upload className="h-4 w-4" />,
               },
@@ -864,7 +935,11 @@ export default function CharacterForm({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button type="submit" disabled={isSubmitting} className="agent-form-submit w-full">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="agent-form-submit w-full"
+                >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />

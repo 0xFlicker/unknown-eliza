@@ -58,7 +58,7 @@ function generatePlayerId(agentId: string, handle: string): UUID {
 function generateStatementId(
   speakerId: string,
   targetId: string,
-  timestamp: number
+  timestamp: number,
 ): UUID {
   return stringToUuid(`statement:${speakerId}:${targetId}:${timestamp}`);
 }
@@ -68,7 +68,7 @@ function findPlayerByHandle(
   state: SocialStrategyState,
   agentId: string,
   handle: string,
-  knownId?: UUID
+  knownId?: UUID,
 ): string | undefined {
   // If we have a known ID and it exists in state, use it
   if (knownId && state.players[knownId]) {
@@ -98,7 +98,7 @@ function findPlayerByHandle(
 function createPlayer(
   agentId: string,
   handle: string,
-  existingId?: UUID
+  existingId?: UUID,
 ): PlayerEntity {
   return {
     id: existingId || generatePlayerId(agentId, handle),
@@ -118,7 +118,7 @@ function createStatement(
   speakerId: string,
   targetId: string,
   content: string,
-  metadata: ModelAnalysis["metadata"] = {}
+  metadata: ModelAnalysis["metadata"] = {},
 ): PlayerStatement {
   const timestamp = Date.now();
   return {
@@ -137,10 +137,10 @@ function updateRelationship(
   sourceId: UUID,
   targetId: UUID,
   type: RelationshipType,
-  description: string
+  description: string,
 ): void {
   const existingRelationship = state.relationships.find(
-    (r) => r.sourcePlayerId === sourceId && r.targetPlayerId === targetId
+    (r) => r.sourcePlayerId === sourceId && r.targetPlayerId === targetId,
   );
 
   if (existingRelationship) {

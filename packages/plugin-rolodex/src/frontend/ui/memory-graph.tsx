@@ -1,7 +1,11 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import type { Memory, UUID } from '@elizaos/core';
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import type { Memory, UUID } from "@elizaos/core";
 // @ts-ignore - react-force-graph-2d doesn't have type declarations
-import ForceGraph2D, { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
+import ForceGraph2D, {
+  ForceGraphMethods,
+  LinkObject,
+  NodeObject,
+} from "react-force-graph-2d";
 
 interface ExtendedMemoryMetadata {
   title?: string;
@@ -18,7 +22,7 @@ interface MemoryNode extends NodeObject {
   name: string;
   val?: number; // Node size
   memory: Memory;
-  type: 'document' | 'fragment'; // Type to distinguish documents and fragments
+  type: "document" | "fragment"; // Type to distinguish documents and fragments
 }
 
 interface MemoryLink extends LinkObject {
@@ -42,7 +46,7 @@ const processGraphData = (memories: Memory[]) => {
   memories.forEach((memory) => {
     const metadata = memory.metadata as MemoryMetadata;
 
-    if (!memory.id || !metadata || typeof metadata !== 'object') {
+    if (!memory.id || !metadata || typeof metadata !== "object") {
       return;
     }
 
@@ -51,16 +55,20 @@ const processGraphData = (memories: Memory[]) => {
       name: metadata.title || memory.id.substring(0, 8),
       memory: memory,
       val: 3, // Reduced base node size
-      type: (metadata.type || '').toLowerCase() === 'document' ? 'document' : 'fragment',
+      type:
+        (metadata.type || "").toLowerCase() === "document"
+          ? "document"
+          : "fragment",
     };
 
     // Adjust node size based on type
-    if ((metadata.type || '').toLowerCase() === 'document') {
+    if ((metadata.type || "").toLowerCase() === "document") {
       memoryNode.val = 5; // Documents smaller than before
       documents.push(memoryNode);
     } else if (
-      (metadata.type || '').toLowerCase() === 'fragment' ||
-      (metadata.documentId && (metadata.type || '').toLowerCase() !== 'document')
+      (metadata.type || "").toLowerCase() === "fragment" ||
+      (metadata.documentId &&
+        (metadata.type || "").toLowerCase() !== "document")
     ) {
       memoryNode.val = 3; // Fragments smaller
       fragments.push(memoryNode);
@@ -77,7 +85,9 @@ const processGraphData = (memories: Memory[]) => {
     const fragmentMetadata = fragment.memory.metadata as MemoryMetadata;
     if (fragmentMetadata.documentId) {
       // Find parent document
-      const sourceDoc = documents.find((doc) => doc.id === fragmentMetadata.documentId);
+      const sourceDoc = documents.find(
+        (doc) => doc.id === fragmentMetadata.documentId,
+      );
       if (sourceDoc) {
         links.push({
           source: sourceDoc.id,
@@ -93,13 +103,24 @@ const processGraphData = (memories: Memory[]) => {
   return { nodes, links };
 };
 
-export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryGraphProps) {
+export function MemoryGraph({
+  memories,
+  onNodeClick,
+  selectedMemoryId,
+}: MemoryGraphProps) {
   const graphRef = useRef<
-    ForceGraphMethods<NodeObject<MemoryNode>, LinkObject<MemoryNode, MemoryLink>> | undefined
+    | ForceGraphMethods<
+        NodeObject<MemoryNode>,
+        LinkObject<MemoryNode, MemoryLink>
+      >
+    | undefined
   >(undefined);
   const [initialized, setInitialized] = useState(false);
   const [shouldRender, setShouldRender] = useState(true);
-  const [graphData, setGraphData] = useState<{ nodes: MemoryNode[]; links: MemoryLink[] }>({
+  const [graphData, setGraphData] = useState<{
+    nodes: MemoryNode[];
+    links: MemoryLink[];
+  }>({
     nodes: [],
     links: [],
   });
@@ -140,17 +161,19 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
     };
 
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener("resize", updateDimensions);
 
     return () => {
-      window.removeEventListener('resize', updateDimensions);
+      window.removeEventListener("resize", updateDimensions);
     };
   }, []);
 
   // Highlight selected node
   useEffect(() => {
     if (initialized && graphRef.current && selectedMemoryId) {
-      const node = graphData.nodes.find((n: MemoryNode) => n.id === selectedMemoryId);
+      const node = graphData.nodes.find(
+        (n: MemoryNode) => n.id === selectedMemoryId,
+      );
       if (node) {
         graphRef.current.centerAt(node.x, node.y, 1000);
         graphRef.current.zoom(2.5, 1000);
@@ -160,17 +183,22 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
 
   // Graph initialization and configuration
   const handleGraphInit = useCallback(
-    (graph: ForceGraphMethods<NodeObject<MemoryNode>, LinkObject<MemoryNode, MemoryLink>>) => {
+    (
+      graph: ForceGraphMethods<
+        NodeObject<MemoryNode>,
+        LinkObject<MemoryNode, MemoryLink>
+      >,
+    ) => {
       graphRef.current = graph;
 
       // Configure the graph force simulation only if graphRef is defined
       if (graph) {
-        const chargeForce = graph.d3Force('charge');
+        const chargeForce = graph.d3Force("charge");
         if (chargeForce) {
           chargeForce.strength(-120); // Repulsion force
         }
 
-        const linkForce = graph.d3Force('link');
+        const linkForce = graph.d3Force("link");
         if (linkForce) {
           linkForce.distance(50); // Distance between nodes
         }
@@ -181,7 +209,7 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
         setInitialized(true);
       }
     },
-    []
+    [],
   );
 
   // Legend
@@ -209,7 +237,7 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
           width={dimensions.width}
           height={dimensions.height}
           backgroundColor="hsla(var(--background), 0.8)"
-          linkColor={() => 'hsla(var(--muted-foreground), 0.2)'}
+          linkColor={() => "hsla(var(--muted-foreground), 0.2)"}
           linkWidth={1}
           linkDirectionalParticles={1}
           linkDirectionalParticleWidth={1}
@@ -218,13 +246,13 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
           nodeVal={(node: MemoryNode) => node.val || 3}
           nodeColor={
             (node: MemoryNode) =>
-              node.type === 'document'
-                ? 'hsl(30, 100%, 50%)' // Orange for documents
-                : 'hsl(210, 10%, 70%)' // Gray for fragments
+              node.type === "document"
+                ? "hsl(30, 100%, 50%)" // Orange for documents
+                : "hsl(210, 10%, 70%)" // Gray for fragments
           }
           nodeLabel={(node: MemoryNode) => {
             const metadata = node.memory.metadata as MemoryMetadata;
-            return `${node.type === 'document' ? '📄 Document' : '📝 Fragment'}: ${metadata.title || node.id.substring(0, 8)}`;
+            return `${node.type === "document" ? "📄 Document" : "📝 Fragment"}: ${metadata.title || node.id.substring(0, 8)}`;
           }}
           onNodeClick={(node: MemoryNode) => {
             onNodeClick(node.memory);
@@ -240,14 +268,14 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
           }}
           cooldownTicks={100}
           nodeCanvasObjectMode={(node: MemoryNode) =>
-            selectedMemoryId === node.id ? 'after' : 'replace'
+            selectedMemoryId === node.id ? "after" : "replace"
           }
           nodeCanvasObject={(node: MemoryNode, ctx, globalScale) => {
             const { x, y } = node;
             const size = (node.val || 3) * NODE_REL_SIZE;
             const fontSize = 10 / globalScale; // Font size reduction
             const isSelected = selectedMemoryId === node.id;
-            const isDocument = node.type === 'document';
+            const isDocument = node.type === "document";
 
             // Draw node circle
             ctx.beginPath();
@@ -255,15 +283,15 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
 
             // Fill color based on type
             ctx.fillStyle = isDocument
-              ? 'hsl(30, 100%, 50%)' // Orange for documents
-              : 'hsl(210, 10%, 70%)'; // Gray for fragments
+              ? "hsl(30, 100%, 50%)" // Orange for documents
+              : "hsl(210, 10%, 70%)"; // Gray for fragments
 
             ctx.fill();
 
             // More visible border
             ctx.strokeStyle = isDocument
-              ? 'hsl(30, 100%, 35%)' // Darker border for documents
-              : 'hsl(210, 10%, 45%)'; // Darker border for fragments
+              ? "hsl(30, 100%, 35%)" // Darker border for documents
+              : "hsl(210, 10%, 45%)"; // Darker border for fragments
             ctx.lineWidth = isSelected ? 2 : 1;
             ctx.stroke();
 
@@ -278,17 +306,17 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
                   ? `#${metadata.position}`
                   : label;
 
-              ctx.font = `${isSelected ? 'bold ' : ''}${fontSize}px Arial`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
+              ctx.font = `${isSelected ? "bold " : ""}${fontSize}px Arial`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
 
               // Text outline for readability
-              ctx.strokeStyle = 'hsla(var(--background), 0.8)';
+              ctx.strokeStyle = "hsla(var(--background), 0.8)";
               ctx.lineWidth = 3;
               ctx.strokeText(nodeText, x || 0, y || 0);
 
               // Text
-              ctx.fillStyle = 'hsla(var(--foreground), 0.9)';
+              ctx.fillStyle = "hsla(var(--foreground), 0.9)";
               ctx.fillText(nodeText, x || 0, y || 0);
             }
 
@@ -298,8 +326,8 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
               ctx.beginPath();
               ctx.arc(x || 0, y || 0, size * 1.4, 0, 2 * Math.PI);
               ctx.strokeStyle = isDocument
-                ? 'hsla(30, 100%, 60%, 0.8)' // Bright orange
-                : 'hsla(210, 10%, 80%, 0.8)'; // Bright gray
+                ? "hsla(30, 100%, 60%, 0.8)" // Bright orange
+                : "hsla(210, 10%, 80%, 0.8)"; // Bright gray
               ctx.lineWidth = 1.5;
               ctx.stroke();
 
@@ -310,13 +338,15 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
                 size,
                 x || 0,
                 y || 0,
-                size * 2
+                size * 2,
               );
               gradient.addColorStop(
                 0,
-                isDocument ? 'hsla(30, 100%, 60%, 0.3)' : 'hsla(210, 10%, 80%, 0.3)'
+                isDocument
+                  ? "hsla(30, 100%, 60%, 0.3)"
+                  : "hsla(210, 10%, 80%, 0.3)",
               );
-              gradient.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+              gradient.addColorStop(1, "hsla(0, 0%, 0%, 0)");
 
               ctx.fillStyle = gradient;
               ctx.beginPath();

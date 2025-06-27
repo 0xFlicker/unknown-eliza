@@ -1,6 +1,6 @@
 // Enhanced with StickToBottom for better UX
-import { useCallback, useRef, useState, useEffect } from 'react';
-import { useStickToBottom } from 'use-stick-to-bottom';
+import { useCallback, useRef, useState, useEffect } from "react";
+import { useStickToBottom } from "use-stick-to-bottom";
 
 interface ScrollState {
   isAtBottom: boolean;
@@ -18,8 +18,8 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
 
   // Use StickToBottom for enhanced scroll behavior
   const stickToBottom = useStickToBottom({
-    initial: smooth ? 'smooth' : 'instant',
-    resize: smooth ? 'smooth' : 'instant',
+    initial: smooth ? "smooth" : "instant",
+    resize: smooth ? "smooth" : "instant",
   });
 
   const [scrollState, setScrollState] = useState<ScrollState>({
@@ -40,7 +40,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
       setScrollState((prev) => ({
         ...prev,
         isAtBottom: false,
-        autoScrollEnabled: userHasScrolled.current ? false : prev.autoScrollEnabled,
+        autoScrollEnabled: userHasScrolled.current
+          ? false
+          : prev.autoScrollEnabled,
       }));
     }
   }, [stickToBottom.isAtBottom]);
@@ -48,7 +50,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   // Enhanced scroll to bottom using StickToBottom
   const scrollToBottom = useCallback(
     (instant?: boolean) => {
-      const animation = instant ? 'instant' : smooth ? 'smooth' : 'instant';
+      const animation = instant ? "instant" : smooth ? "smooth" : "instant";
       stickToBottom.scrollToBottom({
         animation,
         preserveScrollPosition: false, // Always scroll to bottom when called
@@ -58,7 +60,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
       setScrollState({ isAtBottom: true, autoScrollEnabled: true });
       userHasScrolled.current = false;
     },
-    [stickToBottom.scrollToBottom, smooth]
+    [stickToBottom.scrollToBottom, smooth],
   );
 
   // Enhanced disable auto-scroll using StickToBottom

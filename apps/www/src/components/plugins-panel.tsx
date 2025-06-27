@@ -7,27 +7,27 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { usePlugins } from '@/hooks/use-plugins';
-import { useToast } from '@/hooks/use-toast';
-import type { Agent } from '@elizaos/core';
-import clsx from 'clsx';
-import { CircleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { usePlugins } from "@/hooks/use-plugins";
+import { useToast } from "@/hooks/use-toast";
+import type { Agent } from "@elizaos/core";
+import clsx from "clsx";
+import { CircleAlert } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   // getAllRequiredPlugins,
   getVoiceModelByValue,
   providerPluginMap,
-} from '../config/voice-models';
-import { Button } from './ui/button';
+} from "../config/voice-models";
+import { Button } from "./ui/button";
 
 interface PluginsPanelProps {
   characterValue: Agent;
@@ -49,15 +49,15 @@ type EssentialPluginInfo = {
 
 // Map of essential plugins that require confirmation when removing
 const ESSENTIAL_PLUGINS: Record<string, EssentialPluginInfo> = {
-  '@elizaos/plugin-sql': {
-    title: 'Essential Plugin: SQL',
+  "@elizaos/plugin-sql": {
+    title: "Essential Plugin: SQL",
     description:
-      'Provides memory and state storage. If removed, replace with an adapter plugin or your agent may lose conversation history and memory capabilities.',
+      "Provides memory and state storage. If removed, replace with an adapter plugin or your agent may lose conversation history and memory capabilities.",
   },
-  '@elizaos/plugin-openai': {
-    title: 'Essential Plugin: OpenAI',
+  "@elizaos/plugin-openai": {
+    title: "Essential Plugin: OpenAI",
     description:
-      'Provides language model access. If removed, replace with another LLM plugin or your agent may fail to function properly.',
+      "Provides language model access. If removed, replace with another LLM plugin or your agent may fail to function properly.",
   },
 };
 
@@ -68,7 +68,7 @@ export default function PluginsPanel({
 }: PluginsPanelProps) {
   const { data: plugins, error } = usePlugins();
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -81,12 +81,12 @@ export default function PluginsPanel({
 
   // Get plugin names from available plugins
   const pluginNames = useMemo(() => {
-    const defaultPlugins = ['@elizaos/plugin-sql', '@elizaos/plugin-local-ai'];
+    const defaultPlugins = ["@elizaos/plugin-sql", "@elizaos/plugin-local-ai"];
     if (!plugins) return defaultPlugins;
     return [
       ...defaultPlugins,
       ...(Array.isArray(plugins) ? plugins : Object.keys(plugins)).filter(
-        (name) => !defaultPlugins.includes(name)
+        (name) => !defaultPlugins.includes(name),
       ),
     ];
   }, [plugins]);
@@ -119,13 +119,17 @@ export default function PluginsPanel({
   const hasChanged = useMemo(() => {
     if (!initialPlugins) return false;
     if (initialPlugins.length !== safeCharacterPlugins.length) return true;
-    return !initialPlugins?.every((plugin) => safeCharacterPlugins.includes(plugin));
+    return !initialPlugins?.every((plugin) =>
+      safeCharacterPlugins.includes(plugin),
+    );
   }, [safeCharacterPlugins, initialPlugins]);
 
   const filteredPlugins = useMemo(() => {
     return pluginNames
       .filter((plugin) => !safeCharacterPlugins.includes(plugin))
-      .filter((plugin) => plugin.toLowerCase().includes(searchQuery.toLowerCase()));
+      .filter((plugin) =>
+        plugin.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
   }, [pluginNames, safeCharacterPlugins, searchQuery]);
 
   const handlePluginAdd = (plugin: string) => {
@@ -137,7 +141,7 @@ export default function PluginsPanel({
       const currentPlugins = Array.isArray(characterValue.plugins)
         ? [...characterValue.plugins]
         : [];
-      setCharacterValue.updateField('plugins', [...currentPlugins, plugin]);
+      setCharacterValue.updateField("plugins", [...currentPlugins, plugin]);
     }
   };
 
@@ -162,7 +166,7 @@ export default function PluginsPanel({
       } else if (setCharacterValue.updateField) {
         const newPlugins = [...safeCharacterPlugins];
         newPlugins.splice(index, 1);
-        setCharacterValue.updateField('plugins', newPlugins);
+        setCharacterValue.updateField("plugins", newPlugins);
       }
     }
   };
@@ -188,26 +192,35 @@ export default function PluginsPanel({
         <div>
           <h3 className="text-lg font-semibold mb-4">Plugins</h3>
           {error ? (
-            <p className="text-destructive">Failed to load plugins: {error.message}</p>
+            <p className="text-destructive">
+              Failed to load plugins: {error.message}
+            </p>
           ) : (
             <div className="space-y-4">
               {/* Alert Dialog for Essential Plugin Removal */}
-              <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+              <AlertDialog
+                open={isConfirmDialogOpen}
+                onOpenChange={setIsConfirmDialogOpen}
+              >
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {pendingRemoval && Object.keys(ESSENTIAL_PLUGINS).includes(pendingRemoval)
+                      {pendingRemoval &&
+                      Object.keys(ESSENTIAL_PLUGINS).includes(pendingRemoval)
                         ? ESSENTIAL_PLUGINS[pendingRemoval].title
-                        : 'Warning: Essential Plugin'}
+                        : "Warning: Essential Plugin"}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      {pendingRemoval && Object.keys(ESSENTIAL_PLUGINS).includes(pendingRemoval)
+                      {pendingRemoval &&
+                      Object.keys(ESSENTIAL_PLUGINS).includes(pendingRemoval)
                         ? ESSENTIAL_PLUGINS[pendingRemoval].description
-                        : 'This plugin provides essential functionality for your agent.'}
+                        : "This plugin provides essential functionality for your agent."}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel onClick={handleCancelRemoval}>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel onClick={handleCancelRemoval}>
+                      Cancel
+                    </AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirmRemoval}>
                       Confirm Removal
                     </AlertDialogAction>
@@ -221,13 +234,13 @@ export default function PluginsPanel({
                   <p className="text-xs text-white">
                     {(() => {
                       switch (voiceModelPluginInfo.provider) {
-                        case 'elevenlabs':
-                          return 'ElevenLabs plugin is required for the selected voice model.';
-                        case 'openai':
-                          return 'OpenAI plugin is required for the selected voice model.';
-                        case 'local':
-                          return 'Local AI plugin is required for the selected voice model.';
-                        case 'none':
+                        case "elevenlabs":
+                          return "ElevenLabs plugin is required for the selected voice model.";
+                        case "openai":
+                          return "OpenAI plugin is required for the selected voice model.";
+                        case "local":
+                          return "Local AI plugin is required for the selected voice model.";
+                        case "none":
                           return 'No voice plugin required for "No Voice" option.';
                         default:
                           return `${voiceModelPluginInfo.provider} plugin is required for the selected voice model.`;
@@ -247,20 +260,26 @@ export default function PluginsPanel({
               )}
               {safeCharacterPlugins.length > 0 && (
                 <div className="rounded-md bg-muted p-4">
-                  <h4 className="text-sm font-medium mb-2">Currently Enabled</h4>
+                  <h4 className="text-sm font-medium mb-2">
+                    Currently Enabled
+                  </h4>
                   <div className="flex flex-wrap gap-2">
                     {[...safeCharacterPlugins]
                       .sort((a, b) => {
-                        const aIsEssential = Object.keys(ESSENTIAL_PLUGINS).includes(a);
-                        const bIsEssential = Object.keys(ESSENTIAL_PLUGINS).includes(b);
+                        const aIsEssential =
+                          Object.keys(ESSENTIAL_PLUGINS).includes(a);
+                        const bIsEssential =
+                          Object.keys(ESSENTIAL_PLUGINS).includes(b);
                         if (aIsEssential === bIsEssential) return 0;
                         return aIsEssential ? -1 : 1;
                       })
                       .map((plugin) => {
                         // Check if this plugin is required by the current voice model
-                        const isRequiredByVoice = voiceModelPluginInfo?.requiredPlugin === plugin;
+                        const isRequiredByVoice =
+                          voiceModelPluginInfo?.requiredPlugin === plugin;
                         // Check if this is an essential plugin (SQL or OpenAI)
-                        const isEssential = Object.keys(ESSENTIAL_PLUGINS).includes(plugin);
+                        const isEssential =
+                          Object.keys(ESSENTIAL_PLUGINS).includes(plugin);
 
                         return (
                           <Button
@@ -270,8 +289,8 @@ export default function PluginsPanel({
                             key={plugin}
                             className={`inline-flex items-center rounded-full ${
                               isEssential
-                                ? 'bg-blue-800 text-blue-700 hover:bg-blue-600'
-                                : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                ? "bg-blue-800 text-blue-700 hover:bg-blue-600"
+                                : "bg-primary/10 text-primary hover:bg-primary/20"
                             } px-2.5 py-0.5 text-xs font-medium h-auto`}
                             onClick={() => {
                               // Don't allow removing if it's required by the voice model
@@ -279,8 +298,8 @@ export default function PluginsPanel({
                                 toast({
                                   title: "Can't Remove Plugin",
                                   description:
-                                    'This plugin is required by the selected voice model.',
-                                  variant: 'destructive',
+                                    "This plugin is required by the selected voice model.",
+                                  variant: "destructive",
                                 });
                                 return;
                               }
@@ -288,20 +307,22 @@ export default function PluginsPanel({
                             }}
                             title={
                               isRequiredByVoice
-                                ? 'Required by voice model'
+                                ? "Required by voice model"
                                 : isEssential
-                                  ? 'Essential plugin for agent functionality (click to remove)'
-                                  : 'Click to remove'
+                                  ? "Essential plugin for agent functionality (click to remove)"
+                                  : "Click to remove"
                             }
                           >
                             {isEssential && (
                               <span className="w-2 h-2 rounded-full bg-white inline-block"></span>
                             )}
-                            <span className="text-white font-semibold">{plugin}</span>
+                            <span className="text-white font-semibold">
+                              {plugin}
+                            </span>
                             <span
                               className={clsx(
-                                'ml-1 opacity-70 hover:opacity-100',
-                                isEssential && 'text-white'
+                                "ml-1 opacity-70 hover:opacity-100",
+                                isEssential && "text-white",
                               )}
                             >
                               ×
@@ -340,7 +361,9 @@ export default function PluginsPanel({
                       </div>
                       <div className="max-h-[300px] overflow-y-auto space-y-2">
                         {filteredPlugins.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No plugins found.</p>
+                          <p className="text-sm text-muted-foreground">
+                            No plugins found.
+                          </p>
                         ) : (
                           filteredPlugins.map((plugin) => (
                             <Button
@@ -349,7 +372,7 @@ export default function PluginsPanel({
                               className="w-full justify-start font-normal"
                               onClick={() => {
                                 handlePluginAdd(plugin);
-                                setSearchQuery('');
+                                setSearchQuery("");
                                 setIsDialogOpen(false);
                               }}
                             >
@@ -363,7 +386,9 @@ export default function PluginsPanel({
                 </Dialog>
               </div>
               {hasChanged && (
-                <p className="text-xs text-yellow-500">Plugins configuration has been changed</p>
+                <p className="text-xs text-yellow-500">
+                  Plugins configuration has been changed
+                </p>
               )}
             </div>
           )}

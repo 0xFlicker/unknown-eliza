@@ -1,4 +1,4 @@
-import { State } from './state';
+import { State } from "./state";
 
 /**
  * Template type definition for v1 compatibility
@@ -20,8 +20,10 @@ export interface TemplateValues {
  * @param template The v1 template (string or function)
  * @returns A function that processes the template with the given state
  */
-export function createTemplateFunction(template: TemplateType): (state: State) => string {
-  if (typeof template === 'string') {
+export function createTemplateFunction(
+  template: TemplateType,
+): (state: State) => string {
+  if (typeof template === "string") {
     // For string templates, just return the string
     return () => template;
   } else {
@@ -29,7 +31,7 @@ export function createTemplateFunction(template: TemplateType): (state: State) =
     return (state: State) => {
       // Handle null or undefined state
       if (!state) {
-        return '';
+        return "";
       }
       return template({ state });
     };
@@ -45,15 +47,15 @@ export function createTemplateFunction(template: TemplateType): (state: State) =
 export function processTemplate(template: TemplateType, state: State): string {
   // Handle null/undefined template
   if (!template) {
-    return '';
+    return "";
   }
 
   // Handle null/undefined state
   if (!state) {
-    return typeof template === 'string' ? template : '';
+    return typeof template === "string" ? template : "";
   }
 
-  if (typeof template === 'string') {
+  if (typeof template === "string") {
     return template;
   } else {
     return template({ state });
@@ -68,7 +70,7 @@ export function processTemplate(template: TemplateType, state: State): string {
  */
 export function getTemplateValues<T extends TemplateValues>(
   state: State,
-  defaultValues?: Partial<T>
+  defaultValues?: Partial<T>,
 ): T {
   if (!state || !state.values) {
     return (defaultValues || {}) as T;

@@ -1,22 +1,29 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./card";
 
-describe('Card Component', () => {
-  it('renders basic card correctly', () => {
+describe("Card Component", () => {
+  it("renders basic card correctly", () => {
     cy.mount(
       <Card>
         <CardContent>Basic Card Content</CardContent>
-      </Card>
+      </Card>,
     );
 
-    cy.get('[data-slot="card"]').should('exist');
-    cy.contains('Basic Card Content').should('be.visible');
+    cy.get('[data-slot="card"]').should("exist");
+    cy.contains("Basic Card Content").should("be.visible");
   });
 
-  it('renders complete card with all sections', () => {
+  it("renders complete card with all sections", () => {
     cy.mount(
       <Card>
         <CardHeader>
@@ -29,59 +36,65 @@ describe('Card Component', () => {
         <CardFooter>
           <button>Action</button>
         </CardFooter>
-      </Card>
+      </Card>,
     );
 
     // Check all sections are rendered
-    cy.get('[data-slot="card"]').should('exist');
-    cy.get('[data-slot="card-header"]').should('exist');
-    cy.get('[data-slot="card-title"]').should('contain', 'Card Title');
-    cy.get('[data-slot="card-description"]').should('contain', 'Card Description');
-    cy.get('[data-slot="card-content"]').should('contain', 'Card content goes here');
-    cy.get('[data-slot="card-footer"]').should('contain', 'Action');
+    cy.get('[data-slot="card"]').should("exist");
+    cy.get('[data-slot="card-header"]').should("exist");
+    cy.get('[data-slot="card-title"]').should("contain", "Card Title");
+    cy.get('[data-slot="card-description"]').should(
+      "contain",
+      "Card Description",
+    );
+    cy.get('[data-slot="card-content"]').should(
+      "contain",
+      "Card content goes here",
+    );
+    cy.get('[data-slot="card-footer"]').should("contain", "Action");
   });
 
-  it('applies custom className to card', () => {
+  it("applies custom className to card", () => {
     cy.mount(
       <Card className="custom-card bg-blue-500">
         <CardContent>Custom styled card</CardContent>
-      </Card>
+      </Card>,
     );
 
     cy.get('[data-slot="card"]')
-      .should('have.class', 'custom-card')
-      .should('have.class', 'bg-blue-500');
+      .should("have.class", "custom-card")
+      .should("have.class", "bg-blue-500");
   });
 
-  it('renders card without header', () => {
+  it("renders card without header", () => {
     cy.mount(
       <Card>
         <CardContent>No header card</CardContent>
         <CardFooter>Footer only</CardFooter>
-      </Card>
+      </Card>,
     );
 
-    cy.get('[data-slot="card-header"]').should('not.exist');
-    cy.get('[data-slot="card-content"]').should('exist');
-    cy.get('[data-slot="card-footer"]').should('exist');
+    cy.get('[data-slot="card-header"]').should("not.exist");
+    cy.get('[data-slot="card-content"]').should("exist");
+    cy.get('[data-slot="card-footer"]').should("exist");
   });
 
-  it('renders card without footer', () => {
+  it("renders card without footer", () => {
     cy.mount(
       <Card>
         <CardHeader>
           <CardTitle>Header Only</CardTitle>
         </CardHeader>
         <CardContent>No footer card</CardContent>
-      </Card>
+      </Card>,
     );
 
-    cy.get('[data-slot="card-header"]').should('exist');
-    cy.get('[data-slot="card-content"]').should('exist');
-    cy.get('[data-slot="card-footer"]').should('not.exist');
+    cy.get('[data-slot="card-header"]').should("exist");
+    cy.get('[data-slot="card-content"]').should("exist");
+    cy.get('[data-slot="card-footer"]').should("not.exist");
   });
 
-  it('supports nested content in card sections', () => {
+  it("supports nested content in card sections", () => {
     cy.mount(
       <Card>
         <CardHeader>
@@ -96,29 +109,29 @@ describe('Card Component', () => {
             <div>Row 2</div>
           </div>
         </CardContent>
-      </Card>
+      </Card>,
     );
 
     // Check nested content renders correctly
-    cy.get('.text-red-500').should('contain', 'Colored');
-    cy.get('.grid').should('exist');
-    cy.get('.grid').children().should('have.length', 2);
+    cy.get(".text-red-500").should("contain", "Colored");
+    cy.get(".grid").should("exist");
+    cy.get(".grid").children().should("have.length", 2);
   });
 
-  it('handles click events on card', () => {
+  it("handles click events on card", () => {
     const onClick = cy.stub();
 
     cy.mount(
       <Card onClick={onClick} className="cursor-pointer">
         <CardContent>Clickable Card</CardContent>
-      </Card>
+      </Card>,
     );
 
     cy.get('[data-slot="card"]').click();
-    cy.wrap(onClick).should('have.been.calledOnce');
+    cy.wrap(onClick).should("have.been.calledOnce");
   });
 
-  it('renders multiple cards in a grid', () => {
+  it("renders multiple cards in a grid", () => {
     cy.mount(
       <div className="grid grid-cols-3 gap-4">
         <Card>
@@ -130,31 +143,33 @@ describe('Card Component', () => {
         <Card>
           <CardContent>Card 3</CardContent>
         </Card>
-      </div>
+      </div>,
     );
 
-    cy.get('[data-slot="card"]').should('have.length', 3);
+    cy.get('[data-slot="card"]').should("have.length", 3);
   });
 
-  it('applies hover styles', () => {
+  it("applies hover styles", () => {
     cy.mount(
       <Card className="hover:shadow-lg transition-shadow">
         <CardContent>Hover me</CardContent>
-      </Card>
+      </Card>,
     );
 
     cy.get('[data-slot="card"]')
-      .should('have.class', 'hover:shadow-lg')
-      .should('have.class', 'transition-shadow');
+      .should("have.class", "hover:shadow-lg")
+      .should("have.class", "transition-shadow");
   });
 
-  it('supports data attributes', () => {
+  it("supports data attributes", () => {
     cy.mount(
       <Card data-testid="custom-card" data-id="123">
         <CardContent>Card with data attributes</CardContent>
-      </Card>
+      </Card>,
     );
 
-    cy.get('[data-testid="custom-card"]').should('exist').should('have.attr', 'data-id', '123');
+    cy.get('[data-testid="custom-card"]')
+      .should("exist")
+      .should("have.attr", "data-id", "123");
   });
 });

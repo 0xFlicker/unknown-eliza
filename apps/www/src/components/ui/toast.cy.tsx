@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 /// <reference path="../../../cypress/support/types.d.ts" />
 
-import React from 'react';
+import React from "react";
 import {
   Toast,
   ToastAction,
@@ -10,10 +10,10 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-} from './toast';
+} from "./toast";
 
-describe('Toast Component', () => {
-  it('renders basic toast correctly', () => {
+describe("Toast Component", () => {
+  it("renders basic toast correctly", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
@@ -21,14 +21,14 @@ describe('Toast Component', () => {
           <ToastTitle>Notification</ToastTitle>
           <ToastDescription>This is a toast message</ToastDescription>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.contains('Notification').should('be.visible');
-    cy.contains('This is a toast message').should('be.visible');
+    cy.contains("Notification").should("be.visible");
+    cy.contains("This is a toast message").should("be.visible");
   });
 
-  it('renders with action button', () => {
+  it("renders with action button", () => {
     const onAction = cy.stub();
 
     cy.mountRadix(
@@ -41,14 +41,14 @@ describe('Toast Component', () => {
             Redo
           </ToastAction>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.contains('button', 'Redo').click();
-    cy.wrap(onAction).should('have.been.called');
+    cy.contains("button", "Redo").click();
+    cy.wrap(onAction).should("have.been.called");
   });
 
-  it('renders with close button', () => {
+  it("renders with close button", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
@@ -57,13 +57,13 @@ describe('Toast Component', () => {
           <ToastDescription>Your changes have been saved</ToastDescription>
           <ToastClose />
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('button[type="button"]').should('exist');
+    cy.get('button[type="button"]').should("exist");
   });
 
-  it('supports different variants', () => {
+  it("supports different variants", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
@@ -77,13 +77,13 @@ describe('Toast Component', () => {
             <ToastDescription>Something went wrong</ToastDescription>
           </Toast>
         </div>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('[data-state="open"]').should('have.class', 'destructive');
+    cy.get('[data-state="open"]').should("have.class", "destructive");
   });
 
-  it('renders multiple toasts', () => {
+  it("renders multiple toasts", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
@@ -97,53 +97,61 @@ describe('Toast Component', () => {
             <ToastDescription>Second message</ToastDescription>
           </Toast>
         </div>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.contains('First Toast').should('be.visible');
-    cy.contains('Second Toast').should('be.visible');
+    cy.contains("First Toast").should("be.visible");
+    cy.contains("Second Toast").should("be.visible");
   });
 
-  it('handles long content gracefully', () => {
+  it("handles long content gracefully", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
         <Toast open>
           <ToastTitle>Long Title That Should Wrap Properly</ToastTitle>
           <ToastDescription>
-            This is a very long description that contains a lot of text. It should wrap properly
-            within the toast container and maintain good readability. The toast component should
-            handle long content gracefully without breaking the layout.
+            This is a very long description that contains a lot of text. It
+            should wrap properly within the toast container and maintain good
+            readability. The toast component should handle long content
+            gracefully without breaking the layout.
           </ToastDescription>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('[data-state="open"]').should('be.visible');
+    cy.get('[data-state="open"]').should("be.visible");
   });
 
-  it('works with custom className', () => {
+  it("works with custom className", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport className="custom-viewport" />
         <Toast open className="custom-toast bg-blue-500">
           <ToastTitle className="text-white">Custom Styled</ToastTitle>
-          <ToastDescription className="text-blue-100">Custom styled toast</ToastDescription>
+          <ToastDescription className="text-blue-100">
+            Custom styled toast
+          </ToastDescription>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('[data-state="open"]').should('have.class', 'custom-toast');
-    cy.get('[data-state="open"]').should('have.class', 'bg-blue-500');
+    cy.get('[data-state="open"]').should("have.class", "custom-toast");
+    cy.get('[data-state="open"]').should("have.class", "bg-blue-500");
   });
 
-  it('supports icons in toast', () => {
+  it("supports icons in toast", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
         <Toast open>
           <div className="flex items-center gap-2">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -153,24 +161,31 @@ describe('Toast Component', () => {
             </svg>
             <div>
               <ToastTitle>Success</ToastTitle>
-              <ToastDescription>Operation completed successfully</ToastDescription>
+              <ToastDescription>
+                Operation completed successfully
+              </ToastDescription>
             </div>
           </div>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('svg').should('be.visible');
-    cy.contains('Success').should('be.visible');
+    cy.get("svg").should("be.visible");
+    cy.contains("Success").should("be.visible");
   });
 
-  it('renders error toast variant', () => {
+  it("renders error toast variant", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport />
         <Toast open variant="destructive">
           <div className="flex items-center gap-2">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -185,15 +200,15 @@ describe('Toast Component', () => {
           </div>
           <ToastClose />
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.contains('Error').should('be.visible');
-    cy.contains('Failed to save changes').should('be.visible');
-    cy.get('button[type="button"]').should('exist');
+    cy.contains("Error").should("be.visible");
+    cy.contains("Failed to save changes").should("be.visible");
+    cy.get('button[type="button"]').should("exist");
   });
 
-  it('viewport positions toast correctly', () => {
+  it("viewport positions toast correctly", () => {
     cy.mountRadix(
       <ToastProvider>
         <ToastViewport className="top-0 right-0" />
@@ -201,9 +216,9 @@ describe('Toast Component', () => {
           <ToastTitle>Positioned Toast</ToastTitle>
           <ToastDescription>This toast is positioned</ToastDescription>
         </Toast>
-      </ToastProvider>
+      </ToastProvider>,
     );
 
-    cy.get('[data-state="open"]').should('be.visible');
+    cy.get('[data-state="open"]').should("be.visible");
   });
 });

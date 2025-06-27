@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="./index.css" />
     <script>
       window.ELIZA_CONFIG = {
-        agentId: 'test-agent-123',
-        apiBase: 'http://localhost:3000',
+        agentId: "test-agent-123",
+        apiBase: "http://localhost:3000",
       };
     </script>
   </head>
@@ -141,7 +141,8 @@
               Click Me
             </button>
             <span class="ml-4"
-              >Click count: <span data-testid="click-count" id="click-count">0</span></span
+              >Click count:
+              <span data-testid="click-count" id="click-count">0</span></span
             >
           </div>
         </section>
@@ -153,19 +154,27 @@
             data-testid="card"
             class="rounded-lg border bg-card text-card-foreground shadow-sm max-w-md"
           >
-            <div data-testid="card-header" class="flex flex-col space-y-1.5 p-6">
+            <div
+              data-testid="card-header"
+              class="flex flex-col space-y-1.5 p-6"
+            >
               <h3
                 data-testid="card-title"
                 class="text-2xl font-semibold leading-none tracking-tight"
               >
                 Test Card Title
               </h3>
-              <p data-testid="card-description" class="text-sm text-muted-foreground">
+              <p
+                data-testid="card-description"
+                class="text-sm text-muted-foreground"
+              >
                 Test Description
               </p>
             </div>
             <div data-testid="card-content" class="p-6 pt-0">Test Content</div>
-            <div data-testid="card-footer" class="flex items-center p-6 pt-0">Test Footer</div>
+            <div data-testid="card-footer" class="flex items-center p-6 pt-0">
+              Test Footer
+            </div>
           </div>
         </section>
 
@@ -215,8 +224,14 @@
         <section>
           <h2 class="text-2xl font-bold mb-4">Table Components</h2>
           <div class="relative w-full overflow-auto rounded-md border">
-            <table data-testid="table" class="w-full caption-bottom text-xs bg-card">
-              <caption data-testid="table-caption" class="mt-4 text-sm text-muted-foreground">
+            <table
+              data-testid="table"
+              class="w-full caption-bottom text-xs bg-card"
+            >
+              <caption
+                data-testid="table-caption"
+                class="mt-4 text-sm text-muted-foreground"
+              >
                 Test Caption
               </caption>
               <thead data-testid="table-header" class="[&_tr]:border-b">
@@ -230,17 +245,24 @@
                   >
                     Column 1
                   </th>
-                  <th class="h-10 px-2 text-left align-middle font-medium text-muted-foreground">
+                  <th
+                    class="h-10 px-2 text-left align-middle font-medium text-muted-foreground"
+                  >
                     Column 2
                   </th>
                 </tr>
               </thead>
-              <tbody data-testid="table-body" class="[&_tr:last-child]:border-0">
+              <tbody
+                data-testid="table-body"
+                class="[&_tr:last-child]:border-0"
+              >
                 <tr
                   data-testid="table-row"
                   class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                 >
-                  <td data-testid="table-cell" class="p-2 align-middle">Cell 1</td>
+                  <td data-testid="table-cell" class="p-2 align-middle">
+                    Cell 1
+                  </td>
                   <td class="p-2 align-middle">Cell 2</td>
                 </tr>
               </tbody>
@@ -303,12 +325,14 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script type="module">
-      import { RolodexTab } from './ui/rolodex-tab.js';
+      import { RolodexTab } from "./ui/rolodex-tab.js";
 
-      const container = document.getElementById('rolodex-tab');
+      const container = document.getElementById("rolodex-tab");
       if (container) {
         const root = ReactDOM.createRoot(container);
-        root.render(React.createElement(RolodexTab, { agentId: 'test-agent-123' }));
+        root.render(
+          React.createElement(RolodexTab, { agentId: "test-agent-123" }),
+        );
       }
     </script>
   </body>

@@ -1,11 +1,15 @@
-import React, { useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { ChatInput } from '@/components/ui/chat/chat-input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AudioRecorder } from '@/components/audio-recorder';
-import { Loader2, Paperclip, Send, FileText, X } from 'lucide-react';
-import { Agent, UUID, ChannelType } from '@elizaos/core';
-import type { UploadingFile } from '@/hooks/use-file-upload';
+import React, { useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { ChatInput } from "@/components/ui/chat/chat-input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AudioRecorder } from "@/components/audio-recorder";
+import { Loader2, Paperclip, Send, FileText, X } from "lucide-react";
+import { Agent, UUID, ChannelType } from "@elizaos/core";
+import type { UploadingFile } from "@/hooks/use-file-upload";
 
 interface ChatInputAreaProps {
   input: string;
@@ -39,7 +43,10 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   fileInputRef,
 }) => {
   return (
-    <div className="px-2 sm:px-4 pb-2 sm:pb-4 mt-auto flex-shrink-0" data-testid="chat-container">
+    <div
+      className="px-2 sm:px-4 pb-2 sm:pb-4 mt-auto flex-shrink-0"
+      data-testid="chat-container"
+    >
       {inputDisabled && (
         <div className="px-2 pb-2 text-sm text-muted-foreground flex items-center gap-2">
           <div className="flex gap-0.5 items-center justify-center">
@@ -50,7 +57,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           <span className="text-xs sm:text-sm">
             {chatType === ChannelType.DM && targetAgentData
               ? `${targetAgentData.name} is thinking`
-              : 'Agent is thinking'}
+              : "Agent is thinking"}
           </span>
           <div className="flex">
             <span className="animate-pulse [animation-delay:0ms]">.</span>
@@ -67,7 +74,8 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
         {selectedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 sm:gap-3 p-2 sm:p-3 pb-0 max-h-32 sm:max-h-40 overflow-y-auto">
             {selectedFiles.map((fileData) => {
-              const blobUrl = fileData.blobUrl || URL.createObjectURL(fileData.file);
+              const blobUrl =
+                fileData.blobUrl || URL.createObjectURL(fileData.file);
 
               return (
                 <div key={fileData.id} className="relative p-1 sm:p-2">
@@ -77,14 +85,18 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
                         <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-white" />
                       </div>
                     )}
-                    {fileData.file.type.startsWith('image/') ? (
+                    {fileData.file.type.startsWith("image/") ? (
                       <img
                         alt="Selected file"
                         src={blobUrl}
                         className="w-full h-full object-cover"
                       />
-                    ) : fileData.file.type.startsWith('video/') ? (
-                      <video src={blobUrl} className="w-full h-full object-cover" muted />
+                    ) : fileData.file.type.startsWith("video/") ? (
+                      <video
+                        src={blobUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-muted">
                         <FileText className="h-4 w-4 sm:h-8 sm:w-8 text-muted-foreground" />
@@ -122,14 +134,16 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             inputDisabled
               ? chatType === ChannelType.DM && targetAgentData
                 ? `${targetAgentData.name} is thinking...`
-                : 'Agent is processing...'
+                : "Agent is processing..."
               : chatType === ChannelType.DM
-                ? 'Type your message here...'
-                : 'Message group...'
+                ? "Type your message here..."
+                : "Message group..."
           }
           className="min-h-12 resize-none rounded-md bg-card border-0 p-2 sm:p-3 shadow-none focus-visible:ring-0 text-sm sm:text-base"
           disabled={
-            inputDisabled || (chatType === ChannelType.DM && targetAgentData?.status === 'inactive')
+            inputDisabled ||
+            (chatType === ChannelType.DM &&
+              targetAgentData?.status === "inactive")
           }
           data-testid="chat-input"
         />
@@ -171,7 +185,8 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
           <Button
             disabled={
               inputDisabled ||
-              (chatType === ChannelType.DM && targetAgentData?.status === 'inactive') ||
+              (chatType === ChannelType.DM &&
+                targetAgentData?.status === "inactive") ||
               selectedFiles.some((f) => f.isUploading)
             }
             type="submit"

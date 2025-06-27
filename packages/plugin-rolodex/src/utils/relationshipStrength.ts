@@ -12,7 +12,7 @@ export function calculateRelationshipStrength({
   interactionCount,
   lastInteractionAt,
   messageQuality = 5,
-  relationshipType = 'acquaintance',
+  relationshipType = "acquaintance",
 }: {
   interactionCount: number;
   lastInteractionAt?: string;
@@ -26,7 +26,8 @@ export function calculateRelationshipStrength({
   let recencyScore = 0;
   if (lastInteractionAt) {
     const daysSinceLastInteraction =
-      (Date.now() - new Date(lastInteractionAt).getTime()) / (1000 * 60 * 60 * 24);
+      (Date.now() - new Date(lastInteractionAt).getTime()) /
+      (1000 * 60 * 60 * 24);
     if (daysSinceLastInteraction < 1) recencyScore = 30;
     else if (daysSinceLastInteraction < 7) recencyScore = 25;
     else if (daysSinceLastInteraction < 30) recencyScore = 20;
@@ -48,7 +49,8 @@ export function calculateRelationshipStrength({
     }[relationshipType] || 0;
 
   // Calculate total strength
-  const totalStrength = interactionScore + recencyScore + qualityScore + relationshipBonus;
+  const totalStrength =
+    interactionScore + recencyScore + qualityScore + relationshipBonus;
 
   // Return clamped value between 0 and 100
   return Math.max(0, Math.min(100, Math.round(totalStrength)));

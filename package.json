@@ -25,16 +25,17 @@
     "typedoc": "0.27.9"
   },
   "scripts": {
-    "start": "bunx turbo run start --filter=./packages/cli --log-prefix=none",
+    "start": "bunx turbo run start --log-prefix=none",
     "start:debug": "cross-env NODE_NO_WARNINGS=1 LOG_LEVEL=debug elizaos start",
     "start:app": "bunx turbo run start --filter=./apps/agent",
     "build": "turbo run build",
-    "format": "bunx turbo run format --filter=./packages/*",
-    "format:check": "bunx turbo run format:check --filter=./packages/*",
-    "clean": "bunx turbo run clean --filter=./packages/* && rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo bun.lock* .eliza .elizadb && bun install && bun run build",
-    "lint": "bunx turbo run lint --filter=./packages/* && prettier --write . && prettier --check .",
+    "format": "bunx turbo run format ",
+    "format:check": "bunx turbo run format:check ",
+    "clean": "bunx turbo run clean  && rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo bun.lock* .eliza .elizadb && bun install && bun run build",
+    "lint": "bunx turbo run lint && prettier --write . && prettier --check .",
     "test": "bunx turbo run test --concurrency 20",
-    "test:app": "bunx turbo run test --concurrency 20 --filter=./apps/agent"
+    "test:app": "bunx turbo run test --concurrency 20 --filter=!./apps/agent",
+    "typecheck": "bunx turbo run typecheck"
   },
   "trustedDependencies": [
     "@swc/core",

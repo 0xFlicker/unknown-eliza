@@ -1,15 +1,15 @@
-import { ChevronDownIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export interface SplitButtonOption {
   label: string;
@@ -24,26 +24,26 @@ export interface SplitButtonProps {
   value?: string;
   onValueChange?: (value: string) => void;
   onClick?: (option: SplitButtonOption, value: string) => void;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
   className?: string;
   buttonClassName?: string;
   dropdownClassName?: string;
   disabled?: boolean;
-  'aria-label'?: string;
+  "aria-label"?: string;
 }
 
 export default function SplitButton({
   options,
-  defaultValue = '0',
+  defaultValue = "0",
   value,
   onValueChange,
   onClick,
-  variant = 'default',
-  className = '',
-  buttonClassName = '',
-  dropdownClassName = '',
+  variant = "default",
+  className = "",
+  buttonClassName = "",
+  dropdownClassName = "",
   disabled = false,
-  'aria-label': ariaLabel = 'Options',
+  "aria-label": ariaLabel = "Options",
 }: SplitButtonProps) {
   const [internalValue, setInternalValue] = useState(defaultValue);
 
@@ -58,7 +58,7 @@ export default function SplitButton({
 
     // Find the selected option and call its onClick if it exists
     const selectedOption = options.find(
-      (opt) => (opt.value || String(options.indexOf(opt))) === newValue
+      (opt) => (opt.value || String(options.indexOf(opt))) === newValue,
     );
     if (selectedOption?.onClick) {
       selectedOption.onClick();
@@ -83,20 +83,22 @@ export default function SplitButton({
 
   // Determine divider classes based on variant
   const dividerClasses =
-    variant === 'destructive' ? 'divide-white/20' : 'divide-primary-foreground/30';
+    variant === "destructive"
+      ? "divide-white/20"
+      : "divide-primary-foreground/30";
 
   return (
     <div
       className={cn(
-        'inline-flex divide-x rounded-md shadow-xs rtl:space-x-reverse',
+        "inline-flex divide-x rounded-md shadow-xs rtl:space-x-reverse",
         dividerClasses,
-        className
+        className,
       )}
     >
       <Button
         className={cn(
-          'rounded-none shadow-none first:rounded-s-md last:rounded-e-md focus-visible:z-10',
-          buttonClassName
+          "rounded-none shadow-none first:rounded-s-md last:rounded-e-md focus-visible:z-10",
+          buttonClassName,
         )}
         variant={variant}
         disabled={disabled}
@@ -108,8 +110,8 @@ export default function SplitButton({
         <DropdownMenuTrigger asChild>
           <Button
             className={cn(
-              'rounded-none shadow-none first:rounded-s-md last:rounded-e-md focus-visible:z-10',
-              buttonClassName
+              "rounded-none shadow-none first:rounded-s-md last:rounded-e-md focus-visible:z-10",
+              buttonClassName,
             )}
             variant={variant}
             size="icon"
@@ -120,12 +122,15 @@ export default function SplitButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className={cn('max-w-64 md:max-w-xs', dropdownClassName)}
+          className={cn("max-w-64 md:max-w-xs", dropdownClassName)}
           side="bottom"
           sideOffset={4}
           align="end"
         >
-          <DropdownMenuRadioGroup value={selectedValue} onValueChange={handleValueChange}>
+          <DropdownMenuRadioGroup
+            value={selectedValue}
+            onValueChange={handleValueChange}
+          >
             {options.map((option, index) => (
               <DropdownMenuRadioItem
                 key={option.value || option.label}
@@ -135,7 +140,9 @@ export default function SplitButton({
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-medium">{option.label}</span>
                   {option.description && (
-                    <span className="text-muted-foreground text-xs">{option.description}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {option.description}
+                    </span>
                   )}
                 </div>
               </DropdownMenuRadioItem>

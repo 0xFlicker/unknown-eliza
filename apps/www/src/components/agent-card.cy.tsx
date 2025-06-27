@@ -1,9 +1,9 @@
 /// <reference types="cypress" />
 /// <reference path="../../cypress/support/types.d.ts" />
 
-import React from 'react';
-import type { AgentWithStatus } from '@/types';
-import { AgentStatus } from '@elizaos/core';
+import React from "react";
+import type { AgentWithStatus } from "@/types";
+import { AgentStatus } from "@elizaos/core";
 
 // Create a minimal test component that represents AgentCard functionality
 const TestAgentCard: React.FC<{
@@ -14,7 +14,7 @@ const TestAgentCard: React.FC<{
     return <div data-testid="agent-card-error">Agent data not available.</div>;
   }
 
-  const agentName = agent.name || 'Unnamed Agent';
+  const agentName = agent.name || "Unnamed Agent";
   const isActive = agent.status === AgentStatus.ACTIVE;
 
   return (
@@ -22,20 +22,26 @@ const TestAgentCard: React.FC<{
       <div data-testid="agent-name">{agentName}</div>
       <div
         data-testid="status-indicator"
-        className={`status-dot ${isActive ? 'active' : 'inactive'}`}
+        className={`status-dot ${isActive ? "active" : "inactive"}`}
       />
       <div data-testid="agent-status">
         {agent.status === AgentStatus.ACTIVE
-          ? 'active'
+          ? "active"
           : agent.status === AgentStatus.INACTIVE
-            ? 'inactive'
-            : 'unknown'}
+            ? "inactive"
+            : "unknown"}
       </div>
       {agent.settings?.avatar && (
-        <img data-testid="agent-avatar" src={agent.settings.avatar} alt={agentName} />
+        <img
+          data-testid="agent-avatar"
+          src={agent.settings.avatar}
+          alt={agentName}
+        />
       )}
       {!agent.settings?.avatar && (
-        <div data-testid="agent-initials">{agentName.substring(0, 2).toUpperCase()}</div>
+        <div data-testid="agent-initials">
+          {agentName.substring(0, 2).toUpperCase()}
+        </div>
       )}
       {isActive ? (
         <button data-testid="chat-button" onClick={() => onChat(agent)}>
@@ -44,23 +50,27 @@ const TestAgentCard: React.FC<{
       ) : (
         <button data-testid="start-button">Start</button>
       )}
-      <button data-testid="card-button" onClick={() => onChat(agent)} className="card-clickable">
+      <button
+        data-testid="card-button"
+        onClick={() => onChat(agent)}
+        className="card-clickable"
+      >
         Card Click
       </button>
     </div>
   );
 };
 
-describe('AgentCard Component', () => {
+describe("AgentCard Component", () => {
   const mockAgent: Partial<AgentWithStatus> = {
-    id: '12345678-1234-1234-1234-123456789012',
-    name: 'Test Agent',
-    username: 'testagent',
+    id: "12345678-1234-1234-1234-123456789012",
+    name: "Test Agent",
+    username: "testagent",
     status: AgentStatus.INACTIVE,
     settings: {
-      avatar: 'https://example.com/avatar.png',
+      avatar: "https://example.com/avatar.png",
     },
-    bio: 'Test agent bio',
+    bio: "Test agent bio",
     enabled: true,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -71,61 +81,64 @@ describe('AgentCard Component', () => {
     status: AgentStatus.ACTIVE,
   };
 
-  it('renders agent information correctly', () => {
+  it("renders agent information correctly", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
 
     // Check agent name is displayed
-    cy.get('[data-testid="agent-name"]').should('contain.text', 'Test Agent');
+    cy.get('[data-testid="agent-name"]').should("contain.text", "Test Agent");
 
     // Check status indicator exists
-    cy.get('[data-testid="status-indicator"]').should('exist');
+    cy.get('[data-testid="status-indicator"]').should("exist");
 
     // Check agent card exists
-    cy.get('[data-testid="agent-card"]').should('exist');
+    cy.get('[data-testid="agent-card"]').should("exist");
   });
 
-  it('displays active agent correctly', () => {
+  it("displays active agent correctly", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={activeAgent} onChat={onChat} />);
 
     // Status should show active
-    cy.get('[data-testid="agent-status"]').should('contain.text', 'active');
+    cy.get('[data-testid="agent-status"]').should("contain.text", "active");
 
     // Chat button should be visible
-    cy.get('[data-testid="chat-button"]').should('exist');
+    cy.get('[data-testid="chat-button"]').should("exist");
   });
 
-  it('handles missing agent data gracefully', () => {
+  it("handles missing agent data gracefully", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={{}} onChat={onChat} />);
 
     // Should show error message
-    cy.get('[data-testid="agent-card-error"]').should('contain.text', 'Agent data not available');
+    cy.get('[data-testid="agent-card-error"]').should(
+      "contain.text",
+      "Agent data not available",
+    );
   });
 
-  it('shows start button for inactive agents', () => {
+  it("shows start button for inactive agents", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
 
     // Start button should be visible
-    cy.get('[data-testid="start-button"]').should('contain.text', 'Start');
+    cy.get('[data-testid="start-button"]').should("contain.text", "Start");
   });
 
-  it('shows chat button for active agents', () => {
+  it("shows chat button for active agents", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={activeAgent} onChat={onChat} />);
 
     // Chat button should be visible
-    cy.get('[data-testid="chat-button"]').should('contain.text', 'Chat');
+    cy.get('[data-testid="chat-button"]').should("contain.text", "Chat");
   });
 
-  it('handles chat button click for active agents', () => {
+  it("handles chat button click for active agents", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={activeAgent} onChat={onChat} />);
@@ -134,10 +147,10 @@ describe('AgentCard Component', () => {
     cy.get('[data-testid="chat-button"]').click();
 
     // Verify onChat was called
-    cy.wrap(onChat).should('have.been.calledWith', activeAgent);
+    cy.wrap(onChat).should("have.been.calledWith", activeAgent);
   });
 
-  it('navigates when card is clicked', () => {
+  it("navigates when card is clicked", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
@@ -146,24 +159,24 @@ describe('AgentCard Component', () => {
     cy.get('[data-testid="card-button"]').click();
 
     // Verify onChat was called
-    cy.wrap(onChat).should('have.been.calledWith', mockAgent);
+    cy.wrap(onChat).should("have.been.calledWith", mockAgent);
   });
 
-  it('shows agent avatar when provided', () => {
+  it("shows agent avatar when provided", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
 
     // Should show avatar
-    cy.get('[data-testid="agent-avatar"]').should('exist');
+    cy.get('[data-testid="agent-avatar"]').should("exist");
     cy.get('[data-testid="agent-avatar"]').should(
-      'have.attr',
-      'src',
-      'https://example.com/avatar.png'
+      "have.attr",
+      "src",
+      "https://example.com/avatar.png",
     );
   });
 
-  it('shows initials fallback when no avatar', () => {
+  it("shows initials fallback when no avatar", () => {
     const onChat = cy.stub();
     const agentWithoutAvatar = {
       ...mockAgent,
@@ -173,81 +186,84 @@ describe('AgentCard Component', () => {
     cy.mount(<TestAgentCard agent={agentWithoutAvatar} onChat={onChat} />);
 
     // Should show initials fallback
-    cy.get('[data-testid="agent-initials"]').should('contain.text', 'TE');
+    cy.get('[data-testid="agent-initials"]').should("contain.text", "TE");
   });
 
-  it('displays agent status correctly', () => {
+  it("displays agent status correctly", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
 
     // Check status is displayed
-    cy.get('[data-testid="agent-status"]').should('contain.text', 'inactive');
+    cy.get('[data-testid="agent-status"]').should("contain.text", "inactive");
   });
 
-  it('handles different button states', () => {
+  it("handles different button states", () => {
     const onChat = cy.stub();
 
     // Test inactive agent - should show start button
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
-    cy.get('[data-testid="start-button"]').should('exist');
+    cy.get('[data-testid="start-button"]').should("exist");
 
     // Test active agent - should show chat button
     cy.mount(<TestAgentCard agent={activeAgent} onChat={onChat} />);
-    cy.get('[data-testid="chat-button"]').should('exist');
+    cy.get('[data-testid="chat-button"]').should("exist");
   });
 
-  it('handles long agent names', () => {
+  it("handles long agent names", () => {
     const onChat = cy.stub();
     const longNameAgent = {
       ...mockAgent,
-      name: 'This is a very long agent name that should be displayed',
+      name: "This is a very long agent name that should be displayed",
     };
 
     cy.mount(<TestAgentCard agent={longNameAgent} onChat={onChat} />);
 
     // Check that name is displayed
-    cy.get('[data-testid="agent-name"]').should('contain.text', 'This is a very long agent name');
+    cy.get('[data-testid="agent-name"]').should(
+      "contain.text",
+      "This is a very long agent name",
+    );
   });
 
-  it('renders with proper structure', () => {
+  it("renders with proper structure", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={mockAgent} onChat={onChat} />);
 
     // Check basic structure elements exist
-    cy.get('[data-testid="agent-card"]').should('exist');
-    cy.get('[data-testid="agent-name"]').should('exist');
-    cy.get('[data-testid="status-indicator"]').should('exist');
-    cy.get('[data-testid="agent-status"]').should('exist');
+    cy.get('[data-testid="agent-card"]').should("exist");
+    cy.get('[data-testid="agent-name"]').should("exist");
+    cy.get('[data-testid="status-indicator"]').should("exist");
+    cy.get('[data-testid="agent-status"]').should("exist");
   });
 
-  it('handles button interactions', () => {
+  it("handles button interactions", () => {
     const onChat = cy.stub();
 
     cy.mount(<TestAgentCard agent={activeAgent} onChat={onChat} />);
 
     // Click chat button
     cy.get('[data-testid="chat-button"]').click();
-    cy.wrap(onChat).should('have.been.calledWith', activeAgent);
+    cy.wrap(onChat).should("have.been.calledWith", activeAgent);
 
     // Click card button
     cy.get('[data-testid="card-button"]').click();
-    cy.wrap(onChat).should('have.been.calledWith', activeAgent);
+    cy.wrap(onChat).should("have.been.calledWith", activeAgent);
   });
 
-  it('shows appropriate content for different agent states', () => {
+  it("shows appropriate content for different agent states", () => {
     const onChat = cy.stub();
 
     // Test with different agent configurations
     const testCases = [
-      { agent: mockAgent, expectedButton: 'start-button' },
-      { agent: activeAgent, expectedButton: 'chat-button' },
+      { agent: mockAgent, expectedButton: "start-button" },
+      { agent: activeAgent, expectedButton: "chat-button" },
     ];
 
     testCases.forEach(({ agent, expectedButton }) => {
       cy.mount(<TestAgentCard agent={agent} onChat={onChat} />);
-      cy.get(`[data-testid="${expectedButton}"]`).should('exist');
+      cy.get(`[data-testid="${expectedButton}"]`).should("exist");
     });
   });
 });

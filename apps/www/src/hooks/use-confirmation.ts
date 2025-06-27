@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react';
-import ConfirmationDialog from '@/components/confirmation-dialog';
+import { useState, useCallback } from "react";
+import ConfirmationDialog from "@/components/confirmation-dialog";
 
 interface ConfirmationOptions {
   title: string;
   description: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'destructive';
+  variant?: "default" | "destructive";
 }
 
 export function useConfirmation() {
@@ -20,13 +20,16 @@ export function useConfirmation() {
     onConfirm: null,
   });
 
-  const confirm = useCallback((options: ConfirmationOptions, onConfirm: () => void) => {
-    setConfirmationState({
-      open: true,
-      options,
-      onConfirm,
-    });
-  }, []);
+  const confirm = useCallback(
+    (options: ConfirmationOptions, onConfirm: () => void) => {
+      setConfirmationState({
+        open: true,
+        options,
+        onConfirm,
+      });
+    },
+    [],
+  );
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (!open) {

@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { AgentLogViewer } from './agent-log-viewer';
-import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Label } from './ui/label';
+import { useState } from "react";
+import { AgentLogViewer } from "./agent-log-viewer";
+import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Label } from "./ui/label";
 
 export default function LogsPage() {
-  const [logLevel, setLogLevel] = useState('all');
+  const [logLevel, setLogLevel] = useState("all");
 
   return (
     <div className="container mx-auto p-6 h-full flex flex-col">

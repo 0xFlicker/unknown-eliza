@@ -50,7 +50,7 @@ export const rolodexPlugin: Plugin = {
   ],
   init: async ({ config, runtime }) => {
     logger.info(
-      "[Rolodex] Plugin initialized with passive relationship extraction"
+      "[Rolodex] Plugin initialized with passive relationship extraction",
     );
   },
 };

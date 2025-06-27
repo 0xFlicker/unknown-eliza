@@ -1,6 +1,6 @@
-import { usePartialUpdate } from '@/hooks/use-partial-update';
-import type { Agent } from '@elizaos/core';
-import { useCallback, useRef } from 'react';
+import { usePartialUpdate } from "@/hooks/use-partial-update";
+import type { Agent } from "@elizaos/core";
+import { useCallback, useRef } from "react";
 
 /**
  * A custom hook for handling Agent updates with specific handling for JSONb fields.
@@ -12,7 +12,9 @@ import { useCallback, useRef } from 'react';
  */
 export function useAgentUpdate(initialAgent: Agent) {
   // Keep reference to the initial state for comparison
-  const initialAgentRef = useRef<Agent>(JSON.parse(JSON.stringify(initialAgent)));
+  const initialAgentRef = useRef<Agent>(
+    JSON.parse(JSON.stringify(initialAgent)),
+  );
 
   const {
     value: agent,
@@ -33,15 +35,15 @@ export function useAgentUpdate(initialAgent: Agent) {
     (templateAgent: Agent) => {
       // For each top-level property in the template, update it in the current agent
       Object.entries(templateAgent).forEach(([key, value]) => {
-        if (key === 'settings' && value) {
+        if (key === "settings" && value) {
           // Handle settings object specially to preserve existing settings not in template
           updateSettings({
             ...agent.settings,
             ...value,
           });
-        } else if (key === 'style' && value) {
+        } else if (key === "style" && value) {
           // Handle style object specially - it's nested but needs direct update
-          updateField('style', {
+          updateField("style", {
             all: value.all || [],
             chat: value.chat || [],
             post: value.post || [],
@@ -55,7 +57,7 @@ export function useAgentUpdate(initialAgent: Agent) {
         }
       });
     },
-    [agent.settings, updateField, updateSettings]
+    [agent.settings, updateField, updateSettings],
   );
 
   // ==================== Basic Info Tab ====================
@@ -69,7 +71,7 @@ export function useAgentUpdate(initialAgent: Agent) {
     <T>(path: string, value: T) => {
       updateField(`settings.${path}`, value);
     },
-    [updateField]
+    [updateField],
   );
 
   /**
@@ -81,7 +83,7 @@ export function useAgentUpdate(initialAgent: Agent) {
     (settings: any) => {
       updateSettings(settings);
     },
-    [updateSettings]
+    [updateSettings],
   );
 
   /**
@@ -91,9 +93,9 @@ export function useAgentUpdate(initialAgent: Agent) {
    */
   const updateSystemPrompt = useCallback(
     (systemPrompt: string) => {
-      updateField('system', systemPrompt);
+      updateField("system", systemPrompt);
     },
-    [updateField]
+    [updateField],
   );
 
   // ==================== Secrets Tab ====================
@@ -120,7 +122,7 @@ export function useAgentUpdate(initialAgent: Agent) {
         secrets: newSecrets,
       });
     },
-    [agent.settings, updateSettings]
+    [agent.settings, updateSettings],
   );
 
   /**
@@ -147,7 +149,7 @@ export function useAgentUpdate(initialAgent: Agent) {
       // Use updateSettings instead of updateField for better change detection
       updateSettings(updatedSettings);
     },
-    [agent.settings, updateSettings]
+    [agent.settings, updateSettings],
   );
 
   // ==================== Content Tab ====================
@@ -158,10 +160,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param item The item to add
    */
   const addContentItem = useCallback(
-    (arrayName: 'bio' | 'topics' | 'adjectives', item: string) => {
+    (arrayName: "bio" | "topics" | "adjectives", item: string) => {
       addArrayItem(arrayName, item);
     },
-    [addArrayItem]
+    [addArrayItem],
   );
 
   /**
@@ -171,10 +173,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param index The index of the item to remove
    */
   const removeContentItem = useCallback(
-    (arrayName: 'bio' | 'topics' | 'adjectives', index: number) => {
+    (arrayName: "bio" | "topics" | "adjectives", index: number) => {
       removeArrayItem(arrayName, index);
     },
-    [removeArrayItem]
+    [removeArrayItem],
   );
 
   /**
@@ -185,10 +187,14 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param value The new value
    */
   const updateContentItem = useCallback(
-    (arrayName: 'bio' | 'topics' | 'adjectives', index: number, value: string) => {
+    (
+      arrayName: "bio" | "topics" | "adjectives",
+      index: number,
+      value: string,
+    ) => {
       updateField(`${arrayName}.${index}`, value);
     },
-    [updateField]
+    [updateField],
   );
 
   // ==================== Style Tab ====================
@@ -199,10 +205,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param rule The style rule to add
    */
   const addStyleRule = useCallback(
-    (styleType: 'all' | 'chat' | 'post', rule: string) => {
+    (styleType: "all" | "chat" | "post", rule: string) => {
       addArrayItem(`style.${styleType}`, rule);
     },
-    [addArrayItem]
+    [addArrayItem],
   );
 
   /**
@@ -212,10 +218,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param index The index of the rule to remove
    */
   const removeStyleRule = useCallback(
-    (styleType: 'all' | 'chat' | 'post', index: number) => {
+    (styleType: "all" | "chat" | "post", index: number) => {
       removeArrayItem(`style.${styleType}`, index);
     },
-    [removeArrayItem]
+    [removeArrayItem],
   );
 
   /**
@@ -226,10 +232,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param value The new rule value
    */
   const updateStyleRule = useCallback(
-    (styleType: 'all' | 'chat' | 'post', index: number, value: string) => {
+    (styleType: "all" | "chat" | "post", index: number, value: string) => {
       updateField(`style.${styleType}.${index}`, value);
     },
-    [updateField]
+    [updateField],
   );
 
   /**
@@ -239,10 +245,10 @@ export function useAgentUpdate(initialAgent: Agent) {
    * @param values Array of style values
    */
   const setStyleArray = useCallback(
-    (styleType: 'all' | 'chat' | 'post', values: string[]) => {
+    (styleType: "all" | "chat" | "post", values: string[]) => {
       updateField(`style.${styleType}`, values);
     },
-    [updateField]
+    [updateField],
   );
 
   // ==================== Plugins Tab ====================
@@ -253,9 +259,9 @@ export function useAgentUpdate(initialAgent: Agent) {
    */
   const addPlugin = useCallback(
     (pluginId: string) => {
-      addArrayItem('plugins', pluginId);
+      addArrayItem("plugins", pluginId);
     },
-    [addArrayItem]
+    [addArrayItem],
   );
 
   /**
@@ -265,9 +271,9 @@ export function useAgentUpdate(initialAgent: Agent) {
    */
   const removePlugin = useCallback(
     (index: number) => {
-      removeArrayItem('plugins', index);
+      removeArrayItem("plugins", index);
     },
-    [removeArrayItem]
+    [removeArrayItem],
   );
 
   /**
@@ -277,9 +283,9 @@ export function useAgentUpdate(initialAgent: Agent) {
    */
   const setPlugins = useCallback(
     (plugins: string[]) => {
-      updateField('plugins', plugins);
+      updateField("plugins", plugins);
     },
-    [updateField]
+    [updateField],
   );
 
   // ==================== Avatar Tab ====================
@@ -290,9 +296,9 @@ export function useAgentUpdate(initialAgent: Agent) {
    */
   const updateAvatar = useCallback(
     (avatarUrl: string) => {
-      updateSetting('avatar', avatarUrl);
+      updateSetting("avatar", avatarUrl);
     },
-    [updateSetting]
+    [updateSetting],
   );
 
   /**
@@ -305,7 +311,7 @@ export function useAgentUpdate(initialAgent: Agent) {
     const initial = initialAgentRef.current;
 
     // Compare scalar properties
-    const scalarProps = ['name', 'username', 'system'] as const;
+    const scalarProps = ["name", "username", "system"] as const;
     scalarProps.forEach((prop) => {
       if (current[prop] !== initial[prop]) {
         changedFields[prop] = current[prop];
@@ -325,7 +331,9 @@ export function useAgentUpdate(initialAgent: Agent) {
       changedFields.topics = current.topics;
     }
 
-    if (JSON.stringify(current.adjectives) !== JSON.stringify(initial.adjectives)) {
+    if (
+      JSON.stringify(current.adjectives) !== JSON.stringify(initial.adjectives)
+    ) {
       changedFields.adjectives = current.adjectives;
     }
 
@@ -353,12 +361,18 @@ export function useAgentUpdate(initialAgent: Agent) {
       }
 
       // Check voice settings
-      if (JSON.stringify(currentSettings.voice) !== JSON.stringify(initialSettings.voice)) {
+      if (
+        JSON.stringify(currentSettings.voice) !==
+        JSON.stringify(initialSettings.voice)
+      ) {
         changedFields.settings.voice = currentSettings.voice;
       }
 
       // Check secrets with special handling
-      if (JSON.stringify(currentSettings.secrets) !== JSON.stringify(initialSettings.secrets)) {
+      if (
+        JSON.stringify(currentSettings.secrets) !==
+        JSON.stringify(initialSettings.secrets)
+      ) {
         const initialSecrets = initialSettings.secrets || {};
         const currentSecrets = currentSettings.secrets || {};
 

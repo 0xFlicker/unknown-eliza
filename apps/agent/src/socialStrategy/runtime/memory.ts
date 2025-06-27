@@ -56,11 +56,11 @@ export async function upsertRelationship(
   sourceId: UUID,
   targetId: UUID,
   relType: RelationshipType,
-  description: string
+  description: string,
 ) {
   const now = Date.now();
   const existing = state.values.relationships.find(
-    (r) => r.sourceEntityId === sourceId && r.targetEntityId === targetId
+    (r) => r.sourceEntityId === sourceId && r.targetEntityId === targetId,
   );
   if (existing) {
     existing.metadata.relationshipType = relType;

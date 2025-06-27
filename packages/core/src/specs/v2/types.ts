@@ -11,7 +11,10 @@ export type UUID = `${string}-${string}-${string}-${string}-${string}`;
  * @returns The same UUID with branded type information
  */
 export function asUUID(id: string): UUID {
-  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+  if (
+    !id ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
     throw new Error(`Invalid UUID format: ${id}`);
   }
   return id as UUID;
@@ -76,25 +79,25 @@ export type ModelTypeName = (typeof ModelType)[keyof typeof ModelType] | string;
  * String values are used for extensibility with custom model types.
  */
 export const ModelType = {
-  SMALL: 'TEXT_SMALL', // kept for backwards compatibility
-  MEDIUM: 'TEXT_LARGE', // kept for backwards compatibility
-  LARGE: 'TEXT_LARGE', // kept for backwards compatibility
-  TEXT_SMALL: 'TEXT_SMALL',
-  TEXT_LARGE: 'TEXT_LARGE',
-  TEXT_EMBEDDING: 'TEXT_EMBEDDING',
-  TEXT_TOKENIZER_ENCODE: 'TEXT_TOKENIZER_ENCODE',
-  TEXT_TOKENIZER_DECODE: 'TEXT_TOKENIZER_DECODE',
-  TEXT_REASONING_SMALL: 'REASONING_SMALL',
-  TEXT_REASONING_LARGE: 'REASONING_LARGE',
-  TEXT_COMPLETION: 'TEXT_COMPLETION',
-  IMAGE: 'IMAGE',
-  IMAGE_DESCRIPTION: 'IMAGE_DESCRIPTION',
-  TRANSCRIPTION: 'TRANSCRIPTION',
-  TEXT_TO_SPEECH: 'TEXT_TO_SPEECH',
-  AUDIO: 'AUDIO',
-  VIDEO: 'VIDEO',
-  OBJECT_SMALL: 'OBJECT_SMALL',
-  OBJECT_LARGE: 'OBJECT_LARGE',
+  SMALL: "TEXT_SMALL", // kept for backwards compatibility
+  MEDIUM: "TEXT_LARGE", // kept for backwards compatibility
+  LARGE: "TEXT_LARGE", // kept for backwards compatibility
+  TEXT_SMALL: "TEXT_SMALL",
+  TEXT_LARGE: "TEXT_LARGE",
+  TEXT_EMBEDDING: "TEXT_EMBEDDING",
+  TEXT_TOKENIZER_ENCODE: "TEXT_TOKENIZER_ENCODE",
+  TEXT_TOKENIZER_DECODE: "TEXT_TOKENIZER_DECODE",
+  TEXT_REASONING_SMALL: "REASONING_SMALL",
+  TEXT_REASONING_LARGE: "REASONING_LARGE",
+  TEXT_COMPLETION: "TEXT_COMPLETION",
+  IMAGE: "IMAGE",
+  IMAGE_DESCRIPTION: "IMAGE_DESCRIPTION",
+  TRANSCRIPTION: "TRANSCRIPTION",
+  TEXT_TO_SPEECH: "TEXT_TO_SPEECH",
+  AUDIO: "AUDIO",
+  VIDEO: "VIDEO",
+  OBJECT_SMALL: "OBJECT_SMALL",
+  OBJECT_LARGE: "OBJECT_LARGE",
 } as const;
 
 /**
@@ -111,15 +114,15 @@ export const ModelType = {
  * ```
  */
 export interface ServiceTypeRegistry {
-  TRANSCRIPTION: 'transcription';
-  VIDEO: 'video';
-  BROWSER: 'browser';
-  PDF: 'pdf';
-  REMOTE_FILES: 'aws_s3';
-  WEB_SEARCH: 'web_search';
-  EMAIL: 'email';
-  TEE: 'tee';
-  TASK: 'task';
+  TRANSCRIPTION: "transcription";
+  VIDEO: "video";
+  BROWSER: "browser";
+  PDF: "pdf";
+  REMOTE_FILES: "aws_s3";
+  WEB_SEARCH: "web_search";
+  EMAIL: "email";
+  TEE: "tee";
+  TASK: "task";
 }
 
 /**
@@ -130,12 +133,15 @@ export type ServiceTypeName = ServiceTypeRegistry[keyof ServiceTypeRegistry];
 /**
  * Helper type to extract service type values from the registry
  */
-export type ServiceTypeValue<K extends keyof ServiceTypeRegistry> = ServiceTypeRegistry[K];
+export type ServiceTypeValue<K extends keyof ServiceTypeRegistry> =
+  ServiceTypeRegistry[K];
 
 /**
  * Helper type to check if a service type exists in the registry
  */
-export type IsValidServiceType<T extends string> = T extends ServiceTypeName ? true : false;
+export type IsValidServiceType<T extends string> = T extends ServiceTypeName
+  ? true
+  : false;
 
 /**
  * Type-safe service class definition
@@ -156,14 +162,16 @@ export interface ServiceClassMap {
 /**
  * Helper to infer service instance type from service type name
  */
-export type ServiceInstance<T extends ServiceTypeName> = T extends keyof ServiceClassMap
-  ? InstanceType<ServiceClassMap[T]>
-  : Service;
+export type ServiceInstance<T extends ServiceTypeName> =
+  T extends keyof ServiceClassMap ? InstanceType<ServiceClassMap[T]> : Service;
 
 /**
  * Runtime service registry type
  */
-export type ServiceRegistry<T extends ServiceTypeName = ServiceTypeName> = Map<T, Service>;
+export type ServiceRegistry<T extends ServiceTypeName = ServiceTypeName> = Map<
+  T,
+  Service
+>;
 
 /**
  * Enumerates the recognized types of services that can be registered and used by the agent runtime.
@@ -174,15 +182,15 @@ export type ServiceRegistry<T extends ServiceTypeName = ServiceTypeName> = Map<T
  * Each service typically implements the `Service` abstract class or a more specific interface like `IVideoService`.
  */
 export const ServiceType = {
-  TRANSCRIPTION: 'transcription',
-  VIDEO: 'video',
-  BROWSER: 'browser',
-  PDF: 'pdf',
-  REMOTE_FILES: 'aws_s3',
-  WEB_SEARCH: 'web_search',
-  EMAIL: 'email',
-  TEE: 'tee',
-  TASK: 'task',
+  TRANSCRIPTION: "transcription",
+  VIDEO: "video",
+  BROWSER: "browser",
+  PDF: "pdf",
+  REMOTE_FILES: "aws_s3",
+  WEB_SEARCH: "web_search",
+  EMAIL: "email",
+  TEE: "tee",
+  TASK: "task",
 } as const satisfies ServiceTypeRegistry;
 
 /**
@@ -222,11 +230,11 @@ export type MemoryTypeAlias = string;
  * This enum is used in `MemoryMetadata` to categorize memories and influences how they are processed or queried.
  */
 export enum MemoryType {
-  DOCUMENT = 'document',
-  FRAGMENT = 'fragment',
-  MESSAGE = 'message',
-  DESCRIPTION = 'description',
-  CUSTOM = 'custom',
+  DOCUMENT = "document",
+  FRAGMENT = "fragment",
+  MESSAGE = "message",
+  DESCRIPTION = "description",
+  CUSTOM = "custom",
 }
 /**
  * Defines the scope of a memory, indicating its visibility and accessibility.
@@ -235,7 +243,7 @@ export enum MemoryType {
  * - `room`: The memory is scoped to a specific room or channel.
  * This is used in `MemoryMetadata` to control how memories are stored and retrieved based on context.
  */
-export type MemoryScope = 'shared' | 'private' | 'room';
+export type MemoryScope = "shared" | "private" | "room";
 
 /**
  * Base interface for all memory metadata types.
@@ -367,13 +375,16 @@ export type Handler = (
   state?: State,
   options?: { [key: string]: unknown },
   callback?: HandlerCallback,
-  responses?: Memory[]
+  responses?: Memory[],
 ) => Promise<unknown>;
 
 /**
  * Callback function type for handlers
  */
-export type HandlerCallback = (response: Content, files?: any) => Promise<Memory[]>;
+export type HandlerCallback = (
+  response: Content,
+  files?: any,
+) => Promise<Memory[]>;
 
 /**
  * Validator function type for actions/evaluators
@@ -381,7 +392,7 @@ export type HandlerCallback = (response: Content, files?: any) => Promise<Memory
 export type Validator = (
   runtime: IAgentRuntime,
   message: Memory,
-  state?: State
+  state?: State,
 ) => Promise<boolean>;
 
 /**
@@ -481,7 +492,11 @@ export interface Provider {
   private?: boolean;
 
   /** Data retrieval function */
-  get: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<ProviderResult>;
+  get: (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+  ) => Promise<ProviderResult>;
 }
 
 /**
@@ -617,29 +632,29 @@ export type Media = {
 };
 
 export enum ContentType {
-  IMAGE = 'image',
-  VIDEO = 'video',
-  AUDIO = 'audio',
-  DOCUMENT = 'document',
-  LINK = 'link',
+  IMAGE = "image",
+  VIDEO = "video",
+  AUDIO = "audio",
+  DOCUMENT = "document",
+  LINK = "link",
 }
 
 export enum ChannelType {
-  SELF = 'SELF', // Messages to self
-  DM = 'DM', // Direct messages between two participants
-  GROUP = 'GROUP', // Group messages with multiple participants
-  VOICE_DM = 'VOICE_DM', // Voice direct messages
-  VOICE_GROUP = 'VOICE_GROUP', // Voice channels with multiple participants
-  FEED = 'FEED', // Social media feed
-  THREAD = 'THREAD', // Threaded conversation
-  WORLD = 'WORLD', // World channel
-  FORUM = 'FORUM', // Forum discussion
+  SELF = "SELF", // Messages to self
+  DM = "DM", // Direct messages between two participants
+  GROUP = "GROUP", // Group messages with multiple participants
+  VOICE_DM = "VOICE_DM", // Voice direct messages
+  VOICE_GROUP = "VOICE_GROUP", // Voice channels with multiple participants
+  FEED = "FEED", // Social media feed
+  THREAD = "THREAD", // Threaded conversation
+  WORLD = "WORLD", // World channel
+  FORUM = "FORUM", // Forum discussion
   // Legacy types - kept for backward compatibility but should be replaced
-  API = 'API', // @deprecated - Use DM or GROUP instead
+  API = "API", // @deprecated - Use DM or GROUP instead
 }
 
 export type Route = {
-  type: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'STATIC';
+  type: "GET" | "POST" | "PUT" | "DELETE" | "STATIC";
   path: string;
   filePath?: string;
   public?: boolean;
@@ -662,7 +677,10 @@ export interface Plugin {
   description: string;
 
   // Initialize plugin with runtime services
-  init?: (config: Record<string, string>, runtime: IAgentRuntime) => Promise<void>;
+  init?: (
+    config: Record<string, string>,
+    runtime: IAgentRuntime,
+  ) => Promise<void>;
 
   // Configuration
   config?: { [key: string]: any };
@@ -786,8 +804,8 @@ export interface Character {
 }
 
 export enum AgentStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
+  ACTIVE = "active",
+  INACTIVE = "inactive",
 }
 
 /**
@@ -838,7 +856,10 @@ export interface IDatabaseAdapter {
   getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null>;
 
   /** Get entities for room */
-  getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]>;
+  getEntitiesForRoom(
+    roomId: UUID,
+    includeComponents?: boolean,
+  ): Promise<Entity[]>;
 
   /** Create new entities */
   createEntities(entities: Entity[]): Promise<boolean>;
@@ -851,11 +872,15 @@ export interface IDatabaseAdapter {
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID
+    sourceEntityId?: UUID,
   ): Promise<Component | null>;
 
   /** Get all components for an entity */
-  getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]>;
+  getComponents(
+    entityId: UUID,
+    worldId?: UUID,
+    sourceEntityId?: UUID,
+  ): Promise<Component[]>;
 
   /** Create component */
   createComponent(component: Component): Promise<boolean>;
@@ -927,9 +952,15 @@ export interface IDatabaseAdapter {
     entityId?: UUID;
   }): Promise<Memory[]>;
 
-  createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID>;
+  createMemory(
+    memory: Memory,
+    tableName: string,
+    unique?: boolean,
+  ): Promise<UUID>;
 
-  updateMemory(memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata }): Promise<boolean>;
+  updateMemory(
+    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata },
+  ): Promise<boolean>;
 
   deleteMemory(memoryId: UUID): Promise<void>;
 
@@ -937,7 +968,11 @@ export interface IDatabaseAdapter {
 
   deleteAllMemories(roomId: UUID, tableName: string): Promise<void>;
 
-  countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number>;
+  countMemories(
+    roomId: UUID,
+    unique?: boolean,
+    tableName?: string,
+  ): Promise<number>;
 
   createWorld(world: World): Promise<UUID>;
 
@@ -973,12 +1008,15 @@ export interface IDatabaseAdapter {
 
   addParticipantsRoom(entityIds: UUID[], roomId: UUID): Promise<boolean>;
 
-  getParticipantUserState(roomId: UUID, entityId: UUID): Promise<'FOLLOWED' | 'MUTED' | null>;
+  getParticipantUserState(
+    roomId: UUID,
+    entityId: UUID,
+  ): Promise<"FOLLOWED" | "MUTED" | null>;
 
   setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: 'FOLLOWED' | 'MUTED' | null
+    state: "FOLLOWED" | "MUTED" | null,
   ): Promise<void>;
 
   /**
@@ -1015,7 +1053,10 @@ export interface IDatabaseAdapter {
    * @param params Object containing the user ID, agent ID and optional tags to filter by
    * @returns Promise resolving to an array of Relationship objects
    */
-  getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]>;
+  getRelationships(params: {
+    entityId: UUID;
+    tags?: string[];
+  }): Promise<Relationship[]>;
 
   ensureEmbeddingDimension(dimension: number): Promise<void>;
 
@@ -1025,7 +1066,11 @@ export interface IDatabaseAdapter {
 
   // Only task instance methods - definitions are in-memory
   createTask(task: Task): Promise<UUID>;
-  getTasks(params: { roomId?: UUID; tags?: string[]; entityId?: UUID }): Promise<Task[]>;
+  getTasks(params: {
+    roomId?: UUID;
+    tags?: string[];
+    entityId?: UUID;
+  }): Promise<Task[]>;
   getTask(id: UUID): Promise<Task | null>;
   getTasksByName(name: string): Promise<Task[]>;
   updateTask(id: UUID, task: Partial<Task>): Promise<void>;
@@ -1120,7 +1165,7 @@ export interface TargetInfo {
 export type SendHandlerFunction = (
   runtime: IAgentRuntime,
   target: TargetInfo,
-  content: Content
+  content: Content,
 ) => Promise<void>;
 
 /**
@@ -1157,7 +1202,11 @@ export interface IAgentRuntime extends IDatabaseAdapter {
   // Keep these methods for backward compatibility
   registerDatabaseAdapter(adapter: IDatabaseAdapter): void;
 
-  setSetting(key: string, value: string | boolean | null | any, secret?: boolean): void;
+  setSetting(
+    key: string,
+    value: string | boolean | null | any,
+    secret?: boolean,
+  ): void;
 
   getSetting(key: string): string | boolean | null | any;
 
@@ -1167,7 +1216,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     message: Memory,
     responses: Memory[],
     state?: State,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<void>;
 
   evaluate(
@@ -1175,7 +1224,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     state?: State,
     didRespond?: boolean,
     callback?: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<Evaluator[] | null>;
 
   registerProvider(provider: Provider): void;
@@ -1222,7 +1271,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     message: Memory,
     includeList?: string[],
     onlyInclude?: boolean,
-    skipCache?: boolean
+    skipCache?: boolean,
   ): Promise<State>;
 
   /**
@@ -1235,18 +1284,18 @@ export interface IAgentRuntime extends IDatabaseAdapter {
    */
   useModel<T extends ModelTypeName, R = ModelResultMap[T]>(
     modelType: T,
-    params: Omit<ModelParamsMap[T], 'runtime'> | any
+    params: Omit<ModelParamsMap[T], "runtime"> | any,
   ): Promise<R>;
 
   registerModel(
     modelType: ModelTypeName | string,
     handler: (params: any) => Promise<any>,
     provider: string,
-    priority?: number
+    priority?: number,
   ): void;
 
   getModel(
-    modelType: ModelTypeName | string
+    modelType: ModelTypeName | string,
   ): ((runtime: IAgentRuntime, params: any) => Promise<any>) | undefined;
 
   registerEvent(event: string, handler: (params: any) => Promise<void>): void;
@@ -1277,7 +1326,15 @@ export interface IAgentRuntime extends IDatabaseAdapter {
   getEntityById(entityId: UUID): Promise<Entity | null>;
   getRoom(roomId: UUID): Promise<Room | null>;
   createEntity(entity: Entity): Promise<boolean>;
-  createRoom({ id, name, source, type, channelId, serverId, worldId }: Room): Promise<UUID>;
+  createRoom({
+    id,
+    name,
+    source,
+    type,
+    channelId,
+    serverId,
+    worldId,
+  }: Room): Promise<UUID>;
   addParticipant(entityId: UUID, roomId: UUID): Promise<boolean>;
   getRooms(worldId: UUID): Promise<Room[]>;
 
@@ -1330,8 +1387,8 @@ export type KnowledgeItem = {
  * This enum is used to manage access and retrieval of knowledge items, often in conjunction with `AgentRuntime.addKnowledge` or `AgentRuntime.getKnowledge` scopes.
  */
 export enum KnowledgeScope {
-  SHARED = 'shared',
-  PRIVATE = 'private',
+  SHARED = "shared",
+  PRIVATE = "private",
 }
 
 /**
@@ -1341,7 +1398,7 @@ export enum KnowledgeScope {
  * Used internally by caching strategies, potentially within `IDatabaseAdapter` cache methods or runtime caching layers.
  */
 export enum CacheKeyPrefix {
-  KNOWLEDGE = 'knowledge',
+  KNOWLEDGE = "knowledge",
 }
 
 /**
@@ -1481,13 +1538,13 @@ export interface TeeAgent {
  */
 export enum TEEMode {
   /** TEE functionality is completely disabled. */
-  OFF = 'OFF',
+  OFF = "OFF",
   /** For local development, potentially using a TEE simulator. */
-  LOCAL = 'LOCAL', // For local development with simulator
+  LOCAL = "LOCAL", // For local development with simulator
   /** For Docker-based development environments, possibly with a TEE simulator. */
-  DOCKER = 'DOCKER', // For docker development with simulator
+  DOCKER = "DOCKER", // For docker development with simulator
   /** For production deployments, using actual TEE hardware without a simulator. */
-  PRODUCTION = 'PRODUCTION', // For production without simulator
+  PRODUCTION = "PRODUCTION", // For production without simulator
 }
 
 /**
@@ -1540,7 +1597,7 @@ export interface RemoteAttestationMessage {
  */
 export enum TeeType {
   /** Represents Intel Trusted Domain Extensions (TDX) running on DSTACK infrastructure. */
-  TDX_DSTACK = 'tdx_dstack',
+  TDX_DSTACK = "tdx_dstack",
 }
 
 /**
@@ -1580,14 +1637,18 @@ export interface TaskWorker {
   execute: (
     runtime: IAgentRuntime,
     options: { [key: string]: unknown },
-    task: Task
+    task: Task,
   ) => Promise<void>;
   /**
    * Optional validation function that can be used to determine if a task is valid or should be executed,
    * often based on the current message and state. This might be used by an action or evaluator
    * before creating or queueing a task.
    */
-  validate?: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<boolean>;
+  validate?: (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+  ) => Promise<boolean>;
 }
 
 /**
@@ -1641,9 +1702,9 @@ export interface Task {
  * These roles are often used in `World.metadata.roles` to assign roles to entities.
  */
 export enum Role {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  NONE = 'NONE',
+  OWNER = "OWNER",
+  ADMIN = "ADMIN",
+  NONE = "NONE",
 }
 
 export interface Setting {
@@ -1666,7 +1727,7 @@ export interface WorldSettings {
 
 export interface OnboardingConfig {
   settings: {
-    [key: string]: Omit<Setting, 'value'>;
+    [key: string]: Omit<Setting, "value">;
   };
 }
 
@@ -1789,7 +1850,7 @@ export interface ObjectGenerationParams<T = any> extends BaseModelParams {
   /** Optional JSON schema for validation */
   schema?: JSONSchema;
   /** Type of object to generate */
-  output?: 'object' | 'array' | 'enum';
+  output?: "object" | "array" | "enum";
   /** For enum type, the allowed values */
   enumValues?: string[];
   /** Model type to use */
@@ -1851,60 +1912,60 @@ export interface ModelResultMap {
  */
 export enum EventType {
   // World events
-  WORLD_JOINED = 'WORLD_JOINED',
-  WORLD_CONNECTED = 'WORLD_CONNECTED',
-  WORLD_LEFT = 'WORLD_LEFT',
+  WORLD_JOINED = "WORLD_JOINED",
+  WORLD_CONNECTED = "WORLD_CONNECTED",
+  WORLD_LEFT = "WORLD_LEFT",
 
   // Entity events
-  ENTITY_JOINED = 'ENTITY_JOINED',
-  ENTITY_LEFT = 'ENTITY_LEFT',
-  ENTITY_UPDATED = 'ENTITY_UPDATED',
+  ENTITY_JOINED = "ENTITY_JOINED",
+  ENTITY_LEFT = "ENTITY_LEFT",
+  ENTITY_UPDATED = "ENTITY_UPDATED",
 
   // Room events
-  ROOM_JOINED = 'ROOM_JOINED',
-  ROOM_LEFT = 'ROOM_LEFT',
+  ROOM_JOINED = "ROOM_JOINED",
+  ROOM_LEFT = "ROOM_LEFT",
 
   // Message events
-  MESSAGE_RECEIVED = 'MESSAGE_RECEIVED',
-  MESSAGE_SENT = 'MESSAGE_SENT',
-  MESSAGE_DELETED = 'MESSAGE_DELETED',
+  MESSAGE_RECEIVED = "MESSAGE_RECEIVED",
+  MESSAGE_SENT = "MESSAGE_SENT",
+  MESSAGE_DELETED = "MESSAGE_DELETED",
 
   // Channel events
-  CHANNEL_CLEARED = 'CHANNEL_CLEARED',
+  CHANNEL_CLEARED = "CHANNEL_CLEARED",
 
   // Voice events
-  VOICE_MESSAGE_RECEIVED = 'VOICE_MESSAGE_RECEIVED',
-  VOICE_MESSAGE_SENT = 'VOICE_MESSAGE_SENT',
+  VOICE_MESSAGE_RECEIVED = "VOICE_MESSAGE_RECEIVED",
+  VOICE_MESSAGE_SENT = "VOICE_MESSAGE_SENT",
 
   // Interaction events
-  REACTION_RECEIVED = 'REACTION_RECEIVED',
-  POST_GENERATED = 'POST_GENERATED',
-  INTERACTION_RECEIVED = 'INTERACTION_RECEIVED',
+  REACTION_RECEIVED = "REACTION_RECEIVED",
+  POST_GENERATED = "POST_GENERATED",
+  INTERACTION_RECEIVED = "INTERACTION_RECEIVED",
 
   // Run events
-  RUN_STARTED = 'RUN_STARTED',
-  RUN_ENDED = 'RUN_ENDED',
-  RUN_TIMEOUT = 'RUN_TIMEOUT',
+  RUN_STARTED = "RUN_STARTED",
+  RUN_ENDED = "RUN_ENDED",
+  RUN_TIMEOUT = "RUN_TIMEOUT",
 
   // Action events
-  ACTION_STARTED = 'ACTION_STARTED',
-  ACTION_COMPLETED = 'ACTION_COMPLETED',
+  ACTION_STARTED = "ACTION_STARTED",
+  ACTION_COMPLETED = "ACTION_COMPLETED",
 
   // Evaluator events
-  EVALUATOR_STARTED = 'EVALUATOR_STARTED',
-  EVALUATOR_COMPLETED = 'EVALUATOR_COMPLETED',
+  EVALUATOR_STARTED = "EVALUATOR_STARTED",
+  EVALUATOR_COMPLETED = "EVALUATOR_COMPLETED",
 
   // Model events
-  MODEL_USED = 'MODEL_USED',
+  MODEL_USED = "MODEL_USED",
 }
 
 /**
  * Platform-specific event type prefix
  */
 export enum PlatformPrefix {
-  DISCORD = 'DISCORD',
-  TELEGRAM = 'TELEGRAM',
-  TWITTER = 'TWITTER',
+  DISCORD = "DISCORD",
+  TELEGRAM = "TELEGRAM",
+  TWITTER = "TWITTER",
 }
 
 /**
@@ -1978,7 +2039,7 @@ export interface RunEventPayload extends EventPayload {
   roomId: UUID;
   entityId: UUID;
   startTime: number;
-  status: 'started' | 'completed' | 'timeout';
+  status: "started" | "completed" | "timeout";
   endTime?: number;
   duration?: number;
   error?: string;
@@ -2065,7 +2126,7 @@ export interface EventPayloadMap {
  * Event handler function type
  */
 export type EventHandler<T extends keyof EventPayloadMap> = (
-  payload: EventPayloadMap[T]
+  payload: EventPayloadMap[T],
 ) => Promise<void>;
 
 /**
@@ -2108,7 +2169,7 @@ export function createMessageMemory(params: {
     metadata: {
       type: MemoryType.MESSAGE,
       timestamp: Date.now(),
-      scope: params.agentId ? 'private' : 'shared',
+      scope: params.agentId ? "private" : "shared",
     },
   };
 }
@@ -2143,7 +2204,7 @@ export interface TypedService<
  */
 export function getTypedService<T extends TypedService<any, any>>(
   runtime: IAgentRuntime,
-  serviceType: ServiceTypeName
+  serviceType: ServiceTypeName,
 ): T | null {
   return runtime.getService<T>(serviceType);
 }
@@ -2153,7 +2214,9 @@ export function getTypedService<T extends TypedService<any, any>>(
  * @param metadata The metadata to check
  * @returns True if the metadata is a DocumentMetadata
  */
-export function isDocumentMetadata(metadata: MemoryMetadata): metadata is DocumentMetadata {
+export function isDocumentMetadata(
+  metadata: MemoryMetadata,
+): metadata is DocumentMetadata {
   return metadata.type === MemoryType.DOCUMENT;
 }
 
@@ -2162,7 +2225,9 @@ export function isDocumentMetadata(metadata: MemoryMetadata): metadata is Docume
  * @param metadata The metadata to check
  * @returns True if the metadata is a FragmentMetadata
  */
-export function isFragmentMetadata(metadata: MemoryMetadata): metadata is FragmentMetadata {
+export function isFragmentMetadata(
+  metadata: MemoryMetadata,
+): metadata is FragmentMetadata {
   return metadata.type === MemoryType.FRAGMENT;
 }
 
@@ -2171,7 +2236,9 @@ export function isFragmentMetadata(metadata: MemoryMetadata): metadata is Fragme
  * @param metadata The metadata to check
  * @returns True if the metadata is a MessageMetadata
  */
-export function isMessageMetadata(metadata: MemoryMetadata): metadata is MessageMetadata {
+export function isMessageMetadata(
+  metadata: MemoryMetadata,
+): metadata is MessageMetadata {
   return metadata.type === MemoryType.MESSAGE;
 }
 
@@ -2180,7 +2247,9 @@ export function isMessageMetadata(metadata: MemoryMetadata): metadata is Message
  * @param metadata The metadata to check
  * @returns True if the metadata is a DescriptionMetadata
  */
-export function isDescriptionMetadata(metadata: MemoryMetadata): metadata is DescriptionMetadata {
+export function isDescriptionMetadata(
+  metadata: MemoryMetadata,
+): metadata is DescriptionMetadata {
   return metadata.type === MemoryType.DESCRIPTION;
 }
 
@@ -2189,7 +2258,9 @@ export function isDescriptionMetadata(metadata: MemoryMetadata): metadata is Des
  * @param metadata The metadata to check
  * @returns True if the metadata is a CustomMetadata
  */
-export function isCustomMetadata(metadata: MemoryMetadata): metadata is CustomMetadata {
+export function isCustomMetadata(
+  metadata: MemoryMetadata,
+): metadata is CustomMetadata {
   return (
     metadata.type !== MemoryType.DOCUMENT &&
     metadata.type !== MemoryType.FRAGMENT &&
@@ -2212,7 +2283,7 @@ export interface ServiceError {
  * Memory type guard for document memories
  */
 export function isDocumentMemory(
-  memory: Memory
+  memory: Memory,
 ): memory is Memory & { metadata: DocumentMetadata } {
   return memory.metadata?.type === MemoryType.DOCUMENT;
 }
@@ -2221,7 +2292,7 @@ export function isDocumentMemory(
  * Memory type guard for fragment memories
  */
 export function isFragmentMemory(
-  memory: Memory
+  memory: Memory,
 ): memory is Memory & { metadata: FragmentMetadata } {
   return memory.metadata?.type === MemoryType.FRAGMENT;
 }
@@ -2232,14 +2303,17 @@ export function isFragmentMemory(
  * @param defaultValue Optional default value if no text is found
  * @returns The text content or default value
  */
-export function getMemoryText(memory: Memory, defaultValue = ''): string {
+export function getMemoryText(memory: Memory, defaultValue = ""): string {
   return memory.content.text ?? defaultValue;
 }
 
 /**
  * Safely create a ServiceError from any caught error
  */
-export function createServiceError(error: unknown, code = 'UNKNOWN_ERROR'): ServiceError {
+export function createServiceError(
+  error: unknown,
+  code = "UNKNOWN_ERROR",
+): ServiceError {
   if (error instanceof Error) {
     return {
       code,
@@ -2264,7 +2338,13 @@ export function createServiceError(error: unknown, code = 'UNKNOWN_ERROR'): Serv
  * This type is used to provide more specific typing for properties within `StateObject` and `StateArray`,
  * moving away from a generic 'any' type for better type safety and clarity in state management.
  */
-export type StateValue = string | number | boolean | null | StateObject | StateArray;
+export type StateValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StateObject
+  | StateArray;
 /**
  * Represents a generic object structure within the agent's state, where keys are strings
  * and values can be any `StateValue`. This allows for nested objects within the state.
@@ -2352,7 +2432,10 @@ export type MetadataObject = Record<string, unknown>;
  */
 export interface ModelHandler {
   /** The function that executes the model, taking runtime and parameters, and returning a Promise. */
-  handler: (runtime: IAgentRuntime, params: Record<string, unknown>) => Promise<unknown>;
+  handler: (
+    runtime: IAgentRuntime,
+    params: Record<string, unknown>,
+  ) => Promise<unknown>;
   /** The name of the provider (e.g., plugin name) that registered this model handler. */
   provider: string;
   /**
@@ -2390,12 +2473,12 @@ export const VECTOR_DIMS = {
  */
 export interface ControlMessage {
   /** Message type identifier */
-  type: 'control';
+  type: "control";
 
   /** Control message payload */
   payload: {
     /** Action to perform */
-    action: 'disable_input' | 'enable_input';
+    action: "disable_input" | "enable_input";
 
     /** Optional target element identifier */
     target?: string;
@@ -2434,11 +2517,11 @@ export abstract class Service {
 
   /** Start service connection */
   static async start(_runtime: IAgentRuntime): Promise<Service> {
-    throw new Error('Not implemented');
+    throw new Error("Not implemented");
   }
 
   /** Stop service connection */
   static async stop(_runtime: IAgentRuntime): Promise<unknown> {
-    throw new Error('Not implemented');
+    throw new Error("Not implemented");
   }
 }

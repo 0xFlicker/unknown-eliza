@@ -25,6 +25,6 @@ export interface WorldSettings {
 
 export interface OnboardingConfig {
   settings: {
-    [key: string]: Omit<Setting, 'value'>;
+    [key: string]: Omit<Setting, "value">;
   };
 }

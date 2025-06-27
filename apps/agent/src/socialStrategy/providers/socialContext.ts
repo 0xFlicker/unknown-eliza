@@ -29,7 +29,7 @@ import { getOrCreatePlayer } from "../runtime/memory";
 
 // Sentiment ↔ Relationship helpers
 function sentimentToRelationship(
-  sentiment: "positive" | "negative" | "neutral"
+  sentiment: "positive" | "negative" | "neutral",
 ): RelationshipType {
   if (sentiment === "positive") return "ally";
   if (sentiment === "negative") return "rival";
@@ -60,7 +60,7 @@ function extractMentions(text: string): string[] {
  * @returns An object parsed from the JSON string if successful; otherwise, null or the result of parsing an array.
  */
 export function parseJSONObjectFromText(
-  text: string
+  text: string,
 ): Record<string, any> | null {
   let jsonData = null;
   let jsonString = text.trim();
@@ -99,7 +99,7 @@ export function resetAnalysisCache(): void {
 async function getAnalysis(
   runtime: IAgentRuntime,
   key: string,
-  prompt: string
+  prompt: string,
 ): Promise<AnalysisResult> {
   const now = Date.now();
   // 1) Try runtime cache
@@ -134,7 +134,7 @@ async function getAnalysis(
       maxTokens: 512,
     });
     const parsed = parseJSONObjectFromText(
-      raw ?? "[]"
+      raw ?? "[]",
     ) as AnalysisResult | null;
     const result = parsed ?? [];
     const entry: CachedAnalysis = { ts: Date.now(), result };
@@ -191,7 +191,7 @@ export const socialContextProvider: Provider = {
     }
     if (Object.keys(playerMap).length > 0) {
       console.log(
-        `🗺️ Player map initialized with ${Object.keys(playerMap).length} players}`
+        `🗺️ Player map initialized with ${Object.keys(playerMap).length} players}`,
       );
     }
 
@@ -214,7 +214,7 @@ export const socialContextProvider: Provider = {
     }
     if (runtimeRelationships.length > 0) {
       console.log(
-        `🔗 Loaded ${runtimeRelationships.length} relationships from runtime`
+        `🔗 Loaded ${runtimeRelationships.length} relationships from runtime`,
       );
     }
 
@@ -229,14 +229,14 @@ export const socialContextProvider: Provider = {
     }
     if (runtimeStatements.length > 0) {
       console.log(
-        `💬 Loaded ${runtimeStatements.length} statements from runtime`
+        `💬 Loaded ${runtimeStatements.length} statements from runtime`,
       );
     }
     const currentHandles = [
       ...new Set(
         Object.values(playerMap)
           .map((p) => p.names)
-          .flat()
+          .flat(),
       ),
     ];
     // Now add the TestPlayer
@@ -322,13 +322,15 @@ export const socialContextProvider: Provider = {
 
           const targetHandle = p.handle;
           const target = Object.values(playerMap).find((p) =>
-            p.names?.some((n) => n.toLowerCase() === targetHandle.toLowerCase())
+            p.names?.some(
+              (n) => n.toLowerCase() === targetHandle.toLowerCase(),
+            ),
           );
           const speaker = playerMap[speakerHandle];
           if (speaker && target) {
             const now = Date.now();
             const statementId = stringToUuid(
-              `statement:${speaker.id}:${target.id}:${now}`
+              `statement:${speaker.id}:${target.id}:${now}`,
             );
             const statement: PlayerStatement = {
               id: statementId,
@@ -357,7 +359,7 @@ export const socialContextProvider: Provider = {
             let rel = runtimeRelationships.find(
               (r) =>
                 r.sourceEntityId === speaker.id &&
-                r.targetEntityId === target.id
+                r.targetEntityId === target.id,
             );
             if (rel) {
               // Update existing relationship
@@ -365,7 +367,7 @@ export const socialContextProvider: Provider = {
               rel.metadata.lastUpdated = now;
               rel.metadata.strength = Math.min(
                 (rel.metadata.strength ?? 0) + 1,
-                100
+                100,
               );
               rel.metadata.evidence.push({
                 type: "direct_interaction",
@@ -399,11 +401,11 @@ export const socialContextProvider: Provider = {
             }
 
             console.log(
-              `🆕 New sentiment detected: ${speaker.names && speaker.names[0] ? speaker.names[0] : speaker.id} → ${target.names && target.names[0] ? target.names[0] : target.id} (${sentiment}, ${trustScore}, ${confidence})`
+              `🆕 New sentiment detected: ${speaker.names && speaker.names[0] ? speaker.names[0] : speaker.id} → ${target.names && target.names[0] ? target.names[0] : target.id} (${sentiment}, ${trustScore}, ${confidence})`,
             );
           } else {
             console.log(
-              `🔍 No speaker or target found for handle: ${speakerHandle} → ${targetHandle}`
+              `🔍 No speaker or target found for handle: ${speakerHandle} → ${targetHandle}`,
             );
           }
         }
@@ -420,7 +422,7 @@ export const socialContextProvider: Provider = {
     const allStatements = [...runtimeStatements, ...newStatements];
     const duration = Date.now() - now;
     console.log(
-      `✅ Context ready: players=${players.length}, relationships=${relationships.length}, statements=${allStatements.length}, duration=${duration}ms`
+      `✅ Context ready: players=${players.length}, relationships=${relationships.length}, statements=${allStatements.length}, duration=${duration}ms`,
     );
 
     return {

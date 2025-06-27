@@ -1,19 +1,27 @@
-import { Database, LoaderIcon, Search, Clock, Trash2, Filter, RefreshCw } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  Database,
+  LoaderIcon,
+  Search,
+  Clock,
+  Trash2,
+  Filter,
+  RefreshCw,
+} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { useAgents } from '../hooks/use-query-hooks';
-import { apiClient } from '../lib/api';
-import SocketIOManager, { type LogStreamData } from '../lib/socketio-manager';
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useAgents } from "../hooks/use-query-hooks";
+import { apiClient } from "../lib/api";
+import SocketIOManager, { type LogStreamData } from "../lib/socketio-manager";
 
 // Types
 interface LogEntry {
@@ -41,37 +49,39 @@ interface AgentLogViewerProps {
 
 // Log level mappings
 const LOG_LEVEL_NUMBERS = {
-  10: 'TRACE',
-  20: 'DEBUG',
-  27: 'SUCCESS',
-  28: 'PROGRESS',
-  29: 'LOG',
-  30: 'INFO',
-  40: 'WARN',
-  50: 'ERROR',
-  60: 'FATAL',
+  10: "TRACE",
+  20: "DEBUG",
+  27: "SUCCESS",
+  28: "PROGRESS",
+  29: "LOG",
+  30: "INFO",
+  40: "WARN",
+  50: "ERROR",
+  60: "FATAL",
 } as const;
 
 // Helper functions
 function getLevelName(level: number): string {
-  return LOG_LEVEL_NUMBERS[level as keyof typeof LOG_LEVEL_NUMBERS] || 'UNKNOWN';
+  return (
+    LOG_LEVEL_NUMBERS[level as keyof typeof LOG_LEVEL_NUMBERS] || "UNKNOWN"
+  );
 }
 
 function getLevelColor(level: number): string {
-  if (level >= 50) return 'bg-red-600/80'; // ERROR/FATAL - more muted red
-  if (level >= 40) return 'bg-amber-600/80'; // WARN - more muted amber
-  if (level >= 27) return 'bg-emerald-600/80'; // SUCCESS - more muted green
-  return 'bg-slate-500'; // INFO/DEBUG/TRACE - neutral gray instead of blue
+  if (level >= 50) return "bg-red-600/80"; // ERROR/FATAL - more muted red
+  if (level >= 40) return "bg-amber-600/80"; // WARN - more muted amber
+  if (level >= 27) return "bg-emerald-600/80"; // SUCCESS - more muted green
+  return "bg-slate-500"; // INFO/DEBUG/TRACE - neutral gray instead of blue
 }
 
 function formatTimestamp(timestamp: number): string {
   const date = new Date(timestamp);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   });
 }
@@ -122,7 +132,7 @@ function LogChart({ data }: { data: ReturnType<typeof generateLogChart> }) {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-slate-500"></div>
             <span className="text-sm text-muted-foreground">
-              Info{' '}
+              Info{" "}
               <span className="font-mono">
                 {data.reduce((sum, d) => sum + d.info, 0).toLocaleString()}
               </span>
@@ -131,7 +141,7 @@ function LogChart({ data }: { data: ReturnType<typeof generateLogChart> }) {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-600/80"></div>
             <span className="text-sm text-muted-foreground">
-              Errors{' '}
+              Errors{" "}
               <span className="font-mono">
                 {data.reduce((sum, d) => sum + d.errors, 0).toLocaleString()}
               </span>
@@ -139,12 +149,12 @@ function LogChart({ data }: { data: ReturnType<typeof generateLogChart> }) {
           </div>
         </div>
         <div className="text-sm text-muted-foreground">
-          {data[data.length - 1]?.timestamp.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}{' '}
+          {data[data.length - 1]?.timestamp.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}{" "}
           - (UTC-7)
         </div>
       </div>
@@ -172,18 +182,18 @@ function LogChart({ data }: { data: ReturnType<typeof generateLogChart> }) {
 
       <div className="flex justify-between text-xs text-muted-foreground mt-2">
         <span>
-          {data[0]?.timestamp.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+          {data[0]?.timestamp.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </span>
         <span>
-          {data[data.length - 1]?.timestamp.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
+          {data[data.length - 1]?.timestamp.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
           })}
         </span>
       </div>
@@ -198,7 +208,9 @@ function LoadingIndicator() {
         <LoaderIcon className="h-8 w-8 animate-spin text-muted-foreground" />
         <div className="text-center">
           <h3 className="font-medium">Loading Logs</h3>
-          <p className="text-sm text-muted-foreground">Fetching system logs...</p>
+          <p className="text-sm text-muted-foreground">
+            Fetching system logs...
+          </p>
         </div>
       </div>
     </div>
@@ -219,8 +231,8 @@ function EmptyState({
       <p className="text-muted-foreground max-w-md">
         {searchQuery
           ? `No logs match "${searchQuery}". Try adjusting your search or filter.`
-          : selectedLevel === 'all'
-            ? 'No logs available. Logs will appear here as the system generates them.'
+          : selectedLevel === "all"
+            ? "No logs available. Logs will appear here as the system generates them."
             : `No ${selectedLevel.toUpperCase()} logs found.`}
       </p>
     </div>
@@ -228,10 +240,12 @@ function EmptyState({
 }
 
 export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
-  const [selectedLevel, setSelectedLevel] = useState(level || 'all');
-  const [selectedAgentName, setSelectedAgentName] = useState(agentName || 'all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [timeRange, setTimeRange] = useState('7 days');
+  const [selectedLevel, setSelectedLevel] = useState(level || "all");
+  const [selectedAgentName, setSelectedAgentName] = useState(
+    agentName || "all",
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [timeRange, setTimeRange] = useState("7 days");
   const [isLive, setIsLive] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [wsLogs, setWsLogs] = useState<LogEntry[]>([]);
@@ -245,11 +259,11 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
     error,
     refetch,
   } = useQuery<LogResponse>({
-    queryKey: ['logs', selectedLevel, selectedAgentName],
+    queryKey: ["logs", selectedLevel, selectedAgentName],
     queryFn: () =>
       apiClient.getGlobalLogs({
-        level: selectedLevel === 'all' ? '' : selectedLevel,
-        agentName: selectedAgentName === 'all' ? undefined : selectedAgentName,
+        level: selectedLevel === "all" ? "" : selectedLevel,
+        agentName: selectedAgentName === "all" ? undefined : selectedAgentName,
       }),
     refetchInterval: isLive && !useWebSocket ? 2000 : false,
     staleTime: 1000,
@@ -262,9 +276,11 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
     (logEntry: LogStreamData) => {
       // Filter logs based on current filters
       const shouldInclude =
-        (selectedLevel === 'all' ||
-          getLevelName(logEntry.level).toLowerCase() === selectedLevel.toLowerCase()) &&
-        (selectedAgentName === 'all' || logEntry.agentName === selectedAgentName);
+        (selectedLevel === "all" ||
+          getLevelName(logEntry.level).toLowerCase() ===
+            selectedLevel.toLowerCase()) &&
+        (selectedAgentName === "all" ||
+          logEntry.agentName === selectedAgentName);
 
       if (shouldInclude) {
         setWsLogs((prev) => {
@@ -273,7 +289,7 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
         });
       }
     },
-    [selectedLevel, selectedAgentName]
+    [selectedLevel, selectedAgentName],
   );
 
   // Setup WebSocket event listeners
@@ -285,10 +301,10 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
       socketManager.subscribeToLogStream().catch(console.error);
 
       // Listen for log events
-      socketManager.on('logStream', handleLogStream);
+      socketManager.on("logStream", handleLogStream);
 
       return () => {
-        socketManager.off('logStream', handleLogStream);
+        socketManager.off("logStream", handleLogStream);
         socketManager.unsubscribeFromLogStream().catch(console.error);
       };
     }
@@ -302,7 +318,7 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
         setUseWebSocket(true);
       } else {
         // WebSocket not available, continue with API polling
-        console.log('WebSocket not available, continuing with API polling');
+        console.log("WebSocket not available, continuing with API polling");
       }
     } else if (!isLive && useWebSocket) {
       // When disabling live mode, stop WebSocket and clear WebSocket logs
@@ -361,7 +377,7 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
           .map(([_, value]) => String(value)),
       ]
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .toLowerCase();
 
       return searchableText.includes(query);
@@ -374,20 +390,20 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
   const handleClearLogs = async () => {
     if (
       window.confirm(
-        'Are you sure you want to permanently delete all system logs? This action cannot be undone.'
+        "Are you sure you want to permanently delete all system logs? This action cannot be undone.",
       )
     ) {
       try {
         setIsClearing(true);
         await apiClient.deleteGlobalLogs();
-        queryClient.invalidateQueries({ queryKey: ['logs'] });
+        queryClient.invalidateQueries({ queryKey: ["logs"] });
 
         // Also clear WebSocket logs if in WebSocket mode
         if (useWebSocket) {
           setWsLogs([]);
         }
       } catch (error) {
-        console.error('Failed to clear logs:', error);
+        console.error("Failed to clear logs:", error);
       } finally {
         setIsClearing(false);
       }
@@ -463,7 +479,10 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
 
         {/* Agent filter */}
         {agentNames && agentNames.length > 0 && !agentName && (
-          <Select value={selectedAgentName} onValueChange={setSelectedAgentName}>
+          <Select
+            value={selectedAgentName}
+            onValueChange={setSelectedAgentName}
+          >
             <SelectTrigger className="w-40 h-9">
               <SelectValue placeholder="Agent" />
             </SelectTrigger>
@@ -494,26 +513,31 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
         </Select>
 
         {/* Refresh */}
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="h-9 w-9 p-0">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          className="h-9 w-9 p-0"
+        >
           <RefreshCw className="h-4 w-4" />
         </Button>
 
         {/* Live toggle */}
         <Button
-          variant={isLive ? 'default' : 'outline'}
+          variant={isLive ? "default" : "outline"}
           size="sm"
           onClick={() => setIsLive(!isLive)}
           className="h-9 px-3"
           title={
             isLive
               ? useWebSocket
-                ? 'Live mode (WebSocket)'
-                : 'Live mode (Polling)'
-              : 'Live mode disabled'
+                ? "Live mode (WebSocket)"
+                : "Live mode (Polling)"
+              : "Live mode disabled"
           }
         >
           <div
-            className={`w-2 h-2 rounded-full mr-2 ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}
+            className={`w-2 h-2 rounded-full mr-2 ${isLive ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`}
           />
           Live
         </Button>
@@ -533,8 +557,12 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
               {/* Table Header */}
               <div className="bg-muted/50 border-b px-4 py-3">
                 <div className="grid grid-cols-[200px_1fr] gap-4">
-                  <div className="text-sm font-medium text-muted-foreground">Timestamp</div>
-                  <div className="text-sm font-medium text-muted-foreground">Message</div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Timestamp
+                  </div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Message
+                  </div>
                 </div>
               </div>
 
@@ -547,7 +575,9 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
                   >
                     {/* Timestamp with level indicator */}
                     <div className="flex items-center gap-3">
-                      <div className={`w-1 h-6 rounded-full ${getLevelColor(log.level)}`} />
+                      <div
+                        className={`w-1 h-6 rounded-full ${getLevelColor(log.level)}`}
+                      />
                       <div className="text-sm font-mono text-muted-foreground">
                         {formatTimestamp(log.time)}
                       </div>
@@ -555,9 +585,14 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
 
                     {/* Message */}
                     <div className="flex items-start gap-2 min-w-0">
-                      <div className="font-mono text-sm leading-relaxed break-all">{log.msg}</div>
+                      <div className="font-mono text-sm leading-relaxed break-all">
+                        {log.msg}
+                      </div>
                       {log.agentName && (
-                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs flex-shrink-0"
+                        >
                           {log.agentName}
                         </Badge>
                       )}
@@ -570,7 +605,8 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
               {filteredLogs.length > 100 && (
                 <div className="border-t bg-muted/30 px-4 py-3 text-center">
                   <span className="text-sm text-muted-foreground">
-                    Showing first 100 of {filteredLogs.length.toLocaleString()} logs
+                    Showing first 100 of {filteredLogs.length.toLocaleString()}{" "}
+                    logs
                   </span>
                 </div>
               )}
@@ -585,7 +621,10 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
           {isLive && (
             <>
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live updates enabled {useWebSocket ? '(streaming)' : '(polling)'}</span>
+              <span>
+                Live updates enabled{" "}
+                {useWebSocket ? "(streaming)" : "(polling)"}
+              </span>
             </>
           )}
         </div>
@@ -597,7 +636,7 @@ export function AgentLogViewer({ agentName, level }: AgentLogViewerProps) {
           className="h-8 px-3 text-xs"
         >
           <Trash2 className="h-3 w-3 mr-1" />
-          {isClearing ? 'Clearing...' : 'Clear All Logs'}
+          {isClearing ? "Clearing..." : "Clear All Logs"}
         </Button>
       </div>
     </div>

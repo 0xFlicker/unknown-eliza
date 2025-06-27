@@ -2,21 +2,26 @@ import {
   createService as coreCreateService,
   ServiceBuilder as coreServiceBuilder,
   ServiceDefinition as coreServiceDefinition,
-} from '../../services';
+} from "../../services";
 
-import { Service, type IAgentRuntime, type ServiceTypeName } from './types';
+import { Service, type IAgentRuntime, type ServiceTypeName } from "./types";
 
-import { Service as coreService, type IAgentRuntime as coreIAgentRuntime } from '../../types';
+import {
+  Service as coreService,
+  type IAgentRuntime as coreIAgentRuntime,
+} from "../../types";
 
 /**
  * Service builder class that provides type-safe service creation
  * with automatic type inference
  */
-export class ServiceBuilder<TService extends Service = Service> extends coreServiceBuilder {
+export class ServiceBuilder<
+  TService extends Service = Service,
+> extends coreServiceBuilder {
   constructor(serviceType: ServiceTypeName | string) {
     super(serviceType);
     //this.serviceType = serviceType;
-    this.description = '';
+    this.description = "";
   }
 }
 
@@ -26,7 +31,7 @@ export class ServiceBuilder<TService extends Service = Service> extends coreServ
  * @returns A new ServiceBuilder instance
  */
 export function createService<TService extends coreService = coreService>(
-  serviceType: ServiceTypeName | string
+  serviceType: ServiceTypeName | string,
 ): coreServiceBuilder<TService> {
   return coreCreateService<TService>(serviceType);
 }
@@ -45,7 +50,7 @@ export interface ServiceDefinition<T extends Service = Service> {
  * Define a service with type safety
  */
 export function defineService<T extends coreService = coreService>(
-  definition: coreServiceDefinition<T>
+  definition: coreServiceDefinition<T>,
 ): new (runtime?: coreIAgentRuntime) => T {
   return coreCreateService<T>(definition.serviceType)
     .withDescription(definition.description)

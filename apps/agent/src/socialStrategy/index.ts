@@ -103,7 +103,7 @@ export const socialStrategyPlugin: Plugin = {
             ...(message.content.providers || []),
             "FACTS",
             "RELATIONSHIPS",
-          ])
+          ]),
         );
       },
     ],

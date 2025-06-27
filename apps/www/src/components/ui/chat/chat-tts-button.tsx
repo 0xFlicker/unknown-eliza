@@ -1,19 +1,25 @@
-import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
-import { useMutation } from '@tanstack/react-query';
-import { Ellipsis, StopCircle, Volume2 } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { Button } from '../button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip';
+import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
+import { useMutation } from "@tanstack/react-query";
+import { Ellipsis, StopCircle, Volume2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Button } from "../button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip";
 
-export default function ChatTtsButton({ agentId, text }: { agentId: string; text: string }) {
+export default function ChatTtsButton({
+  agentId,
+  text,
+}: {
+  agentId: string;
+  text: string;
+}) {
   const { toast } = useToast();
   const [playing, setPlaying] = useState<boolean>(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const mutation = useMutation({
-    mutationKey: ['tts', text],
+    mutationKey: ["tts", text],
     mutationFn: () => apiClient.ttsStream(agentId, text),
     onSuccess: (data: Blob) => {
       setAudioBlob(data);
@@ -21,8 +27,8 @@ export default function ChatTtsButton({ agentId, text }: { agentId: string; text
     },
     onError: (e) => {
       toast({
-        variant: 'destructive',
-        title: 'Unable to read message aloud',
+        variant: "destructive",
+        title: "Unable to read message aloud",
         description: e.message,
       });
     },
@@ -31,7 +37,7 @@ export default function ChatTtsButton({ agentId, text }: { agentId: string; text
   const play = () => {
     if (audioRef.current) {
       audioRef.current.play().catch((err) => {
-        console.error('Error playing audio:', err);
+        console.error("Error playing audio:", err);
       });
     }
     setPlaying(true);
@@ -61,7 +67,7 @@ export default function ChatTtsButton({ agentId, text }: { agentId: string; text
     mutation.mutate();
   };
 
-  const iconClass = 'text-muted-foreground size-4';
+  const iconClass = "text-muted-foreground size-4";
 
   return (
     <div>
@@ -99,7 +105,7 @@ export default function ChatTtsButton({ agentId, text }: { agentId: string; text
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          <p>{playing ? 'Stop' : 'Read aloud'}</p>
+          <p>{playing ? "Stop" : "Read aloud"}</p>
         </TooltipContent>
       </Tooltip>
     </div>

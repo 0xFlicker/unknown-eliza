@@ -1,14 +1,14 @@
-import ChatComponent from '@/components/chat';
-import { validateUuid } from '@elizaos/core';
-import { useParams, useSearchParams } from 'react-router-dom';
+import ChatComponent from "@/components/chat";
+import { validateUuid } from "@elizaos/core";
+import { useParams, useSearchParams } from "react-router-dom";
 
 export default function GroupRoute() {
   const { channelId: channelIdFromPath } = useParams<{ channelId: string }>();
   const [searchParams] = useSearchParams();
-  const serverIdFromQuery = searchParams.get('serverId');
+  const serverIdFromQuery = searchParams.get("serverId");
 
   const channelId = validateUuid(channelIdFromPath);
-  const serverId = validateUuid(serverIdFromQuery || '');
+  const serverId = validateUuid(serverIdFromQuery || "");
 
   if (!channelId || !serverId) {
     return (
@@ -19,6 +19,11 @@ export default function GroupRoute() {
   }
 
   return (
-    <ChatComponent key={channelId} chatType="GROUP" contextId={channelId} serverId={serverId} />
+    <ChatComponent
+      key={channelId}
+      chatType="GROUP"
+      contextId={channelId}
+      serverId={serverId}
+    />
   );
 }

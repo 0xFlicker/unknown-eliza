@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import clientLogger from '@/lib/logger';
+import { useState, useEffect, useCallback } from "react";
+import clientLogger from "@/lib/logger";
 
 // Key for storing sidebar visibility state in localStorage
-const SIDEBAR_STATE_KEY = 'eliza-agent-sidebar-visible';
+const SIDEBAR_STATE_KEY = "eliza-agent-sidebar-visible";
 
 /**
  * Custom hook to manage agent sidebar visibility state with localStorage persistence
@@ -20,7 +20,10 @@ export function useSidebarState() {
         setIsVisible(parsedState);
       }
     } catch (error) {
-      clientLogger.error('Error reading sidebar state from localStorage:', error);
+      clientLogger.error(
+        "Error reading sidebar state from localStorage:",
+        error,
+      );
       // Default to false if there's an error
       setIsVisible(false);
     }
@@ -33,7 +36,7 @@ export function useSidebarState() {
     try {
       localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(visible));
     } catch (error) {
-      clientLogger.error('Error saving sidebar state to localStorage:', error);
+      clientLogger.error("Error saving sidebar state to localStorage:", error);
     }
   }, []);
 

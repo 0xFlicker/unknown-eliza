@@ -1,6 +1,12 @@
-import { GROUP_CHAT_SOURCE, USER_NAME } from '@/constants';
-import { apiClient } from '@/lib/api';
-import type { Agent, Content, Memory, UUID, Memory as CoreMemory } from '@elizaos/core';
+import { GROUP_CHAT_SOURCE, USER_NAME } from "@/constants";
+import { apiClient } from "@/lib/api";
+import type {
+  Agent,
+  Content,
+  Memory,
+  UUID,
+  Memory as CoreMemory,
+} from "@elizaos/core";
 import {
   useQuery,
   useMutation,
@@ -10,18 +16,18 @@ import {
   type DefinedUseQueryResult,
   type UndefinedInitialDataOptions,
   type UseQueryOptions,
-} from '@tanstack/react-query';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useToast } from './use-toast';
-import { getEntityId, randomUUID, moment } from '@/lib/utils';
+} from "@tanstack/react-query";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useToast } from "./use-toast";
+import { getEntityId, randomUUID, moment } from "@/lib/utils";
 import type {
   ServerMessage,
   AgentWithStatus,
   MessageChannel as ClientMessageChannel,
   MessageServer as ClientMessageServer,
-} from '@/types';
-import clientLogger from '@/lib/logger';
-import { useNavigate } from 'react-router-dom';
+} from "@/types";
+import clientLogger from "@/lib/logger";
+import { useNavigate } from "react-router-dom";
 
 /**
  * Represents content with additional user information.
@@ -81,7 +87,7 @@ export const STALE_TIMES = {
  */
 
 interface NetworkInformation {
-  effectiveType: 'slow-2g' | '2g' | '3g' | '4g' | 'unknown';
+  effectiveType: "slow-2g" | "2g" | "3g" | "4g" | "unknown";
   saveData: boolean;
   [key: string]: unknown;
 }
@@ -99,14 +105,14 @@ interface NetworkInformation {
 const useNetworkStatus = () => {
   // Get navigator.connection if available (Network Information API)
   const connection =
-    typeof navigator !== 'undefined' && 'connection' in navigator
+    typeof navigator !== "undefined" && "connection" in navigator
       ? (navigator as Navigator & { connection: NetworkInformation }).connection
       : null;
 
   // Return the effective connection type or a default value
   return {
-    isOffline: typeof navigator !== 'undefined' && !navigator.onLine,
-    effectiveType: connection?.effectiveType || 'unknown',
+    isOffline: typeof navigator !== "undefined" && !navigator.onLine,
+    effectiveType: connection?.effectiveType || "unknown",
     saveData: connection?.saveData || false,
   };
 };
@@ -124,7 +130,7 @@ export function useAgents(options = {}) {
   const network = useNetworkStatus();
 
   return useQuery<{ data: { agents: Partial<AgentWithStatus>[] } }>({
-    queryKey: ['agents'],
+    queryKey: ["agents"],
     queryFn: () => apiClient.getAgents(),
     staleTime: STALE_TIMES.FREQUENT, // Use shorter stale time for real-time data
     // Use more frequent polling for real-time updates
@@ -133,7 +139,7 @@ export function useAgents(options = {}) {
     refetchIntervalInBackground: false,
     // Configure based on network conditions
     ...(!network.isOffline &&
-      network.effectiveType === 'slow-2g' && {
+      network.effectiveType === "slow-2g" && {
         refetchInterval: STALE_TIMES.STANDARD, // Poll less frequently on slow connections
       }),
     // Allow overriding any options
@@ -152,17 +158,18 @@ export function useAgent(agentId: UUID | undefined | null, options = {}) {
   const network = useNetworkStatus();
 
   return useQuery<{ data: AgentWithStatus }>({
-    queryKey: ['agent', agentId],
-    queryFn: () => apiClient.getAgent(agentId || ''),
+    queryKey: ["agent", agentId],
+    queryFn: () => apiClient.getAgent(agentId || ""),
     staleTime: STALE_TIMES.FREQUENT, // Use shorter stale time for real-time data
     enabled: Boolean(agentId),
     // Use more frequent polling for real-time updates
-    refetchInterval: !network.isOffline && Boolean(agentId) ? STALE_TIMES.FREQUENT : false,
+    refetchInterval:
+      !network.isOffline && Boolean(agentId) ? STALE_TIMES.FREQUENT : false,
     // Disable polling when the tab is not active
     refetchIntervalInBackground: false,
     // Configure based on network conditions
     ...(!network.isOffline &&
-      network.effectiveType === 'slow-2g' && {
+      network.effectiveType === "slow-2g" && {
         refetchInterval: STALE_TIMES.STANDARD, // Poll less frequently on slow connections
       }),
     // Allow overriding any options
@@ -180,18 +187,24 @@ export function useStartAgent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<{ data: { id: UUID; name: string; status: string } }, Error, UUID>({
+  return useMutation<
+    { data: { id: UUID; name: string; status: string } },
+    Error,
+    UUID
+  >({
     mutationFn: async (agentId: UUID) => {
       try {
         return await apiClient.startAgent(agentId);
       } catch (error) {
         // Capture specific error types
         if (error instanceof Error) {
-          if (error.message.includes('network')) {
-            throw new Error('Network error: Please check your connection and try again.');
+          if (error.message.includes("network")) {
+            throw new Error(
+              "Network error: Please check your connection and try again.",
+            );
           }
-          if (error.message.includes('already running')) {
-            throw new Error('Agent is already running.');
+          if (error.message.includes("already running")) {
+            throw new Error("Agent is already running.");
           }
         }
         throw error; // Re-throw if not a specific case we handle
@@ -200,30 +213,31 @@ export function useStartAgent() {
     onMutate: async (_agentId) => {
       // Optimistically update UI to show agent is starting
       toast({
-        title: 'Starting Agent',
-        description: 'Initializing agent...',
+        title: "Starting Agent",
+        description: "Initializing agent...",
       });
 
       // Return context for potential rollback
       return {};
     },
     onSuccess: (response, agentId) => {
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
-      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
 
       toast({
-        title: 'Agent Started',
-        description: `${response?.data?.name || 'Agent'} is now running`,
+        title: "Agent Started",
+        description: `${response?.data?.name || "Agent"} is now running`,
       });
     },
     onError: (error) => {
       // Handle specific error cases
-      const errorMessage = error instanceof Error ? error.message : 'Failed to start agent';
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to start agent";
 
       toast({
-        title: 'Error Starting Agent',
+        title: "Error Starting Agent",
         description: `${errorMessage}. Please try again.`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });
@@ -244,34 +258,36 @@ export function useStopAgent() {
     onMutate: async (agentId) => {
       // Optimistically update the UI
       // Get the agent data from the cache
-      const agent = queryClient.getQueryData<Agent>(['agent', agentId]);
+      const agent = queryClient.getQueryData<Agent>(["agent", agentId]);
 
       if (agent) {
         toast({
-          title: 'Stopping Agent',
+          title: "Stopping Agent",
           description: `Stopping ${agent.name}...`,
         });
       }
     },
     onSuccess: (response, agentId) => {
       // Immediately invalidate the queries for fresh data
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
-      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
 
       toast({
-        title: 'Agent Stopped',
-        description: response?.data?.message || 'The agent has been successfully stopped',
+        title: "Agent Stopped",
+        description:
+          response?.data?.message || "The agent has been successfully stopped",
       });
     },
     onError: (error, agentId) => {
       // Force invalidate on error
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
-      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
 
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to stop agent',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to stop agent",
+        variant: "destructive",
       });
     },
   });
@@ -299,7 +315,7 @@ export type UiMessage = Content & {
  */
 export function useChannelMessages(
   channelId: UUID | undefined, // Changed from UUID | null
-  initialServerId?: UUID | undefined // Changed from UUID (optional was already undefined)
+  initialServerId?: UUID | undefined, // Changed from UUID (optional was already undefined)
 ): {
   data: UiMessage[] | undefined;
   isLoading: boolean;
@@ -317,7 +333,9 @@ export function useChannelMessages(
 
   // Using a more manual approach for pagination with getChannelMessages
   const [messages, setMessages] = useState<UiMessage[]>([]);
-  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<number | null>(null);
+  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<
+    number | null
+  >(null);
   const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(true);
   const [internalIsLoading, setInternalIsLoading] = useState<boolean>(true); // Start true
   const [internalIsError, setInternalIsError] = useState<boolean>(false);
@@ -329,9 +347,9 @@ export function useChannelMessages(
       const isAgent = sm.authorId !== currentClientCentralId;
       let timestamp = Date.now(); // Default to now
 
-      if (typeof sm.createdAt === 'number') {
+      if (typeof sm.createdAt === "number") {
         timestamp = sm.createdAt;
-      } else if (typeof sm.createdAt === 'string') {
+      } else if (typeof sm.createdAt === "string") {
         const parsedTs = Date.parse(sm.createdAt); // Try direct parse
         if (!isNaN(parsedTs)) {
           timestamp = parsedTs;
@@ -339,10 +357,10 @@ export function useChannelMessages(
           // If direct parse fails, try moment (if available and robust)
           // For now, log a warning if it's an unparsable string not handled by Date.parse
           clientLogger.warn(
-            '[transformServerMessageToUiMessage] createdAt string was not directly parsable by Date.parse():',
+            "[transformServerMessageToUiMessage] createdAt string was not directly parsable by Date.parse():",
             sm.createdAt,
-            'for message id:',
-            sm.id
+            "for message id:",
+            sm.id,
           );
           // As a fallback, could try new Date(sm.createdAt).getTime(), but Date.parse is usually sufficient
           // Defaulting to Date.now() if unparsable to avoid NaN
@@ -357,10 +375,10 @@ export function useChannelMessages(
           }
         } catch (e) {
           clientLogger.warn(
-            '[transformServerMessageToUiMessage] Could not process createdAt (unknown type):',
+            "[transformServerMessageToUiMessage] Could not process createdAt (unknown type):",
             sm.createdAt,
-            'for message:',
-            sm.id
+            "for message:",
+            sm.id,
           );
         }
       }
@@ -372,7 +390,7 @@ export function useChannelMessages(
           ? sm.metadata?.agentName ||
             sm.metadata?.authorDisplayName ||
             sm.authorDisplayName ||
-            'Agent'
+            "Agent"
           : USER_NAME,
         senderId: sm.authorId,
         isAgent: isAgent,
@@ -381,13 +399,17 @@ export function useChannelMessages(
         thought: isAgent ? sm.metadata?.thought : undefined,
         actions: isAgent ? sm.metadata?.actions : undefined,
         channelId: sm.channelId,
-        serverId: serverIdToUse || sm.metadata?.serverId || sm.serverId || initialServerId,
+        serverId:
+          serverIdToUse ||
+          sm.metadata?.serverId ||
+          sm.serverId ||
+          initialServerId,
         source: sm.sourceType,
         isLoading: false,
         prompt: isAgent ? sm.metadata?.prompt : undefined,
       };
     },
-    [currentClientCentralId, initialServerId]
+    [currentClientCentralId, initialServerId],
   );
 
   const fetchMessages = useCallback(
@@ -412,20 +434,30 @@ export function useChannelMessages(
         });
 
         const newUiMessages = response.data.messages.map((msg) =>
-          transformServerMessageToUiMessage(msg, initialServerId || msg.metadata?.serverId)
+          transformServerMessageToUiMessage(
+            msg,
+            initialServerId || msg.metadata?.serverId,
+          ),
         );
 
         setMessages((prev) => {
-          const combined = beforeTimestamp ? [...newUiMessages, ...prev] : newUiMessages;
+          const combined = beforeTimestamp
+            ? [...newUiMessages, ...prev]
+            : newUiMessages;
           const uniqueMessages = Array.from(
-            new Map(combined.map((item) => [item.id, item])).values()
+            new Map(combined.map((item) => [item.id, item])).values(),
           );
           return uniqueMessages.sort((a, b) => a.createdAt - b.createdAt);
         });
 
         if (newUiMessages.length > 0) {
-          const oldestFetched = Math.min(...newUiMessages.map((m) => m.createdAt));
-          if (!beforeTimestamp || oldestFetched < (oldestMessageTimestamp || Infinity)) {
+          const oldestFetched = Math.min(
+            ...newUiMessages.map((m) => m.createdAt),
+          );
+          if (
+            !beforeTimestamp ||
+            oldestFetched < (oldestMessageTimestamp || Infinity)
+          ) {
             setOldestMessageTimestamp(oldestFetched);
           }
         }
@@ -433,28 +465,33 @@ export function useChannelMessages(
       } catch (err) {
         setInternalIsError(true);
         setInternalError(err);
-        clientLogger.error(`Failed to fetch messages for channel ${channelId}:`, err);
+        clientLogger.error(
+          `Failed to fetch messages for channel ${channelId}:`,
+          err,
+        );
       } finally {
         setInternalIsLoading(false);
         setIsFetchingMore(false);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [channelId, transformServerMessageToUiMessage, initialServerId]
+    [channelId, transformServerMessageToUiMessage, initialServerId],
   ); // Add initialServerId to deps
 
   useEffect(() => {
     // Initial fetch when channelId changes or becomes available
     if (channelId) {
       clientLogger.info(
-        `[useChannelMessages] ChannelId changed or became available: ${channelId}. Clearing messages and fetching initial set.`
+        `[useChannelMessages] ChannelId changed or became available: ${channelId}. Clearing messages and fetching initial set.`,
       );
       setMessages([]); // Clear previous messages
       setOldestMessageTimestamp(null);
       setHasMoreMessages(true);
       fetchMessages(); // This will set internalIsLoading to true
     } else {
-      clientLogger.info('[useChannelMessages] ChannelId is undefined. Clearing messages.');
+      clientLogger.info(
+        "[useChannelMessages] ChannelId is undefined. Clearing messages.",
+      );
       setMessages([]);
       setOldestMessageTimestamp(null);
       setHasMoreMessages(true);
@@ -488,16 +525,19 @@ export function useChannelMessages(
   }, []);
 
   // Add method to update a message by ID
-  const updateMessage = useCallback((messageId: string, updates: Partial<UiMessage>) => {
-    setMessages((prev) => {
-      return prev.map((m) => {
-        if (m.id === messageId) {
-          return { ...m, ...updates };
-        }
-        return m;
+  const updateMessage = useCallback(
+    (messageId: string, updates: Partial<UiMessage>) => {
+      setMessages((prev) => {
+        return prev.map((m) => {
+          if (m.id === messageId) {
+            return { ...m, ...updates };
+          }
+          return m;
+        });
       });
-    });
-  }, []);
+    },
+    [],
+  );
 
   // Add method to remove a message by ID
   const removeMessage = useCallback((messageId: string) => {
@@ -532,7 +572,10 @@ export function useChannelMessages(
   };
 }
 
-export function useGroupChannelMessages(channelId: UUID | null, initialServerId?: UUID) {
+export function useGroupChannelMessages(
+  channelId: UUID | null,
+  initialServerId?: UUID,
+) {
   // This hook now becomes an alias or a slightly specialized version of useChannelMessages
   // if group-specific logic (like different source filtering) isn't handled here.
   // For now, it can directly use useChannelMessages.
@@ -547,9 +590,13 @@ export function useGroupChannelMessages(channelId: UUID | null, initialServerId?
  * @param {string[]} excludeTypes - Optional array of types to exclude from results.
  * @returns {QueryResult} The result of the query containing agent actions.
  */
-export function useAgentActions(agentId: UUID, roomId?: UUID, excludeTypes?: string[]) {
+export function useAgentActions(
+  agentId: UUID,
+  roomId?: UUID,
+  excludeTypes?: string[],
+) {
   return useQuery({
-    queryKey: ['agentActions', agentId, roomId, excludeTypes],
+    queryKey: ["agentActions", agentId, roomId, excludeTypes],
     queryFn: async () => {
       const response = await apiClient.getAgentLogs(agentId, {
         roomId,
@@ -577,12 +624,12 @@ export function useDeleteLog() {
 
     onMutate: async ({ agentId, logId }) => {
       // Optimistically update the UI by removing the log from the cache
-      const previousLogs = queryClient.getQueryData(['agentActions', agentId]);
+      const previousLogs = queryClient.getQueryData(["agentActions", agentId]);
 
       // Update cache if we have the data
       if (previousLogs) {
-        queryClient.setQueryData(['agentActions', agentId], (oldData: any) =>
-          oldData.filter((log: any) => log.id !== logId)
+        queryClient.setQueryData(["agentActions", agentId], (oldData: any) =>
+          oldData.filter((log: any) => log.id !== logId),
         );
       }
 
@@ -591,28 +638,32 @@ export function useDeleteLog() {
 
     onSuccess: (_, { agentId }) => {
       // Invalidate relevant queries to refetch the latest data
-      queryClient.invalidateQueries({ queryKey: ['agentActions', agentId] });
+      queryClient.invalidateQueries({ queryKey: ["agentActions", agentId] });
 
       toast({
-        title: 'Log Deleted',
-        description: 'The log entry has been successfully removed',
+        title: "Log Deleted",
+        description: "The log entry has been successfully removed",
       });
     },
 
     onError: (error, { agentId }, context) => {
       // Revert the optimistic update on error
       if (context?.previousLogs) {
-        queryClient.setQueryData(['agentActions', agentId], context.previousLogs);
+        queryClient.setQueryData(
+          ["agentActions", agentId],
+          context.previousLogs,
+        );
       }
 
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete log',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to delete log",
+        variant: "destructive",
       });
 
       // Force invalidate on error to ensure data is fresh
-      queryClient.invalidateQueries({ queryKey: ['agentActions', agentId] });
+      queryClient.invalidateQueries({ queryKey: ["agentActions", agentId] });
     },
   });
 }
@@ -624,11 +675,19 @@ export function useAgentMemories(
   agentId: UUID,
   tableName?: string,
   channelId?: UUID, // Changed from roomId to channelId
-  includeEmbedding = false
+  includeEmbedding = false,
 ) {
   const queryKey = channelId
-    ? ['agents', agentId, 'channels', channelId, 'memories', tableName, includeEmbedding] // Updated query key
-    : ['agents', agentId, 'memories', tableName, includeEmbedding];
+    ? [
+        "agents",
+        agentId,
+        "channels",
+        channelId,
+        "memories",
+        tableName,
+        includeEmbedding,
+      ] // Updated query key
+    : ["agents", agentId, "memories", tableName, includeEmbedding];
 
   return useQuery({
     queryKey,
@@ -637,9 +696,9 @@ export function useAgentMemories(
         agentId,
         channelId,
         tableName,
-        includeEmbedding
+        includeEmbedding,
       ); // Pass channelId
-      console.log('Agent memories result:', {
+      console.log("Agent memories result:", {
         agentId,
         tableName,
         includeEmbedding,
@@ -647,7 +706,9 @@ export function useAgentMemories(
         result,
         dataLength: result.data?.memories?.length,
         firstMemory: result.data?.memories?.[0],
-        hasEmbeddings: (result.data?.memories || []).some((m: any) => m.embedding?.length > 0),
+        hasEmbeddings: (result.data?.memories || []).some(
+          (m: any) => m.embedding?.length > 0,
+        ),
       });
       // Handle response format
       return result.data?.memories || [];
@@ -667,20 +728,27 @@ export function useDeleteMemory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ agentId, memoryId }: { agentId: UUID; memoryId: string }) => {
+    mutationFn: async ({
+      agentId,
+      memoryId,
+    }: {
+      agentId: UUID;
+      memoryId: string;
+    }) => {
       await apiClient.deleteAgentMemory(agentId, memoryId);
       return { agentId, memoryId };
     },
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ['agents', data.agentId, 'memories'],
+        queryKey: ["agents", data.agentId, "memories"],
       });
 
       // Also invalidate room-specific memories
       queryClient.invalidateQueries({
-        queryKey: ['agents', data.agentId, 'rooms'],
-        predicate: (query) => query.queryKey.length > 3 && query.queryKey[4] === 'memories',
+        queryKey: ["agents", data.agentId, "rooms"],
+        predicate: (query) =>
+          query.queryKey.length > 3 && query.queryKey[4] === "memories",
       });
     },
   });
@@ -695,14 +763,20 @@ export function useDeleteAllMemories() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ agentId, roomId }: { agentId: UUID; roomId: UUID }) => {
+    mutationFn: async ({
+      agentId,
+      roomId,
+    }: {
+      agentId: UUID;
+      roomId: UUID;
+    }) => {
       await apiClient.deleteAllAgentMemories(agentId, roomId);
       return { agentId };
     },
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ['agents', data.agentId, 'memories'],
+        queryKey: ["agents", data.agentId, "memories"],
       });
     },
   });
@@ -729,47 +803,59 @@ export function useUpdateMemory() {
       memoryId: string;
       memoryData: Partial<Memory>;
     }) => {
-      const result = await apiClient.updateAgentMemory(agentId, memoryId, memoryData);
+      const result = await apiClient.updateAgentMemory(
+        agentId,
+        memoryId,
+        memoryData,
+      );
       return { agentId, memoryId, result };
     },
 
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ['agents', data.agentId, 'memories'],
+        queryKey: ["agents", data.agentId, "memories"],
       });
 
       // Also invalidate room-specific memories if we have roomId in the memory data
       if (data.result?.roomId) {
         queryClient.invalidateQueries({
-          queryKey: ['agents', data.agentId, 'rooms', data.result.roomId, 'memories'],
+          queryKey: [
+            "agents",
+            data.agentId,
+            "rooms",
+            data.result.roomId,
+            "memories",
+          ],
         });
       } else {
         // Otherwise invalidate all room memories for this agent
         queryClient.invalidateQueries({
-          queryKey: ['agents', data.agentId, 'rooms'],
-          predicate: (query) => query.queryKey.length > 3 && query.queryKey[4] === 'memories',
+          queryKey: ["agents", data.agentId, "rooms"],
+          predicate: (query) =>
+            query.queryKey.length > 3 && query.queryKey[4] === "memories",
         });
       }
 
       // Also invalidate regular messages queries
       if (data.result?.roomId) {
         queryClient.invalidateQueries({
-          queryKey: ['messages', data.agentId, data.result.roomId],
+          queryKey: ["messages", data.agentId, data.result.roomId],
         });
       }
 
       toast({
-        title: 'Memory Updated',
-        description: 'The memory has been successfully updated',
+        title: "Memory Updated",
+        description: "The memory has been successfully updated",
       });
     },
 
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update memory',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to update memory",
+        variant: "destructive",
       });
     },
   });
@@ -779,12 +865,18 @@ export function useDeleteGroupMemory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ serverId, memoryId }: { serverId: UUID; memoryId: UUID }) => {
+    mutationFn: async ({
+      serverId,
+      memoryId,
+    }: {
+      serverId: UUID;
+      memoryId: UUID;
+    }) => {
       await apiClient.deleteGroupMemory(serverId, memoryId);
       return { serverId };
     },
     onSuccess: ({ serverId }) => {
-      queryClient.invalidateQueries({ queryKey: ['groupmessages', serverId] });
+      queryClient.invalidateQueries({ queryKey: ["groupmessages", serverId] });
     },
   });
 }
@@ -798,7 +890,7 @@ export function useClearGroupChat() {
       return { serverId };
     },
     onSuccess: ({ serverId }) => {
-      queryClient.invalidateQueries({ queryKey: ['groupmessages', serverId] });
+      queryClient.invalidateQueries({ queryKey: ["groupmessages", serverId] });
     },
   });
 }
@@ -819,7 +911,7 @@ export type AgentPanel = {
 };
 
 export function useAgentPanels(agentId: UUID | undefined | null, options = {}) {
-  console.log('useAgentPanels', agentId);
+  console.log("useAgentPanels", agentId);
   const network = useNetworkStatus();
 
   return useQuery<{
@@ -827,14 +919,15 @@ export function useAgentPanels(agentId: UUID | undefined | null, options = {}) {
     data: AgentPanel[];
     error?: { code: string; message: string; details?: string };
   }>({
-    queryKey: ['agentPanels', agentId],
-    queryFn: () => apiClient.getAgentPanels(agentId || ''),
+    queryKey: ["agentPanels", agentId],
+    queryFn: () => apiClient.getAgentPanels(agentId || ""),
     enabled: Boolean(agentId),
     staleTime: STALE_TIMES.STANDARD, // Panels are unlikely to change very frequently
-    refetchInterval: !network.isOffline && Boolean(agentId) ? STALE_TIMES.RARE : false,
+    refetchInterval:
+      !network.isOffline && Boolean(agentId) ? STALE_TIMES.RARE : false,
     refetchIntervalInBackground: false,
     ...(!network.isOffline &&
-      network.effectiveType === 'slow-2g' && {
+      network.effectiveType === "slow-2g" && {
         refetchInterval: STALE_TIMES.NEVER, // Or even disable for slow connections
       }),
     ...options,
@@ -864,33 +957,40 @@ interface AgentsWithDetailsResult {
 export function useAgentsWithDetails(): AgentsWithDetailsResult {
   const network = useNetworkStatus();
   const { data: agentsData, isLoading: isAgentsLoading } = useAgents();
-  const agentIds = agentsData?.data?.agents?.map((agent) => agent.id as UUID) || [];
+  const agentIds =
+    agentsData?.data?.agents?.map((agent) => agent.id as UUID) || [];
 
   // Use useQueries for parallel fetching
   const agentQueries = useQueries<UseQueryResult<{ data: Agent }, Error>[]>({
     queries: agentIds.map((id) => ({
-      queryKey: ['agent', id] as const,
+      queryKey: ["agent", id] as const,
       queryFn: () => apiClient.getAgent(id),
       staleTime: STALE_TIMES.FREQUENT,
       enabled: Boolean(id),
-      refetchInterval: !network.isOffline && Boolean(id) ? STALE_TIMES.FREQUENT : false,
+      refetchInterval:
+        !network.isOffline && Boolean(id) ? STALE_TIMES.FREQUENT : false,
       refetchIntervalInBackground: false,
       ...(!network.isOffline &&
-        network.effectiveType === 'slow-2g' && {
+        network.effectiveType === "slow-2g" && {
           refetchInterval: STALE_TIMES.STANDARD,
         }),
     })),
   });
 
   // Safely check loading and error states
-  const isLoading = isAgentsLoading || agentQueries.some((query) => query.isLoading);
+  const isLoading =
+    isAgentsLoading || agentQueries.some((query) => query.isLoading);
   const isError = agentQueries.some((query) => query.isError);
   const error = agentQueries.find((query) => query.error)?.error;
 
   // Safely collect agent details
   const detailedAgents = agentQueries
-    .filter((query): query is UseQueryResult<{ data: Agent }, Error> & { data: { data: Agent } } =>
-      Boolean(query.data?.data)
+    .filter(
+      (
+        query,
+      ): query is UseQueryResult<{ data: Agent }, Error> & {
+        data: { data: Agent };
+      } => Boolean(query.data?.data),
     )
     .map((query) => query.data.data);
 
@@ -907,16 +1007,16 @@ export function useAgentsWithDetails(): AgentsWithDetailsResult {
 // --- Hooks for Admin/Debug (Agent-Perspective Data) ---
 export function useAgentInternalActions(
   agentId: UUID | null,
-  agentPerspectiveRoomId?: UUID | null
+  agentPerspectiveRoomId?: UUID | null,
 ) {
   return useQuery<AgentLog[], Error>({
-    queryKey: ['agentInternalActions', agentId, agentPerspectiveRoomId],
+    queryKey: ["agentInternalActions", agentId, agentPerspectiveRoomId],
     queryFn: async () => {
       if (!agentId) return []; // Or throw error, depending on desired behavior for null agentId
       const response = await apiClient.getAgentLogs(agentId, {
         // Uses getAgentLogs
         roomId: agentPerspectiveRoomId ?? undefined, // Pass undefined if null
-        type: 'action',
+        type: "action",
         count: 50,
       });
       return response.data || [];
@@ -931,20 +1031,27 @@ export function useDeleteAgentInternalLog() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation<void, Error, { agentId: string; logId: string }>({
-    mutationFn: ({ agentId, logId }) => apiClient.deleteAgentLog(agentId, logId), // Uses deleteAgentLog
+    mutationFn: ({ agentId, logId }) =>
+      apiClient.deleteAgentLog(agentId, logId), // Uses deleteAgentLog
     onSuccess: (_, { agentId }) => {
-      queryClient.invalidateQueries({ queryKey: ['agentInternalActions', agentId] });
       queryClient.invalidateQueries({
-        queryKey: ['agentInternalActions', agentId, undefined],
+        queryKey: ["agentInternalActions", agentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["agentInternalActions", agentId, undefined],
         exact: false,
       });
-      toast({ title: 'Log Deleted', description: 'The agent log entry has been removed' });
+      toast({
+        title: "Log Deleted",
+        description: "The agent log entry has been removed",
+      });
     },
     onError: (error) => {
       toast({
-        title: 'Error Deleting Log',
-        description: error instanceof Error ? error.message : 'Failed to delete agent log',
-        variant: 'destructive',
+        title: "Error Deleting Log",
+        description:
+          error instanceof Error ? error.message : "Failed to delete agent log",
+        variant: "destructive",
       });
     },
   });
@@ -953,12 +1060,12 @@ export function useDeleteAgentInternalLog() {
 export function useAgentInternalMemories(
   agentId: UUID | null,
   agentPerspectiveRoomId: UUID | null,
-  tableName: string = 'messages',
-  includeEmbedding = false
+  tableName: string = "messages",
+  includeEmbedding = false,
 ) {
   return useQuery<CoreMemory[], Error>({
     queryKey: [
-      'agentInternalMemories',
+      "agentInternalMemories",
       agentId,
       agentPerspectiveRoomId,
       tableName,
@@ -970,7 +1077,7 @@ export function useAgentInternalMemories(
         agentId,
         agentPerspectiveRoomId,
         tableName,
-        { includeEmbedding }
+        { includeEmbedding },
       ); // Uses getAgentInternalMemories
       return response.data.memories;
     },
@@ -993,18 +1100,23 @@ export function useDeleteAgentInternalMemory() {
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: 'Memory Deleted',
+        title: "Memory Deleted",
         description: `Agent memory ${variables.memoryId} removed.`,
       });
-      queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId] });
+      queryClient.invalidateQueries({
+        queryKey: ["agentInternalMemories", variables.agentId],
+      });
       // More specific invalidation if needed:
       // queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId, variables.memoryData?.roomId] });
     },
     onError: (error) => {
       toast({
-        title: 'Error Deleting Memory',
-        description: error instanceof Error ? error.message : 'Failed to delete agent memory',
-        variant: 'destructive',
+        title: "Error Deleting Memory",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete agent memory",
+        variant: "destructive",
       });
     },
   });
@@ -1019,23 +1131,33 @@ export function useDeleteAllAgentInternalMemories() {
     { agentId: UUID; agentPerspectiveRoomId: UUID }
   >({
     mutationFn: async ({ agentId, agentPerspectiveRoomId }) => {
-      await apiClient.deleteAllAgentInternalMemories(agentId, agentPerspectiveRoomId); // Uses deleteAllAgentInternalMemories
+      await apiClient.deleteAllAgentInternalMemories(
+        agentId,
+        agentPerspectiveRoomId,
+      ); // Uses deleteAllAgentInternalMemories
       return { agentId, agentPerspectiveRoomId };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: 'All Memories Deleted',
+        title: "All Memories Deleted",
         description: `All memories for agent in room perspective ${variables.agentPerspectiveRoomId} cleared.`,
       });
       queryClient.invalidateQueries({
-        queryKey: ['agentInternalMemories', variables.agentId, variables.agentPerspectiveRoomId],
+        queryKey: [
+          "agentInternalMemories",
+          variables.agentId,
+          variables.agentPerspectiveRoomId,
+        ],
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error Clearing Memories',
-        description: error instanceof Error ? error.message : 'Failed to clear agent memories',
-        variant: 'destructive',
+        title: "Error Clearing Memories",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to clear agent memories",
+        variant: "destructive",
       });
     },
   });
@@ -1054,21 +1176,30 @@ export function useUpdateAgentInternalMemory() {
     { agentId: UUID; memoryId: string; memoryData: Partial<CoreMemory> }
   >({
     mutationFn: async ({ agentId, memoryId, memoryData }) => {
-      const response = await apiClient.updateAgentInternalMemory(agentId, memoryId, memoryData); // Uses updateAgentInternalMemory
+      const response = await apiClient.updateAgentInternalMemory(
+        agentId,
+        memoryId,
+        memoryData,
+      ); // Uses updateAgentInternalMemory
       return { agentId, memoryId, response };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: 'Memory Updated',
+        title: "Memory Updated",
         description: `Agent memory ${variables.memoryId} updated.`,
       });
-      queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId] });
+      queryClient.invalidateQueries({
+        queryKey: ["agentInternalMemories", variables.agentId],
+      });
     },
     onError: (error) => {
       toast({
-        title: 'Error Updating Memory',
-        description: error instanceof Error ? error.message : 'Failed to update agent memory',
-        variant: 'destructive',
+        title: "Error Updating Memory",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update agent memory",
+        variant: "destructive",
       });
     },
   });
@@ -1078,7 +1209,7 @@ export function useUpdateAgentInternalMemory() {
 export function useServers(options = {}) {
   const network = useNetworkStatus();
   return useQuery<{ data: { servers: ClientMessageServer[] } }>({
-    queryKey: ['servers'],
+    queryKey: ["servers"],
     queryFn: () => apiClient.getServers(),
     staleTime: STALE_TIMES.RARE,
     refetchInterval: !network.isOffline ? STALE_TIMES.RARE : false,
@@ -1089,14 +1220,15 @@ export function useServers(options = {}) {
 export function useChannels(serverId: UUID | undefined, options = {}) {
   const network = useNetworkStatus();
   return useQuery<{ data: { channels: ClientMessageChannel[] } }>({
-    queryKey: ['channels', serverId],
+    queryKey: ["channels", serverId],
     queryFn: () => {
       if (!serverId) return Promise.resolve({ data: { channels: [] } }); // Handle undefined serverId case for queryFn
       return apiClient.getChannelsForServer(serverId);
     },
     enabled: !!serverId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval: !network.isOffline && !!serverId ? STALE_TIMES.STANDARD : false,
+    refetchInterval:
+      !network.isOffline && !!serverId ? STALE_TIMES.STANDARD : false,
     ...options,
   });
 }
@@ -1105,30 +1237,35 @@ export function useChannelDetails(channelId: UUID | undefined, options = {}) {
   // Allow undefined
   const network = useNetworkStatus();
   return useQuery<{ success: boolean; data: ClientMessageChannel | null }>({
-    queryKey: ['channelDetails', channelId],
+    queryKey: ["channelDetails", channelId],
     queryFn: () => {
       if (!channelId) return Promise.resolve({ success: true, data: null });
       return apiClient.getChannelDetails(channelId);
     },
     enabled: !!channelId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval: !network.isOffline && !!channelId ? STALE_TIMES.RARE : false,
+    refetchInterval:
+      !network.isOffline && !!channelId ? STALE_TIMES.RARE : false,
     ...options,
   });
 }
 
-export function useChannelParticipants(channelId: UUID | undefined, options = {}) {
+export function useChannelParticipants(
+  channelId: UUID | undefined,
+  options = {},
+) {
   // Allow undefined
   const network = useNetworkStatus();
   return useQuery<{ success: boolean; data: UUID[] }>({
-    queryKey: ['channelParticipants', channelId],
+    queryKey: ["channelParticipants", channelId],
     queryFn: () => {
       if (!channelId) return Promise.resolve({ success: true, data: [] });
       return apiClient.getChannelParticipants(channelId);
     },
     enabled: !!channelId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval: !network.isOffline && !!channelId ? STALE_TIMES.FREQUENT : false,
+    refetchInterval:
+      !network.isOffline && !!channelId ? STALE_TIMES.FREQUENT : false,
     ...options,
   });
 }
@@ -1147,15 +1284,16 @@ export function useDeleteChannelMessage() {
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: 'Message Deleted',
-        description: 'Message removed successfully.',
+        title: "Message Deleted",
+        description: "Message removed successfully.",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error Deleting Message',
-        description: error instanceof Error ? error.message : 'Failed to delete message',
-        variant: 'destructive',
+        title: "Error Deleting Message",
+        description:
+          error instanceof Error ? error.message : "Failed to delete message",
+        variant: "destructive",
       });
     },
   });
@@ -1171,17 +1309,20 @@ export function useClearChannelMessages() {
     },
     onSuccess: (_data, variables_channelId) => {
       toast({
-        title: 'Channel Cleared',
+        title: "Channel Cleared",
         description: `All messages in channel ${variables_channelId} cleared.`,
       });
-      queryClient.invalidateQueries({ queryKey: ['messages', variables_channelId] });
-      queryClient.setQueryData(['messages', variables_channelId], () => []);
+      queryClient.invalidateQueries({
+        queryKey: ["messages", variables_channelId],
+      });
+      queryClient.setQueryData(["messages", variables_channelId], () => []);
     },
     onError: (error) => {
       toast({
-        title: 'Error Clearing Channel',
-        description: error instanceof Error ? error.message : 'Failed to clear messages',
-        variant: 'destructive',
+        title: "Error Clearing Channel",
+        description:
+          error instanceof Error ? error.message : "Failed to clear messages",
+        variant: "destructive",
       });
     },
   });
@@ -1198,20 +1339,23 @@ export function useDeleteChannel() {
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: 'Group Deleted',
-        description: 'The group has been successfully deleted.',
+        title: "Group Deleted",
+        description: "The group has been successfully deleted.",
       });
       // Invalidate channel queries
-      queryClient.invalidateQueries({ queryKey: ['channels', variables.serverId] });
-      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({
+        queryKey: ["channels", variables.serverId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["channels"] });
       // Navigate back to home
-      navigate('/');
+      navigate("/");
     },
     onError: (error) => {
       toast({
-        title: 'Error Deleting Group',
-        description: error instanceof Error ? error.message : 'Failed to delete group',
-        variant: 'destructive',
+        title: "Error Deleting Group",
+        description:
+          error instanceof Error ? error.message : "Failed to delete group",
+        variant: "destructive",
       });
     },
   });

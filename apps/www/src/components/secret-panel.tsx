@@ -1,8 +1,8 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import type { Agent } from '@elizaos/core';
-import { Check, CloudUpload, Eye, EyeOff, MoreVertical, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { Agent } from "@elizaos/core";
+import { Check, CloudUpload, Eye, EyeOff, MoreVertical, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 type EnvVariable = {
   name: string;
@@ -19,12 +19,12 @@ interface SecretPanelProps {
 
 export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
   const [envs, setEnvs] = useState<EnvVariable[]>([]);
-  const [name, setName] = useState('');
-  const [value, setValue] = useState('');
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editedValue, setEditedValue] = useState('');
+  const [editedValue, setEditedValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [deletedKeys, setDeletedKeys] = useState<string[]>([]);
   const [changesPending, setChangesPending] = useState(false);
@@ -33,15 +33,15 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const updatedSecrets = Object.entries(characterValue?.settings?.secrets || {}).map(
-      ([name, value]) => ({
-        name,
-        value: String(value),
-        isNew: false,
-        isModified: false,
-        isDeleted: false,
-      })
-    );
+    const updatedSecrets = Object.entries(
+      characterValue?.settings?.secrets || {},
+    ).map(([name, value]) => ({
+      name,
+      value: String(value),
+      isNew: false,
+      isModified: false,
+      isDeleted: false,
+    }));
     setEnvs(updatedSecrets);
   }, [characterValue]);
 
@@ -49,18 +49,18 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const lines = text.split('\n');
+      const lines = text.split("\n");
 
       const newEnvs: Record<string, string> = {};
       for (const line of lines) {
         const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith('#')) continue;
+        if (!trimmedLine || trimmedLine.startsWith("#")) continue;
 
-        const [key, ...rest] = trimmedLine.split('=');
+        const [key, ...rest] = trimmedLine.split("=");
         const val = rest
-          .join('=')
+          .join("=")
           .trim()
-          .replace(/^['"]|['"]$/g, '');
+          .replace(/^['"]|['"]$/g, "");
         if (key) newEnvs[key.trim()] = val;
       }
 
@@ -73,12 +73,16 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
           name,
           value,
           isNew: !prev.some((env) => env.name === name),
-          isModified: prev.some((env) => env.name === name && env.value !== value),
+          isModified: prev.some(
+            (env) => env.name === name && env.value !== value,
+          ),
         }));
       });
 
       if (deletedKeys.length > 0) {
-        setDeletedKeys((prev) => prev.filter((key) => !Object.keys(newEnvs).includes(key)));
+        setDeletedKeys((prev) =>
+          prev.filter((key) => !Object.keys(newEnvs).includes(key)),
+        );
       }
 
       setChangesPending(true);
@@ -103,25 +107,33 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
       unhighlight();
 
       const file = e.dataTransfer?.files?.[0];
-      if (file && file.name.endsWith('.env')) {
+      if (file && file.name.endsWith(".env")) {
         handleFile(file);
       }
     };
 
-    ['dragenter', 'dragover'].forEach((event) => drop.addEventListener(event, highlight));
-    ['dragleave', 'drop'].forEach((event) => drop.addEventListener(event, unhighlight));
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((event) =>
-      drop.addEventListener(event, preventDefaults)
+    ["dragenter", "dragover"].forEach((event) =>
+      drop.addEventListener(event, highlight),
     );
-    drop.addEventListener('drop', handleDrop);
+    ["dragleave", "drop"].forEach((event) =>
+      drop.addEventListener(event, unhighlight),
+    );
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((event) =>
+      drop.addEventListener(event, preventDefaults),
+    );
+    drop.addEventListener("drop", handleDrop);
 
     return () => {
-      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((event) =>
-        drop.removeEventListener(event, preventDefaults)
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((event) =>
+        drop.removeEventListener(event, preventDefaults),
       );
-      ['dragenter', 'dragover'].forEach((event) => drop.removeEventListener(event, highlight));
-      ['dragleave', 'drop'].forEach((event) => drop.removeEventListener(event, unhighlight));
-      drop.removeEventListener('drop', handleDrop);
+      ["dragenter", "dragover"].forEach((event) =>
+        drop.removeEventListener(event, highlight),
+      );
+      ["dragleave", "drop"].forEach((event) =>
+        drop.removeEventListener(event, unhighlight),
+      );
+      drop.removeEventListener("drop", handleDrop);
     };
   }, []);
 
@@ -134,13 +146,17 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
         }
 
         setEnvs([...envs, { name, value, isNew: true }]);
-        setName('');
-        setValue('');
+        setName("");
+        setValue("");
         setChangesPending(true);
       } else {
-        setEnvs(envs.map((env) => (env.name === name ? { ...env, value, isModified: true } : env)));
-        setName('');
-        setValue('');
+        setEnvs(
+          envs.map((env) =>
+            env.name === name ? { ...env, value, isModified: true } : env,
+          ),
+        );
+        setName("");
+        setValue("");
         setChangesPending(true);
       }
     }
@@ -176,14 +192,17 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setOpenIndex(null);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -228,9 +247,9 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
         <div
           ref={dropRef}
           className={`flex flex-col gap-2 items-center justify-center text-gray-500 w-full border-2 border-dashed border-muted rounded-lg p-16 mb-16 text-center cursor-pointer transition ${
-            isDragging ? 'bg-muted' : ''
+            isDragging ? "bg-muted" : ""
           }`}
-          onClick={() => document.getElementById('env-upload')?.click()}
+          onClick={() => document.getElementById("env-upload")?.click()}
         >
           <CloudUpload />
           <p className="text-sm">
@@ -243,7 +262,7 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file && file.name.endsWith('.env')) {
+              if (file && file.name.endsWith(".env")) {
                 handleFile(file);
               }
             }}
@@ -253,7 +272,10 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
 
       <div className="grid grid-cols-[1fr_2fr_auto] gap-4 items-end w-full pb-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor="secret-name" className="ml-2 text-xs font-medium text-gray-400">
+          <label
+            htmlFor="secret-name"
+            className="ml-2 text-xs font-medium text-gray-400"
+          >
             NAME
           </label>
           <Input
@@ -264,13 +286,16 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
           />
         </div>
         <div className="flex flex-col gap-1 relative">
-          <label htmlFor="secret-value" className="ml-2 text-xs font-medium text-gray-400">
+          <label
+            htmlFor="secret-value"
+            className="ml-2 text-xs font-medium text-gray-400"
+          >
             VALUE
           </label>
           <div className="relative">
             <Input
               id="secret-value"
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               placeholder="i9ju23nfsdf56"
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -280,7 +305,7 @@ export function SecretPanel({ characterValue, onChange }: SecretPanelProps) {
               className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500"
               onClick={() => setShowPassword(!showPassword)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key === "Enter" || e.key === " ") {
                   setShowPassword(!showPassword);
                 }
               }}

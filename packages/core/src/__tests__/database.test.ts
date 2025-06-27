@@ -1,5 +1,5 @@
-import { describe, expect, beforeEach, it } from 'bun:test';
-import { DatabaseAdapter } from '../database';
+import { describe, expect, beforeEach, it } from "bun:test";
+import { DatabaseAdapter } from "../database";
 import type {
   Agent,
   ChannelType,
@@ -13,7 +13,7 @@ import type {
   Task,
   UUID,
   World,
-} from '../types';
+} from "../types";
 
 /**
  * MockDatabaseAdapter class extends DatabaseAdapter class and provides mock implementations for various database operations.
@@ -44,45 +44,52 @@ import type {
  */
 class MockDatabaseAdapter extends DatabaseAdapter {
   init(): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   initialize(): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   runMigrations(): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   isReady(): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   close(): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
-  getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]> {
-    throw new Error('Method not implemented.');
+  getEntitiesForRoom(
+    roomId: UUID,
+    includeComponents?: boolean,
+  ): Promise<Entity[]> {
+    throw new Error("Method not implemented.");
   }
   updateEntity(entity: Entity): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getComponent(
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID
+    sourceEntityId?: UUID,
   ): Promise<Component | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
-  getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]> {
-    throw new Error('Method not implemented.');
+  getComponents(
+    entityId: UUID,
+    worldId?: UUID,
+    sourceEntityId?: UUID,
+  ): Promise<Component[]> {
+    throw new Error("Method not implemented.");
   }
   createComponent(component: Component): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateComponent(component: Component): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteComponent(componentId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getLogs(params: {
     entityId: UUID;
@@ -91,37 +98,37 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     count?: number;
     offset?: number;
   }): Promise<Log[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteLog(logId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getWorld(id: UUID): Promise<World | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getAllWorlds(): Promise<World[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   createWorld(world: World): Promise<UUID> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateWorld(world: World): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   removeWorld(id: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getRooms(worldId: UUID): Promise<Room[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateRoom(room: Room): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteRoom(roomId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getParticipantsForEntity(entityId: UUID): Promise<Participant[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateRelationship(params: {
     sourceEntityId: UUID;
@@ -129,55 +136,55 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     tags?: string[];
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getAgent(agentId: UUID): Promise<Agent | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getAgents(): Promise<Agent[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   createAgent(agent: Partial<Agent>): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateAgent(agentId: UUID, agent: Partial<Agent>): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteAgent(agentId: UUID): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   ensureAgentExists(agent: Partial<Agent>): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   ensureEmbeddingDimension(dimension: number): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getCache<T>(key: string): Promise<T | undefined> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   setCache<T>(key: string, value: T): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteCache(key: string): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   createTask(task: Task): Promise<UUID> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getTasks(params: { roomId?: UUID; tags?: string[] }): Promise<Task[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getTask(id: UUID): Promise<Task | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   getTasksByName(name: string): Promise<Task[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   updateTask(id: UUID, task: Partial<Task>): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   deleteTask(id: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Asynchronous function to retrieve a Memory object by its unique ID.
@@ -188,7 +195,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    */
 
   getMemoryById(_id: UUID): Promise<Memory | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieve memories by their IDs.
@@ -197,12 +204,15 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @param {string} [_tableName] - Optional table name parameter.
    * @returns {Promise<Memory[]>} - A Promise that resolves to an array of Memory objects.
    */
-  async getMemoriesByIds(memoryIds: UUID[], _tableName?: string): Promise<Memory[]> {
+  async getMemoriesByIds(
+    memoryIds: UUID[],
+    _tableName?: string,
+  ): Promise<Memory[]> {
     return memoryIds.map((id) => ({
       id: id,
-      content: { text: 'Test Memory' },
-      roomId: 'room-id' as UUID,
-      entityId: 'user-id' as UUID,
+      content: { text: "Test Memory" },
+      roomId: "room-id" as UUID,
+      entityId: "user-id" as UUID,
     })) as Memory[];
   }
   /**
@@ -221,7 +231,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     roomId: UUID;
     type: string;
   }): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieve details of entities in a specific room.
@@ -232,7 +242,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @throws {Error} - If the method is not implemented.
    */
   getEntityDetails(_params: { roomId: UUID }): Promise<Entity[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Creates a new memory in the specified table.
@@ -241,8 +251,12 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @param _unique Optional parameter to specify if the memory should be unique within the table.
    * @returns A Promise that resolves when the memory is successfully created.
    */
-  createMemory(_memory: Memory, _tableName: string, _unique?: boolean): Promise<UUID> {
-    throw new Error('Method not implemented.');
+  createMemory(
+    _memory: Memory,
+    _tableName: string,
+    _unique?: boolean,
+  ): Promise<UUID> {
+    throw new Error("Method not implemented.");
   }
   /**
    * Removes a memory from a specific table.
@@ -251,7 +265,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<void>} A promise that resolves when the memory is successfully removed.
    */
   deleteMemory(_memoryId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Removes multiple memories from the database in a single batch operation.
@@ -270,7 +284,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<void>} A promise that resolves when all memories are successfully removed.
    */
   deleteAllMemories(_roomId: UUID, _tableName: string): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Count the number of memories for a specific room.
@@ -280,8 +294,12 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @param {string} [_tableName] - The name of the table to count memories from.
    * @return {Promise<number>} - A Promise that resolves to the number of memories.
    */
-  countMemories(_roomId: UUID, _unique?: boolean, _tableName?: string): Promise<number> {
-    throw new Error('Method not implemented.');
+  countMemories(
+    _roomId: UUID,
+    _unique?: boolean,
+    _tableName?: string,
+  ): Promise<number> {
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieve the room data for a specific room and agent.
@@ -291,7 +309,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<Room | null>} - The room data if found, otherwise null.
    */
   getRoom(_roomId: UUID): Promise<Room | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Creates a room with the given parameters.
@@ -315,7 +333,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     serverId?: string;
     worldId?: UUID;
   }): Promise<UUID> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Removes a room with the given ID.
@@ -324,7 +342,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<void>} - A promise that resolves when the room is successfully removed.
    */
   removeRoom(_roomId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieve a list of room IDs for a given participant.
@@ -332,7 +350,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<UUID[]>} - A promise that resolves with an array of room IDs
    */
   getRoomsForParticipant(_entityId: UUID): Promise<UUID[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieves the rooms for the specified participants.
@@ -342,7 +360,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @throws {Error} - If the method is not implemented.
    */
   getRoomsForParticipants(_entityIds: UUID[]): Promise<UUID[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Add a participant to a room.
@@ -352,7 +370,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<boolean>} - A promise that resolves to true if the user was successfully added to the room, otherwise false.
    */
   addParticipant(_entityId: UUID, _roomId: UUID): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Remove a participant from a room.
@@ -362,31 +380,37 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<boolean>} A promise that resolves to true if the participant was successfully removed, otherwise false.
    */
   removeParticipant(_entityId: UUID, _roomId: UUID): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   getConnection(): Promise<any> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   getEntityByIds(_entityIds: UUID[]): Promise<Entity[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   createEntities(_entities: Entity[]): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   updateMemory(_memory: Partial<Memory> & { id: UUID }): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
-  getMemoriesByWorldId(_params: { worldId: UUID; tableName?: string }): Promise<Memory[]> {
-    throw new Error('Method not implemented.');
+  getMemoriesByWorldId(_params: {
+    worldId: UUID;
+    tableName?: string;
+  }): Promise<Memory[]> {
+    throw new Error("Method not implemented.");
   }
 
-  getMemoriesByEntities(_params: { entityIds: UUID[]; tableName?: string }): Promise<Memory[]> {
-    throw new Error('Method not implemented.');
+  getMemoriesByEntities(_params: {
+    entityIds: UUID[];
+    tableName?: string;
+  }): Promise<Memory[]> {
+    throw new Error("Method not implemented.");
   }
 
   searchMemoriesByEmbedding(
@@ -397,33 +421,33 @@ class MockDatabaseAdapter extends DatabaseAdapter {
       match_threshold?: number;
       match_count?: number;
       unique?: boolean;
-    }
+    },
   ): Promise<Memory[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   deleteEntity(_entityId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   getRoomsByIds(_roomIds: UUID[]): Promise<Room[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   getRoomsByWorld(_worldId: UUID): Promise<Room[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   createRooms(_rooms: Room[]): Promise<UUID[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   addParticipantsRoom(_entityIds: UUID[], _roomId: UUID): Promise<boolean> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   deleteRoomsByWorldId(_worldId: UUID): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieve a list of participants associated with the specified account user ID.
@@ -439,7 +463,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<import("../src/types.ts").Participant[]>} A Promise that resolves to an array of participants.
    */
   getParticipantsForAccount(_entityId: unknown): Promise<Participant[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Get the list of participants for a specific room.
@@ -449,7 +473,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @throws {Error} - If the method is not implemented.
    */
   getParticipantsForRoom(_roomId: UUID): Promise<UUID[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Get the state of a participant user in a specific room.
@@ -457,8 +481,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @param {UUID} _entityId - The ID of the user.
    * @returns {Promise<"FOLLOWED" | "MUTED" | null>} The state of the participant user (FOLLOWED, MUTED, or null).
    */
-  getParticipantUserState(_roomId: UUID, _entityId: UUID): Promise<'FOLLOWED' | 'MUTED' | null> {
-    throw new Error('Method not implemented.');
+  getParticipantUserState(
+    _roomId: UUID,
+    _entityId: UUID,
+  ): Promise<"FOLLOWED" | "MUTED" | null> {
+    throw new Error("Method not implemented.");
   }
   /**
    * Set the state of a participant in a room.
@@ -472,9 +499,9 @@ class MockDatabaseAdapter extends DatabaseAdapter {
   setParticipantUserState(
     _roomId: UUID,
     _entityId: UUID,
-    _state: 'FOLLOWED' | 'MUTED' | null
+    _state: "FOLLOWED" | "MUTED" | null,
   ): Promise<void> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Creates a relationship between two users.
@@ -484,8 +511,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @param {UUID} _params.targetEntityId - The UUID of the second user.
    * @returns {Promise<boolean>} - A promise that resolves to true if the relationship was successfully created.
    */
-  createRelationship(_params: { sourceEntityId: UUID; targetEntityId: UUID }): Promise<boolean> {
-    throw new Error('Method not implemented.');
+  createRelationship(_params: {
+    sourceEntityId: UUID;
+    targetEntityId: UUID;
+  }): Promise<boolean> {
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieves the relationship between two users.
@@ -498,7 +528,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     sourceEntityId: UUID;
     targetEntityId: UUID;
   }): Promise<Relationship | null> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   /**
    * Retrieves relationships for a specific user based on the provided user ID.
@@ -507,7 +537,7 @@ class MockDatabaseAdapter extends DatabaseAdapter {
    * @returns {Promise<Relationship[]>} - A promise that resolves to an array of Relationship objects.
    */
   getRelationships(_params: { entityId: UUID }): Promise<Relationship[]> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
   db: Record<string, unknown> = {};
 
@@ -529,11 +559,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
   }): Promise<Memory[]> {
     return [
       {
-        id: 'memory-id' as UUID,
-        content: 'Test Memory',
+        id: "memory-id" as UUID,
+        content: "Test Memory",
         roomId: params.roomIds[0],
-        entityId: 'user-id' as UUID,
-        agentId: params.agentId ?? ('agent-id' as UUID),
+        entityId: "user-id" as UUID,
+        agentId: params.agentId ?? ("agent-id" as UUID),
       },
     ] as unknown as Memory[];
   }
@@ -596,11 +626,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
   }): Promise<Memory[]> {
     return [
       {
-        id: 'memory-id' as UUID,
-        content: 'Test Memory',
+        id: "memory-id" as UUID,
+        content: "Test Memory",
         roomId: params.roomId,
-        entityId: 'user-id' as UUID,
-        agentId: 'agent-id' as UUID,
+        entityId: "user-id" as UUID,
+        agentId: "agent-id" as UUID,
       },
     ] as unknown as Memory[];
   }
@@ -616,11 +646,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
     return {
       id: entityId,
       metadata: {
-        username: 'testuser',
-        name: 'Test Entity',
+        username: "testuser",
+        name: "Test Entity",
       },
-      names: ['Test Entity'],
-      agentId: 'agent-id' as UUID,
+      names: ["Test Entity"],
+      agentId: "agent-id" as UUID,
     } as Entity;
   }
 
@@ -653,11 +683,11 @@ class MockDatabaseAdapter extends DatabaseAdapter {
   }): Promise<Memory[]> {
     return [
       {
-        id: 'memory-id' as UUID,
-        content: 'Test Memory',
+        id: "memory-id" as UUID,
+        content: "Test Memory",
         roomId: params.roomId,
-        entityId: 'user-id' as UUID,
-        agentId: 'agent-id' as UUID,
+        entityId: "user-id" as UUID,
+        agentId: "agent-id" as UUID,
       },
     ] as unknown as Memory[];
   }
@@ -671,79 +701,81 @@ class MockDatabaseAdapter extends DatabaseAdapter {
   async getEntities(_params: { roomId: UUID }): Promise<Entity[]> {
     return [
       {
-        id: 'actor-id' as UUID,
-        name: 'Test Entity',
-        username: 'testactor',
-        roomId: 'room-id' as UUID, // Ensure roomId is provided
+        id: "actor-id" as UUID,
+        name: "Test Entity",
+        username: "testactor",
+        roomId: "room-id" as UUID, // Ensure roomId is provided
       },
     ] as unknown as Entity[];
   }
 }
 
-describe('DatabaseAdapter Tests', () => {
+describe("DatabaseAdapter Tests", () => {
   let adapter: MockDatabaseAdapter;
-  const roomId = 'room-id' as UUID;
+  const roomId = "room-id" as UUID;
 
   beforeEach(() => {
     adapter = new MockDatabaseAdapter();
   });
 
-  it('should return memories by room ID', async () => {
+  it("should return memories by room ID", async () => {
     const memories = await adapter.getMemoriesByRoomIds({
-      roomIds: ['room-id' as `${string}-${string}-${string}-${string}-${string}`],
-      tableName: 'test_table',
+      roomIds: [
+        "room-id" as `${string}-${string}-${string}-${string}-${string}`,
+      ],
+      tableName: "test_table",
     });
     expect(memories).toHaveLength(1);
-    expect(memories[0].roomId).toBe('room-id' as UUID);
+    expect(memories[0].roomId).toBe("room-id" as UUID);
   });
 
-  it('should return cached embeddings', async () => {
+  it("should return cached embeddings", async () => {
     const embeddings = await adapter.getCachedEmbeddings({
-      query_table_name: 'test_table',
+      query_table_name: "test_table",
       query_threshold: 0.5,
-      query_input: 'test query',
-      query_field_name: 'field',
-      query_field_sub_name: 'subfield',
+      query_input: "test query",
+      query_field_name: "field",
+      query_field_sub_name: "subfield",
       query_match_count: 5,
     });
     expect(embeddings).toHaveLength(1);
     expect(embeddings[0].embedding).toEqual([0.1, 0.2, 0.3]);
   });
 
-  it('should search memories based on embedding', async () => {
+  it("should search memories based on embedding", async () => {
     const memories = await adapter.searchMemories({
-      tableName: 'test_table',
-      roomId: 'room-id' as `${string}-${string}-${string}-${string}-${string}`,
+      tableName: "test_table",
+      roomId: "room-id" as `${string}-${string}-${string}-${string}-${string}`,
       embedding: [0.1, 0.2, 0.3],
       match_threshold: 0.5,
       count: 3,
       unique: true,
     });
     expect(memories).toHaveLength(1);
-    expect(memories[0].roomId).toBe('room-id' as UUID);
+    expect(memories[0].roomId).toBe("room-id" as UUID);
   });
 
-  it('should get an account by user ID', async () => {
-    const account = await adapter.getEntityById('test-user-id' as UUID);
+  it("should get an account by user ID", async () => {
+    const account = await adapter.getEntityById("test-user-id" as UUID);
     expect(account).not.toBeNull();
-    expect(account?.metadata?.username).toBe('testuser');
+    expect(account?.metadata?.username).toBe("testuser");
   });
 
-  it('should create a new account', async () => {
+  it("should create a new account", async () => {
     const newEntity: Entity = {
-      id: 'new-user-id' as UUID,
-      names: ['New Entity'],
+      id: "new-user-id" as UUID,
+      names: ["New Entity"],
       metadata: {
-        username: 'newuser',
-        name: 'New Entity',
+        username: "newuser",
+        name: "New Entity",
       },
-      agentId: 'agent-id' as UUID,
+      agentId: "agent-id" as UUID,
     };
     const result = await adapter.createEntity(newEntity);
     expect(result).toBe(true);
   });
 
-  it('should return entities by room ID', async () => {
+  it("should return entities by room ID", async () => {
     const entities = await adapter.getEntities({ roomId });
     expect(entities).toHaveLength(1);
   });

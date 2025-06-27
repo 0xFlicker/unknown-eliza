@@ -1,15 +1,21 @@
-import { type Provider, type IAgentRuntime, type Memory, type State, logger } from '@elizaos/core';
-import { RolodexService } from '../services/RolodexService';
+import {
+  type Provider,
+  type IAgentRuntime,
+  type Memory,
+  type State,
+  logger,
+} from "@elizaos/core";
+import { RolodexService } from "../services/RolodexService";
 
 export const contactsProvider: Provider = {
-  name: 'CONTACTS',
-  description: 'Provides contact information from the rolodex',
+  name: "CONTACTS",
+  description: "Provides contact information from the rolodex",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     try {
-      const rolodexService = runtime.getService('rolodex') as RolodexService;
+      const rolodexService = runtime.getService("rolodex") as RolodexService;
       if (!rolodexService) {
-        logger.warn('[ContactsProvider] RolodexService not available');
-        return { text: '' };
+        logger.warn("[ContactsProvider] RolodexService not available");
+        return { text: "" };
       }
 
       // Get all contacts
@@ -17,7 +23,7 @@ export const contactsProvider: Provider = {
 
       if (contacts.length === 0) {
         return {
-          text: 'No contacts in rolodex.',
+          text: "No contacts in rolodex.",
           values: { contactCount: 0, contacts: [] },
         };
       }
@@ -28,13 +34,13 @@ export const contactsProvider: Provider = {
           const entity = await runtime.getEntityById(contact.entityId);
           return {
             id: contact.entityId,
-            name: entity?.names[0] || 'Unknown',
+            name: entity?.names[0] || "Unknown",
             categories: contact.categories,
             tags: contact.tags,
             preferences: contact.preferences,
             lastModified: contact.lastModified,
           };
-        })
+        }),
       );
 
       // Group by category
@@ -46,7 +52,7 @@ export const contactsProvider: Provider = {
           });
           return acc;
         },
-        {} as Record<string, typeof contactDetails>
+        {} as Record<string, typeof contactDetails>,
       );
 
       // Build text summary
@@ -57,9 +63,9 @@ export const contactsProvider: Provider = {
         items.forEach((item) => {
           textSummary += `- ${item.name}`;
           if (item.tags.length > 0) {
-            textSummary += ` [${item.tags.join(', ')}]`;
+            textSummary += ` [${item.tags.join(", ")}]`;
           }
-          textSummary += '\n';
+          textSummary += "\n";
         });
       }
 
@@ -73,7 +79,7 @@ export const contactsProvider: Provider = {
               acc[cat] = items.length;
               return acc;
             },
-            {} as Record<string, number>
+            {} as Record<string, number>,
           ),
         },
         data: {
@@ -82,8 +88,8 @@ export const contactsProvider: Provider = {
         },
       };
     } catch (error) {
-      logger.error('[ContactsProvider] Error getting contacts:', error);
-      return { text: 'Error retrieving contact information.' };
+      logger.error("[ContactsProvider] Error getting contacts:", error);
+      return { text: "Error retrieving contact information." };
     }
   },
 };
