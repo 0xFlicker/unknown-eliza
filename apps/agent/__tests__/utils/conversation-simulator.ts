@@ -4,16 +4,23 @@ import {
   AgentRuntime,
   ChannelType,
   Content,
+  EventType,
+  ModelType,
   stringToUuid,
   type IAgentRuntime,
   type Memory,
   type UUID,
+  type HandlerCallback,
 } from "@elizaos/core";
+import {
+  ModelMockingService,
+  type AgentResponseResult,
+} from "./model-mocking-service";
 
 /**
- * Configuration for model response mocking
+ * Legacy configuration for model response mocking (deprecated - use ModelMockingService)
  */
-export interface ModelMockConfig {
+export interface LegacyModelMockConfig {
   /** Agent ID to mock responses for */
   agentId: string;
   /** Predefined responses to return in order */
@@ -23,6 +30,11 @@ export interface ModelMockConfig {
   /** File path to save/load recordings */
   recordingPath?: string;
 }
+
+/**
+ * Configuration for model response mocking (for backward compatibility)
+ */
+export interface ModelMockConfig extends LegacyModelMockConfig {}
 
 /**
  * A message in the conversation with metadata
@@ -42,12 +54,19 @@ export interface ConversationMessage {
 export interface SimulatorConfig {
   /** Number of agents to create */
   agentCount: number;
-  /** Model mocking configurations */
+  /** Legacy model mocking configurations (deprecated) */
   modelMocks?: ModelMockConfig[];
   /** Test data directory */
   dataDir: string;
   /** Server port for testing */
   serverPort?: number;
+  /** Enable comprehensive model mocking service */
+  useModelMockingService?: boolean;
+  /** Test context for recording organization */
+  testContext?: {
+    suiteName: string;
+    testName: string;
+  };
 }
 
 /**
@@ -59,17 +78,33 @@ export class ConversationSimulator {
   private runtimes: Map<string, IAgentRuntime> = new Map();
   private messageHistory: ConversationMessage[] = [];
   private currentChannel?: UUID;
+  private currentWorld?: UUID;
   private modelMocks: Map<string, ModelMockConfig> = new Map();
   private responseIndices: Map<string, number> = new Map();
+  private modelMockingService?: ModelMockingService;
+  private runtimeCleanupFunctions: Map<string, () => void> = new Map();
 
   constructor(private config: SimulatorConfig) {
     this.server = new AgentServer();
 
-    // Set up model mocks
+    // Set up legacy model mocks
     config.modelMocks?.forEach((mock) => {
       this.modelMocks.set(mock.agentId, mock);
       this.responseIndices.set(mock.agentId, 0);
     });
+
+    // Initialize model mocking service if enabled
+    if (config.useModelMockingService !== false) {
+      // Default to true
+      this.modelMockingService = new ModelMockingService();
+
+      if (config.testContext) {
+        this.modelMockingService.setTestContext(
+          config.testContext.suiteName,
+          config.testContext.testName
+        );
+      }
+    }
   }
 
   /**
@@ -106,19 +141,74 @@ export class ConversationSimulator {
     character: any,
     plugins: any[] = []
   ): Promise<IAgentRuntime> {
+    // Filter out local-ai plugin in playback mode to prevent actual model calls
+    let filteredPlugins = plugins;
+    if (!process.env.MODEL_RECORD_MODE && this.modelMockingService) {
+      // Remove local-ai plugin to prevent actual inference during playback
+      filteredPlugins = plugins.filter(plugin => {
+        const pluginName = plugin.name || plugin.constructor?.name || '';
+        return !pluginName.toLowerCase().includes('localai') && 
+               !pluginName.toLowerCase().includes('local-ai');
+      });
+      
+      if (filteredPlugins.length !== plugins.length) {
+        console.log(`🚫 Disabled local-ai plugin for ${agentName} in playback mode`);
+      }
+    }
+
     const runtime = new AgentRuntime({
       character: { ...character, name: agentName },
-      plugins,
+      plugins: filteredPlugins,
       settings: { DATABASE_PATH: this.config.dataDir },
     });
 
     await runtime.initialize();
     await this.server.registerAgent(runtime);
 
-    // Set up model mocking if configured
-    const mockConfig = this.modelMocks.get(agentName);
-    if (mockConfig) {
-      this.setupModelMock(runtime, mockConfig);
+    // Create and ensure world and room exist for this agent
+    if (this.currentChannel) {
+      try {
+        // Create a world for this agent if not already created
+        if (!this.currentWorld) {
+          this.currentWorld = stringToUuid(`test-world-${Date.now()}`);
+        }
+
+        // Ensure the world exists in the agent's database
+        await runtime.ensureWorldExists({
+          id: this.currentWorld,
+          agentId: runtime.agentId,
+          serverId: "00000000-0000-0000-0000-000000000000",
+        });
+
+        // Now ensure the room exists with the world context
+        await runtime.ensureRoomExists({
+          id: this.currentChannel,
+          agentId: runtime.agentId,
+          serverId: "00000000-0000-0000-0000-000000000000",
+          worldId: this.currentWorld,
+          name: "test-conversation-room",
+          source: "test",
+          type: ChannelType.GROUP,
+        });
+
+        console.log(`✅ Successfully set up world and room for ${agentName}`);
+      } catch (error) {
+        console.log(`❌ Failed to ensure room exists for ${agentName}:`, error);
+        // Don't throw - let the test continue but with a warning
+      }
+    }
+
+    // Set up model mocking
+    if (this.modelMockingService) {
+      // Use comprehensive model mocking service
+      const cleanup = this.modelMockingService.patchRuntime(runtime, agentName);
+      this.runtimeCleanupFunctions.set(agentName, cleanup);
+    } else {
+      // Fall back to legacy model mocking
+      const mockConfig = this.modelMocks.get(agentName);
+      if (mockConfig) {
+        this.setupModelMock(runtime, mockConfig);
+      }
     }
 
     this.runtimes.set(agentName, runtime);
@@ -134,25 +224,33 @@ export class ConversationSimulator {
   ): void {
     const originalUseModel = runtime.useModel;
 
-    runtime.useModel = vi.fn().mockImplementation(async (...args) => {
-      const responseIndex = this.responseIndices.get(mockConfig.agentId) || 0;
+    runtime.useModel = vi
+      .fn()
+      .mockImplementation(async (modelType: string, options: any) => {
+        const responseIndex = this.responseIndices.get(mockConfig.agentId) || 0;
 
-      if (mockConfig.recordMode) {
-        // In record mode, call actual model and save response
-        const actualResponse = await originalUseModel.apply(runtime, args);
-        // TODO: Save to recording file
-        return actualResponse;
-      } else {
-        // In playback mode, return mocked response
-        if (responseIndex < mockConfig.responses.length) {
-          const response = mockConfig.responses[responseIndex];
-          this.responseIndices.set(mockConfig.agentId, responseIndex + 1);
-          return JSON.stringify({ text: response });
+        if (mockConfig.recordMode) {
+          // In record mode, call actual model and save response
+          const actualResponse = await originalUseModel.call(
+            runtime,
+            modelType,
+            options
+          );
+          // TODO: Save to recording file
+          return actualResponse;
         } else {
-          return JSON.stringify({ text: "No more mocked responses available" });
+          // In playback mode, return mocked response
+          if (responseIndex < mockConfig.responses.length) {
+            const response = mockConfig.responses[responseIndex];
+            this.responseIndices.set(mockConfig.agentId, responseIndex + 1);
+            return JSON.stringify({ text: response });
+          } else {
+            return JSON.stringify({
+              text: "No more mocked responses available",
+            });
+          }
         }
-      }
-    });
+      });
   }
 
   /**
@@ -162,7 +260,10 @@ export class ConversationSimulator {
     fromAgent: string,
     content: string,
     shouldTriggerResponses: boolean = true
-  ): Promise<ConversationMessage> {
+  ): Promise<{
+    message: ConversationMessage;
+    responses: AgentResponseResult[];
+  }> {
     if (!this.currentChannel) {
       throw new Error("Simulator not initialized - no channel available");
     }
@@ -192,31 +293,48 @@ export class ConversationSimulator {
     this.messageHistory.push(conversationMessage);
 
     // Optionally trigger other agents to respond
+    let responses: AgentResponseResult[] = [];
     if (shouldTriggerResponses) {
-      await this.triggerAgentResponses(fromAgent);
+      responses = await this.triggerAgentResponses(fromAgent);
     }
 
-    return conversationMessage;
+    return { message: conversationMessage, responses };
   }
 
   /**
-   * Trigger other agents to potentially respond to the latest message
+   * Trigger other agents to potentially respond to the latest message using proper event system
+   * Returns results that can be tested/asserted
    */
-  private async triggerAgentResponses(excludeAgent: string): Promise<void> {
+  private async triggerAgentResponses(
+    excludeAgent: string
+  ): Promise<AgentResponseResult[]> {
     const otherAgents = Array.from(this.runtimes.keys()).filter(
       (name) => name !== excludeAgent
     );
 
+    const results: AgentResponseResult[] = [];
+
+    // Process agents sequentially to avoid race conditions
     for (const agentName of otherAgents) {
       const runtime = this.runtimes.get(agentName);
-      if (!runtime || !this.currentChannel) continue;
+      if (!runtime || !this.currentChannel) {
+        results.push({
+          agentName,
+          responded: false,
+          modelCalls: 0,
+          error: "Runtime or channel not available",
+        });
+        continue;
+      }
 
       try {
         // Create memory object for the latest message
         const latestMessage =
           this.messageHistory[this.messageHistory.length - 1];
         const memory: Memory = {
+          id: stringToUuid(`msg-${Date.now()}-${Math.random()}`),
           entityId: latestMessage.authorId,
+          agentId: runtime.agentId,
           roomId: this.currentChannel,
           content: {
             text: latestMessage.content,
@@ -226,45 +344,86 @@ export class ConversationSimulator {
             timestamp: latestMessage.timestamp,
             type: "message",
           },
+          createdAt: latestMessage.timestamp,
         };
 
-        // Build state and try to process actions
-        const state = await runtime.composeState(memory);
+        console.log(
+          `Triggering ${agentName} to process message: "${latestMessage.content}"`
+        );
 
-        // Try each available action
-        for (const action of runtime.actions || []) {
-          try {
-            const isValid = await action.validate(runtime, memory, state);
-            if (isValid) {
-              await action.handler(
-                runtime,
-                memory,
-                state,
-                {},
-                async (response: Content) => {
-                  if (response && response.text) {
-                    // Create agent response message
-                    await this.sendMessage(agentName, response.text, false);
-                  }
-                  return [];
-                }
+        // Track response data
+        const result: AgentResponseResult = {
+          agentName,
+          responded: false,
+          modelCalls: 0,
+        };
+
+        // Get initial model call count
+        const initialStats = this.modelMockingService?.getResponseStats();
+        const initialCalls = initialStats?.totalCalls || 0;
+
+        // Emit MESSAGE_RECEIVED event - this triggers the full 2-step evaluation
+        // The bootstrap plugin will handle shouldRespond + action selection
+        await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+          runtime,
+          message: memory,
+          callback: async (response: Content) => {
+            console.log(`${agentName} generated response:`, {
+              text: response.text,
+              actions: response.actions,
+              thought: response.thought,
+            });
+
+            if (
+              response &&
+              response.text &&
+              !response.actions?.includes("IGNORE")
+            ) {
+              result.responded = true;
+              result.response = response.text;
+              // Create agent response message (don't trigger more responses to avoid recursion)
+              const messageResult = await this.sendMessage(
+                agentName,
+                response.text,
+                false
               );
-              break; // Only use first valid action
+            } else if (response.actions?.includes("IGNORE")) {
+              console.log(`${agentName} decided to ignore the message`);
             }
-          } catch (actionError) {
-            console.log(
-              `Action ${action.name} failed for agent ${agentName}:`,
-              actionError
-            );
-          }
-        }
+          },
+          onComplete: () => {
+            console.log(`${agentName} completed processing message`);
+          },
+        });
+
+        // Give the agent time to process (including potential model cold startup)
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        // Calculate model calls made
+        const finalStats = this.modelMockingService?.getResponseStats();
+        const finalCalls = finalStats?.totalCalls || 0;
+        result.modelCalls = finalCalls - initialCalls;
+
+        results.push(result);
+
+        console.log(
+          `${agentName} ${result.responded ? "provided a response" : "did not respond"} (${result.modelCalls} model calls)`
+        );
       } catch (error) {
         console.log(
           `Failed to trigger response for agent ${agentName}:`,
           error
         );
+        results.push({
+          agentName,
+          responded: false,
+          modelCalls: 0,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
+
+    return results;
   }
 
   /**
@@ -311,8 +470,15 @@ export class ConversationSimulator {
    * Clean up resources
    */
   async cleanup(): Promise<void> {
-    for (const runtime of this.runtimes.values()) {
-      // Clean up runtime if needed
+    // Clean up runtime model mocking patches
+    for (const cleanup of this.runtimeCleanupFunctions.values()) {
+      cleanup();
+    }
+    this.runtimeCleanupFunctions.clear();
+
+    // Save recordings if using model mocking service
+    if (this.modelMockingService) {
+      await this.modelMockingService.saveRecordings();
     }
 
     await this.server.stop();
@@ -362,5 +528,21 @@ export class ConversationSimulator {
           : 0,
       messagesByAgent,
     };
+  }
+
+  /**
+   * Get model mocking service for advanced testing
+   */
+  getModelMockingService(): ModelMockingService | undefined {
+    return this.modelMockingService;
+  }
+
+  /**
+   * Set test context for model recording organization
+   */
+  setTestContext(suiteName: string, testName: string): void {
+    if (this.modelMockingService) {
+      this.modelMockingService.setTestContext(suiteName, testName);
+    }
   }
 }

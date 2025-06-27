@@ -29,7 +29,7 @@
   ],
   "dependencies": {
     "@elizaos/cli": "^1.0.12",
-    "@elizaos/core": "^1.0.12",
+    "@elizaos/core": "workspace:*",
     "@elizaos/plugin-bootstrap": "^1.0.11",
     "@elizaos/plugin-browser": "^1.0.3",
     "@elizaos/plugin-discord": "1.0.10",

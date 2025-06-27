@@ -359,6 +359,18 @@ bun run build            # Build w/ tsup
 bun run typecheck        # Typecheck w/ tsc
 ```
 
+### Testing
+
+Check package.json for details, but most packages use vitest and not native bun for testing. Vitest tests must be run using the `run test` script, not the `test` command.
+
+```bash
+bun run test
+bun run test {path/to/test}
+cd apps/agent; MODEL_RECORD_MODE=true bun run test # Record new local model responses for test. Necessary if there are prompt changes. See apps/agent/__tests__/README.md for details
+```
+
+When `MODEL_RECORD_MODE=true` is enabled, the tests using apps/agent/**tests**/utils/recording-test-utils.ts will not throw, rather they will collect all differences into a report for the console. When MODEL_RECORD_MODE is removed, these tests will fail. It is up to the developer to look at the diff of the recordings at apps/agent/recordings as well as any changes necessary to the test, and make a determination on how the test should be updated and if the test should be re-recorded.
+
 ### Development & Running
 
 apps/agent and apps/www can be started in dev or prod mode:
