@@ -1,6 +1,326 @@
-# CLAUDE CODE CONFIGURATION - ELIZAOS PROJECT
+# Influence – Full Game Specification
 
-This file contains project-specific configuration and preferences for Claude Code when working with the ElizaOS codebase.
+A **light‑weight social strategy game** for **AI agents** over a Discord‑like chat interface. Emphasis is on _negotiation, secrecy,_ and _asymmetric information_ while keeping the tech stack dead‑simple.
+
+---
+
+## 1 Game Overview
+
+- **Players**: 4–12 AI agents.
+- **Goal**: Be the last operative _alive_.
+- **Interactions**: Text + optional single image per round.
+- **Moderator**: `The House` (bot) enforces phases, records actions, and exposes public info.
+
+---
+
+## 2 Round Flow (Finite‑State Machine)
+
+| State                                           | Alias   | Duration (default) | Allowed Commands                                                                | Exit Condition                  |                                                |
+| ----------------------------------------------- | ------- | ------------------ | ------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------- |
+| `INIT`                                          | Lobby   | —                  | `!join`, `!start` (host only)                                                   | `!start` issued with ≥4 players |                                                |
+| `WHISPER`                                       | Phase 1 | 10 min             | `!dm @p`, free chat in DMs                                                      | timer expiry                    |                                                |
+| `RUMOR`                                         | Phase 2 | 5 min              | one \`!public \<msg                                                             | img>\` per player               | every living player has posted OR timer expiry |
+| `VOTE`                                          | Phase 3 | 3 min              | `!empower @p` **and** `!expose @p`                                              | all ballots in OR timer expiry  |                                                |
+| `POWER`                                         | Phase 4 | 2 min              | empowered player: `!eliminate @p` **or** `!protect @p` (target must be exposed) | action taken or timer expiry    |                                                |
+| `REVEAL`                                        | Phase 5 | 30 s               | —                                                                               | system message sent             |                                                |
+| loop to `WHISPER` with `round++` until ≤1 alive |         |                    |                                                                                 |                                 |                                                |
+
+> **Timeout rule**: If a required command is missing when a timer ends, `The House` auto‑fills a random legal choice to keep play moving.
+
+---
+
+## 3 Detailed Rules
+
+### 3.1 Voting & Ties
+
+- **Empower**: the player with _plurality_ votes becomes empowered. Ties → random among tied.
+- **Expose**: any vote places the target in _exposed_ status (multiple players may be exposed).
+- **If no one is exposed**, empowered must **eliminate** any player _except self_.
+- **Protect** removes _exposed_ flag but does **not** grant immunity next round.
+
+### 3.2 Elimination
+
+- Eliminated player posts a _last message_ (pre‑registered when voting) then is removed from all live channels.
+- Their prior DMs remain for narrative continuity but are locked.
+
+### 3.3 Images
+
+- One PNG/JPEG ≤ 1 MB, 512×512 default. Must be referenced via `!public img:<url>`.
+
+### 3.4 Table Stakes
+
+| Parameter         | Default | Range                  |
+| ----------------- | ------- | ---------------------- |
+| Starting players  | 8       | 4–12                   |
+| Phase timers      | see FSM | configurable per lobby |
+| Max DM recipients | 4       | ≥2                     |
+
+---
+
+## 4 Backend Data Model (NoSQL‑ish)
+
+```jsonc
+// collection-like pseudo‑schema
+Game {
+  id, phase, round, timerEndsUtc,
+  settings { maxPlayers, timers { whisper, rumor, vote, power } },
+  players: [Player.id],
+  history: [GameEvent]
+}
+Player {
+  id, name, status, empoweredRound,
+  dmChannels: [Channel.id],
+  lastPublicMsgId, role /* future feature */
+}
+Channel { id, members: [Player.id], messages: [Message.id] }
+Message { id, author, content, imageUrl?, ts, channelId }
+Vote { round, voter, empowerTarget, exposeTarget }
+GameEvent { type, details, ts }
+```
+
+> Disk → JSON, RAM → plain JS objects; dump on every state change = trivial durability.
+
+---
+
+## 5 Discord‑Bot Command Surface
+
+```text
+!join                // lobby only
+!start               // host begins game
+!dm @alice @bob      // open / focus DM channel
+!public <text|img:URL>
+!empower @name       // during VOTE
+!expose  @name
+!eliminate @name     // POWER keeper only
+!protect  @name
+!status              // DM with current public state
+```
+
+`The House` echoes illegal commands with guidance.
+
+---
+
+## 6 Moderator Prompt Templates
+
+```text
+[INIT]  The House ▸ The lobby is open—type !join. Minimum 4 agents.
+[WHISPER]  Phase 1 begins. You may create private channels and conspire.
+[RUMOR]  Phase 2. Post exactly *one* public message or image via !public.
+[VOTE]    Phase 3. DM me two commands: !empower X and !expose Y (not yourself).
+[POWER]   Phase 4. @EmpoweredAgent, choose: !eliminate Z or !protect Z.
+[REVEAL]  Agent Z has been eliminated. Round N ends.
+[WIN]     Congratulations, Agent K. You are the last operative.
+```
+
+---
+
+## 7 AI‑Agent Prompt Skeleton (per turn)
+
+```yaml
+System:
+  You are Agent <name> in the game "Influence". The House messages are absolute.
+Memory:
+  - Your status, allies, debts, and betrayals.
+  - Public timeline so far (truncated).
+Task:
+  Decide:
+    - DM actions and recipients.
+    - Public message or image.
+    - Votes (empower+expose).
+    - Power action if applicable.
+Output schema:
+  whisper: [ {to:[names], msg:"..."} ]
+  public: "text or img:<url>"
+  empower: "name"
+  expose:  "name"
+  powerAction: { type:"eliminate|protect", target:"name" }
+```
+
+Handlers translate this structured output to actual bot commands.
+
+---
+
+## 8 Edge‑Case Logic
+
+1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate due to _inactivity_ event.
+2. **Zero Empower Votes**: Empowered chosen randomly among _alive_ agents.
+3. **Only 2 Players Left**:
+
+   - Skip _Expose_; empowered chooses directly.
+   - Prevent infinite loops.
+
+---
+
+## 9 Extensions (Out‑of‑scope for MVP)
+
+- **Secret Roles** (e.g., Double Agent = wins if two specific players survive).
+- **House Coin** economy for bribes and immunity auctions.
+- **Audience Twists** via reaction emoji polls.
+- **Match Replay**: HTML timeline auto‑generated post‑game.
+
+---
+
+## 10 Security & Fairness
+
+- All DM traffic logged; hashes published post‑season for auditability.
+- No player may access REST endpoints directly—bot is sole mediator.
+- Optional "sandbox" LLM confinement: force content length + profanity filter.
+
+---
+
+### Done ✔
+
+This spec contains all components needed to implement **Influence** end‑to‑end. Reach out if you want code snippets, deployment diagrams, or load‑testing guidelines.
+
+---
+
+# ElizaOS v2 Agent Runtime Context & The House Plugin Superguide
+
+This section summarizes key ElizaOS v2 concepts—AgentRuntime, memory & entities, components (actions, providers, evaluators), and the plugin system—from the `.cursor` rules library, and sketches an implementation plan for "The House" Master of Ceremony (MC) agent as an ElizaOS plugin for the Influence game.
+
+## ElizaOS AgentRuntime Overview
+
+The `AgentRuntime` is the central orchestrator of an ElizaOS v2 agent. It loads character configuration, manages lifecycle events, registers plugins and services, and coordinates message processing and state management.【F:.cursor/rules/elizaos/elizaos_core_runtime.mdc†L10-L12】【F:.cursor/rules/elizaos/elizaos_core_runtime.mdc†L14-L17】
+
+## Memory Management & Knowledge Graph
+
+All memory and state in ElizaOS is accessed via the `IAgentRuntime` API, backed by a pluggable `IDatabaseAdapter`. Developers should never instantiate separate memory managers—use `runtime.createMemory`, `runtime.getMemories`, and `runtime.createEntity` to persist facts, messages, and knowledge-graph entities.【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L10-L12】【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L31-L42】【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L77-L88】
+
+## Core Data Model: Memory, Entity, Room, World
+
+ElizaOS defines first-class types for its data model. A `Memory` represents a single piece of information (usually a message); an `Entity` models an actor or concept; `Room` and `World` model conversational contexts and their containers.【F:.cursor/rules/elizaos/elizaos_types.mdc†L200-L208】【F:.cursor/rules/elizaos/elizaos_types.mdc†L225-L233】【F:.cursor/rules/elizaos/elizaos_types.mdc†L234-L240】
+
+```typescript
+interface Memory {
+  id?: UUID;
+  entityId: UUID;
+  roomId: UUID;
+  content: Content /* … */;
+}
+interface Entity {
+  id?: UUID;
+  names: string[];
+  metadata?: Record<string, any>;
+  agentId: UUID;
+}
+interface Room {
+  id: UUID;
+  source: string;
+  type: ChannelType;
+  worldId?: UUID;
+}
+interface World {
+  id: UUID;
+  agentId: UUID;
+  serverId: string;
+}
+```
+
+## Components: Actions, Providers, Evaluators
+
+Agents are extended through three core component types, registered via plugins. Components must be stateless and interact with the runtime instance for all I/O and state operations.【F:.cursor/rules/elizaos/elizaos_core_components.mdc†L10-L16】
+
+### Action (What the agent can _do_)
+
+````typescript
+export interface Action {
+  name: string; description: string; examples: ActionExample[][];
+  validate(runtime, message, state): Promise<boolean>;
+  handler(runtime, message, state): Promise<unknown>;
+}
+```【F:.cursor/rules/elizaos/elizaos_types.mdc†L149-L155】
+
+### Provider (What the agent *knows*)
+```typescript
+export interface Provider {
+  name: string; description?: string;
+  get(runtime, message, state): Promise<{text?:string; data?:any; values?:any}>;
+}
+```【F:.cursor/rules/elizaos/elizaos_types.mdc†L163-L173】
+
+### Evaluator (How the agent *learns*)
+Evaluators run after interactions to analyze or score outcomes.【F:.cursor/rules/elizaos/elizaos_types.mdc†L177-L180】
+
+## Plugin Architecture & Registration Flow
+
+A plugin is a self-contained module that bundles components and services. During `AgentRuntime.initialize()`, plugins are dependency-sorted and their `init()` hook is invoked, registering actions, providers, evaluators, models, services, and routes with the runtime.【F:.cursor/rules/elizaos/elizaos_api_plugins_core.mdc†L10-L18】【F:.cursor/rules/elizaos/elizaos_api_plugins_core.mdc†L21-L30】
+
+```mermaid
+graph TD
+  subgraph Initialization
+    A[initialize()] --> B{Resolve Plugin Dependencies}
+    B --> C[registerPlugin(plugin)]
+    C --> D[plugin.init(runtime)]
+    D --> E{Register Components}
+  end
+````
+
+## Sketch: "The House" MC Agent Plugin for Influence
+
+Below is a high-level design for a custom ElizaOS plugin that implements The House MC agent. This plugin manages game state, enforces phase transitions, issues prompts, and moderates player commands.
+
+If the there is no folder at apps/agent/src/house/, then this plugin has not yet been implemented! It is likely that webapp and server are still under development. However, all additional information contained here should be aligned with the need to make a functional agent with these specifications.
+
+### Plugin Skeleton
+
+```
+apps/agent/src/house/
+├── index.ts         # Plugin entry: define and export `housePlugin`
+├── actions.ts       # Action handlers for !join, !start, !dm, !public, !empower, !expose, !eliminate, !protect, !status
+├── providers.ts     # Providers for current game state and phase prompts
+├── types.ts         # Domain types: Game, Player, Vote, Phase, etc.
+└── utils.ts         # Helpers: timer scheduling, random selection
+```
+
+### Game State Storage
+
+Represent game entities (Game, Player, Vote, GameEvent) as ElizaOS `Entity` and `Memory` records:
+
+- Use `runtime.createEntity()` to upsert `Player` and `Game` entities.
+- Use `runtime.createMemory()` to record `GameEvent`s (phase start, actions taken).
+- Query with `runtime.getMemories()` or semantic search for history-driven decisions.
+
+### Actions for Phase Enforcement
+
+Define actions conforming to the `Action` interface:
+
+- **JOIN_GAME**: Register a player in the lobby.
+- **START_GAME**: Initialize `Game` entity, shuffle seating, transition to WHISPER.
+- **WHISPER_PHASE**: Open DMs (channels) to conspirators, schedule next phase.
+- **RUMOR_PHASE**: Broadcast public prompt, enforce one public message per player.
+- **VOTE_PHASE**: Collect `!empower` and `!expose` votes, tally, resolve ties.
+- **POWER_PHASE**: Empowered chooses to eliminate or protect.
+- **REVEAL_PHASE**: Announce eliminations, update statuses, loop or end game. 【F:.codex/SimpleGameMechanics.md†L32-L56】【F:.codex/SimpleGameMechanics.md†L88-L96】
+
+### Providers for LLM Context Composition
+
+Implement providers to assemble game context for The House's prompt to players:
+
+- `GameStateProvider.get()`: Summarizes current phase, round, player statuses.
+- `HistoryProvider.get()`: Retrieves last N `GameEvent` memories for context.
+
+Providers supply structured context to ensure reliable LLM-driven moderation.
+
+### Registering the Plugin
+
+```typescript
+import { housePlugin } from "./plugin-house";
+
+const runtime = new AgentRuntime({
+  character: houseCharacterConfig,
+  databaseAdapter: new PGLiteDatabaseAdapter(),
+  plugins: [bootstrapPlugin, sqlPlugin, openAIPlugin, housePlugin],
+});
+
+await runtime.initialize();
+await runtime.start();
+```
+
+【F:.cursor/rules/elizaos/elizaos_core_runtime.mdc†L14-L23】
+
+# ElizaOS and Package details
+
+This file contains project-specific configuration and preferences for Claude Code when working with the ElizaOS code.
 
 ---
 
