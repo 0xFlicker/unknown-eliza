@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "lib": ["ESNext"],
     "target": "ESNext",
     "module": "Preserve",
@@ -22,5 +22,5 @@
     "allowArbitraryExtensions": true,
     "baseUrl": ".",
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"]
 }

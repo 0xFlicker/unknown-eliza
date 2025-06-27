@@ -7,8 +7,8 @@ import {
   documentTestResult,
   runCoreActionTests,
 } from "./utils/core-test-utils";
-import { character } from "../src/index";
-import { socialStrategyPlugin as plugin } from "@0xflicker/plugin-social-strategy";
+import character from "../src/characters/alex";
+import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
 
 /**
  * Creates an enhanced mock runtime for testing that includes the project's

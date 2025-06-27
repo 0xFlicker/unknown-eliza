@@ -46,19 +46,15 @@ ElizaOS provides a comprehensive testing structure for projects:
 
 ### Test Structure
 
-- **Component Tests** (`__tests__/` directory):
+- **Component & Integration Tests** (`__tests__/` directory):
 
-  - **Unit Tests**: Test individual functions and components in isolation
-  - **Integration Tests**: Test how components work together
+  - Run in-process tests (e.g. spinning up an AgentServer) using Vitest
   - Run with: `npm run test:component`
 
-- **End-to-End Tests** (`e2e/` directory):
+- **End-to-End Tests**: (deprecated)
 
-  - Test the project within a full ElizaOS runtime
-  - Run with: `npm run test:e2e`
-
-- **Running All Tests**:
-  - `npm run test` runs both component and e2e tests
+  - Legacy e2e harness removed; use component tests to cover runtime scenarios.
+  - Full ElizaOS CLI tests are no longer maintained.
 
 ### Writing Tests
 
@@ -66,15 +62,15 @@ Component tests use Vitest:
 
 ```typescript
 // Unit test example (__tests__/config.test.ts)
-describe('Configuration', () => {
-  it('should load configuration correctly', () => {
+describe("Configuration", () => {
+  it("should load configuration correctly", () => {
     expect(config.debug).toBeDefined();
   });
 });
 
 // Integration test example (__tests__/integration.test.ts)
-describe('Integration: Plugin with Character', () => {
-  it('should initialize character with plugins', async () => {
+describe("Integration: Plugin with Character", () => {
+  it("should initialize character with plugins", async () => {
     // Test interactions between components
   });
 });
@@ -85,10 +81,10 @@ E2E tests use ElizaOS test interface:
 ```typescript
 // E2E test example (e2e/project.test.ts)
 export class ProjectTestSuite implements TestSuite {
-  name = 'project_test_suite';
+  name = "project_test_suite";
   tests = [
     {
-      name: 'project_initialization',
+      name: "project_initialization",
       fn: async (runtime) => {
         // Test project in a real runtime
       },
