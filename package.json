@@ -52,5 +52,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@elizaos/plugin-local-ai": "^1.0.4",
+    "@elizaos/plugin-openai": "^1.0.6"
+  }
 }
