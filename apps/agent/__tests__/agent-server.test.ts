@@ -33,12 +33,12 @@ describe("AgentServer integration", () => {
   // Utility function to create test-safe plugin arrays
   function getTestPlugins(includeLocalAI: boolean = false) {
     const basePlugins = [sqlPlugin, bootstrapPlugin, socialStrategyPlugin];
-    
+
     // Only include localAI in record mode or when explicitly requested
     if (includeLocalAI && process.env.MODEL_RECORD_MODE) {
       return [sqlPlugin, localAIPlugin, bootstrapPlugin, socialStrategyPlugin];
     }
-    
+
     return basePlugins;
   }
 
@@ -51,10 +51,10 @@ describe("AgentServer integration", () => {
     dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
     server = new AgentServer();
-    
+
     const testChar = { ...alexCharacter, plugins: [] };
-    
-    // Use safe plugins - no localAI for basic server tests  
+
+    // Use safe plugins - no localAI for basic server tests
     runtime = new AgentRuntime({
       character: testChar,
       plugins: getTestPlugins(false), // Don't include localAI for basic tests
@@ -105,13 +105,13 @@ describe("AgentServer integration", () => {
       name: "OtherAgent",
       plugins: [],
     };
-      
+
     const runtime2 = new AgentRuntime({
       character: otherChar,
       plugins: getTestPlugins(false), // Use safe plugins, no localAI needed
       settings: { PGLITE_PATH: dataDir, ...process.env },
     });
-    
+
     await runtime2.initialize();
     await server.registerAgent(runtime2);
 
@@ -133,20 +133,26 @@ describe("AgentServer integration", () => {
 
   it("processes a message and generates a response", async () => {
     // Create a separate runtime for this test with model mocking
-    const testChar = { ...alexCharacter, name: "MessageTestAgent", plugins: [] };
+    const testChar = {
+      ...alexCharacter,
+      name: "MessageTestAgent",
+      plugins: [],
+    };
     const testRuntime = new AgentRuntime({
       character: testChar,
       plugins: getTestPlugins(true), // Include localAI for this test
       settings: { DATABASE_PATH: dataDir, ...process.env },
     });
 
-    // Set up per-test mocking to prevent actual model calls
-    let mockingService: ModelMockingService | undefined;
-    if (!process.env.MODEL_RECORD_MODE) {
-      mockingService = new ModelMockingService();
-      mockingService.setTestContext("AgentServer integration", "processes a message and generates a response");
-      mockingService.patchRuntime(testRuntime, "MessageTestAgent");
-    }
+    // Set up per-test mocking - always create the service for proper test isolation
+    const mockingService = new ModelMockingService();
+    mockingService.setTestContext(
+      "AgentServer integration",
+      "processes a message and generates a response"
+    );
+    
+    // Always patch runtime to intercept model calls (for both record and playback)
+    mockingService.patchRuntime(testRuntime, "MessageTestAgent");
 
     await testRuntime.initialize();
     await server.registerAgent(testRuntime);
@@ -215,10 +221,8 @@ describe("AgentServer integration", () => {
       expect(messages.length).toBeGreaterThanOrEqual(1);
       expect(messages.some((m) => m.content === messageText)).toBe(true);
     } finally {
-      // Clean up the test runtime
-      if (mockingService) {
-        await mockingService.saveRecordings();
-      }
+      // Clean up the test runtime and save recordings
+      await mockingService.saveRecordings();
     }
   }, 90000);
 
@@ -368,7 +372,7 @@ describe("AgentServer integration", () => {
 
       // Use soft assertion that won't fail test in record mode
       expectSoft(mockResponse1).toContain(
-        "I am not able to form alliances"
+        "I do not have enough information to provide a meaningful response about forming an alliance. If you have a specific question or situation in mind, I would be more than willing to attempt to provide a helpful answer."
       );
       console.log("Agent1 mock response:", mockResponse1);
 
@@ -382,7 +386,9 @@ describe("AgentServer integration", () => {
         mockResponse2,
         "expected to contain 'agree'"
       );
-      expectSoft(mockResponse2).toContain("My strategy is to be helpful");
+      expectSoft(mockResponse2).toContain(
+        "My strategy involves being a helpful, respectful, and honest assistant. I aim to provide clear, accurate, and relevant answers to the best of my abilities while being sensitive to the context of the requests I receive. I strive to always act in a manner that is consistent with my core values of helpfulness, respectfulness, and honesty."
+      );
       console.log("Agent2 mock response:", mockResponse2);
 
       // Start a conversation with automatic responses using the proper event system
@@ -413,6 +419,11 @@ describe("AgentServer integration", () => {
         "Hey everyone, should we discuss our strategy for this game?"
       );
 
+      expectSoft(finalHistory[1]?.authorName).toBe("MockAgent2");
+      expectSoft(finalHistory[1]?.content).toBe(
+        "Hey there! I'm fairly new to this game, but I've found that having a clear strategy is super important. What are some of the goals everyone is trying to achieve? I'd love to hear how people are approaching this round!"
+      );
+
       // Test conversation analysis
       const summary = simulator.createConversationSummary();
       expectSoft(summary.participantCount).toBe(2);
@@ -422,12 +433,12 @@ describe("AgentServer integration", () => {
       RecordingTestUtils.suggestExpectation(
         "conversation length",
         finalHistory.length,
-        "at least 1"
+        "at least 2"
       );
       RecordingTestUtils.suggestExpectation(
         "message count",
         summary.messageCount,
-        "at least 1"
+        "at least 2"
       );
 
       console.log("Mock conversation summary:", summary);

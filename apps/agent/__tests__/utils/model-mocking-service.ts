@@ -86,15 +86,17 @@ export class ModelMockingService {
   setTestContext(suiteName: string, testName: string): void {
     this.currentTest = { suiteName, testName };
     this.loadRecordingsForTest(suiteName, testName);
-    
+
     // Clear recordings for this test if we're in record mode
     // This ensures clean re-recording without duplicates
-    if (this.config.mode === 'record') {
+    if (this.config.mode === "record") {
       const recordingKey = this.getRecordingKey(suiteName, testName);
       this.recordings.set(recordingKey, []);
-      console.log(`🧹 Cleared existing recordings for clean re-recording: ${testName}`);
+      console.log(
+        `🧹 Cleared existing recordings for clean re-recording: ${testName}`
+      );
     }
-    
+
     // Always clear counters for fresh test run
     this.callCounters.clear();
     this.playbackCounters.clear();
@@ -175,7 +177,7 @@ export class ModelMockingService {
 
     // Deduplicate records by ID (keep the latest based on timestamp)
     const deduplicatedRecords = this.deduplicateRecordings(records);
-    
+
     // Sort records for consistent ordering (by agent, then model type, then call number)
     const sortedRecords = this.sortRecordings(deduplicatedRecords);
 
@@ -198,9 +200,11 @@ export class ModelMockingService {
     console.log(
       `📹 Saved ${sortedRecords.length} deduplicated model call recordings to ${filePath}`
     );
-    
+
     if (records.length !== sortedRecords.length) {
-      console.log(`🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`);
+      console.log(
+        `🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`
+      );
     }
   }
 
@@ -209,14 +213,17 @@ export class ModelMockingService {
    */
   private deduplicateRecordings(records: ModelCallRecord[]): ModelCallRecord[] {
     const recordMap = new Map<string, ModelCallRecord>();
-    
+
     for (const record of records) {
       const existing = recordMap.get(record.id);
-      if (!existing || new Date(record.timestamp) > new Date(existing.timestamp)) {
+      if (
+        !existing ||
+        new Date(record.timestamp) > new Date(existing.timestamp)
+      ) {
         recordMap.set(record.id, record);
       }
     }
-    
+
     return Array.from(recordMap.values());
   }
 
@@ -229,12 +236,12 @@ export class ModelMockingService {
       if (a.agentId !== b.agentId) {
         return a.agentId.localeCompare(b.agentId);
       }
-      
+
       // Then by model type
       if (a.modelType !== b.modelType) {
         return a.modelType.localeCompare(b.modelType);
       }
-      
+
       // Finally by call number (extracted from ID)
       const aCallNum = this.extractCallNumber(a.id);
       const bCallNum = this.extractCallNumber(b.id);
@@ -249,7 +256,6 @@ export class ModelMockingService {
     const match = id.match(/-call-(\d+)$/);
     return match ? parseInt(match[1], 10) : 0;
   }
-
 
   /**
    * Clear recordings for current test (useful for test cleanup)
@@ -318,17 +324,22 @@ export class ModelMockingService {
       try {
         const fileContent = readFileSync(filePath, "utf-8");
         const recordingFile: ModelRecordingFile = JSON.parse(fileContent);
-        
+
         // Migrate and clean recordings on load
-        const cleanedRecordings = this.migrateAndCleanRecordings(recordingFile.recordings, recordingFile.metadata?.version);
-        
+        const cleanedRecordings = this.migrateAndCleanRecordings(
+          recordingFile.recordings,
+          recordingFile.metadata?.version
+        );
+
         this.recordings.set(recordingKey, cleanedRecordings);
         console.log(
-          `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || 'legacy'})`
+          `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || "legacy"})`
         );
-        
+
         if (cleanedRecordings.length !== recordingFile.recordings.length) {
-          console.log(`🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`);
+          console.log(
+            `🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`
+          );
         }
       } catch (error) {
         console.warn(`⚠️ Failed to load recordings from ${filePath}:`, error);
@@ -342,32 +353,37 @@ export class ModelMockingService {
   /**
    * Migrate recordings from older formats and clean up issues
    */
-  private migrateAndCleanRecordings(recordings: ModelCallRecord[], version?: string): ModelCallRecord[] {
+  private migrateAndCleanRecordings(
+    recordings: ModelCallRecord[],
+    version?: string
+  ): ModelCallRecord[] {
     let migratedRecordings = [...recordings];
-    
+
     // For legacy recordings (pre-2.0.0), clean up duplicates and fix IDs
     if (!version || version < "2.0.0") {
       console.log("🔄 Migrating recordings from legacy format...");
-      
+
       // Deduplicate by ID, keeping the latest
       migratedRecordings = this.deduplicateRecordings(migratedRecordings);
-      
+
       // Fix any malformed response data (arrays stored as raw instead of JSON strings)
-      migratedRecordings = migratedRecordings.map(record => {
+      migratedRecordings = migratedRecordings.map((record) => {
         if (Array.isArray(record.response)) {
-          console.warn(`🔧 Converting array response to JSON string for ${record.id}`);
+          console.warn(
+            `🔧 Converting array response to JSON string for ${record.id}`
+          );
           return {
             ...record,
-            response: JSON.stringify(record.response)
+            response: JSON.stringify(record.response),
           };
         }
         return record;
       });
-      
+
       // Sort for consistent ordering
       migratedRecordings = this.sortRecordings(migratedRecordings);
     }
-    
+
     return migratedRecordings;
   }
 
@@ -391,26 +407,16 @@ export class ModelMockingService {
     let recordedResponse: string;
     if (typeof response === "string") {
       recordedResponse = response;
-    } else if (Array.isArray(response)) {
-      // This is likely an embedding - convert to JSON string for recording
-      recordedResponse = JSON.stringify(response);
-      console.warn(
-        `🚨 Recording non-string response for ${modelType}:${callId}. This might indicate a model type mismatch.`
-      );
     } else {
-      // Handle other response types
       recordedResponse = JSON.stringify(response);
-      console.warn(
-        `🚨 Recording non-string response for ${modelType}:${callId}. Response type: ${typeof response}`
-      );
     }
 
     const record: ModelCallRecord = {
       id: callId,
       agentId,
       modelType,
-      prompt: options.prompt || options.text || "",
-      options: { ...options },
+      prompt: options?.prompt || options?.text || "",
+      options: options ? { ...options } : {},
       response: recordedResponse,
       timestamp: new Date().toISOString(),
       testContext: this.currentTest,
@@ -447,25 +453,28 @@ export class ModelMockingService {
     const records = this.recordings.get(recordingKey) || [];
 
     // Find matching record by agent, model type, and call order
-    const agentModelCalls = records.filter((r) => r.agentId === agentId && r.modelType === modelType);
+    const agentModelCalls = records.filter(
+      (r) => r.agentId === agentId && r.modelType === modelType
+    );
     const playbackKey = `${agentId}-${modelType}`;
-    
+
     // Use separate counter for playback to avoid conflicts with generateCallId
     const callIndex = this.playbackCounters.get(playbackKey) || 0;
-    
+
     // console.log(`🔍 Playback lookup: ${agentId}:${modelType} call ${callIndex + 1}, found ${agentModelCalls.length} recorded calls`);
 
     if (callIndex >= agentModelCalls.length) {
-      const errorMessage = `No recorded response for ${agentId}:${modelType} call ${callIndex + 1}. ` +
+      const errorMessage =
+        `No recorded response for ${agentId}:${modelType} call ${callIndex + 1}. ` +
         `Only ${agentModelCalls.length} calls recorded for this model type. ` +
         `Run tests with MODEL_RECORD_MODE=true to record missing responses.`;
-      
+
       console.error(`❌ ${errorMessage}`);
       throw new Error(errorMessage);
     }
 
     const record = agentModelCalls[callIndex];
-    
+
     // Update the playback counter for this specific agent-model combination AFTER getting the record
     this.playbackCounters.set(playbackKey, callIndex + 1);
     console.log(
