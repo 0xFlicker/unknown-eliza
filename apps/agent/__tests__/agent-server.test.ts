@@ -29,8 +29,7 @@ describe("AgentServer integration", () => {
     dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
     server = new AgentServer();
-    // Start Alex agent with only the SQL plugin to ensure the database adapter is registered
-    const testChar = { ...alexCharacter, plugins: ["@elizaos/plugin-sql"] };
+    const testChar = { ...alexCharacter, plugins: [] };
     runtime = new AgentRuntime({
       character: testChar,
       plugins: [sqlPlugin],
@@ -79,7 +78,7 @@ describe("AgentServer integration", () => {
     const otherChar = {
       ...alexCharacter,
       name: "OtherAgent",
-      plugins: ["@elizaos/plugin-sql"],
+      plugins: [],
     };
     const runtime2 = new AgentRuntime({
       character: otherChar,
