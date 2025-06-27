@@ -13,6 +13,9 @@ packages/**/node_modules
 .DS_Store
 *.log
 
+# Codex project context outputs
+.codex/
+
 # Ignore Eliza database files
 .eliza
 .elizadb*

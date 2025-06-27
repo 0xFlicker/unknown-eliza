@@ -482,7 +482,7 @@ export class ModelMockingService {
     );
 
     // Parse response appropriately based on what was recorded
-    let response = record.response;
+    let response: any = record.response;
 
     // If the response looks like JSON (starts with [ or {), try to parse it
     if (
