@@ -1,3 +1,5 @@
+// Re-export memory types - but we need to be careful about circular dependencies
+
 /**
  * Influence game phases
  */
