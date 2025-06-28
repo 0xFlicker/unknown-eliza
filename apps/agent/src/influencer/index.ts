@@ -1,5 +1,6 @@
 import { Plugin } from "@elizaos/core";
 import {
+  shouldRespondProvider,
   gameContextProvider,
   playerAnalysisProvider,
   strategyProvider,
@@ -34,7 +35,12 @@ export const influencerPlugin: Plugin = {
     eliminateAction,
     protectAction,
   ],
-  providers: [gameContextProvider, playerAnalysisProvider, strategyProvider],
+  providers: [
+    shouldRespondProvider,
+    gameContextProvider,
+    playerAnalysisProvider,
+    strategyProvider,
+  ],
   init: async (_config, _runtime) => {
     console.log("🎭 Influencer plugin initialized - ready to play the game");
   },

@@ -13,15 +13,16 @@ import { Phase, GameState, PlayerStatus } from "../house/types";
  */
 export const ignoreHouseAction: Action = {
   name: "IGNORE_HOUSE",
-  description: "Ignore House game management messages (players don't respond to these)",
+  description:
+    "Ignore House game management messages (players don't respond to these)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
       return false;
     }
-    
+
     // Basic validation - any message with text content is potentially valid
-    return !!(message.content?.text);
+    return !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -36,21 +37,21 @@ export const ignoreHouseAction: Action = {
   examples: [
     [
       {
-        user: "house",
+        name: "house",
         content: { text: "Alice joined the game! (1/12 players)" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "", actions: ["IGNORE"] },
       },
     ],
     [
       {
-        user: "house", 
+        name: "house",
         content: { text: "🎮 INFLUENCE GAME STARTED! 🎮" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "", actions: ["IGNORE"] },
       },
     ],
@@ -64,11 +65,8 @@ export const joinLobbyAction: Action = {
   name: "JOIN_LOBBY",
   description: "Join the Influence game lobby",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Only trigger if this is the player's own message
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    // Only trigger for other agents' messages (not our own)
+    return message.entityId !== runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -85,11 +83,11 @@ export const joinLobbyAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: { text: "I want to join the game" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "Let me join this game" },
       },
     ],
@@ -103,10 +101,7 @@ export const requestStartAction: Action = {
   name: "REQUEST_START",
   description: "Request to start the game as host",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -122,11 +117,11 @@ export const requestStartAction: Action = {
   examples: [
     [
       {
-        user: "host",
+        name: "host",
         content: { text: "Let's start the game" },
       },
       {
-        user: "host",
+        name: "host",
         content: { text: "I think we should start the game now" },
       },
     ],
@@ -140,10 +135,7 @@ export const createPrivateRoomAction: Action = {
   name: "CREATE_PRIVATE_ROOM",
   description: "Create a private room with another player during whisper phase",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -158,11 +150,11 @@ export const createPrivateRoomAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: { text: "I want to create a private room with Alice" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "Can I whisper with Bob privately?" },
       },
     ],
@@ -176,10 +168,7 @@ export const publicStatementAction: Action = {
   name: "PUBLIC_STATEMENT",
   description: "Make a public statement during the rumor phase",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -194,13 +183,13 @@ export const publicStatementAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: {
           text: "I want to make a public statement about my trustworthiness",
         },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "Let me announce my intentions publicly" },
       },
     ],
@@ -214,10 +203,7 @@ export const empowerVoteAction: Action = {
   name: "EMPOWER_VOTE",
   description: "Cast a vote to empower another player",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -232,11 +218,11 @@ export const empowerVoteAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: { text: "I want to empower Alice" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "I think Bob should be empowered" },
       },
     ],
@@ -250,10 +236,7 @@ export const exposeVoteAction: Action = {
   name: "EXPOSE_VOTE",
   description: "Cast a vote to expose another player",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -268,11 +251,11 @@ export const exposeVoteAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: { text: "I want to expose Charlie" },
       },
       {
-        user: "player",
+        name: "player",
         content: { text: "I think David should be exposed" },
       },
     ],
@@ -286,10 +269,7 @@ export const eliminateAction: Action = {
   name: "ELIMINATE_PLAYER",
   description: "Eliminate an exposed player (empowered player only)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -304,11 +284,11 @@ export const eliminateAction: Action = {
   examples: [
     [
       {
-        user: "empowered_player",
+        name: "empowered_player",
         content: { text: "I choose to eliminate Alice" },
       },
       {
-        user: "empowered_player",
+        name: "empowered_player",
         content: { text: "I will eliminate Bob" },
       },
     ],
@@ -322,10 +302,7 @@ export const protectAction: Action = {
   name: "PROTECT_PLAYER",
   description: "Protect an exposed player (empowered player only)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    return (
-      message.entityId === runtime.agentId &&
-      !!(message.content?.text)
-    );
+    return message.entityId === runtime.agentId && !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -340,11 +317,11 @@ export const protectAction: Action = {
   examples: [
     [
       {
-        user: "empowered_player",
+        name: "empowered_player",
         content: { text: "I choose to protect Charlie" },
       },
       {
-        user: "empowered_player",
+        name: "empowered_player",
         content: { text: "I will protect David" },
       },
     ],
