@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import dotenv from "dotenv";
 import { AgentServer } from "@elizaos/server";
 import {
   AgentRuntime,
@@ -15,7 +16,7 @@ import os from "os";
 import fs from "fs";
 import alexCharacter from "../src/characters/alex";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
-import localAIPlugin from "@elizaos/plugin-local-ai";
+import openaiPlugin from "@elizaos/plugin-openai";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import { socialStrategyPlugin } from "../src/socialStrategy/index";
 import { killProcessOnPort } from "./utils/process-utils";
@@ -34,9 +35,9 @@ describe("AgentServer integration", () => {
   function getTestPlugins(includeLocalAI: boolean = false) {
     const basePlugins = [sqlPlugin, bootstrapPlugin, socialStrategyPlugin];
 
-    // Only include localAI in record mode or when explicitly requested
+    // Only include openai in record mode or when explicitly requested
     if (includeLocalAI && process.env.MODEL_RECORD_MODE) {
-      return [sqlPlugin, localAIPlugin, bootstrapPlugin, socialStrategyPlugin];
+      return [sqlPlugin, openaiPlugin, bootstrapPlugin, socialStrategyPlugin];
     }
 
     return basePlugins;
@@ -54,11 +55,15 @@ describe("AgentServer integration", () => {
 
     const testChar = { ...alexCharacter, plugins: [] };
 
-    // Use safe plugins - no localAI for basic server tests
+    const testEnv = dotenv.config({
+      path: path.join(__dirname, "../../.env.test"),
+    });
+
+    // Use safe plugins - no openai for basic server tests
     runtime = new AgentRuntime({
       character: testChar,
-      plugins: getTestPlugins(false), // Don't include localAI for basic tests
-      settings: { DATABASE_PATH: dataDir, ...process.env },
+      plugins: getTestPlugins(false),
+      settings: { DATABASE_PATH: dataDir, ...process.env, ...testEnv.parsed },
     });
 
     await server.initialize({ dataDir });
@@ -108,8 +113,8 @@ describe("AgentServer integration", () => {
 
     const runtime2 = new AgentRuntime({
       character: otherChar,
-      plugins: getTestPlugins(false), // Use safe plugins, no localAI needed
-      settings: { PGLITE_PATH: dataDir, ...process.env },
+      plugins: getTestPlugins(false), // Use safe plugins, no openai needed
+      settings: { DATABASE_PATH: dataDir, ...process.env },
     });
 
     await runtime2.initialize();
@@ -140,7 +145,7 @@ describe("AgentServer integration", () => {
     };
     const testRuntime = new AgentRuntime({
       character: testChar,
-      plugins: getTestPlugins(true), // Include localAI for this test
+      plugins: getTestPlugins(true), // Include openai for this test
       settings: { DATABASE_PATH: dataDir, ...process.env },
     });
 
@@ -150,7 +155,7 @@ describe("AgentServer integration", () => {
       "AgentServer integration",
       "processes a message and generates a response"
     );
-    
+
     // Always patch runtime to intercept model calls (for both record and playback)
     mockingService.patchRuntime(testRuntime, "MessageTestAgent");
 
@@ -227,9 +232,10 @@ describe("AgentServer integration", () => {
   }, 90000);
 
   it("demonstrates ConversationSimulator for multi-agent testing", async () => {
+    const simDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "simulator-"));
     const simulator = new ConversationSimulator({
       agentCount: 2,
-      dataDir: path.join(dataDir, "simulator"),
+      dataDir: simDataDir,
       useModelMockingService: true, // Use modern mocking for recording
       testContext: {
         suiteName: "AgentServer integration",
@@ -261,13 +267,13 @@ describe("AgentServer integration", () => {
       const agent1 = await simulator.addAgent(
         "Agent1",
         { ...alexCharacter, name: "Agent1" },
-        getTestPlugins(true) // Include localAI only in record mode
+        getTestPlugins(true) // Include openai only in record mode
       );
 
       const agent2 = await simulator.addAgent(
         "Agent2",
         { ...alexCharacter, name: "Agent2" },
-        getTestPlugins(true) // Include localAI only in record mode
+        getTestPlugins(true) // Include openai only in record mode
       );
 
       expect(agent1).toBeDefined();
@@ -318,10 +324,12 @@ describe("AgentServer integration", () => {
     RecordingTestUtils.logRecordingStatus(
       "model mocking and automated responses"
     );
-
+    const simMockDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "simulator-mocked-")
+    );
     const simulator = new ConversationSimulator({
       agentCount: 2,
-      dataDir: path.join(dataDir, "simulator-mocked"),
+      dataDir: simMockDir,
       useModelMockingService: true, // Use modern mocking for recording
       testContext: {
         suiteName: "AgentServer integration",
@@ -348,17 +356,17 @@ describe("AgentServer integration", () => {
     try {
       await simulator.initialize();
 
-      // Add agents with safe plugins (no localAI in playback mode)
+      // Add agents with safe plugins (no openai in playback mode)
       const agent1 = await simulator.addAgent(
         "MockAgent1",
         { ...alexCharacter, name: "MockAgent1" },
-        getTestPlugins(true) // Include localAI only in record mode
+        getTestPlugins(true) // Include openai only in record mode
       );
 
       const agent2 = await simulator.addAgent(
         "MockAgent2",
         { ...alexCharacter, name: "MockAgent2" },
-        getTestPlugins(true) // Include localAI only in record mode
+        getTestPlugins(true) // Include openai only in record mode
       );
 
       // Verify model mocking is set up
@@ -400,9 +408,9 @@ describe("AgentServer integration", () => {
       );
 
       // Wait for potential responses - should trigger 2-step evaluation
-      // Allow extra time for local AI cold startup (up to 60s) + processing
+      // Allow extra time for model initialization and processing
       console.log(
-        "Waiting for agent responses (allowing for model startup time)..."
+        "Waiting for agent responses (allowing for model processing time)..."
       );
       const conversationGrew = await simulator.waitForMessages(2, 75000);
 

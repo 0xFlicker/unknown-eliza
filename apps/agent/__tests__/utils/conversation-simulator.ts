@@ -16,6 +16,7 @@ import {
   ModelMockingService,
   type AgentResponseResult,
 } from "./model-mocking-service";
+import fs from "fs";
 
 /**
  * Legacy configuration for model response mocking (deprecated - use ModelMockingService)
@@ -111,6 +112,8 @@ export class ConversationSimulator {
    * Initialize the simulator with agents and server
    */
   async initialize(): Promise<void> {
+    // Ensure data directory exists
+    fs.mkdirSync(this.config.dataDir, { recursive: true });
     // Initialize server
     await this.server.initialize({ dataDir: this.config.dataDir });
 
@@ -145,14 +148,18 @@ export class ConversationSimulator {
     let filteredPlugins = plugins;
     if (!process.env.MODEL_RECORD_MODE && this.modelMockingService) {
       // Remove local-ai plugin to prevent actual inference during playback
-      filteredPlugins = plugins.filter(plugin => {
-        const pluginName = plugin.name || plugin.constructor?.name || '';
-        return !pluginName.toLowerCase().includes('localai') && 
-               !pluginName.toLowerCase().includes('local-ai');
+      filteredPlugins = plugins.filter((plugin) => {
+        const pluginName = plugin.name || plugin.constructor?.name || "";
+        return (
+          !pluginName.toLowerCase().includes("localai") &&
+          !pluginName.toLowerCase().includes("local-ai")
+        );
       });
-      
+
       if (filteredPlugins.length !== plugins.length) {
-        console.log(`🚫 Disabled local-ai plugin for ${agentName} in playback mode`);
+        console.log(
+          `🚫 Disabled local-ai plugin for ${agentName} in playback mode`
+        );
       }
     }
 

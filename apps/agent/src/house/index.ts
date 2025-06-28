@@ -1,5 +1,6 @@
 import { Plugin } from "@elizaos/core";
-import { Phase } from "./types";
+import { joinGameAction, startGameAction, requestPrivateRoomAction } from "./actions";
+import { gameStateProvider, phaseActionsProvider, playerRelationsProvider } from "./providers";
 
 /**
  * The House plugin manages the game phases and orchestrates the Influence game.
@@ -8,5 +9,17 @@ export const housePlugin: Plugin = {
   name: "influence-house",
   description:
     "Game master (House) plugin for the Influence social strategy game",
-  init: async (_config, _runtime) => {},
+  actions: [
+    joinGameAction,
+    startGameAction,
+    requestPrivateRoomAction,
+  ],
+  providers: [
+    gameStateProvider,
+    phaseActionsProvider,
+    playerRelationsProvider,
+  ],
+  init: async (_config, _runtime) => {
+    console.log("🏠 House plugin initialized - ready to moderate Influence games");
+  },
 };

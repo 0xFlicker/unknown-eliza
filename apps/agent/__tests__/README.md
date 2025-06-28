@@ -167,7 +167,7 @@ Comprehensive model evaluation mocking system with record, playback, and verific
 
 #### Features
 
-- **Record Mode**: Capture actual model calls to JSON files
+- **Record Mode**: Capture actual model calls to JSON files (uses openai for performance)
 - **Playback Mode**: Replay recorded responses for deterministic testing
 - **Verify Mode**: Detect response drift by comparing live vs recorded calls
 - **Environment Controls**: Use env vars for different modes
@@ -176,7 +176,7 @@ Comprehensive model evaluation mocking system with record, playback, and verific
 #### Environment Variables
 
 ```bash
-# Record actual model responses (expensive but captures real behavior)
+# Record actual model responses (uses openai for better performance)
 MODEL_RECORD_MODE=true bun run test
 
 # Use recorded responses for fast, deterministic tests
@@ -499,12 +499,12 @@ try {
 
 ### 4. Timeout Handling
 
-Local AI models can take time to start up:
+Recording mode with openai is faster but still needs adequate timeouts:
 
 ```typescript
 it("should handle long conversations", async () => {
   // ... test logic
-}, 90000); // 90 second timeout for local AI startup
+}, 90000); // 90 second timeout for model calls and processing
 ```
 
 ### 5. Error Handling
@@ -677,7 +677,7 @@ it("should moderate game phases correctly", async () => {
    - Call `runtime.ensureRoomExists()` for each agent
 
 5. **Model timeout errors**
-   - Increase test timeouts for local AI startup (90s recommended)
+   - Increase test timeouts for model calls and processing (90s recommended)
    - Use model mocking for faster test execution
 
 ### Performance Tips
