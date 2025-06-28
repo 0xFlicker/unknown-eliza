@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
+import { createHash } from "crypto";
 import type { IAgentRuntime } from "@elizaos/core";
 
 /**
@@ -11,9 +12,13 @@ export interface ModelCallRecord {
   agentId: string;
   modelType: string;
   prompt: string;
+  promptHash: string; // SHA-256 hash of prompt content for content-based matching
+  contextHash?: string; // Hash of conversation context
   options: Record<string, any>;
   response: string;
   timestamp: string;
+  relativeTimestamp?: number; // Milliseconds since test start
+  globalSequence?: number; // Global call order across all agents
   testContext?: {
     suiteName: string;
     testName: string;
@@ -63,7 +68,20 @@ export class ModelMockingService {
   private recordings: Map<string, ModelCallRecord[]> = new Map();
   private callCounters: Map<string, number> = new Map();
   private playbackCounters: Map<string, number> = new Map();
+  private usedPromptHashes: Map<string, Set<string>> = new Map(); // Track used hashes per test
+  private testStartTime?: number; // Track test start time for relative timestamps
+  private globalSequence: number = 0; // Global call sequence counter
   private currentTest?: { suiteName: string; testName: string };
+
+  // Playback ordering guarantees
+  private playbackQueue: Array<{
+    resolve: (value: any) => void;
+    reject: (error: any) => void;
+    record: ModelCallRecord;
+    callId: string;
+  }> = [];
+  private playbackSequence: number = 0;
+  private isProcessingPlayback: boolean = false;
 
   constructor(config?: Partial<ModelMockConfig>) {
     this.config = {
@@ -97,9 +115,17 @@ export class ModelMockingService {
       );
     }
 
-    // Always clear counters for fresh test run
+    // Always clear counters and tracking for fresh test run
     this.callCounters.clear();
     this.playbackCounters.clear();
+    this.usedPromptHashes.clear();
+    this.testStartTime = Date.now();
+    this.globalSequence = 0;
+
+    // Clear playback ordering state
+    this.playbackQueue = [];
+    this.playbackSequence = 0;
+    this.isProcessingPlayback = false;
   }
 
   /**
@@ -273,6 +299,79 @@ export class ModelMockingService {
 
   // Private methods
 
+  /**
+   * Hash content for content-based matching
+   */
+  private hashContent(content: string): string {
+    return createHash("sha256")
+      .update(content.trim())
+      .digest("hex")
+      .substring(0, 16);
+  }
+
+  /**
+   * Create a context hash from conversation state
+   */
+  private createContextHash(agentId: string, modelType: string): string {
+    const context = `${agentId}-${modelType}-${this.globalSequence}`;
+    return this.hashContent(context);
+  }
+
+  /**
+   * Find best content match using fuzzy matching
+   */
+  private findBestContentMatch(
+    records: ModelCallRecord[],
+    agentId: string,
+    modelType: string,
+    promptContent: string
+  ): ModelCallRecord | undefined {
+    const agentModelRecords = records.filter(
+      (r) => r.agentId === agentId && r.modelType === modelType
+    );
+
+    if (agentModelRecords.length === 0) return undefined;
+
+    // Simple fuzzy matching based on prompt similarity
+    let bestMatch: ModelCallRecord | undefined;
+    let bestScore = 0;
+
+    for (const record of agentModelRecords) {
+      const similarity = this.calculatePromptSimilarity(
+        promptContent,
+        record.prompt
+      );
+      if (similarity > bestScore && similarity > 0.8) {
+        // 80% similarity threshold
+        bestScore = similarity;
+        bestMatch = record;
+      }
+    }
+
+    return bestMatch;
+  }
+
+  /**
+   * Calculate prompt similarity using simple string metrics
+   */
+  private calculatePromptSimilarity(prompt1: string, prompt2: string): number {
+    const normalize = (s: string) =>
+      s.toLowerCase().replace(/\s+/g, " ").trim();
+    const n1 = normalize(prompt1);
+    const n2 = normalize(prompt2);
+
+    if (n1 === n2) return 1.0;
+    if (n1.length === 0 || n2.length === 0) return 0;
+
+    // Simple Jaccard similarity
+    const set1 = new Set(n1.split(" "));
+    const set2 = new Set(n2.split(" "));
+    const intersection = new Set([...set1].filter((x) => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+
+    return intersection.size / union.size;
+  }
+
   private getModeFromEnv(): "record" | "playback" | "verify" {
     if (process.env.MODEL_RECORD_MODE === "true") return "record";
     if (process.env.MODEL_VERIFY_MODE === "true") return "verify";
@@ -367,17 +466,36 @@ export class ModelMockingService {
       migratedRecordings = this.deduplicateRecordings(migratedRecordings);
 
       // Fix any malformed response data (arrays stored as raw instead of JSON strings)
-      migratedRecordings = migratedRecordings.map((record) => {
+      migratedRecordings = migratedRecordings.map((record, index) => {
+        let updatedRecord = { ...record };
+
         if (Array.isArray(record.response)) {
           console.warn(
             `🔧 Converting array response to JSON string for ${record.id}`
           );
-          return {
-            ...record,
-            response: JSON.stringify(record.response),
-          };
+          updatedRecord.response = JSON.stringify(record.response);
         }
-        return record;
+
+        // Add missing hash fields for legacy records
+        if (!record.promptHash) {
+          updatedRecord.promptHash = this.hashContent(record.prompt || "");
+        }
+
+        if (!record.contextHash) {
+          updatedRecord.contextHash = this.hashContent(
+            `${record.agentId}-${record.modelType}-${index}`
+          );
+        }
+
+        if (!record.relativeTimestamp) {
+          updatedRecord.relativeTimestamp = index * 1000; // Approximate timing
+        }
+
+        if (!record.globalSequence) {
+          updatedRecord.globalSequence = index + 1;
+        }
+
+        return updatedRecord;
       });
 
       // Sort for consistent ordering
@@ -411,14 +529,27 @@ export class ModelMockingService {
       recordedResponse = JSON.stringify(response);
     }
 
+    const promptContent = options?.prompt || options?.text || "";
+    const promptHash = this.hashContent(promptContent);
+    const contextHash = this.createContextHash(agentId, modelType);
+    const relativeTimestamp = this.testStartTime
+      ? Date.now() - this.testStartTime
+      : 0;
+
+    this.globalSequence++;
+
     const record: ModelCallRecord = {
       id: callId,
       agentId,
       modelType,
-      prompt: options?.prompt || options?.text || "",
+      prompt: promptContent,
+      promptHash,
+      contextHash,
       options: options ? { ...options } : {},
       response: recordedResponse,
       timestamp: new Date().toISOString(),
+      relativeTimestamp,
+      globalSequence: this.globalSequence,
       testContext: this.currentTest,
     };
 
@@ -431,7 +562,7 @@ export class ModelMockingService {
     this.recordings.set(recordingKey, records);
 
     console.log(
-      `🎬 Recorded model call ${callId} for ${agentId} (${modelType})`
+      `🎬 Recorded model call ${callId} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
     );
     return response;
   }
@@ -451,37 +582,140 @@ export class ModelMockingService {
       this.currentTest.testName
     );
     const records = this.recordings.get(recordingKey) || [];
+    const promptContent = options?.prompt || options?.text || "";
+    const promptHash = this.hashContent(promptContent);
 
-    // Find matching record by agent, model type, and call order
-    const agentModelCalls = records.filter(
-      (r) => r.agentId === agentId && r.modelType === modelType
+    // Strategy 1: Exact content match by prompt hash
+    let matchingRecord = records.find(
+      (r) =>
+        r.agentId === agentId &&
+        r.modelType === modelType &&
+        r.promptHash === promptHash
     );
-    const playbackKey = `${agentId}-${modelType}`;
 
-    // Use separate counter for playback to avoid conflicts with generateCallId
-    const callIndex = this.playbackCounters.get(playbackKey) || 0;
-
-    // console.log(`🔍 Playback lookup: ${agentId}:${modelType} call ${callIndex + 1}, found ${agentModelCalls.length} recorded calls`);
-
-    if (callIndex >= agentModelCalls.length) {
-      const errorMessage =
-        `No recorded response for ${agentId}:${modelType} call ${callIndex + 1}. ` +
-        `Only ${agentModelCalls.length} calls recorded for this model type. ` +
-        `Run tests with MODEL_RECORD_MODE=true to record missing responses.`;
-
-      console.error(`❌ ${errorMessage}`);
-      throw new Error(errorMessage);
+    if (matchingRecord) {
+      console.log(
+        `▶️ Content match: ${matchingRecord.id} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
+      );
+      return this.queueOrderedPlayback(matchingRecord, callId);
     }
 
-    const record = agentModelCalls[callIndex];
-
-    // Update the playback counter for this specific agent-model combination AFTER getting the record
-    this.playbackCounters.set(playbackKey, callIndex + 1);
-    console.log(
-      `▶️ Playing back model call ${record.id} for ${agentId} (${modelType})`
+    // Strategy 2: Fuzzy content matching
+    matchingRecord = this.findBestContentMatch(
+      records,
+      agentId,
+      modelType,
+      promptContent
     );
 
-    // Parse response appropriately based on what was recorded
+    if (matchingRecord) {
+      console.log(
+        `▶️ Fuzzy match: ${matchingRecord.id} for ${agentId} (${modelType}) similarity > 80%`
+      );
+      return this.queueOrderedPlayback(matchingRecord, callId);
+    }
+
+    // Strategy 3: Sequential fallback with ordering
+    const sortedRecords = records
+      .filter((r) => r.agentId === agentId && r.modelType === modelType)
+      .sort((a, b) => (a.globalSequence || 0) - (b.globalSequence || 0));
+
+    const playbackKey = `${agentId}-${modelType}`;
+    const callIndex = this.playbackCounters.get(playbackKey) || 0;
+
+    if (callIndex < sortedRecords.length) {
+      const record = sortedRecords[callIndex];
+      this.playbackCounters.set(playbackKey, callIndex + 1);
+      console.log(
+        `▶️ Sequential fallback: ${record.id} for ${agentId} (${modelType}) call ${callIndex + 1} (seq: ${record.globalSequence})`
+      );
+      return this.queueOrderedPlayback(record, callId);
+    }
+
+    // No match found - enhanced error reporting
+    this.throwDetailedPlaybackError(
+      agentId,
+      modelType,
+      promptContent,
+      promptHash,
+      callIndex,
+      sortedRecords,
+      records
+    );
+  }
+
+  /**
+   * Queue a model call for ordered playback to ensure deterministic timing
+   */
+  private async queueOrderedPlayback(
+    record: ModelCallRecord,
+    callId: string
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.playbackQueue.push({
+        resolve,
+        reject,
+        record,
+        callId,
+      });
+
+      // Start processing queue if not already processing
+      if (!this.isProcessingPlayback) {
+        this.processPlaybackQueue();
+      }
+    });
+  }
+
+  /**
+   * Process playback queue in order to ensure deterministic timing
+   */
+  private async processPlaybackQueue(): Promise<void> {
+    if (this.isProcessingPlayback || this.playbackQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingPlayback = true;
+
+    try {
+      // Sort queue by global sequence to ensure original recording order
+      this.playbackQueue.sort(
+        (a, b) =>
+          (a.record.globalSequence || 0) - (b.record.globalSequence || 0)
+      );
+
+      while (this.playbackQueue.length > 0) {
+        const { resolve, record, callId } = this.playbackQueue.shift()!;
+
+        try {
+          console.log(
+            `🎬 Ordered playback: ${callId} (seq: ${record.globalSequence})`
+          );
+
+          const response = this.parseRecordedResponse(record, record.modelType);
+          resolve(response);
+
+          // Small delay to maintain timing characteristics
+          // Skip delay in playback mode for better performance
+          const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
+          if (isRecordMode) {
+            await new Promise((r) => setTimeout(r, 10));
+          }
+        } catch (error) {
+          resolve(error);
+        }
+      }
+    } finally {
+      this.isProcessingPlayback = false;
+    }
+  }
+
+  /**
+   * Parse recorded response based on model type with dimension validation and transformation
+   */
+  private parseRecordedResponse(
+    record: ModelCallRecord,
+    modelType: string
+  ): any {
     let response: any = record.response;
 
     // If the response looks like JSON (starts with [ or {), try to parse it
@@ -491,31 +725,109 @@ export class ModelMockingService {
     ) {
       try {
         const parsed = JSON.parse(response);
-        // For embedding models, we expect arrays
-        if (modelType === "TEXT_EMBEDDING" && Array.isArray(parsed)) {
-          response = parsed;
-        } else if (
-          modelType.startsWith("TEXT_") &&
-          !modelType.includes("EMBEDDING") &&
-          Array.isArray(parsed)
-        ) {
-          // This is a text model but we recorded an array - this is the bug!
-          console.warn(
-            `🚨 Found array response for text model ${modelType}. Converting to string.`
-          );
-          response = JSON.stringify(parsed); // Keep as string for text models
-        } else {
-          response = parsed;
-        }
+
+        // this HACK was always transforming 1536-dimensional embeddings to 384, which while useful for some cases, is not always appropriate
+        // // For embedding models, validate dimensions and transform if needed
+        // if (modelType === "TEXT_EMBEDDING" && Array.isArray(parsed)) {
+        //   const dimensions = parsed.length;
+        //   console.log(
+        //     `🔢 Embedding response: ${dimensions} dimensions for ${record.agentId} (${record.id})`
+        //   );
+
+        //   // Transform 1536-dimensional embeddings to 384 for compatibility
+        //   if (dimensions === 1536) {
+        //     console.log(
+        //       `🔄 Transforming 1536-dim embedding to 384-dim for database compatibility (${record.id})`
+        //     );
+        //     // Simple dimensionality reduction: take every 4th element
+        //     const reduced = [];
+        //     for (let i = 0; i < 384; i++) {
+        //       reduced.push(parsed[i * 4]);
+        //     }
+        //     response = reduced;
+        //     console.log(
+        //       `✅ Transformed embedding from ${dimensions} to ${reduced.length} dimensions`
+        //     );
+        //   } else if (dimensions === 384) {
+        //     // Already correct size
+        //     response = parsed;
+        //   } else {
+        //     console.warn(
+        //       `⚠️ Unsupported embedding dimensions (${dimensions}) for ${record.id} - may cause database insertion errors`
+        //     );
+        //     response = parsed;
+        //   }
+        // } else {
+        //   // For text models, keep the parsed object
+        //   response = parsed;
+        // }
+        response = parsed; // Keep parsed object for text models
       } catch (e) {
-        // If parsing fails, keep original string
-        console.debug(
-          `Could not parse recorded response as JSON for ${modelType}:${callId}`
+        console.warn(
+          `Failed to parse JSON response for ${record.id}, using as string`
         );
+        // Keep as string if parsing fails
       }
     }
 
     return response;
+  }
+
+  /**
+   * Throw detailed error for playback failures with diagnostics
+   */
+  private throwDetailedPlaybackError(
+    agentId: string,
+    modelType: string,
+    promptContent: string,
+    promptHash: string,
+    callIndex: number,
+    agentModelCalls: ModelCallRecord[],
+    allRecords: ModelCallRecord[]
+  ): never {
+    const availableCalls = agentModelCalls.map((r, i) => ({
+      index: i + 1,
+      promptPreview: r.prompt.substring(0, 80),
+      promptHash: r.promptHash?.substring(0, 8) || "N/A",
+      timestamp: r.timestamp,
+      id: r.id,
+    }));
+
+    const allAgentModelTypes = new Set(
+      allRecords.filter((r) => r.agentId === agentId).map((r) => r.modelType)
+    );
+
+    const diagnostics = {
+      requestedCall: callIndex + 1,
+      availableCalls: agentModelCalls.length,
+      agent: agentId,
+      modelType: modelType,
+      promptHash: promptHash.substring(0, 8),
+      currentPromptPreview: promptContent.substring(0, 80),
+      availableRecordings: availableCalls,
+      allModelTypes: Array.from(allAgentModelTypes),
+    };
+
+    const errorMessage =
+      `❌ PLAYBACK MISMATCH for ${agentId}:${modelType}\n` +
+      `Expected call: ${callIndex + 1}, Available: ${agentModelCalls.length}\n` +
+      `Current prompt hash: ${diagnostics.promptHash}\n` +
+      `Current prompt: ${diagnostics.currentPromptPreview}...\n` +
+      `\nAvailable recordings for ${agentId}:${modelType}:\n` +
+      availableCalls
+        .map(
+          (c) => `  ${c.index}: hash:${c.promptHash} "${c.promptPreview}..."`
+        )
+        .join("\n") +
+      `\n\nAll model types for ${agentId}: ${diagnostics.allModelTypes.join(", ")}\n` +
+      `\n💡 Solutions:\n` +
+      `  - Run with MODEL_RECORD_MODE=true to re-record\n` +
+      `  - Check for race conditions in agent processing order\n` +
+      `  - Verify test determinism (same inputs = same model calls)\n` +
+      `  - Check if prompt content changed between recording and playback`;
+
+    console.error(errorMessage);
+    throw new Error(errorMessage);
   }
 
   private async verifyCall(

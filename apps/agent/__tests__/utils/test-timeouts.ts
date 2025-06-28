@@ -5,9 +5,9 @@
  */
 
 // Detect CI environment to use shorter timeouts
-const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-const isMacOS = process.platform === 'darwin';
-const isWindows = process.platform === 'win32';
+const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+const isMacOS = process.platform === "darwin";
+const isWindows = process.platform === "win32";
 
 export const TEST_TIMEOUTS = {
   // Test framework timeouts - More conservative for CI stability
@@ -47,17 +47,17 @@ export const TEST_TIMEOUTS = {
         : 60 * 1000, // Platform-specific locally
   PLUGIN_INSTALLATION: isCI
     ? 90 * 1000 // 90 seconds in CI (increased to handle slow postinstall scripts)
-    : process.platform === 'win32'
+    : process.platform === "win32"
       ? 3 * 60 * 1000
       : 2 * 60 * 1000, // 3/2 minutes locally
   PROJECT_CREATION: isCI
     ? 60 * 1000 // 1 minute in CI
-    : process.platform === 'win32'
+    : process.platform === "win32"
       ? 3 * 60 * 1000
       : 2 * 60 * 1000, // 3/2 minutes locally
   NETWORK_OPERATION: isCI
     ? 45 * 1000 // 45 seconds in CI
-    : process.platform === 'win32'
+    : process.platform === "win32"
       ? 2 * 60 * 1000
       : 90 * 1000, // 2 minutes/90 seconds locally
 

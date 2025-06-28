@@ -24,52 +24,40 @@ export const joinGameAction: Action = {
   name: "JOIN_GAME",
   description: "Join the Influence game lobby",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Only validate if the message contains "join" and we're in INIT phase
-    const content = message.content.text?.toLowerCase() || "";
-    return content.includes("join") && content.includes("game");
+    // Don't respond to own messages
+    if (message.entityId === runtime.agentId) {
+      return false;
+    }
+
+    // Basic validation - any message with text content is potentially valid
+    return !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     try {
       // Get or create game state
-      let gameState = state.values?.gameState as GameState;
+      let gameState = await getGameState(runtime, message.roomId);
       if (!gameState) {
         gameState = createNewGame(runtime.agentId);
-        await runtime.createMemory({
-          id: stringToUuid("game-state"),
-          entityId: runtime.agentId,
-          roomId: message.roomId,
-          content: {
-            text: "Game state initialized",
-            source: "house",
-            metadata: { gameState },
-          },
-        });
+        await saveGameState(runtime, message.roomId, gameState);
       }
 
       // Add player to the game
       const playerId = message.entityId;
-      const agentName = message.metadata?.authorName || `Player-${playerId.slice(0, 8)}`;
+      const agentName =
+        message.metadata?.authorName || `Player-${playerId.slice(0, 8)}`;
 
       if (gameState.players.has(playerId)) {
-        await callback?.({
-          text: `${agentName} is already in the game.`,
-          source: "house",
-        });
-        return;
+        return; // Already in game, no need to respond
       }
 
       if (gameState.players.size >= gameState.settings.maxPlayers) {
-        await callback?.({
-          text: `Game is full (${gameState.settings.maxPlayers} players max).`,
-          source: "house",
-        });
-        return;
+        return; // Game full, no need to respond
       }
 
       const player: Player = {
@@ -98,29 +86,51 @@ export const joinGameAction: Action = {
       };
       gameState.history.push(event);
 
+      // Save updated game state
+      await saveGameState(runtime, message.roomId, gameState);
+
       await callback?.({
         text: `${agentName} joined the game! (${gameState.players.size}/${gameState.settings.maxPlayers} players)${
-          player.isHost ? " You are the host - type 'start game' when ready." : ""
+          player.isHost
+            ? " You are the host - type 'start game' when ready."
+            : ""
         }`,
         source: "house",
       });
     } catch (error) {
       console.error("Error in joinGameAction:", error);
-      await callback?.({
-        text: "Error joining game. Please try again.",
-        source: "house",
-      });
+      return; // Don't respond on error
     }
   },
   examples: [
     [
       {
-        user: "user1",
+        user: "player",
         content: { text: "I want to join the game" },
       },
       {
         user: "house",
-        content: { text: "user1 joined the game! (1/12 players)" },
+        content: { text: "player joined the game! (1/12 players)" },
+      },
+    ],
+    [
+      {
+        user: "newbie",
+        content: { text: "Can I join?" },
+      },
+      {
+        user: "house",
+        content: { text: "newbie joined the game! (2/12 players)" },
+      },
+    ],
+    [
+      {
+        user: "alice",
+        content: { text: "Let me join this game please" },
+      },
+      {
+        user: "house",
+        content: { text: "alice joined the game! (3/12 players)" },
       },
     ],
   ] as ActionExample[][],
@@ -133,58 +143,47 @@ export const startGameAction: Action = {
   name: "START_GAME",
   description: "Start the Influence game (host only)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const content = message.content.text?.toLowerCase() || "";
-    return content.includes("start") && content.includes("game");
+    // Don't respond to own messages
+    if (message.entityId === runtime.agentId) {
+      return false;
+    }
+
+    // Basic validation - any message with text content is potentially valid
+    return !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     try {
-      const gameState = state.values?.gameState as GameState;
+      const gameState = await getGameState(runtime, message.roomId);
       if (!gameState) {
-        await callback?.({
-          text: "No game found. Someone needs to join first.",
-          source: "house",
-        });
-        return;
+        return; // No game found, don't respond
       }
 
       const playerId = message.entityId;
       const player = gameState.players.get(playerId);
 
       if (!player?.isHost) {
-        await callback?.({
-          text: "Only the host can start the game.",
-          source: "house",
-        });
-        return;
+        return; // Not host, don't respond
       }
 
       if (gameState.players.size < gameState.settings.minPlayers) {
-        await callback?.({
-          text: `Need at least ${gameState.settings.minPlayers} players to start (currently ${gameState.players.size}).`,
-          source: "house",
-        });
-        return;
+        return; // Not enough players, don't respond
       }
 
       if (gameState.phase !== Phase.INIT) {
-        await callback?.({
-          text: "Game has already started.",
-          source: "house",
-        });
-        return;
+        return; // Game already started, don't respond
       }
 
-      // Transition to WHISPER phase
-      gameState.phase = Phase.WHISPER;
-      gameState.round = 1;
+      // Transition to LOBBY phase
+      gameState.phase = Phase.LOBBY;
+      gameState.round = 0; // Lobby is pre-game
       gameState.isActive = true;
-      gameState.timerEndsAt = Date.now() + gameState.settings.timers.whisper;
+      gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
 
       const event: GameEvent = {
         id: stringToUuid(`start-${Date.now()}`),
@@ -197,20 +196,20 @@ export const startGameAction: Action = {
       };
       gameState.history.push(event);
 
+      // Save updated game state
+      await saveGameState(runtime, message.roomId, gameState);
+
       const playerList = Array.from(gameState.players.values())
-        .map(p => p.name)
+        .map((p) => p.name)
         .join(", ");
 
       await callback?.({
-        text: `🎮 INFLUENCE GAME STARTED! 🎮\n\nPlayers: ${playerList}\n\n**WHISPER PHASE** (Round ${gameState.round})\nYou have ${gameState.settings.timers.whisper / 60000} minutes to create private rooms and conspire. Use 'request private room with [player]' to start private conversations.`,
+        text: `🎮 INFLUENCE GAME STARTED! 🎮\n\nPlayers: ${playerList}\n\n**LOBBY PHASE** - Public Mixer\nYou have ${gameState.settings.timers.lobby / 60000} minutes to chat freely and form initial impressions. Private messages are disabled during this phase.`,
         source: "house",
       });
     } catch (error) {
       console.error("Error in startGameAction:", error);
-      await callback?.({
-        text: "Error starting game. Please try again.",
-        source: "house",
-      });
+      return; // Don't respond on error
     }
   },
   examples: [
@@ -221,7 +220,33 @@ export const startGameAction: Action = {
       },
       {
         user: "house",
-        content: { text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nWHISPER PHASE (Round 1)" },
+        content: {
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+        },
+      },
+    ],
+    [
+      {
+        user: "host",
+        content: { text: "Let's start the game now" },
+      },
+      {
+        user: "house",
+        content: {
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+        },
+      },
+    ],
+    [
+      {
+        user: "host",
+        content: { text: "I think we should begin" },
+      },
+      {
+        user: "house",
+        content: {
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+        },
       },
     ],
   ] as ActionExample[][],
@@ -232,23 +257,26 @@ export const startGameAction: Action = {
  */
 export const requestPrivateRoomAction: Action = {
   name: "REQUEST_PRIVATE_ROOM",
-  description: "Request a private room with another player during WHISPER phase",
+  description:
+    "Request a private room with another player during WHISPER phase",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const content = message.content.text?.toLowerCase() || "";
-    return (
-      (content.includes("private") && content.includes("room")) ||
-      (content.includes("dm") || content.includes("whisper"))
-    ) && content.includes("with");
+    // Don't respond to own messages
+    if (message.entityId === runtime.agentId) {
+      return false;
+    }
+
+    // Basic validation - any message with text content is potentially valid
+    return !!message.content?.text;
   },
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     try {
-      const gameState = state.values?.gameState as GameState;
+      const gameState = await getGameState(runtime, message.roomId);
       if (!gameState?.isActive) {
         await callback?.({
           text: "No active game found.",
@@ -291,7 +319,7 @@ export const requestPrivateRoomAction: Action = {
 
       // Find target player
       const targetPlayer = Array.from(gameState.players.values()).find(
-        p => p.name.toLowerCase() === targetName.toLowerCase()
+        (p) => p.name.toLowerCase() === targetName.toLowerCase(),
       );
 
       if (!targetPlayer) {
@@ -320,10 +348,10 @@ export const requestPrivateRoomAction: Action = {
 
       // Check if room already exists
       const existingRoom = Array.from(gameState.privateRooms.values()).find(
-        room => 
+        (room) =>
           room.active &&
           room.participants.includes(requesterId) &&
-          room.participants.includes(targetPlayer.id)
+          room.participants.includes(targetPlayer.id),
       );
 
       if (existingRoom) {
@@ -335,7 +363,9 @@ export const requestPrivateRoomAction: Action = {
       }
 
       // Create private room
-      const roomId = stringToUuid(`room-${requesterId}-${targetPlayer.id}-${Date.now()}`);
+      const roomId = stringToUuid(
+        `room-${requesterId}-${targetPlayer.id}-${Date.now()}`,
+      );
       const privateRoom: PrivateRoom = {
         id: roomId,
         participants: [requesterId, targetPlayer.id],
@@ -358,6 +388,9 @@ export const requestPrivateRoomAction: Action = {
       };
       gameState.history.push(event);
 
+      // Save updated game state
+      await saveGameState(runtime, message.roomId, gameState);
+
       await callback?.({
         text: `🔒 Private room created between ${requester.name} and ${targetPlayer.name}. You can now whisper privately.`,
         source: "house",
@@ -378,7 +411,9 @@ export const requestPrivateRoomAction: Action = {
       },
       {
         user: "house",
-        content: { text: "🔒 Private room created between player1 and player2." },
+        content: {
+          text: "🔒 Private room created between player1 and player2.",
+        },
       },
     ],
   ] as ActionExample[][],
@@ -400,4 +435,82 @@ function createNewGame(houseAgentId: string): GameState {
     history: [],
     isActive: false,
   };
+}
+
+/**
+ * Get game state from runtime memory
+ */
+async function getGameState(
+  runtime: IAgentRuntime,
+  roomId: string,
+): Promise<GameState | null> {
+  try {
+    const memories = await runtime.getMemories({
+      roomId,
+      count: 50,
+      tableName: "memories",
+    });
+
+    // Find the most recent game state memory
+    const gameStateMemory = memories.find(
+      (m) =>
+        m.content.metadata?.type === "game_state" &&
+        m.content.metadata?.gameState,
+    );
+
+    if (gameStateMemory?.content.metadata?.gameState) {
+      const gameState = gameStateMemory.content.metadata.gameState;
+      // Restore Map and Set objects from plain objects
+      return {
+        ...gameState,
+        players: new Map(Object.entries(gameState.players || {})),
+        privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
+        exposedPlayers: new Set(gameState.exposedPlayers || []),
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error getting game state:", error);
+    return null;
+  }
+}
+
+/**
+ * Save game state to runtime memory
+ */
+async function saveGameState(
+  runtime: IAgentRuntime,
+  roomId: string,
+  gameState: GameState,
+): Promise<void> {
+  try {
+    // Convert Map and Set objects to plain objects for serialization
+    const serializedGameState = {
+      ...gameState,
+      players: Object.fromEntries(gameState.players),
+      privateRooms: Object.fromEntries(gameState.privateRooms),
+      exposedPlayers: Array.from(gameState.exposedPlayers),
+    };
+
+    await runtime.createMemory(
+      {
+        id: stringToUuid(`game-state-${Date.now()}`),
+        entityId: runtime.agentId,
+        roomId,
+        content: {
+          text: `Game state updated - Phase: ${gameState.phase}, Players: ${gameState.players.size}`,
+          source: "house",
+          metadata: {
+            type: "game_state",
+            gameState: serializedGameState,
+            timestamp: Date.now(),
+          },
+        },
+      },
+      "memories",
+    );
+  } catch (error) {
+    console.error("Error saving game state:", error);
+  }
 }

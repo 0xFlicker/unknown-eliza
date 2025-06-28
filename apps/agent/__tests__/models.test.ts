@@ -46,7 +46,7 @@ describe("Social Strategy Model Inference", () => {
         expect.objectContaining({
           prompt: "[[SSA:STRAT]]  Analyze player interaction patterns",
           stopSequences: ["[[SSA:END]]"],
-        })
+        }),
       );
 
       // Test creative analysis config
@@ -66,7 +66,7 @@ describe("Social Strategy Model Inference", () => {
         expect.objectContaining({
           prompt: "[[SSA:CREATIVE]]  Analyze player behavior patterns",
           stopSequences: ["[[SSA:END]]"],
-        })
+        }),
       );
 
       // Test quick analysis config
@@ -86,7 +86,7 @@ describe("Social Strategy Model Inference", () => {
         expect.objectContaining({
           prompt: "[[SSA:QUICK]]  Quick player sentiment check",
           stopSequences: ["[[SSA:END]]"],
-        })
+        }),
       );
 
       // Test default relationship analysis config
@@ -106,7 +106,7 @@ describe("Social Strategy Model Inference", () => {
         expect.objectContaining({
           prompt: "[[SSA:REL]]  Analyze player relationships",
           stopSequences: ["[[SSA:END]]"],
-        })
+        }),
       );
     });
 
@@ -134,7 +134,7 @@ describe("Social Strategy Model Inference", () => {
           prompt:
             '[[SSA:REL]] [[SSA:playerId="player123"]] [[SSA:context="game_session_1"]] Analyze player relationships',
           stopSequences: ["[[SSA:END]]"],
-        })
+        }),
       );
 
       // Verify the analyzePrompt function can extract the sanitized prompt

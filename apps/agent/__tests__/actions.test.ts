@@ -49,7 +49,7 @@ afterAll(() => {
 describe("Social Strategy Plugin Actions", () => {
   // Find the trackConversation action from the plugin
   const trackConversationAction = plugin.actions?.find(
-    (action) => action.name === "TRACK_CONVERSATION"
+    (action) => action.name === "TRACK_CONVERSATION",
   );
 
   // Run core tests on all plugin actions
@@ -81,7 +81,7 @@ describe("Social Strategy Plugin Actions", () => {
           const result = await trackConversationAction.validate(
             runtime,
             mockMessage,
-            mockState
+            mockState,
           );
           expect(result).toBe(true);
         }
@@ -96,7 +96,7 @@ describe("Social Strategy Plugin Actions", () => {
           const result = await trackConversationAction.validate(
             runtime,
             mockMessage,
-            mockState
+            mockState,
           );
           expect(result).toBe(true);
         }
@@ -114,14 +114,14 @@ describe("Social Strategy Plugin Actions", () => {
                 relationship: "ally",
                 trustScore: 80,
                 statement: "player1 is a great player!",
-              } as ModelAnalysis)
+              } as ModelAnalysis),
             )
             .mockResolvedValue(
               JSON.stringify({
                 relationship: "ally",
                 trustScore: 80,
                 statement: "player2 is a great player!",
-              } as ModelAnalysis)
+              } as ModelAnalysis),
             );
           const mockMessage = createMockMessage("Hello @player1 and @player2!");
           const mockState = createMockState() as State & SocialStrategyState;
@@ -139,7 +139,7 @@ describe("Social Strategy Plugin Actions", () => {
             mockState,
             {},
             vi.fn(),
-            []
+            [],
           );
 
           expect(result).toEqual(undefined);
@@ -173,7 +173,7 @@ describe("Social Strategy Plugin Actions", () => {
               relationship: "ally",
               trustScore: 80,
               statement: "player1 is a great player!",
-            } as ModelAnalysis)
+            } as ModelAnalysis),
           );
           const playerId = stringToUuid(`${runtime.agentId}:player:player1`);
           const mockMessage = createMockMessage("Hello again @player1!");
@@ -205,7 +205,7 @@ describe("Social Strategy Plugin Actions", () => {
             mockState,
             {},
             vi.fn(),
-            []
+            [],
           );
 
           expect(result).toEqual(undefined);
@@ -220,7 +220,7 @@ describe("Social Strategy Plugin Actions", () => {
               relationship: "ally",
               trustScore: 80,
               statement: "player1 is a great player!",
-            } as ModelAnalysis)
+            } as ModelAnalysis),
           );
           const mockMessage = createMockMessage("Hello @player1!");
           const mockState = createMockState() as State & SocialStrategyState;
@@ -238,7 +238,7 @@ describe("Social Strategy Plugin Actions", () => {
             mockState,
             {},
             vi.fn(),
-            []
+            [],
           );
 
           expect(result).toEqual(undefined);
@@ -253,7 +253,7 @@ describe("Social Strategy Plugin Actions", () => {
               relationship: "ally",
               trustScore: 80,
               statement: "player1 is a great player!",
-            } as ModelAnalysis)
+            } as ModelAnalysis),
           );
           const mockMessage = createMockMessage("Hello @player1!");
           const mockState = createMockState() as State & SocialStrategyState;
@@ -271,7 +271,7 @@ describe("Social Strategy Plugin Actions", () => {
             mockState,
             {},
             vi.fn(),
-            []
+            [],
           );
 
           expect(result).toEqual(undefined);
@@ -290,7 +290,7 @@ describe("Social Strategy Plugin Actions", () => {
               relationship: "ally",
               trustScore: 80,
               statement: "player1 is a great player!",
-            } as ModelAnalysis)
+            } as ModelAnalysis),
           );
           const mockMessage = createMockMessage("Hello @player1!");
           const mockState = createMockState() as State & SocialStrategyState;
@@ -308,7 +308,7 @@ describe("Social Strategy Plugin Actions", () => {
             mockState,
             {},
             vi.fn(),
-            []
+            [],
           );
 
           expect(result).toEqual(undefined);

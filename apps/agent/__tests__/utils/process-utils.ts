@@ -44,7 +44,7 @@ export async function killProcessOnPort(port: number): Promise<void> {
           .split("\n")
           .filter((pid) => pid && /^\d+$/.test(pid));
         console.log(
-          `[DEBUG] Found ${pids.length} processes on port ${port}: ${pids.join(", ")}`
+          `[DEBUG] Found ${pids.length} processes on port ${port}: ${pids.join(", ")}`,
         );
 
         for (const pid of pids) {
@@ -64,7 +64,7 @@ export async function killProcessOnPort(port: number): Promise<void> {
             try {
               execSync(`kill -0 ${pid}`, { stdio: "ignore", timeout: 2000 });
               console.log(
-                `[DEBUG] Process ${pid} still running, sending SIGKILL`
+                `[DEBUG] Process ${pid} still running, sending SIGKILL`,
               );
               execSync(`kill -9 ${pid}`, { stdio: "ignore", timeout: 3000 });
               await new Promise((resolve) => setTimeout(resolve, 500));
@@ -75,14 +75,14 @@ export async function killProcessOnPort(port: number): Promise<void> {
           } catch (e) {
             // Process doesn't exist or already killed, ignore
             console.log(
-              `[DEBUG] Process ${pid} not found or already terminated`
+              `[DEBUG] Process ${pid} not found or already terminated`,
             );
           }
         }
       } catch (e) {
         // No processes found on port, which is fine
         console.log(
-          `[DEBUG] No processes found on port ${port} (expected if port is free)`
+          `[DEBUG] No processes found on port ${port} (expected if port is free)`,
         );
       }
     } else {
@@ -95,13 +95,13 @@ export async function killProcessOnPort(port: number): Promise<void> {
 
     // Give processes time to actually terminate
     await new Promise((resolve) =>
-      setTimeout(resolve, process.platform === "darwin" ? 2000 : 1000)
+      setTimeout(resolve, process.platform === "darwin" ? 2000 : 1000),
     );
   } catch (e) {
     // Ignore port cleanup errors but log them for debugging
     console.log(
       `[DEBUG] Port cleanup for ${port} encountered error:`,
-      e instanceof Error ? e.message : "unknown"
+      e instanceof Error ? e.message : "unknown",
     );
   }
 }

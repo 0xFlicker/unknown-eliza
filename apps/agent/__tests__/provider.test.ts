@@ -24,7 +24,7 @@ afterAll(() => {
 function documentTestResult(
   testName: string,
   result: any,
-  error: Error | null = null
+  error: Error | null = null,
 ) {
   // Clean, useful test documentation for developers
   logger.info(`✓ Testing: ${testName}`);
@@ -140,7 +140,7 @@ function createRealMemory(): Memory {
 describe("Provider Tests", () => {
   // Find the social-strategy-state provider from the providers array
   const socialStrategyProvider = plugin.providers?.find(
-    (provider) => provider.name === "social-strategy-state"
+    (provider) => provider.name === "social-strategy-state",
   );
 
   describe("social-strategy-state provider", () => {
@@ -151,11 +151,11 @@ describe("Provider Tests", () => {
       if (plugin.providers) {
         expect(plugin.providers.length).toBeGreaterThan(0);
         const result = plugin.providers.find(
-          (p) => p.name === "SOCIAL_CONTEXT"
+          (p) => p.name === "SOCIAL_CONTEXT",
         );
         expect(
           result,
-          `social-strategy provider not found. ${JSON.stringify(plugin.providers.map((p) => p.name))}`
+          `social-strategy provider not found. ${JSON.stringify(plugin.providers.map((p) => p.name))}`,
         ).toBeDefined();
         documentTestResult("Provider exists check", {
           found: !!result,
@@ -168,7 +168,7 @@ describe("Provider Tests", () => {
       if (socialStrategyProvider) {
         expect(socialStrategyProvider).toHaveProperty(
           "name",
-          "social-strategy-state"
+          "social-strategy-state",
         );
         expect(socialStrategyProvider).toHaveProperty("description");
         expect(socialStrategyProvider).toHaveProperty("get");
@@ -330,7 +330,7 @@ describe("Provider Tests", () => {
         const uniqueNames = new Set(providerNames);
 
         const duplicates = providerNames.filter(
-          (name, index) => providerNames.indexOf(name) !== index
+          (name, index) => providerNames.indexOf(name) !== index,
         );
 
         // There should be no duplicate provider names

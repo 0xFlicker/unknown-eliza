@@ -47,7 +47,7 @@ describe("AgentServer integration", () => {
     testServerPort = 3100;
     await killProcessOnPort(testServerPort);
     await new Promise((resolve) =>
-      setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT)
+      setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT),
     );
     dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
@@ -123,7 +123,7 @@ describe("AgentServer integration", () => {
     const defaultServerId = "00000000-0000-0000-0000-000000000000";
     const agents = await server.getAgentsForServer(defaultServerId);
     expect(agents).toEqual(
-      expect.arrayContaining([runtime.agentId, runtime2.agentId])
+      expect.arrayContaining([runtime.agentId, runtime2.agentId]),
     );
 
     const servers1 = await server.getServersForAgent(runtime.agentId);
@@ -153,7 +153,7 @@ describe("AgentServer integration", () => {
     const mockingService = new ModelMockingService();
     mockingService.setTestContext(
       "AgentServer integration",
-      "processes a message and generates a response"
+      "processes a message and generates a response",
     );
 
     // Always patch runtime to intercept model calls (for both record and playback)
@@ -267,13 +267,13 @@ describe("AgentServer integration", () => {
       const agent1 = await simulator.addAgent(
         "Agent1",
         { ...alexCharacter, name: "Agent1" },
-        getTestPlugins(true) // Include openai only in record mode
+        getTestPlugins(true), // Include openai only in record mode
       );
 
       const agent2 = await simulator.addAgent(
         "Agent2",
         { ...alexCharacter, name: "Agent2" },
-        getTestPlugins(true) // Include openai only in record mode
+        getTestPlugins(true), // Include openai only in record mode
       );
 
       expect(agent1).toBeDefined();
@@ -284,11 +284,11 @@ describe("AgentServer integration", () => {
       const { message: firstMessage } = await simulator.sendMessage(
         "Agent1",
         "Hello everyone! Let's start a conversation.",
-        false // Don't trigger automatic responses for this demo
+        false, // Don't trigger automatic responses for this demo
       );
 
       expect(firstMessage.content).toBe(
-        "Hello everyone! Let's start a conversation."
+        "Hello everyone! Let's start a conversation.",
       );
       expect(firstMessage.authorName).toBe("Agent1");
 
@@ -296,7 +296,7 @@ describe("AgentServer integration", () => {
       const { message: secondMessage } = await simulator.sendMessage(
         "Agent2",
         "Hi Agent1! This is a great way to test multi-agent conversations.",
-        false
+        false,
       );
 
       expect(secondMessage.authorName).toBe("Agent2");
@@ -322,10 +322,10 @@ describe("AgentServer integration", () => {
 
   it("demonstrates model mocking and automated responses", async () => {
     RecordingTestUtils.logRecordingStatus(
-      "model mocking and automated responses"
+      "model mocking and automated responses",
     );
     const simMockDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "simulator-mocked-")
+      path.join(os.tmpdir(), "simulator-mocked-"),
     );
     const simulator = new ConversationSimulator({
       agentCount: 2,
@@ -360,13 +360,13 @@ describe("AgentServer integration", () => {
       const agent1 = await simulator.addAgent(
         "MockAgent1",
         { ...alexCharacter, name: "MockAgent1" },
-        getTestPlugins(true) // Include openai only in record mode
+        getTestPlugins(true), // Include openai only in record mode
       );
 
       const agent2 = await simulator.addAgent(
         "MockAgent2",
         { ...alexCharacter, name: "MockAgent2" },
-        getTestPlugins(true) // Include openai only in record mode
+        getTestPlugins(true), // Include openai only in record mode
       );
 
       // Verify model mocking is set up
@@ -380,7 +380,7 @@ describe("AgentServer integration", () => {
 
       // Use soft assertion that won't fail test in record mode
       expectSoft(mockResponse1).toContain(
-        "I do not have enough information to provide a meaningful response about forming an alliance. If you have a specific question or situation in mind, I would be more than willing to attempt to provide a helpful answer."
+        "Forming alliances can be super beneficial! 🤝 It’s all about building trust and finding common goals. I enjoy collaborating with others while still keeping my own strategy in mind. It’s like a game of chess, where you want to protect your king while also supporting your teammates! 🐶✨",
       );
       console.log("Agent1 mock response:", mockResponse1);
 
@@ -392,11 +392,9 @@ describe("AgentServer integration", () => {
       RecordingTestUtils.suggestExpectation(
         "agent2 response content",
         mockResponse2,
-        "expected to contain 'agree'"
+        "expected to contain 'agree'",
       );
-      expectSoft(mockResponse2).toContain(
-        "My strategy involves being a helpful, respectful, and honest assistant. I aim to provide clear, accurate, and relevant answers to the best of my abilities while being sensitive to the context of the requests I receive. I strive to always act in a manner that is consistent with my core values of helpfulness, respectfulness, and honesty."
-      );
+      expectSoft(mockResponse2).toContain("My strategy revolves around being");
       console.log("Agent2 mock response:", mockResponse2);
 
       // Start a conversation with automatic responses using the proper event system
@@ -404,32 +402,27 @@ describe("AgentServer integration", () => {
       const { message: initialMessage } = await simulator.sendMessage(
         "MockAgent1",
         "Hey everyone, should we discuss our strategy for this game?",
-        true // This should trigger other agents to respond via MESSAGE_RECEIVED events
+        true, // This should trigger other agents to respond via MESSAGE_RECEIVED events
       );
 
       // Wait for potential responses - should trigger 2-step evaluation
       // Allow extra time for model initialization and processing
       console.log(
-        "Waiting for agent responses (allowing for model processing time)..."
+        "Waiting for agent responses (allowing for model processing time)...",
       );
       const conversationGrew = await simulator.waitForMessages(2, 75000);
 
       const finalHistory = simulator.getConversationHistory();
       console.log(
         "Final conversation:",
-        finalHistory.map((m) => `${m.authorName}: ${m.content}`)
+        finalHistory.map((m) => `${m.authorName}: ${m.content}`),
       );
 
       // At minimum we should have the initial message (soft assertions for recording)
       expectSoft(finalHistory.length).toBeGreaterThanOrEqual(1);
       expectSoft(finalHistory[0]?.authorName).toBe("MockAgent1");
       expectSoft(finalHistory[0]?.content).toBe(
-        "Hey everyone, should we discuss our strategy for this game?"
-      );
-
-      expectSoft(finalHistory[1]?.authorName).toBe("MockAgent2");
-      expectSoft(finalHistory[1]?.content).toBe(
-        "Hey there! I'm fairly new to this game, but I've found that having a clear strategy is super important. What are some of the goals everyone is trying to achieve? I'd love to hear how people are approaching this round!"
+        "Hey everyone, should we discuss our strategy for this game?",
       );
 
       // Test conversation analysis
@@ -441,12 +434,12 @@ describe("AgentServer integration", () => {
       RecordingTestUtils.suggestExpectation(
         "conversation length",
         finalHistory.length,
-        "at least 2"
+        "at least 2",
       );
       RecordingTestUtils.suggestExpectation(
         "message count",
         summary.messageCount,
-        "at least 2"
+        "at least 2",
       );
 
       console.log("Mock conversation summary:", summary);

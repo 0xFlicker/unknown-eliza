@@ -9,18 +9,65 @@ import {
 import { Phase, GameState, PlayerStatus } from "../house/types";
 
 /**
+ * Ignore House game management messages - players should not respond to these
+ */
+export const ignoreHouseAction: Action = {
+  name: "IGNORE_HOUSE",
+  description: "Ignore House game management messages (players don't respond to these)",
+  validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
+    // Don't respond to own messages
+    if (message.entityId === runtime.agentId) {
+      return false;
+    }
+    
+    // Basic validation - any message with text content is potentially valid
+    return !!(message.content?.text);
+  },
+  handler: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+    options: any,
+    callback?: HandlerCallback,
+  ) => {
+    // Explicitly do nothing - this is an ignore action
+    return;
+  },
+  examples: [
+    [
+      {
+        user: "house",
+        content: { text: "Alice joined the game! (1/12 players)" },
+      },
+      {
+        user: "player",
+        content: { text: "", actions: ["IGNORE"] },
+      },
+    ],
+    [
+      {
+        user: "house", 
+        content: { text: "🎮 INFLUENCE GAME STARTED! 🎮" },
+      },
+      {
+        user: "player",
+        content: { text: "", actions: ["IGNORE"] },
+      },
+    ],
+  ] as ActionExample[][],
+};
+
+/**
  * Join the game lobby
  */
 export const joinLobbyAction: Action = {
   name: "JOIN_LOBBY",
   description: "Join the Influence game lobby",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const content = message.content.text?.toLowerCase() || "";
-    // Only trigger if this is the player's own message about joining
+    // Only trigger if this is the player's own message
     return (
       message.entityId === runtime.agentId &&
-      (content.includes("join") || content.includes("enter")) &&
-      content.includes("game")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -28,7 +75,7 @@ export const joinLobbyAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // This action doesn't need to do anything - it's just to trigger the behavior
     // The actual joining logic is handled by the House agent's joinGameAction
@@ -56,11 +103,9 @@ export const requestStartAction: Action = {
   name: "REQUEST_START",
   description: "Request to start the game as host",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const content = message.content.text?.toLowerCase() || "";
     return (
       message.entityId === runtime.agentId &&
-      content.includes("start") &&
-      content.includes("game")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -68,7 +113,7 @@ export const requestStartAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // This action doesn't need to do anything - it guides the player's language
     // The actual start logic is handled by the House agent
@@ -95,16 +140,9 @@ export const createPrivateRoomAction: Action = {
   name: "CREATE_PRIVATE_ROOM",
   description: "Create a private room with another player during whisper phase",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const content = message.content.text?.toLowerCase() || "";
-    const gameState = state.values?.gameState as GameState;
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.WHISPER &&
-      ((content.includes("private") && content.includes("room")) ||
-       content.includes("whisper") ||
-       content.includes("dm")) &&
-      content.includes("with")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -112,7 +150,7 @@ export const createPrivateRoomAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // This action provides context for the player - actual room creation is handled by House
     return;
@@ -138,13 +176,9 @@ export const publicStatementAction: Action = {
   name: "PUBLIC_STATEMENT",
   description: "Make a public statement during the rumor phase",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const gameState = state.values?.gameState as GameState;
-    const content = message.content.text?.toLowerCase() || "";
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.RUMOR &&
-      (content.includes("public") || content.includes("announce") || content.includes("statement"))
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -152,7 +186,7 @@ export const publicStatementAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // This provides context for public statements during rumor phase
     return;
@@ -161,7 +195,9 @@ export const publicStatementAction: Action = {
     [
       {
         user: "player",
-        content: { text: "I want to make a public statement about my trustworthiness" },
+        content: {
+          text: "I want to make a public statement about my trustworthiness",
+        },
       },
       {
         user: "player",
@@ -178,13 +214,9 @@ export const empowerVoteAction: Action = {
   name: "EMPOWER_VOTE",
   description: "Cast a vote to empower another player",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const gameState = state.values?.gameState as GameState;
-    const content = message.content.text?.toLowerCase() || "";
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.VOTE &&
-      content.includes("empower")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -192,7 +224,7 @@ export const empowerVoteAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // Voting logic would be handled by House - this provides context
     return;
@@ -218,13 +250,9 @@ export const exposeVoteAction: Action = {
   name: "EXPOSE_VOTE",
   description: "Cast a vote to expose another player",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const gameState = state.values?.gameState as GameState;
-    const content = message.content.text?.toLowerCase() || "";
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.VOTE &&
-      content.includes("expose")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -232,7 +260,7 @@ export const exposeVoteAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // Voting logic would be handled by House - this provides context
     return;
@@ -258,14 +286,9 @@ export const eliminateAction: Action = {
   name: "ELIMINATE_PLAYER",
   description: "Eliminate an exposed player (empowered player only)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const gameState = state.values?.gameState as GameState;
-    const content = message.content.text?.toLowerCase() || "";
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.POWER &&
-      gameState?.empoweredPlayer === runtime.agentId &&
-      content.includes("eliminate")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -273,7 +296,7 @@ export const eliminateAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // Elimination logic would be handled by House - this provides context
     return;
@@ -299,14 +322,9 @@ export const protectAction: Action = {
   name: "PROTECT_PLAYER",
   description: "Protect an exposed player (empowered player only)",
   validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const gameState = state.values?.gameState as GameState;
-    const content = message.content.text?.toLowerCase() || "";
-    
     return (
       message.entityId === runtime.agentId &&
-      gameState?.phase === Phase.POWER &&
-      gameState?.empoweredPlayer === runtime.agentId &&
-      content.includes("protect")
+      !!(message.content?.text)
     );
   },
   handler: async (
@@ -314,7 +332,7 @@ export const protectAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     // Protection logic would be handled by House - this provides context
     return;

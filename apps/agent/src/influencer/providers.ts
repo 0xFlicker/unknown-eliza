@@ -6,10 +6,11 @@ import { Phase, GameState, PlayerStatus } from "../house/types";
  */
 export const gameContextProvider: Provider = {
   name: "GAME_CONTEXT",
-  description: "Provides current game phase, objectives, and strategic guidance",
+  description:
+    "Provides current game phase, objectives, and strategic guidance",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const gameState = state?.values?.gameState as GameState;
-    
+
     if (!gameState) {
       return {
         text: "No active game. You can join by saying 'I want to join the game'.",
@@ -19,7 +20,7 @@ export const gameContextProvider: Provider = {
 
     const playerId = runtime.agentId;
     const player = gameState.players.get(playerId);
-    
+
     if (!player) {
       return {
         text: "You are not in the current game. Join by saying 'I want to join the game'.",
@@ -53,7 +54,7 @@ export const playerAnalysisProvider: Provider = {
   description: "Analyzes other players for alliance and threat assessment",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const gameState = state?.values?.gameState as GameState;
-    
+
     if (!gameState || !gameState.players.has(runtime.agentId)) {
       return {
         text: "No game data available for player analysis.",
@@ -62,20 +63,21 @@ export const playerAnalysisProvider: Provider = {
     }
 
     const myId = runtime.agentId;
-    const otherPlayers = Array.from(gameState.players.values())
-      .filter(p => p.id !== myId && p.status === PlayerStatus.ALIVE);
+    const otherPlayers = Array.from(gameState.players.values()).filter(
+      (p) => p.id !== myId && p.status === PlayerStatus.ALIVE,
+    );
 
-    const playerAnalysis = otherPlayers.map(player => {
+    const playerAnalysis = otherPlayers.map((player) => {
       const isExposed = gameState.exposedPlayers.has(player.id);
       const isEmpowered = gameState.empoweredPlayer === player.id;
-      
+
       // Check if we have private conversations with this player
-      const hasPrivateRoom = Array.from(gameState.privateRooms.values())
-        .some(room => 
-          room.active && 
-          room.participants.includes(myId) && 
-          room.participants.includes(player.id)
-        );
+      const hasPrivateRoom = Array.from(gameState.privateRooms.values()).some(
+        (room) =>
+          room.active &&
+          room.participants.includes(myId) &&
+          room.participants.includes(player.id),
+      );
 
       return {
         name: player.name,
@@ -88,11 +90,15 @@ export const playerAnalysisProvider: Provider = {
       };
     });
 
-    const analysisText = playerAnalysis.length > 0
-      ? `Other players: ${playerAnalysis.map(p => 
-          `${p.name}${p.isEmpowered ? "(empowered)" : ""}${p.isExposed ? "(exposed)" : ""}${p.hasPrivateRoom ? "(ally?)" : ""}`
-        ).join(", ")}`
-      : "No other players to analyze.";
+    const analysisText =
+      playerAnalysis.length > 0
+        ? `Other players: ${playerAnalysis
+            .map(
+              (p) =>
+                `${p.name}${p.isEmpowered ? "(empowered)" : ""}${p.isExposed ? "(exposed)" : ""}${p.hasPrivateRoom ? "(ally?)" : ""}`,
+            )
+            .join(", ")}`
+        : "No other players to analyze.";
 
     return {
       text: analysisText,
@@ -106,10 +112,11 @@ export const playerAnalysisProvider: Provider = {
  */
 export const strategyProvider: Provider = {
   name: "STRATEGY_ADVICE",
-  description: "Provides strategic recommendations for the current game situation",
+  description:
+    "Provides strategic recommendations for the current game situation",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const gameState = state?.values?.gameState as GameState;
-    
+
     if (!gameState || !gameState.players.has(runtime.agentId)) {
       return {
         text: "Join the game to receive strategic guidance.",
@@ -131,32 +138,36 @@ export const strategyProvider: Provider = {
 /**
  * Helper function to get phase-specific guidance
  */
-function getPhaseGuidance(phase: Phase, player: any, gameState: GameState): string {
+function getPhaseGuidance(
+  phase: Phase,
+  player: any,
+  gameState: GameState,
+): string {
   switch (phase) {
     case Phase.INIT:
       if (player.isHost) {
         return `LOBBY PHASE: You are the host. Start the game when you have at least ${gameState.settings.minPlayers} players by saying "start the game".`;
       }
       return "LOBBY PHASE: Build initial trust and relationships. The host will start when ready.";
-    
+
     case Phase.WHISPER:
       return "WHISPER PHASE: Form private alliances! Request private rooms with potential allies by saying 'request private room with [player]'.";
-    
+
     case Phase.RUMOR:
       return "RUMOR PHASE: Make your one public statement count. Build trust or mislead strategically.";
-    
+
     case Phase.VOTE:
       return "VOTE PHASE: Vote to empower someone you trust AND expose someone you suspect. Choose wisely!";
-    
+
     case Phase.POWER:
       if (gameState.empoweredPlayer === player.id) {
         return "POWER PHASE: You are empowered! Choose to eliminate or protect an exposed player.";
       }
       return "POWER PHASE: The empowered player is deciding. Hope you're not exposed!";
-    
+
     case Phase.REVEAL:
       return "REVEAL PHASE: Results are being announced. Prepare for the next round if you survive.";
-    
+
     default:
       return "Unknown phase - stay alert!";
   }
@@ -166,20 +177,21 @@ function getPhaseGuidance(phase: Phase, player: any, gameState: GameState): stri
  * Helper function to get strategic context
  */
 function getStrategicContext(player: any, gameState: GameState): string {
-  const alivePlayers = Array.from(gameState.players.values())
-    .filter(p => p.status === PlayerStatus.ALIVE);
-  
+  const alivePlayers = Array.from(gameState.players.values()).filter(
+    (p) => p.status === PlayerStatus.ALIVE,
+  );
+
   let context = `${alivePlayers.length} players remain alive.`;
-  
+
   if (gameState.empoweredPlayer && gameState.empoweredPlayer !== player.id) {
     const empowered = gameState.players.get(gameState.empoweredPlayer);
     context += ` ${empowered?.name} is empowered.`;
   }
-  
+
   if (gameState.exposedPlayers.size > 0) {
     context += ` ${gameState.exposedPlayers.size} player(s) exposed.`;
   }
-  
+
   return context;
 }
 
@@ -188,9 +200,10 @@ function getStrategicContext(player: any, gameState: GameState): string {
  */
 function generateStrategies(player: any, gameState: GameState): string[] {
   const strategies: string[] = [];
-  const alivePlayers = Array.from(gameState.players.values())
-    .filter(p => p.status === PlayerStatus.ALIVE);
-  
+  const alivePlayers = Array.from(gameState.players.values()).filter(
+    (p) => p.status === PlayerStatus.ALIVE,
+  );
+
   switch (gameState.phase) {
     case Phase.WHISPER:
       if (alivePlayers.length > 4) {
@@ -198,15 +211,17 @@ function generateStrategies(player: any, gameState: GameState): string[] {
         strategies.push("Gather information about others' intentions");
       }
       break;
-    
+
     case Phase.VOTE:
       strategies.push("Empower someone you can influence");
       strategies.push("Expose the biggest threat");
       if (gameState.exposedPlayers.has(player.id)) {
-        strategies.push("You're exposed - convince the empowered player to protect you");
+        strategies.push(
+          "You're exposed - convince the empowered player to protect you",
+        );
       }
       break;
-    
+
     case Phase.POWER:
       if (gameState.empoweredPlayer === player.id) {
         strategies.push("Eliminate the most dangerous opponent");
@@ -214,6 +229,6 @@ function generateStrategies(player: any, gameState: GameState): string[] {
       }
       break;
   }
-  
+
   return strategies;
 }

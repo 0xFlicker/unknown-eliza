@@ -3,6 +3,7 @@
  */
 export enum Phase {
   INIT = "INIT",
+  LOBBY = "LOBBY",
   WHISPER = "WHISPER",
   RUMOR = "RUMOR",
   VOTE = "VOTE",
@@ -26,6 +27,7 @@ export interface GameSettings {
   maxPlayers: number;
   minPlayers: number;
   timers: {
+    lobby: number; // in milliseconds
     whisper: number; // in milliseconds
     rumor: number;
     vote: number;
@@ -110,11 +112,12 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   maxPlayers: 12,
   minPlayers: 4,
   timers: {
+    lobby: 5 * 60 * 1000, // 5 minutes
     whisper: 10 * 60 * 1000, // 10 minutes
-    rumor: 5 * 60 * 1000,    // 5 minutes
-    vote: 3 * 60 * 1000,     // 3 minutes
-    power: 2 * 60 * 1000,    // 2 minutes
-    reveal: 30 * 1000,       // 30 seconds
+    rumor: 5 * 60 * 1000, // 5 minutes
+    vote: 3 * 60 * 1000, // 3 minutes
+    power: 2 * 60 * 1000, // 2 minutes
+    reveal: 30 * 1000, // 30 seconds
   },
   maxDMRecipients: 4,
 };

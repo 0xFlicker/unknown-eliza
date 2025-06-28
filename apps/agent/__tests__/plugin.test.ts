@@ -20,7 +20,7 @@ afterAll(() => {
 function documentTestResult(
   testName: string,
   result: unknown,
-  error: Error | null = null
+  error: Error | null = null,
 ) {
   logger.info(`✓ Testing: ${testName}`);
 
@@ -81,7 +81,7 @@ describe("Social Strategy Plugin", () => {
       expect(socialStrategyPlugin.actions).toBeDefined();
       const actions = socialStrategyPlugin.actions!;
       const trackConversationAction = actions.find(
-        (action) => action.name === "TRACK_CONVERSATION"
+        (action) => action.name === "TRACK_CONVERSATION",
       );
       expect(trackConversationAction).toBeDefined();
 
@@ -99,11 +99,11 @@ describe("Social Strategy Plugin", () => {
       expect(socialStrategyPlugin.providers).toBeDefined();
       const providers = socialStrategyPlugin.providers!;
       const stateProvider = providers.find(
-        (provider) => provider.name === "SOCIAL_CONTEXT"
+        (provider) => provider.name === "SOCIAL_CONTEXT",
       );
       expect(
         stateProvider,
-        `social-context provider not found. ${JSON.stringify(providers.map((p) => p.name))}`
+        `social-context provider not found. ${JSON.stringify(providers.map((p) => p.name))}`,
       ).toBeDefined();
 
       documentTestResult("social-strategy-state provider check", {

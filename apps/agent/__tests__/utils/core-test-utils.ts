@@ -60,17 +60,17 @@ export const runCoreActionTests = (actions: Action[]) => {
       for (const message of example) {
         if (!message.name) {
           throw new Error(
-            `Example message in action ${action.name} missing name property`
+            `Example message in action ${action.name} missing name property`,
           );
         }
         if (!message.content) {
           throw new Error(
-            `Example message in action ${action.name} missing content property`
+            `Example message in action ${action.name} missing content property`,
           );
         }
         if (!message.content.text) {
           throw new Error(
-            `Example message in action ${action.name} missing content.text property`
+            `Example message in action ${action.name} missing content.text property`,
           );
         }
       }
@@ -151,7 +151,7 @@ export const createMockRuntime = (): IAgentRuntime => {
 export const documentTestResult = (
   testName: string,
   result: any,
-  error: Error | null = null
+  error: Error | null = null,
 ) => {
   // Clean, useful test documentation for developers
   logger.info(`✓ Testing: ${testName}`);
@@ -301,7 +301,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
     }
     if (params.roomId) {
       return Object.values(this.memories).filter(
-        (m) => m.roomId === params.roomId
+        (m) => m.roomId === params.roomId,
       );
     }
     return Object.values(this.memories);
@@ -318,13 +318,13 @@ export class InMemoryAdapter implements IDatabaseAdapter {
     limit?: number;
   }): Promise<Memory[]> {
     return Object.values(this.memories).filter((m) =>
-      params.roomIds.includes(m.roomId)
+      params.roomIds.includes(m.roomId),
     );
   }
   async createMemory(
     memory: Memory,
     _tableName?: string,
-    _unique?: boolean
+    _unique?: boolean,
   ): Promise<UUID> {
     if (!validateUuid(memory.id)) {
       throw new Error("memory.id is not a uuid");
@@ -360,7 +360,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
   async countMemories(
     roomId: UUID,
     _unique?: boolean,
-    _tableName?: string
+    _tableName?: string,
   ): Promise<number> {
     return Object.values(this.memories).filter((m) => m.roomId === roomId)
       .length;
@@ -487,7 +487,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
     const relationship = Object.values(this.relationships).find(
       (r) =>
         r.sourceEntityId === params.sourceEntityId &&
-        r.targetEntityId === params.targetEntityId
+        r.targetEntityId === params.targetEntityId,
     );
     return relationship || null;
   }

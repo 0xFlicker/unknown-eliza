@@ -84,6 +84,8 @@ export class ConversationSimulator {
   private responseIndices: Map<string, number> = new Map();
   private modelMockingService?: ModelMockingService;
   private runtimeCleanupFunctions: Map<string, () => void> = new Map();
+  private testStartTime?: number; // Track test start time for deterministic timing
+  private messageSequence: number = 0; // Global message sequence counter
 
   constructor(private config: SimulatorConfig) {
     this.server = new AgentServer();
@@ -112,6 +114,10 @@ export class ConversationSimulator {
    * Initialize the simulator with agents and server
    */
   async initialize(): Promise<void> {
+    // Set deterministic test start time
+    this.testStartTime = Date.now();
+    this.messageSequence = 0;
+
     // Ensure data directory exists
     fs.mkdirSync(this.config.dataDir, { recursive: true });
     // Initialize server
@@ -195,7 +201,7 @@ export class ConversationSimulator {
           worldId: this.currentWorld,
           name: "test-conversation-room",
           source: "test",
-          type: ChannelType.GROUP,
+          type: ChannelType.WORLD,
         });
 
         console.log(`✅ Successfully set up world and room for ${agentName}`);
@@ -280,6 +286,11 @@ export class ConversationSimulator {
       throw new Error(`Agent ${fromAgent} not found`);
     }
 
+    // Increment message sequence for deterministic ordering
+    this.messageSequence++;
+    const deterministicTimestamp =
+      (this.testStartTime || Date.now()) + this.messageSequence * 1000;
+
     // Create the message
     const authorId = runtime.agentId;
     const message = await this.server.createMessage({
@@ -293,7 +304,7 @@ export class ConversationSimulator {
       authorId,
       authorName: fromAgent,
       content,
-      timestamp: Date.now(),
+      timestamp: deterministicTimestamp, // Use deterministic timestamp
       channelId: this.currentChannel,
     };
 
@@ -315,14 +326,17 @@ export class ConversationSimulator {
   private async triggerAgentResponses(
     excludeAgent: string
   ): Promise<AgentResponseResult[]> {
-    const otherAgents = Array.from(this.runtimes.keys()).filter(
-      (name) => name !== excludeAgent
-    );
+    // Sort agents for deterministic processing order
+    const otherAgents = Array.from(this.runtimes.keys())
+      .filter((name) => name !== excludeAgent)
+      .sort(); // Alphabetical order for consistency
 
     const results: AgentResponseResult[] = [];
+    const baseTimestamp = this.testStartTime || Date.now();
 
     // Process agents sequentially to avoid race conditions
-    for (const agentName of otherAgents) {
+    for (let i = 0; i < otherAgents.length; i++) {
+      const agentName = otherAgents[i];
       const runtime = this.runtimes.get(agentName);
       if (!runtime || !this.currentChannel) {
         results.push({
@@ -335,11 +349,17 @@ export class ConversationSimulator {
       }
 
       try {
-        // Create memory object for the latest message
+        // Create memory object for the latest message with deterministic ID
         const latestMessage =
           this.messageHistory[this.messageHistory.length - 1];
+
+        // Use deterministic memory ID instead of random
+        const memoryId = stringToUuid(
+          `msg-${baseTimestamp}-${this.messageSequence}-${agentName}-${i}`
+        );
+
         const memory: Memory = {
-          id: stringToUuid(`msg-${Date.now()}-${Math.random()}`),
+          id: memoryId,
           entityId: latestMessage.authorId,
           agentId: runtime.agentId,
           roomId: this.currentChannel,
@@ -350,12 +370,14 @@ export class ConversationSimulator {
           metadata: {
             timestamp: latestMessage.timestamp,
             type: "message",
+            sequence: this.messageSequence,
+            agentProcessingOrder: i,
           },
           createdAt: latestMessage.timestamp,
         };
 
         console.log(
-          `Triggering ${agentName} to process message: "${latestMessage.content}"`
+          `Triggering ${agentName} (${i + 1}/${otherAgents.length}) to process message: "${latestMessage.content}"`
         );
 
         // Track response data
@@ -403,8 +425,14 @@ export class ConversationSimulator {
           },
         });
 
-        // Give the agent time to process (including potential model cold startup)
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        // Give the agent time to process with deterministic delay
+        // Use much shorter delays in playback mode for better performance
+        const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
+        const baseDelay = isRecordMode ? 100 : 10; // Reduce delay in playback mode
+        const staggerDelay = isRecordMode ? 50 : 5; // Minimal stagger in playback
+        await new Promise((resolve) =>
+          setTimeout(resolve, baseDelay + i * staggerDelay)
+        );
 
         // Calculate model calls made
         const finalStats = this.modelMockingService?.getResponseStats();
@@ -463,14 +491,28 @@ export class ConversationSimulator {
   ): Promise<boolean> {
     const startTime = Date.now();
 
+    // Use shorter timeouts and poll intervals in playback mode
+    const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
+    const effectiveTimeout = isRecordMode
+      ? timeoutMs
+      : Math.min(timeoutMs, 3000);
+    const pollInterval = isRecordMode ? 100 : 20;
+
     while (
       this.messageHistory.length < expectedCount &&
-      Date.now() - startTime < timeoutMs
+      Date.now() - startTime < effectiveTimeout
     ) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
-    return this.messageHistory.length >= expectedCount;
+    const success = this.messageHistory.length >= expectedCount;
+    if (!success && !isRecordMode) {
+      console.warn(
+        `⚠️ waitForMessages timeout: expected ${expectedCount}, got ${this.messageHistory.length} (timeout: ${effectiveTimeout}ms)`
+      );
+    }
+
+    return success;
   }
 
   /**
@@ -551,5 +593,15 @@ export class ConversationSimulator {
     if (this.modelMockingService) {
       this.modelMockingService.setTestContext(suiteName, testName);
     }
+  }
+
+  /**
+   * Get the current channel/room ID for testing purposes
+   */
+  getRoomId(): UUID {
+    if (!this.currentChannel) {
+      throw new Error("Simulator not initialized - no channel available");
+    }
+    return this.currentChannel;
   }
 }

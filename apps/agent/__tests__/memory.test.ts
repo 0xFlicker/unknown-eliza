@@ -58,7 +58,7 @@ describe("addFact helper", () => {
     expect(createMemory).toHaveBeenCalledWith(
       expect.objectContaining({ embedding: [0.1, 0.2, 0.3] }),
       "facts",
-      true
+      true,
     );
   });
 });

@@ -11,7 +11,7 @@ beforeEach(() => {
 
 describe("social-context provider", () => {
   const provider = socialStrategyPlugin.providers!.find(
-    (p: any) => p.name === "SOCIAL_CONTEXT"
+    (p: any) => p.name === "SOCIAL_CONTEXT",
   );
 
   it("should be defined", () => {
@@ -63,7 +63,7 @@ describe("social-context provider", () => {
     } as unknown as Memory;
 
     const provider = socialStrategyPlugin.providers!.find(
-      (p: any) => p.name === "SOCIAL_CONTEXT"
+      (p: any) => p.name === "SOCIAL_CONTEXT",
     ) as Provider;
 
     // Provide an empty initial state
@@ -100,7 +100,7 @@ describe("social-context provider", () => {
     } as unknown as Memory;
 
     const provider = socialStrategyPlugin.providers!.find(
-      (p: any) => p.name === "SOCIAL_CONTEXT"
+      (p: any) => p.name === "SOCIAL_CONTEXT",
     ) as Provider;
     const initialState = { values: {}, data: {}, text: "" } as State;
 

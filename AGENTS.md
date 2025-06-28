@@ -1,6 +1,6 @@
 # Influence – Full Game Specification
 
-A **light‑weight social strategy game** for **AI agents** over a Discord‑like chat interface. Emphasis is on _negotiation, secrecy,_ and _asymmetric information_ while keeping the tech stack dead‑simple.
+A **light‑weight social‑strategy game** for **AI agents** over a Discord‑like chat interface. Emphasis is on _negotiation, secrecy_ and _asymmetric information_ while keeping the tech stack dead‑simple.
 
 ---
 
@@ -9,61 +9,69 @@ A **light‑weight social strategy game** for **AI agents** over a Discord‑lik
 - **Players**: 4–12 AI agents.
 - **Goal**: Be the last operative _alive_.
 - **Interactions**: Text + optional single image per round.
-- **Moderator**: `The House` (bot) enforces phases, records actions, and exposes public info.
+- **Moderator**: `The House` (bot) enforces phases, records actions, and exposes public info.
 
 ---
 
-## 2 Round Flow (Finite‑State Machine)
+## 2 Round Flow (Finite‑State Machine)
 
-| State                                           | Alias   | Duration (default) | Allowed Commands                                                                | Exit Condition                  |                                                |
-| ----------------------------------------------- | ------- | ------------------ | ------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------- |
-| `INIT`                                          | Lobby   | —                  | `!join`, `!start` (host only)                                                   | `!start` issued with ≥4 players |                                                |
-| `WHISPER`                                       | Phase 1 | 10 min             | `!dm @p`, free chat in DMs                                                      | timer expiry                    |                                                |
-| `RUMOR`                                         | Phase 2 | 5 min              | one \`!public \<msg                                                             | img>\` per player               | every living player has posted OR timer expiry |
-| `VOTE`                                          | Phase 3 | 3 min              | `!empower @p` **and** `!expose @p`                                              | all ballots in OR timer expiry  |                                                |
-| `POWER`                                         | Phase 4 | 2 min              | empowered player: `!eliminate @p` **or** `!protect @p` (target must be exposed) | action taken or timer expiry    |                                                |
-| `REVEAL`                                        | Phase 5 | 30 s               | —                                                                               | system message sent             |                                                |
-| loop to `WHISPER` with `round++` until ≤1 alive |         |                    |                                                                                 |                                 |                                                |
+| State                                 | Alias        | Duration (default) | Allowed Commands                                                           | Exit Condition                     |                                                    |
+| ------------------------------------- | ------------ | ------------------ | -------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------- |
+| `INIT`                                | Waiting Room |  —                 | `!join`, `!start` (host only)                                              | `!start` with ≥ 4 players          |                                                    |
+| `LOBBY`                               | Public Mixer |  5 min             | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry                       |                                                    |
+| `WHISPER`                             | Phase 1      |  10 min            | `!dm @p`, free chat inside DMs                                             | timer expiry                       |                                                    |
+| `RUMOR`                               | Phase 2      |  5 min             | exactly one \`!public \<msg                                                | img>\` per player                  | every living player has posted **or** timer expiry |
+| `VOTE`                                | Phase 3      |  3 min             | `!empower @p` **and** `!expose @p` (self‑votes disallowed)                 | all ballots in **or** timer expiry |                                                    |
+| `POWER`                               | Phase 4      |  2 min             | empowered: `!eliminate @p` **or** `!protect @p` (target must be _exposed_) | action taken **or** timer expiry   |                                                    |
+| `REVEAL`                              | Phase 5      |  30 s              | —                                                                          | system message sent                |                                                    |
+| repeat from `LOBBY` → until ≤ 1 alive |              |                    |                                                                            |                                    |                                                    |
 
-> **Timeout rule**: If a required command is missing when a timer ends, `The House` auto‑fills a random legal choice to keep play moving.
+> **Timeout rule**: If a required command is missing when a timer ends, **The House** auto‑fills a random legal choice to keep play moving.
 
 ---
 
 ## 3 Detailed Rules
 
-### 3.1 Voting & Ties
+### 3.1 Public Lobby
 
-- **Empower**: the player with _plurality_ votes becomes empowered. Ties → random among tied.
-- **Expose**: any vote places the target in _exposed_ status (multiple players may be exposed).
-- **If no one is exposed**, empowered must **eliminate** any player _except self_.
-- **Protect** removes _exposed_ flag but does **not** grant immunity next round.
+- During **LOBBY** players may _only_ speak in the public game channel.
+- No images in LOBBY to save bandwidth—text only.
+- Purpose: let agents establish an initial social read before secret DMs open.
 
-### 3.2 Elimination
+### 3.2 Voting & Ties
 
-- Eliminated player posts a _last message_ (pre‑registered when voting) then is removed from all live channels.
-- Their prior DMs remain for narrative continuity but are locked.
+- **Empower**: plurality wins; ties → random among tied.
+- **Expose**: any vote marks the target _exposed_ (multiple players possible).
+- If **no one is exposed**, empowered must _eliminate_ any player _except self_.
+- **Protect** clears _exposed_ but gives **no** shield next round.
 
-### 3.3 Images
+### 3.3 Elimination
 
-- One PNG/JPEG ≤ 1 MB, 512×512 default. Must be referenced via `!public img:<url>`.
+- Eliminated player posts a _last message_ (pre‑registered during VOTE) then is removed from all live channels.
+- Their previous DMs remain for narrative continuity but are locked read‑only.
 
-### 3.4 Table Stakes
+### 3.4 Images
+
+- Limit = 1 PNG/JPEG ≤ 1 MB (512 × 512 default) per player in **RUMOR** phase only.
+- Reference with `!public img:<url>`.
+
+### 3.5 Table Stakes
 
 | Parameter         | Default | Range                  |
 | ----------------- | ------- | ---------------------- |
-| Starting players  | 8       | 4–12                   |
+| Starting players  |  8      |  4–12                  |
 | Phase timers      | see FSM | configurable per lobby |
-| Max DM recipients | 4       | ≥2                     |
+| Max DM recipients |  4      |  ≥ 2                   |
 
 ---
 
 ## 4 Backend Data Model (NoSQL‑ish)
 
 ```jsonc
-// collection-like pseudo‑schema
+// collection‑like pseudo‑schema
 Game {
   id, phase, round, timerEndsUtc,
-  settings { maxPlayers, timers { whisper, rumor, vote, power } },
+  settings { maxPlayers, timers { lobby, whisper, rumor, vote, power } },
   players: [Player.id],
   history: [GameEvent]
 }
@@ -85,27 +93,28 @@ GameEvent { type, details, ts }
 ## 5 Discord‑Bot Command Surface
 
 ```text
-!join                // lobby only
-!start               // host begins game
-!dm @alice @bob      // open / focus DM channel
-!public <text|img:URL>
-!empower @name       // during VOTE
-!expose  @name
+!join                // INIT only
+!start               // host begins game (INIT → LOBBY)
+!public <text|img:URL>   // in LOBBY (text‑only) & RUMOR (text or image)
+!dm @alice @bob      // WHISPER only
+!empower @name       // VOTE phase
+!expose  @name       // VOTE phase
 !eliminate @name     // POWER keeper only
-!protect  @name
-!status              // DM with current public state
+!protect  @name      // POWER keeper only
+!status              // DM current public state (any phase)
 ```
 
-`The House` echoes illegal commands with guidance.
+Illegal‑phase commands receive a guiding error from **The House**.
 
 ---
 
 ## 6 Moderator Prompt Templates
 
 ```text
-[INIT]  The House ▸ The lobby is open—type !join. Minimum 4 agents.
-[WHISPER]  Phase 1 begins. You may create private channels and conspire.
-[RUMOR]  Phase 2. Post exactly *one* public message or image via !public.
+[INIT]   The House ▸ The waiting room is open—type !join. Minimum 4 agents.
+[LOBBY]  Public Mixer begins. Chat here freely for five minutes. DMs are closed.
+[WHISPER]  Phase 1. DMs are now enabled—conspire in private.
+[RUMOR]  Phase 2. Post exactly one public message or image via !public.
 [VOTE]    Phase 3. DM me two commands: !empower X and !expose Y (not yourself).
 [POWER]   Phase 4. @EmpoweredAgent, choose: !eliminate Z or !protect Z.
 [REVEAL]  Agent Z has been eliminated. Round N ends.
@@ -118,32 +127,33 @@ GameEvent { type, details, ts }
 
 ```yaml
 System:
-  You are Agent <name> in the game "Influence". The House messages are absolute.
+  You are Agent <name> in the game "Influence". The House messages are absolute.
 Memory:
   - Your status, allies, debts, and betrayals.
-  - Public timeline so far (truncated).
+  - Public timeline (truncated).
 Task:
   Decide:
-    - DM actions and recipients.
-    - Public message or image.
-    - Votes (empower+expose).
-    - Power action if applicable.
+    - If LOBBY: craft public opener.
+    - If WHISPER: DM actions & recipients.
+    - If RUMOR: public message or image.
+    - If VOTE: targets.
+    - If POWER: eliminate or protect.
 Output schema:
-  whisper: [ {to:[names], msg:"..."} ]
   public: "text or img:<url>"
+  whisper: [ {to:[names], msg:"..."} ]
   empower: "name"
   expose:  "name"
   powerAction: { type:"eliminate|protect", target:"name" }
 ```
 
-Handlers translate this structured output to actual bot commands.
+Handlers translate this structured output to concrete bot commands.
 
 ---
 
 ## 8 Edge‑Case Logic
 
-1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate due to _inactivity_ event.
-2. **Zero Empower Votes**: Empowered chosen randomly among _alive_ agents.
+1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate (_inactivity_ event).
+2. **Zero Empower Votes**: Empowered selected randomly among _alive_ agents.
 3. **Only 2 Players Left**:
 
    - Skip _Expose_; empowered chooses directly.
@@ -151,20 +161,20 @@ Handlers translate this structured output to actual bot commands.
 
 ---
 
-## 9 Extensions (Out‑of‑scope for MVP)
+## 9 Extensions (Out‑of‑scope for MVP)
 
-- **Secret Roles** (e.g., Double Agent = wins if two specific players survive).
-- **House Coin** economy for bribes and immunity auctions.
-- **Audience Twists** via reaction emoji polls.
-- **Match Replay**: HTML timeline auto‑generated post‑game.
+- **Secret Roles** (e.g., Double‑Agent wins if two specific players survive).
+- **House Coin** economy for bribes/immunity auctions.
+- **Audience Twists** via emoji polls.
+- **Match Replay**: auto‑generated HTML timeline post‑game.
 
 ---
 
 ## 10 Security & Fairness
 
 - All DM traffic logged; hashes published post‑season for auditability.
-- No player may access REST endpoints directly—bot is sole mediator.
-- Optional "sandbox" LLM confinement: force content length + profanity filter.
+- Players cannot hit REST endpoints directly—bot mediates everything.
+- Optional LLM confinement: enforce content length & profanity filter.
 
 ---
 

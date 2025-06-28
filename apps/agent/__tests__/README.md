@@ -42,16 +42,16 @@ import { expectSoft, RecordingTestUtils } from "./utils/recording-test-utils";
 
 it("should record complete conversation", async () => {
   RecordingTestUtils.logRecordingStatus("conversation test");
-  
+
   // Soft assertions that won't fail test in record mode
   expectSoft(response).toContain("expected text");
   expectSoft(conversation.length).toBeGreaterThan(5);
-  
+
   // Get suggestions for updating expectations
   RecordingTestUtils.suggestExpectation(
-    "response content", 
-    actualResponse, 
-    "expected content"
+    "response content",
+    actualResponse,
+    "expected content",
   );
 }, 120000); // Longer timeout for recording
 ```
@@ -59,7 +59,7 @@ it("should record complete conversation", async () => {
 ### Solution 2: Recording-First Workflow
 
 1. **Record with soft assertions**: Run tests with `MODEL_RECORD_MODE=true` and soft assertions
-2. **Generate expectations**: Use recording data to update test expectations  
+2. **Generate expectations**: Use recording data to update test expectations
 3. **Validate with recordings**: Run tests in playback mode with updated expectations
 4. **Commit diff review**: Review recording file changes in git
 
@@ -104,14 +104,14 @@ try {
   const agent1 = await simulator.addAgent(
     "Alice",
     { ...baseCharacter, name: "Alice" },
-    [bootstrapPlugin, localAIPlugin, socialStrategyPlugin]
+    [bootstrapPlugin, localAIPlugin, socialStrategyPlugin],
   );
 
   // Send messages and trigger responses
   const { message, responses } = await simulator.sendMessage(
     "Alice",
     "Hello everyone!",
-    true // trigger other agents to respond
+    true, // trigger other agents to respond
   );
 
   // Assert on results
@@ -277,7 +277,7 @@ it("should test agent responses", async () => {
   const { message, responses } = await simulator.sendMessage(
     "Agent1",
     "What's our strategy?",
-    true // trigger responses
+    true, // trigger responses
   );
 
   // Test message was created
@@ -343,7 +343,7 @@ it("should handle multi-agent discussions", async () => {
   const { responses } = await simulator.sendMessage(
     "Diplomat",
     "We need to discuss our alliance strategy.",
-    true
+    true,
   );
 
   // Verify multiple agents participated
@@ -380,7 +380,7 @@ it("should test alliance formation behavior", async () => {
     await simulator.addAgent(
       `Player${i}`,
       { ...baseCharacter, name: `Player${i}` },
-      [bootstrapPlugin, localAIPlugin, socialStrategyPlugin]
+      [bootstrapPlugin, localAIPlugin, socialStrategyPlugin],
     );
   }
 
@@ -388,7 +388,7 @@ it("should test alliance formation behavior", async () => {
   const { responses } = await simulator.sendMessage(
     "Player1",
     "I think we should form an alliance. Who's interested?",
-    true
+    true,
   );
 
   // Analyze responses for alliance-related keywords
@@ -396,7 +396,7 @@ it("should test alliance formation behavior", async () => {
     (r) =>
       r.response?.toLowerCase().includes("alliance") ||
       r.response?.toLowerCase().includes("trust") ||
-      r.response?.toLowerCase().includes("together")
+      r.response?.toLowerCase().includes("together"),
   );
 
   expect(allianceResponses.length).toBeGreaterThan(0);
@@ -455,12 +455,14 @@ it("should maintain consistent responses", async () => {
 ### 3. Recording Mode Workflow
 
 **Step 1: Initial Recording**
+
 ```bash
 # Run tests with recording and soft assertions
 MODEL_RECORD_MODE=true bun run test --timeout=120000
 ```
 
 **Step 2: Update Expectations**
+
 ```typescript
 // Review console output for suggested expectations:
 // 🔧 [RECORD MODE] Suggestion for response content:
@@ -473,12 +475,14 @@ generator.generateExpectationsFile();
 ```
 
 **Step 3: Validate Recordings**
+
 ```bash
 # Run tests in playback mode with updated expectations
 bun run test
 ```
 
 **Step 4: Commit Review**
+
 - Review changes in `recordings/*.json` files
 - Verify expectations match intended behavior
 - Commit both test updates and recording files
@@ -536,7 +540,7 @@ LOG_LEVEL=debug bun run test
 const history = simulator.getConversationHistory();
 console.log(
   "Conversation flow:",
-  history.map((m) => `${m.authorName}: ${m.content}`)
+  history.map((m) => `${m.authorName}: ${m.content}`),
 );
 ```
 
