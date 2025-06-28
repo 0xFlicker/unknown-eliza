@@ -190,6 +190,8 @@ The `AgentRuntime` is the central orchestrator of an ElizaOS v2 agent. It loads 
 
 All memory and state in ElizaOS is accessed via the `IAgentRuntime` API, backed by a pluggable `IDatabaseAdapter`. Developers should never instantiate separate memory managers—use `runtime.createMemory`, `runtime.getMemories`, and `runtime.createEntity` to persist facts, messages, and knowledge-graph entities.【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L10-L12】【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L31-L42】【F:.cursor/rules/elizaos/elizaos_core_memory.mdc†L77-L88】
 
+When reading or writing memory, always cast to a known typescript type that extends Memory. NEVER cast a memory or memory.metadata to any to short circuit memory types. Even with casting, a memory may not always be of an expected type. Appropriate use of typeguards ensures that types are correct.
+
 ## Core Data Model: Memory, Entity, Room, World
 
 ElizaOS defines first-class types for its data model. A `Memory` represents a single piece of information (usually a message); an `Entity` models an actor or concept; `Room` and `World` model conversational contexts and their containers.【F:.cursor/rules/elizaos/elizaos_types.mdc†L200-L208】【F:.cursor/rules/elizaos/elizaos_types.mdc†L225-L233】【F:.cursor/rules/elizaos/elizaos_types.mdc†L234-L240】
@@ -371,9 +373,19 @@ Check package.json for details, but most packages use vitest and not native bun 
 bun run test
 bun run test {path/to/test}
 cd apps/agent; bun run test:record # Record new local model responses for test. Necessary if there are prompt changes. See `apps/agent/__tests__/README.md` for details
+cd apps/agent; bun run test:record apps/agent/__tests__/agent-server.test.ts # Record for a single test file
+cd apps/agent; bun run test:record apps/agent/__tests__/agent-server.test.ts -t "demonstrates model mocking and automated responses" # Record for a single test case
 ```
 
 When `test:record` is enabled, the tests using `apps/agent/__tests__/utils/recording-test-utils.ts` will not throw, rather they will collect all differences into a report for the console. When `test:record` is not used, these tests will fail. It is up to the developer to look at the diff of the recordings at `apps/agent/recordings` as well as any changes necessary to the test, and make a determination on how the test should be updated and if the test should be re-recorded.
+
+**IMPORTANT**
+When making changes to inside `apps/agent/src/*` that have any effect on prompts or model evaluations then any test using `ConversationSimulator` will likely need to be re-recorded.
+
+DO:
+
+- Start re-recording small, using a test that validates the changes being proposed
+- use `test:record` when making changes that effect model evaluation
 
 ### Development & Running
 
