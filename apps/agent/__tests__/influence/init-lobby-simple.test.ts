@@ -180,14 +180,8 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
             m.content.toLowerCase().includes("lobby"))
       );
 
-      if (gameStartResponses.length > 0) {
-        console.log("✓ House successfully started the game");
-        expectSoft(gameStartResponses.length).toBeGreaterThan(0);
-      } else {
-        console.log(
-          "⚠ Game may not have started yet - this could be due to timing"
-        );
-      }
+      console.log("✓ House successfully started the game");
+      expectSoft(gameStartResponses.length).toBeGreaterThan(0);
 
       // Test conversation summary
       const summary = sim.createConversationSummary();

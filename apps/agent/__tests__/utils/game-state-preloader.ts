@@ -20,15 +20,16 @@ export class GameStatePreloader {
     hostPlayerName: string;
     phase: Phase;
     round?: number;
+    playerAgentIds?: Map<string, UUID>; // Map from player name to actual agent ID
   }): GameState {
-    const { playerNames, hostPlayerName, phase, round = 0 } = options;
+    const { playerNames, hostPlayerName, phase, round = 0, playerAgentIds } = options;
 
     const players = new Map<string, Player>();
     const gameId = stringToUuid(`test-game-${Date.now()}`);
 
-    // Create players
+    // Create players with real agent IDs if provided
     playerNames.forEach((name, index) => {
-      const playerId = stringToUuid(`test-player-${name}-${Date.now()}`);
+      const playerId = playerAgentIds?.get(name) || stringToUuid(`test-player-${name}-${Date.now()}`);
       const player: Player = {
         id: playerId,
         agentId: playerId,
@@ -74,38 +75,16 @@ export class GameStatePreloader {
   }
 
   /**
-   * Saves game state to the House agent's memory
+   * Saves game state to the House agent's memory using the new memory DAO format
    */
   static async saveGameStateToRuntime(
     houseRuntime: IAgentRuntime,
     roomId: UUID,
     gameState: GameState,
   ): Promise<void> {
-    // Convert Map and Set objects to plain objects for serialization
-    const serializedGameState = {
-      ...gameState,
-      players: Object.fromEntries(gameState.players),
-      privateRooms: Object.fromEntries(gameState.privateRooms),
-      exposedPlayers: Array.from(gameState.exposedPlayers),
-    };
-
-    await houseRuntime.createMemory(
-      {
-        id: stringToUuid(`preloaded-game-state-${Date.now()}`),
-        entityId: houseRuntime.agentId,
-        roomId,
-        content: {
-          text: `Pre-loaded game state - Phase: ${gameState.phase}, Players: ${gameState.players.size}`,
-          source: "house",
-          metadata: {
-            type: "game_state",
-            gameState: serializedGameState,
-            timestamp: Date.now(),
-          },
-        },
-      },
-      "memories",
-    );
+    // Use the memory DAO to save the game state properly
+    const { saveGameState } = await import("../../src/house/runtime/memory");
+    await saveGameState(houseRuntime, roomId, gameState);
   }
 
   /**
@@ -118,12 +97,14 @@ export class GameStatePreloader {
       playerNames?: string[];
       hostPlayerName?: string;
       phase?: Phase;
+      playerAgentIds?: Map<string, UUID>;
     } = {},
   ): Promise<GameState> {
     const {
       playerNames = ["P1", "P2", "P3", "P4", "P5"],
       hostPlayerName = "P1",
       phase = Phase.INIT,
+      playerAgentIds,
     } = options;
 
     const gameState = this.createGameState({
@@ -131,6 +112,7 @@ export class GameStatePreloader {
       hostPlayerName,
       phase,
       round: phase === Phase.LOBBY ? 0 : 1,
+      playerAgentIds,
     });
 
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
@@ -149,12 +131,14 @@ export class GameStatePreloader {
     houseRuntime: IAgentRuntime,
     roomId: UUID,
     playerNames: string[] = ["P1", "P2", "P3", "P4", "P5"],
+    playerAgentIds?: Map<string, UUID>,
   ): Promise<GameState> {
     const gameState = this.createGameState({
       playerNames,
       hostPlayerName: playerNames[0],
       phase: Phase.LOBBY,
       round: 0,
+      playerAgentIds,
     });
 
     // Add game start event to history

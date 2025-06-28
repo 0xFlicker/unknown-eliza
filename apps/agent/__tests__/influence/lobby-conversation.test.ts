@@ -6,11 +6,13 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { socialStrategyPlugin } from "../../src/socialStrategy";
 import alexCharacter from "../../src/characters/alex";
+import houseCharacter from "../../src/characters/house";
 import { housePlugin } from "../../src/house";
 import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import { GameStatePreloader } from "../utils/game-state-preloader";
 import { Phase } from "../../src/house/types";
+import { UUID } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 
@@ -49,23 +51,7 @@ describe("Influence Game Lobby Conversation", () => {
         // Add House agent (game master)
         const house = await sim.addAgent(
           "House",
-          {
-            ...alexCharacter,
-            name: "House",
-            bio: "I am The House - the game master for Influence. I moderate the game phases and enforce rules. In the LOBBY phase, I observe and listen but do not participate in player conversations unless there's a game management issue.",
-            style: {
-              all: [
-                "Be authoritative",
-                "Focus on game mechanics",
-                "Be concise",
-              ],
-              chat: [
-                "During LOBBY phase, observe silently",
-                "Only respond to game management needs",
-              ],
-              post: ["Announce game state changes clearly"],
-            },
-          },
+          houseCharacter,
           getHousePlugins(),
         );
 
@@ -143,13 +129,25 @@ describe("Influence Game Lobby Conversation", () => {
 
         // Use GameStatePreloader to set up 5 players in INIT phase
         const roomId = sim.getRoomId();
+        
+        // Collect actual agent IDs from the simulation
+        const playerAgentIds = new Map<string, UUID>();
+        const playerNames = ["P1", "P2", "P3", "P4", "P5"];
+        playerNames.forEach(name => {
+          const runtime = sim.getAgent(name);
+          if (runtime) {
+            playerAgentIds.set(name, runtime.agentId);
+          }
+        });
+        
         const gameState = await GameStatePreloader.preloadInfluenceGame(
           house,
           roomId,
           {
-            playerNames: ["P1", "P2", "P3", "P4", "P5"],
+            playerNames,
             hostPlayerName: "P1",
             phase: Phase.INIT, // Pre-load in INIT so host can start
+            playerAgentIds, // Pass real agent IDs
           },
         );
 

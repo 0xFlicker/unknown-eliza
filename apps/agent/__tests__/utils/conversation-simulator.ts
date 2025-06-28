@@ -372,6 +372,7 @@ export class ConversationSimulator {
             type: "message",
             sequence: this.messageSequence,
             agentProcessingOrder: i,
+            authorName: latestMessage.authorName, // Include author name for proper resolution
           },
           createdAt: latestMessage.timestamp,
         };

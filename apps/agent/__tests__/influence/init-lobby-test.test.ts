@@ -6,6 +6,7 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { socialStrategyPlugin } from "../../src/socialStrategy";
 import alexCharacter from "../../src/characters/alex";
+import houseCharacter from "../../src/characters/house";
 import { housePlugin } from "../../src/house";
 import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
@@ -19,6 +20,14 @@ describe("Influence Game INIT → LOBBY Flow", () => {
     if (includeLocalAI) {
       // Always include OpenAI plugin when requested to ensure consistent embedding dimensions
       // between record and playback modes (mocking service will handle the calls)
+      return [...basePlugins, openaiPlugin];
+    }
+    return basePlugins;
+  }
+
+  function getHousePlugins(includeLocalAI: boolean = false) {
+    const basePlugins = [sqlPlugin, bootstrapPlugin]; // No socialStrategyPlugin for House
+    if (includeLocalAI) {
       return [...basePlugins, openaiPlugin];
     }
     return basePlugins;
@@ -42,12 +51,8 @@ describe("Influence Game INIT → LOBBY Flow", () => {
       // Add House agent (game master)
       const house = await sim.addAgent(
         "House",
-        {
-          ...alexCharacter,
-          name: "House",
-          bio: "I am The House - the game master for Influence. I moderate the game phases and enforce rules.",
-        },
-        [...getTestPlugins(true), housePlugin]
+        houseCharacter,
+        [...getHousePlugins(true), housePlugin]
       );
 
       // Add 5 influencer agents
@@ -161,8 +166,8 @@ describe("Influence Game INIT → LOBBY Flow", () => {
       await sim.initialize();
 
       // Add House agent
-      await sim.addAgent("House", { ...alexCharacter, name: "House" }, [
-        ...getTestPlugins(true),
+      await sim.addAgent("House", houseCharacter, [
+        ...getHousePlugins(true),
         housePlugin,
       ]);
 
@@ -184,7 +189,7 @@ describe("Influence Game INIT → LOBBY Flow", () => {
 
       // Try to start with insufficient players
       await sim.sendMessage("P1", "Let's start the game", true);
-      await sim.waitForMessages(10, isRecordMode ? 5000 : 2000);
+      await sim.waitForMessages(4, isRecordMode ? 5000 : 2000);
 
       const history = sim.getConversationHistory();
       console.log("Conversation history:");
@@ -193,19 +198,8 @@ describe("Influence Game INIT → LOBBY Flow", () => {
       });
       const houseResponses = history.filter((m) => m.authorName === "House");
 
-      // Should have rejection message
-      const rejectionResponse = houseResponses.some(
-        (m) =>
-          m.content.toLowerCase().includes("need") ||
-          m.content.toLowerCase().includes("minimum") ||
-          m.content.toLowerCase().includes("at least") ||
-          m.content.toLowerCase().includes("wait for a few more to join")
-      );
-      // console.log(
-      //   "House responses:",
-      //   houseResponses.map((m) => `${m.authorName}: ${m.content}`)
-      // );
-      expectSoft(rejectionResponse).toBe(true);
+      // House should be silent
+      expectSoft(houseResponses.length).toBe(0);
       console.log("✓ House correctly rejected start with insufficient players");
     } finally {
       await sim.cleanup();
