@@ -7,15 +7,15 @@ import { expect } from "vitest";
 /**
  * Check if we're in recording mode
  */
-export function isRecordingMode(): boolean {
-  return process.env.MODEL_RECORD_MODE === "true";
+export function isSoftMode(): boolean {
+  return process.env.SOFT_MODE === "true";
 }
 
 /**
  * Soft expect that logs warnings instead of failing in record mode
  */
 export function expectSoft<T>(actual: T) {
-  if (isRecordingMode()) {
+  if (isSoftMode()) {
     return new SoftExpectWrapper(actual);
   }
   return expect(actual);
@@ -32,11 +32,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toBe(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -47,11 +47,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toContain(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to contain ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to contain ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -62,11 +62,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toEqual(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to equal ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to equal ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -77,11 +77,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toBeGreaterThan(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be greater than ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be greater than ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -92,11 +92,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toBeGreaterThanOrEqual(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be greater than or equal to ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be greater than or equal to ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -107,11 +107,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toBeUndefined();
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be undefined`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be undefined`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -122,11 +122,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toBeDefined();
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be defined`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to be defined`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -137,11 +137,11 @@ class SoftExpectWrapper<T> {
       expect(this.actual).toHaveLength(expected);
     } catch (error) {
       console.warn(
-        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to have length ${expected}`,
+        `🎬 [RECORD MODE] Soft assertion failed: expected ${this.actual} to have length ${expected}`
       );
       console.warn(
         `🎬 [RECORD MODE] Error:`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
     }
     return this;
@@ -152,13 +152,13 @@ class SoftExpectWrapper<T> {
  * Recording-aware test wrapper that provides utilities for soft assertions
  */
 export class RecordingTestUtils {
-  static isRecording = isRecordingMode();
+  static isRecording = isSoftMode();
 
   /**
    * Execute a block of code with soft assertions in record mode
    */
   static async withSoftAssertions<T>(
-    fn: () => Promise<T>,
+    fn: () => Promise<T>
   ): Promise<T | undefined> {
     if (!this.isRecording) {
       return await fn();
@@ -169,7 +169,7 @@ export class RecordingTestUtils {
     } catch (error) {
       console.warn(
         `🎬 [RECORD MODE] Test block failed (continuing for recording):`,
-        error,
+        error
       );
       return undefined;
     }
@@ -191,7 +191,7 @@ export class RecordingTestUtils {
     if (this.isRecording && actual !== expected) {
       console.log(`🔧 [RECORD MODE] Suggestion for ${description}:`);
       console.log(
-        `   expect(...).toBe(${JSON.stringify(actual)}) // was: ${JSON.stringify(expected)}`,
+        `   expect(...).toBe(${JSON.stringify(actual)}) // was: ${JSON.stringify(expected)}`
       );
     }
   }

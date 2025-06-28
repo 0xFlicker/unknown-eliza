@@ -11,18 +11,24 @@ import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import fs from "fs";
 import os from "os";
+import houseCharacter from "src/characters/house";
+
+function getTestPlugins() {
+  const basePlugins = [
+    sqlPlugin,
+    bootstrapPlugin,
+    influencerPlugin,
+    openaiPlugin,
+  ];
+  return basePlugins;
+}
+
+function getHousePlugins() {
+  const basePlugins = [sqlPlugin, bootstrapPlugin, housePlugin, openaiPlugin]; // No socialStrategyPlugin for House
+  return basePlugins;
+}
 
 describe("Influence Game INIT → LOBBY Simple Flow", () => {
-  function getTestPlugins(includeLocalAI: boolean = false) {
-    const basePlugins = [sqlPlugin, bootstrapPlugin, socialStrategyPlugin];
-    if (includeLocalAI) {
-      // Always include OpenAI plugin when requested to ensure consistent embedding dimensions
-      // between record and playback modes (mocking service will handle the calls)
-      return [...basePlugins, openaiPlugin];
-    }
-    return basePlugins;
-  }
-
   it("should handle 2 players joining and host starting game", async () => {
     RecordingTestUtils.logRecordingStatus("init lobby simple flow");
     const simDataDir = fs.mkdtempSync(
@@ -39,15 +45,9 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
       await sim.initialize();
 
       // Add House agent (game master)
-      const house = await sim.addAgent(
-        "House",
-        {
-          ...alexCharacter,
-          name: "House",
-          bio: "I am The House - the game master for Influence. I moderate the game phases and enforce rules.",
-        },
-        [...getTestPlugins(true), housePlugin]
-      );
+      const house = await sim.addAgent("House", houseCharacter, [
+        ...getTestPlugins(),
+      ]);
 
       // Add 2 players (minimum for testing)
       const players = [];
@@ -59,7 +59,7 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
             name: `P${i}`,
             bio: `I am Player ${i} in the Influence game.`,
           },
-          [...getTestPlugins(true), influencerPlugin]
+          [...getTestPlugins()]
         );
         players.push(player);
       }
@@ -117,18 +117,20 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
             name: `P${i}`,
             bio: `I am Player ${i} in the Influence game.`,
           },
-          [...getTestPlugins(true), influencerPlugin]
+          [...getTestPlugins()]
         );
 
         console.log(`Player P${i} joining...`);
         await sim.sendMessage(`P${i}`, "I want to join the game", true);
-
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Small delay to simulate real-time interaction
         // Brief wait between joins
         await Promise.race([
           sim.waitForMessages((i - 2) * 2 + 6, 5000),
           timeoutPromise(3000),
         ]);
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Small delay to simulate real-time interaction
 
       // Test Phase 4: Now start should work
       console.log("=== PHASE 4: Starting Game with Sufficient Players ===");

@@ -11,6 +11,10 @@ import {
   type Memory,
   type UUID,
   type HandlerCallback,
+  State,
+  MemoryMetadata,
+  MemoryType,
+  MessageMemory,
 } from "@elizaos/core";
 import {
   ModelMockingService,
@@ -604,5 +608,52 @@ export class ConversationSimulator {
       throw new Error("Simulator not initialized - no channel available");
     }
     return this.currentChannel;
+  }
+
+  /**
+   * Inspect the current state of an agent by calling runtime.composeState
+   * This is useful for debugging game state issues
+   */
+  async inspectAgentState(
+    agentName: string,
+    providerNames?: string[]
+  ): Promise<State> {
+    const runtime = this.runtimes.get(agentName);
+    if (!runtime) {
+      throw new Error(`Agent ${agentName} not found`);
+    }
+
+    if (!this.currentChannel) {
+      throw new Error("Simulator not initialized - no channel available");
+    }
+
+    // Create a dummy message for state composition
+    const dummyMessage = {
+      id: stringToUuid(`dummy-${Date.now()}`),
+      entityId: runtime.agentId,
+      agentId: runtime.agentId,
+      roomId: this.currentChannel,
+      createdAt: Date.now(),
+      content: { text: "State inspection" },
+      type: MemoryType.MESSAGE,
+      metadata: { entityName: agentName, type: MemoryType.MESSAGE },
+    };
+
+    try {
+      // Use runtime.composeState to get composed state from all providers
+      const composedState = await runtime.composeState(dummyMessage);
+      return composedState;
+    } catch (error) {
+      throw new Error(
+        `Failed to compose state for agent ${agentName}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Helper method to specifically inspect House game state
+   */
+  async inspectHouseGameState(): Promise<State> {
+    return await this.inspectAgentState("House");
   }
 }

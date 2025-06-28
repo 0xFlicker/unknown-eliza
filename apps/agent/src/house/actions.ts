@@ -27,8 +27,16 @@ export const joinGameAction: Action = {
       return false;
     }
 
-    // Basic validation - any message with text content is potentially valid
-    return !!message.content?.text;
+    // Only validate if message contains join-related keywords and not start keywords
+    const text = message.content?.text?.toLowerCase() || "";
+    const hasJoinKeyword = text.includes("join") || text.includes("want to");
+    const hasStartKeyword =
+      text.includes("start") ||
+      text.includes("begin") ||
+      text.includes("commence");
+
+    // Join action should trigger for join requests but not start requests
+    return hasJoinKeyword && !hasStartKeyword;
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -101,7 +109,7 @@ export const joinGameAction: Action = {
       },
       {
         name: "house",
-        content: { text: "player joined the game! (1/12 players)" },
+        content: { text: "player joined the game!" },
       },
     ],
     [
@@ -111,7 +119,7 @@ export const joinGameAction: Action = {
       },
       {
         name: "house",
-        content: { text: "newbie joined the game! (2/12 players)" },
+        content: { text: "newbie joined the game!" },
       },
     ],
     [
@@ -121,7 +129,7 @@ export const joinGameAction: Action = {
       },
       {
         name: "house",
-        content: { text: "alice joined the game! (3/12 players)" },
+        content: { text: "alice joined the game!" },
       },
     ],
   ] as ActionExample[][],
@@ -139,8 +147,15 @@ export const startGameAction: Action = {
       return false;
     }
 
-    // Basic validation - any message with text content is potentially valid
-    return !!message.content?.text;
+    // Only validate if message contains start-related keywords
+    const text = message.content?.text?.toLowerCase() || "";
+    const hasStartKeyword =
+      text.includes("start") ||
+      text.includes("begin") ||
+      text.includes("commence");
+    const hasGameKeyword = text.includes("game");
+
+    return hasStartKeyword && hasGameKeyword;
   },
   handler: async (
     runtime: IAgentRuntime,

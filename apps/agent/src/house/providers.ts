@@ -97,7 +97,7 @@ export const phaseActionsProvider: Provider = {
       text: actionsText,
       data: {
         phase: gameState.phase,
-        availableActions: actions,
+        listenFor: actions,
       },
     };
   },
@@ -167,9 +167,15 @@ export const gameMasterProvider: Provider = {
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const gameState = await getGameState(runtime, message.roomId);
     const messageText = message.content.text || "";
-    const authorName = hasAuthorName(message.metadata)
-      ? message.metadata.authorName
-      : "Unknown";
+
+    // Get author name using ElizaOS standard pattern
+    const authorName: string =
+      (message.metadata as any)?.authorName ??
+      (message.metadata as any)?.entityName ??
+      (message.metadata as any)?.username ??
+      (message.metadata as any)?.raw?.senderName ??
+      gameState?.players.get(message.entityId)?.name ??
+      `Player-${message.entityId.slice(0, 8)}`;
 
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
@@ -184,9 +190,8 @@ export const gameMasterProvider: Provider = {
     if (!gameState) {
       context += `CURRENT STATE: No game exists yet. Waiting for players to join.\n`;
       context += `RECENT MESSAGE: "${messageText}" from ${authorName}\n\n`;
-      context += `PLAYER INFO: The player speaking is "${authorName}"\n\n`;
       context += `AVAILABLE ACTIONS:\n`;
-      context += `- If ${authorName} wants to join the game, respond: "${authorName} joined the game! (X/12 players)"\n`;
+      context += `- When a player joins, respond: "${authorName} joined the game!"\n`;
       context += `- Once we have 4+ players, the host can start the game\n`;
     } else {
       const alivePlayers = Array.from(gameState.players.values()).filter(
@@ -204,8 +209,9 @@ export const gameMasterProvider: Provider = {
       switch (gameState.phase) {
         case Phase.INIT:
           context += `INIT PHASE ACTIONS:\n`;
-          context += `- If ${authorName} wants to join: "${authorName} joined the game! (X/12 players)"\n`;
-          context += `- If ${authorName} wants to start with 4+ players: "🎮 INFLUENCE GAME STARTED! 🎮"\n`;
+          context += `- When a player joins, respond: "${authorName} joined the game!"\n`;
+          context += `- When host starts with 4+ players: "🎮 INFLUENCE GAME STARTED! 🎮"\n`;
+          context += `- Current players: ${alivePlayers.map((p) => p.name).join(", ")}\n`;
           break;
         case Phase.LOBBY:
           context += `LOBBY PHASE: Players can chat freely. Private messages disabled.\n`;
