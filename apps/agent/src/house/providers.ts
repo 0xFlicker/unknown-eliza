@@ -4,8 +4,10 @@ import {
   Memory,
   State,
   ModelType,
+  UUID,
 } from "@elizaos/core";
-import { GameState, Phase, PlayerStatus } from "./types";
+import { Phase, PlayerStatus, GameState } from "./types";
+import { getGameState, hasAuthorName } from "./runtime/memory";
 
 /**
  * Provides current game state information to the House agent
@@ -15,40 +17,6 @@ export const gameStateProvider: Provider = {
   description:
     "Provides information about the current game state, phase, and players",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Import the helper function at the top level would be better, but inline is ok for now
-    const getGameState = async (
-      runtime: IAgentRuntime,
-      roomId: string,
-    ): Promise<GameState | null> => {
-      try {
-        const memories = await runtime.getMemories({
-          roomId,
-          count: 50,
-          tableName: "memories",
-        });
-
-        const gameStateMemory = memories.find(
-          (m) =>
-            m.content.metadata?.type === "game_state" &&
-            m.content.metadata?.gameState,
-        );
-
-        if (gameStateMemory?.content.metadata?.gameState) {
-          const gameState = gameStateMemory.content.metadata.gameState;
-          return {
-            ...gameState,
-            players: new Map(Object.entries(gameState.players || {})),
-            privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
-            exposedPlayers: new Set(gameState.exposedPlayers || []),
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error("Error getting game state:", error);
-        return null;
-      }
-    };
-
     const gameState = await getGameState(runtime, message.roomId);
 
     if (!gameState) {
@@ -113,40 +81,6 @@ export const phaseActionsProvider: Provider = {
   name: "PHASE_ACTIONS",
   description: "Describes what actions players can take in the current phase",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Helper function to get game state from memory
-    const getGameState = async (
-      runtime: IAgentRuntime,
-      roomId: string,
-    ): Promise<GameState | null> => {
-      try {
-        const memories = await runtime.getMemories({
-          roomId,
-          count: 50,
-          tableName: "memories",
-        });
-
-        const gameStateMemory = memories.find(
-          (m) =>
-            m.content.metadata?.type === "game_state" &&
-            m.content.metadata?.gameState,
-        );
-
-        if (gameStateMemory?.content.metadata?.gameState) {
-          const gameState = gameStateMemory.content.metadata.gameState;
-          return {
-            ...gameState,
-            players: new Map(Object.entries(gameState.players || {})),
-            privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
-            exposedPlayers: new Set(gameState.exposedPlayers || []),
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error("Error getting game state:", error);
-        return null;
-      }
-    };
-
     const gameState = await getGameState(runtime, message.roomId);
 
     if (!gameState) {
@@ -177,40 +111,6 @@ export const playerRelationsProvider: Provider = {
   description:
     "Tracks player interactions and potential alliances based on private room usage",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Helper function to get game state from memory
-    const getGameState = async (
-      runtime: IAgentRuntime,
-      roomId: string,
-    ): Promise<GameState | null> => {
-      try {
-        const memories = await runtime.getMemories({
-          roomId,
-          count: 50,
-          tableName: "memories",
-        });
-
-        const gameStateMemory = memories.find(
-          (m) =>
-            m.content.metadata?.type === "game_state" &&
-            m.content.metadata?.gameState,
-        );
-
-        if (gameStateMemory?.content.metadata?.gameState) {
-          const gameState = gameStateMemory.content.metadata.gameState;
-          return {
-            ...gameState,
-            players: new Map(Object.entries(gameState.players || {})),
-            privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
-            exposedPlayers: new Set(gameState.exposedPlayers || []),
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error("Error getting game state:", error);
-        return null;
-      }
-    };
-
     const gameState = await getGameState(runtime, message.roomId);
 
     if (!gameState) {
@@ -265,43 +165,11 @@ export const gameMasterProvider: Provider = {
   description:
     "Provides contextual information to help the House agent make game management decisions",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Helper function to get game state from memory
-    const getGameState = async (
-      runtime: IAgentRuntime,
-      roomId: string,
-    ): Promise<GameState | null> => {
-      try {
-        const memories = await runtime.getMemories({
-          roomId,
-          count: 50,
-          tableName: "memories",
-        });
-
-        const gameStateMemory = memories.find(
-          (m) =>
-            m.content.metadata?.type === "game_state" &&
-            m.content.metadata?.gameState,
-        );
-
-        if (gameStateMemory?.content.metadata?.gameState) {
-          const gameState = gameStateMemory.content.metadata.gameState;
-          return {
-            ...gameState,
-            players: new Map(Object.entries(gameState.players || {})),
-            privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
-            exposedPlayers: new Set(gameState.exposedPlayers || []),
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error("Error getting game state:", error);
-        return null;
-      }
-    };
-
     const gameState = await getGameState(runtime, message.roomId);
     const messageText = message.content.text || "";
-    const authorName = message.metadata?.authorName || "Unknown";
+    const authorName = hasAuthorName(message.metadata)
+      ? message.metadata.authorName
+      : "Unknown";
 
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
@@ -316,8 +184,9 @@ export const gameMasterProvider: Provider = {
     if (!gameState) {
       context += `CURRENT STATE: No game exists yet. Waiting for players to join.\n`;
       context += `RECENT MESSAGE: "${messageText}" from ${authorName}\n\n`;
+      context += `PLAYER INFO: The player speaking is "${authorName}"\n\n`;
       context += `AVAILABLE ACTIONS:\n`;
-      context += `- If someone wants to join the game, help them join and track them as a player\n`;
+      context += `- If ${authorName} wants to join the game, respond: "${authorName} joined the game! (X/12 players)"\n`;
       context += `- Once we have 4+ players, the host can start the game\n`;
     } else {
       const alivePlayers = Array.from(gameState.players.values()).filter(
@@ -329,13 +198,14 @@ export const gameMasterProvider: Provider = {
       context += `- Players: ${alivePlayers.length} (${alivePlayers.map((p) => p.name).join(", ")})\n`;
       context += `- Host: ${alivePlayers.find((p) => p.isHost)?.name || "None"}\n\n`;
 
-      context += `RECENT MESSAGE: "${messageText}" from ${authorName}\n\n`;
+      context += `RECENT MESSAGE: "${messageText}" from ${authorName}\n`;
+      context += `PLAYER INFO: The player speaking is "${authorName}"\n\n`;
 
       switch (gameState.phase) {
         case Phase.INIT:
           context += `INIT PHASE ACTIONS:\n`;
-          context += `- Help new players join the game\n`;
-          context += `- When host says to start with 4+ players, transition to LOBBY phase\n`;
+          context += `- If ${authorName} wants to join: "${authorName} joined the game! (X/12 players)"\n`;
+          context += `- If ${authorName} wants to start with 4+ players: "🎮 INFLUENCE GAME STARTED! 🎮"\n`;
           break;
         case Phase.LOBBY:
           context += `LOBBY PHASE: Players can chat freely. Private messages disabled.\n`;

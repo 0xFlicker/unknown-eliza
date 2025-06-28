@@ -7,15 +7,13 @@ import {
   stringToUuid,
   type HandlerCallback,
 } from "@elizaos/core";
+import { GameEvent, Player, Phase, PlayerStatus, PrivateRoom } from "./types";
 import {
-  GameState,
-  Player,
-  Phase,
-  PlayerStatus,
-  DEFAULT_GAME_SETTINGS,
-  GameEvent,
-  PrivateRoom,
-} from "./types";
+  getGameState,
+  saveGameState,
+  createNewGame,
+  getAuthorName,
+} from "./runtime/memory";
 
 /**
  * Join the game lobby
@@ -23,7 +21,7 @@ import {
 export const joinGameAction: Action = {
   name: "JOIN_GAME",
   description: "Join the Influence game lobby",
-  validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
+  validate: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
       return false;
@@ -35,9 +33,8 @@ export const joinGameAction: Action = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
-    options: any,
-    callback?: HandlerCallback,
+    _state: State,
+    _options: any,
   ) => {
     try {
       // Get or create game state
@@ -49,8 +46,9 @@ export const joinGameAction: Action = {
 
       // Add player to the game
       const playerId = message.entityId;
-      const agentName =
-        message.metadata?.authorName || `Player-${playerId.slice(0, 8)}`;
+
+      // Safely extract agent name from metadata
+      const agentName = getAuthorName(message);
 
       if (gameState.players.has(playerId)) {
         return; // Already in game, no need to respond
@@ -89,14 +87,7 @@ export const joinGameAction: Action = {
       // Save updated game state
       await saveGameState(runtime, message.roomId, gameState);
 
-      await callback?.({
-        text: `${agentName} joined the game! (${gameState.players.size}/${gameState.settings.maxPlayers} players)${
-          player.isHost
-            ? " You are the host - type 'start game' when ready."
-            : ""
-        }`,
-        source: "house",
-      });
+      // Don't call callback - let the LLM generate response based on updated state and examples
     } catch (error) {
       console.error("Error in joinGameAction:", error);
       return; // Don't respond on error
@@ -105,31 +96,31 @@ export const joinGameAction: Action = {
   examples: [
     [
       {
-        user: "player",
+        name: "player",
         content: { text: "I want to join the game" },
       },
       {
-        user: "house",
+        name: "house",
         content: { text: "player joined the game! (1/12 players)" },
       },
     ],
     [
       {
-        user: "newbie",
+        name: "newbie",
         content: { text: "Can I join?" },
       },
       {
-        user: "house",
+        name: "house",
         content: { text: "newbie joined the game! (2/12 players)" },
       },
     ],
     [
       {
-        user: "alice",
+        name: "alice",
         content: { text: "Let me join this game please" },
       },
       {
-        user: "house",
+        name: "house",
         content: { text: "alice joined the game! (3/12 players)" },
       },
     ],
@@ -142,7 +133,7 @@ export const joinGameAction: Action = {
 export const startGameAction: Action = {
   name: "START_GAME",
   description: "Start the Influence game (host only)",
-  validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
+  validate: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
       return false;
@@ -154,9 +145,8 @@ export const startGameAction: Action = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
-    options: any,
-    callback?: HandlerCallback,
+    _state: State,
+    _options: any,
   ) => {
     try {
       const gameState = await getGameState(runtime, message.roomId);
@@ -199,14 +189,7 @@ export const startGameAction: Action = {
       // Save updated game state
       await saveGameState(runtime, message.roomId, gameState);
 
-      const playerList = Array.from(gameState.players.values())
-        .map((p) => p.name)
-        .join(", ");
-
-      await callback?.({
-        text: `🎮 INFLUENCE GAME STARTED! 🎮\n\nPlayers: ${playerList}\n\n**LOBBY PHASE** - Public Mixer\nYou have ${gameState.settings.timers.lobby / 60000} minutes to chat freely and form initial impressions. Private messages are disabled during this phase.`,
-        source: "house",
-      });
+      // Don't call callback - let the LLM generate response based on updated state and examples
     } catch (error) {
       console.error("Error in startGameAction:", error);
       return; // Don't respond on error
@@ -215,11 +198,11 @@ export const startGameAction: Action = {
   examples: [
     [
       {
-        user: "host",
+        name: "host",
         content: { text: "start the game" },
       },
       {
-        user: "house",
+        name: "house",
         content: {
           text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
         },
@@ -227,11 +210,11 @@ export const startGameAction: Action = {
     ],
     [
       {
-        user: "host",
+        name: "host",
         content: { text: "Let's start the game now" },
       },
       {
-        user: "house",
+        name: "house",
         content: {
           text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
         },
@@ -239,11 +222,11 @@ export const startGameAction: Action = {
     ],
     [
       {
-        user: "host",
+        name: "host",
         content: { text: "I think we should begin" },
       },
       {
-        user: "house",
+        name: "house",
         content: {
           text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
         },
@@ -259,7 +242,7 @@ export const requestPrivateRoomAction: Action = {
   name: "REQUEST_PRIVATE_ROOM",
   description:
     "Request a private room with another player during WHISPER phase",
-  validate: async (runtime: IAgentRuntime, message: Memory, state: State) => {
+  validate: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
     // Don't respond to own messages
     if (message.entityId === runtime.agentId) {
       return false;
@@ -271,8 +254,8 @@ export const requestPrivateRoomAction: Action = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
-    options: any,
+    _state: State,
+    _options: any,
     callback?: HandlerCallback,
   ) => {
     try {
@@ -391,10 +374,7 @@ export const requestPrivateRoomAction: Action = {
       // Save updated game state
       await saveGameState(runtime, message.roomId, gameState);
 
-      await callback?.({
-        text: `🔒 Private room created between ${requester.name} and ${targetPlayer.name}. You can now whisper privately.`,
-        source: "house",
-      });
+      // Don't call callback - let the LLM generate response based on updated state and examples
     } catch (error) {
       console.error("Error in requestPrivateRoomAction:", error);
       await callback?.({
@@ -406,11 +386,11 @@ export const requestPrivateRoomAction: Action = {
   examples: [
     [
       {
-        user: "player1",
+        name: "player1",
         content: { text: "request private room with player2" },
       },
       {
-        user: "house",
+        name: "house",
         content: {
           text: "🔒 Private room created between player1 and player2.",
         },
@@ -418,99 +398,3 @@ export const requestPrivateRoomAction: Action = {
     ],
   ] as ActionExample[][],
 };
-
-/**
- * Utility function to create a new game
- */
-function createNewGame(houseAgentId: string): GameState {
-  return {
-    id: stringToUuid(`game-${Date.now()}`),
-    phase: Phase.INIT,
-    round: 0,
-    players: new Map(),
-    votes: [],
-    privateRooms: new Map(),
-    exposedPlayers: new Set(),
-    settings: { ...DEFAULT_GAME_SETTINGS },
-    history: [],
-    isActive: false,
-  };
-}
-
-/**
- * Get game state from runtime memory
- */
-async function getGameState(
-  runtime: IAgentRuntime,
-  roomId: string,
-): Promise<GameState | null> {
-  try {
-    const memories = await runtime.getMemories({
-      roomId,
-      count: 50,
-      tableName: "memories",
-    });
-
-    // Find the most recent game state memory
-    const gameStateMemory = memories.find(
-      (m) =>
-        m.content.metadata?.type === "game_state" &&
-        m.content.metadata?.gameState,
-    );
-
-    if (gameStateMemory?.content.metadata?.gameState) {
-      const gameState = gameStateMemory.content.metadata.gameState;
-      // Restore Map and Set objects from plain objects
-      return {
-        ...gameState,
-        players: new Map(Object.entries(gameState.players || {})),
-        privateRooms: new Map(Object.entries(gameState.privateRooms || {})),
-        exposedPlayers: new Set(gameState.exposedPlayers || []),
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error getting game state:", error);
-    return null;
-  }
-}
-
-/**
- * Save game state to runtime memory
- */
-async function saveGameState(
-  runtime: IAgentRuntime,
-  roomId: string,
-  gameState: GameState,
-): Promise<void> {
-  try {
-    // Convert Map and Set objects to plain objects for serialization
-    const serializedGameState = {
-      ...gameState,
-      players: Object.fromEntries(gameState.players),
-      privateRooms: Object.fromEntries(gameState.privateRooms),
-      exposedPlayers: Array.from(gameState.exposedPlayers),
-    };
-
-    await runtime.createMemory(
-      {
-        id: stringToUuid(`game-state-${Date.now()}`),
-        entityId: runtime.agentId,
-        roomId,
-        content: {
-          text: `Game state updated - Phase: ${gameState.phase}, Players: ${gameState.players.size}`,
-          source: "house",
-          metadata: {
-            type: "game_state",
-            gameState: serializedGameState,
-            timestamp: Date.now(),
-          },
-        },
-      },
-      "memories",
-    );
-  } catch (error) {
-    console.error("Error saving game state:", error);
-  }
-}
