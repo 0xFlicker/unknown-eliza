@@ -42,10 +42,10 @@ const influenceResponseExamples = [
 // Response: RESPOND`,
 
   // Examples where players should IGNORE House management messages
-  `// House: {{player1}} joined the game! (3/12 players)
+  `// House: {{player1}} joined the game! 
 // Response: IGNORE`,
 
-  `// House: {{player1}} joined the game! (1/12 players) You are the host - type 'start game' when ready.
+  `// House: {{player1}} joined the game! You are the host - type 'start game' when ready.
 // Response: IGNORE`,
 
   `// House: Game starting in 30 seconds. Get ready!
@@ -64,7 +64,7 @@ const influenceResponseExamples = [
 // Response: IGNORE`,
 
   // Mixed scenarios - respond to players, ignore House
-  `// House: {{player1}} joined the game! (5/12 players)
+  `// House: {{player1}} joined the game!
 // {{player2}}: Nice! Getting close to a full game
 // Response: RESPOND`,
 
@@ -108,7 +108,7 @@ export const shouldRespondProvider: Provider = {
     // Join examples with newlines
     const text = addHeader(
       "# RESPONSE EXAMPLES FOR INFLUENCE GAME",
-      formattedExamples.join("\n\n"),
+      formattedExamples.join("\n\n")
     );
 
     return {
@@ -195,7 +195,7 @@ export const playerAnalysisProvider: Provider = {
 
     const myId = runtime.agentId;
     const otherPlayers = Array.from(gameState.players.values()).filter(
-      (p) => p.id !== myId && p.status === PlayerStatus.ALIVE,
+      (p) => p.id !== myId && p.status === PlayerStatus.ALIVE
     );
 
     const playerAnalysis = otherPlayers.map((player) => {
@@ -207,7 +207,7 @@ export const playerAnalysisProvider: Provider = {
         (room) =>
           room.active &&
           room.participants.includes(myId) &&
-          room.participants.includes(player.id),
+          room.participants.includes(player.id)
       );
 
       return {
@@ -226,7 +226,7 @@ export const playerAnalysisProvider: Provider = {
         ? `Other players: ${playerAnalysis
             .map(
               (p) =>
-                `${p.name}${p.isEmpowered ? "(empowered)" : ""}${p.isExposed ? "(exposed)" : ""}${p.hasPrivateRoom ? "(ally?)" : ""}`,
+                `${p.name}${p.isEmpowered ? "(empowered)" : ""}${p.isExposed ? "(exposed)" : ""}${p.hasPrivateRoom ? "(ally?)" : ""}`
             )
             .join(", ")}`
         : "No other players to analyze.";
@@ -296,7 +296,7 @@ function getRoleReminder(phase: Phase): string {
 function getPhaseGuidance(
   phase: Phase,
   player: any,
-  gameState: GameState,
+  gameState: GameState
 ): string {
   switch (phase) {
     case Phase.INIT:
@@ -333,7 +333,7 @@ function getPhaseGuidance(
  */
 function getStrategicContext(player: any, gameState: GameState): string {
   const alivePlayers = Array.from(gameState.players.values()).filter(
-    (p) => p.status === PlayerStatus.ALIVE,
+    (p) => p.status === PlayerStatus.ALIVE
   );
 
   let context = `${alivePlayers.length} players remain alive.`;
@@ -356,7 +356,7 @@ function getStrategicContext(player: any, gameState: GameState): string {
 function generateStrategies(player: any, gameState: GameState): string[] {
   const strategies: string[] = [];
   const alivePlayers = Array.from(gameState.players.values()).filter(
-    (p) => p.status === PlayerStatus.ALIVE,
+    (p) => p.status === PlayerStatus.ALIVE
   );
 
   switch (gameState.phase) {
@@ -372,7 +372,7 @@ function generateStrategies(player: any, gameState: GameState): string[] {
       strategies.push("Expose the biggest threat");
       if (gameState.exposedPlayers.has(player.id)) {
         strategies.push(
-          "You're exposed - convince the empowered player to protect you",
+          "You're exposed - convince the empowered player to protect you"
         );
       }
       break;

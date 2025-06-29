@@ -1,4 +1,5 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
+import { saveGameState } from "../../src/house/runtime/memory";
 import {
   GameState,
   Player,
@@ -22,14 +23,22 @@ export class GameStatePreloader {
     round?: number;
     playerAgentIds?: Map<string, UUID>; // Map from player name to actual agent ID
   }): GameState {
-    const { playerNames, hostPlayerName, phase, round = 0, playerAgentIds } = options;
+    const {
+      playerNames,
+      hostPlayerName,
+      phase,
+      round = 0,
+      playerAgentIds,
+    } = options;
 
     const players = new Map<string, Player>();
     const gameId = stringToUuid(`test-game-${Date.now()}`);
 
     // Create players with real agent IDs if provided
     playerNames.forEach((name, index) => {
-      const playerId = playerAgentIds?.get(name) || stringToUuid(`test-player-${name}-${Date.now()}`);
+      const playerId =
+        playerAgentIds?.get(name) ||
+        stringToUuid(`test-player-${name}-${Date.now()}`);
       const player: Player = {
         id: playerId,
         agentId: playerId,
@@ -80,10 +89,9 @@ export class GameStatePreloader {
   static async saveGameStateToRuntime(
     houseRuntime: IAgentRuntime,
     roomId: UUID,
-    gameState: GameState,
+    gameState: GameState
   ): Promise<void> {
     // Use the memory DAO to save the game state properly
-    const { saveGameState } = await import("../../src/house/runtime/memory");
     await saveGameState(houseRuntime, roomId, gameState);
   }
 
@@ -98,7 +106,7 @@ export class GameStatePreloader {
       hostPlayerName?: string;
       phase?: Phase;
       playerAgentIds?: Map<string, UUID>;
-    } = {},
+    } = {}
   ): Promise<GameState> {
     const {
       playerNames = ["P1", "P2", "P3", "P4", "P5"],
@@ -118,7 +126,7 @@ export class GameStatePreloader {
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded game state: ${playerNames.length} players, phase ${phase}, host: ${hostPlayerName}`,
+      `🎮 Pre-loaded game state: ${playerNames.length} players, phase ${phase}, host: ${hostPlayerName}`
     );
 
     return gameState;
@@ -131,7 +139,7 @@ export class GameStatePreloader {
     houseRuntime: IAgentRuntime,
     roomId: UUID,
     playerNames: string[] = ["P1", "P2", "P3", "P4", "P5"],
-    playerAgentIds?: Map<string, UUID>,
+    playerAgentIds?: Map<string, UUID>
   ): Promise<GameState> {
     const gameState = this.createGameState({
       playerNames,
@@ -157,7 +165,7 @@ export class GameStatePreloader {
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded LOBBY phase: ${playerNames.length} players ready for conversation`,
+      `🎮 Pre-loaded LOBBY phase: ${playerNames.length} players ready for conversation`
     );
 
     return gameState;
@@ -176,7 +184,7 @@ export class GameStatePreloader {
       round?: number;
       empoweredPlayer?: string;
       exposedPlayers?: string[];
-    } = {},
+    } = {}
   ): Promise<GameState> {
     const {
       playerNames = ["P1", "P2", "P3", "P4", "P5"],
@@ -196,7 +204,7 @@ export class GameStatePreloader {
     // Set phase-specific state
     if (empoweredPlayer) {
       const empoweredPlayerId = Array.from(gameState.players.values()).find(
-        (p) => p.name === empoweredPlayer,
+        (p) => p.name === empoweredPlayer
       )?.id;
       if (empoweredPlayerId) {
         gameState.empoweredPlayer = empoweredPlayerId;
@@ -206,7 +214,7 @@ export class GameStatePreloader {
     // Set exposed players
     exposedPlayers.forEach((playerName) => {
       const playerId = Array.from(gameState.players.values()).find(
-        (p) => p.name === playerName,
+        (p) => p.name === playerName
       )?.id;
       if (playerId) {
         gameState.exposedPlayers.add(playerId);
@@ -223,7 +231,7 @@ export class GameStatePreloader {
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded ${phase} phase: ${playerNames.length} players, round ${round}`,
+      `🎮 Pre-loaded ${phase} phase: ${playerNames.length} players, round ${round}`
     );
 
     return gameState;

@@ -11,6 +11,7 @@ import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import fs from "fs";
 import os from "os";
+import houseCharacter from "src/characters/house";
 
 describe("House Agent Basic Functionality", () => {
   function getHousePlugins() {
@@ -30,7 +31,7 @@ describe("House Agent Basic Functionality", () => {
   it("should initialize House agent and respond to basic messages", async () => {
     RecordingTestUtils.logRecordingStatus("house basic test");
     const simDataDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "house-basic-test-data"),
+      path.join(os.tmpdir(), "house-basic-test-data")
     );
     const sim = new ConversationSimulator({
       agentCount: 2, // Just House + 1 player
@@ -55,7 +56,7 @@ describe("House Agent Basic Functionality", () => {
             post: ["Announce game state changes clearly"],
           },
         },
-        getHousePlugins(),
+        getHousePlugins()
       );
 
       // Add 1 player agent
@@ -75,7 +76,7 @@ describe("House Agent Basic Functionality", () => {
             post: ["Share strategic thoughts"],
           },
         },
-        getPlayerPlugins(),
+        getPlayerPlugins()
       );
 
       expectSoft(house).toBeDefined();
@@ -86,8 +87,9 @@ describe("House Agent Basic Functionality", () => {
       const { message: joinMessage, responses: joinResponses } =
         await sim.sendMessage(
           "P1",
+          ["House"],
           "I want to join the game",
-          true, // Trigger House response
+          true // Trigger House response
         );
 
       expectSoft(joinMessage.content).toContain("join");
@@ -100,8 +102,9 @@ describe("House Agent Basic Functionality", () => {
       const { message: chatMessage, responses: chatResponses } =
         await sim.sendMessage(
           "P1",
+          ["House"],
           "Hello everyone! Looking forward to playing!",
-          true,
+          true
         );
 
       expectSoft(chatMessage.content).toContain("Hello");
@@ -139,7 +142,7 @@ describe("House Agent Basic Functionality", () => {
 
   it("should handle multiple player join requests", async () => {
     const simDataDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "house-multi-join-test-data"),
+      path.join(os.tmpdir(), "house-multi-join-test-data")
     );
     const sim = new ConversationSimulator({
       agentCount: 4, // House + 3 players
@@ -152,20 +155,7 @@ describe("House Agent Basic Functionality", () => {
       await sim.initialize();
 
       // Add House agent
-      await sim.addAgent(
-        "House",
-        {
-          ...alexCharacter,
-          name: "House",
-          bio: "I am The House - the game master for Influence. I only respond to game management tasks.",
-          style: {
-            all: ["Be authoritative", "Focus on game mechanics", "Be concise"],
-            chat: ["Only respond to game commands", "Ignore general chatter"],
-            post: ["Announce game state changes clearly"],
-          },
-        },
-        getHousePlugins(),
-      );
+      await sim.addAgent("House", houseCharacter, getHousePlugins());
 
       // Add 3 players
       for (let i = 1; i <= 3; i++) {
@@ -181,14 +171,19 @@ describe("House Agent Basic Functionality", () => {
               post: ["Share strategic thoughts"],
             },
           },
-          getPlayerPlugins(),
+          getPlayerPlugins()
         );
       }
 
       // Have each player try to join
       for (let i = 1; i <= 3; i++) {
         console.log(`Player P${i} joining...`);
-        await sim.sendMessage(`P${i}`, "I want to join the game", true);
+        await sim.sendMessage(
+          `P${i}`,
+          ["House"],
+          "I want to join the game",
+          true
+        );
         await sim.waitForMessages(i * 2, 5000); // Give time for responses
       }
 
@@ -201,7 +196,7 @@ describe("House Agent Basic Functionality", () => {
       const playerJoinMessages = history.filter(
         (m) =>
           m.authorName.startsWith("P") &&
-          m.content.toLowerCase().includes("join"),
+          m.content.toLowerCase().includes("join")
       );
       expectSoft(playerJoinMessages.length).toBe(3);
 

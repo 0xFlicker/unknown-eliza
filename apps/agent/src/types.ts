@@ -1,7 +1,11 @@
 export type {
-  SocialStrategyState,
-  PlayerEntity,
-  PlayerRelationship,
-  PlayerStatement,
+  StrategyState,
+  StrategyMode,
+  TrustLevel,
+  StrategicRelationship,
+  StrategyAnalysis,
+  DiaryEntry,
+  PlayerPattern,
+  PlayerIntelligence,
+  StrategyPrompts,
 } from "./socialStrategy/types";
-export type { PromptMetadata } from "./socialStrategy/promptManager";

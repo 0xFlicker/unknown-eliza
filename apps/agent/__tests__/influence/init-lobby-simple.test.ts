@@ -77,6 +77,7 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
         console.log(`Player P${i} joining...`);
         const { message } = await sim.sendMessage(
           `P${i}`,
+          ["House"], // Send to House only
           "I want to join the game",
           true // Trigger House response
         );
@@ -96,6 +97,7 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
 
       const { message: startMessage } = await sim.sendMessage(
         "P1", // First player is host
+        ["House"], // Send to House only
         "Let's start the game now",
         true
       );
@@ -121,7 +123,12 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
         );
 
         console.log(`Player P${i} joining...`);
-        await sim.sendMessage(`P${i}`, "I want to join the game", true);
+        await sim.sendMessage(
+          `P${i}`,
+          ["House"],
+          "I want to join the game",
+          true
+        );
         await new Promise((resolve) => setTimeout(resolve, 2000)); // Small delay to simulate real-time interaction
         // Brief wait between joins
         await Promise.race([
@@ -135,11 +142,11 @@ describe("Influence Game INIT → LOBBY Simple Flow", () => {
       // Test Phase 4: Now start should work
       console.log("=== PHASE 4: Starting Game with Sufficient Players ===");
 
-      await sim.sendMessage("P1", "Now let's start the game", true);
+      await sim.sendMessage("P1", ["House"], "Now let's start the game", true);
 
       // Wait for game start with timeout
       await Promise.race([
-        sim.waitForMessages(26, 10000), // All messages so far + new ones
+        sim.waitForMessages(5, 5000), // All messages so far + new ones
         timeoutPromise(8000),
       ]);
 

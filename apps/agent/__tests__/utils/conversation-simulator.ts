@@ -15,6 +15,7 @@ import {
   MemoryMetadata,
   MemoryType,
   MessageMemory,
+  createUniqueUuid,
 } from "@elizaos/core";
 import {
   ModelMockingService,
@@ -54,6 +55,56 @@ export interface ConversationMessage {
 }
 
 /**
+ * Participant mode in a channel
+ */
+export enum ParticipantMode {
+  READ_WRITE = "read_write",
+  BROADCAST_ONLY = "broadcast_only", // Can send but doesn't receive replies
+  OBSERVE_ONLY = "observe_only", // Can only observe, cannot send
+}
+
+/**
+ * Configuration for a channel participant
+ */
+export interface ChannelParticipant {
+  agentName: string;
+  mode: ParticipantMode;
+}
+
+/**
+ * Configuration for creating a channel
+ */
+export interface ChannelConfig {
+  name: string;
+  participants: (string | ChannelParticipant)[]; // Agent names or full participant configs
+  maxMessages?: number; // Undefined = unlimited
+  timeoutMs?: number; // Undefined = no timeout
+}
+
+/**
+ * Channel state and management
+ */
+export interface Channel {
+  id: UUID;
+  name: string;
+  participants: Map<string, ParticipantMode>; // agentName -> mode
+  messages: ConversationMessage[];
+  maxMessages?: number;
+  timeoutMs?: number;
+  createdAt: number;
+  isExhausted: boolean;
+  observers: ((message: ConversationMessage) => void)[];
+}
+
+/**
+ * Response configuration for sendMessage
+ */
+export interface ResponseConfig {
+  maxReplies?: number; // undefined = no replies, Infinity = unlimited, number = max replies
+  timeoutMs?: number; // Override default response timeout
+}
+
+/**
  * Configuration for the conversation simulator
  */
 export interface SimulatorConfig {
@@ -81,9 +132,9 @@ export interface SimulatorConfig {
 export class ConversationSimulator {
   private server: AgentServer;
   private runtimes: Map<string, IAgentRuntime> = new Map();
-  private messageHistory: ConversationMessage[] = [];
-  private currentChannel?: UUID;
-  private currentWorld?: UUID;
+  private messageHistory: ConversationMessage[] = []; // Global message history for compatibility
+  private channels: Map<UUID, Channel> = new Map(); // All channels
+  private defaultChannelId?: UUID; // For backward compatibility
   private modelMocks: Map<string, ModelMockConfig> = new Map();
   private responseIndices: Map<string, number> = new Map();
   private modelMockingService?: ModelMockingService;
@@ -127,23 +178,139 @@ export class ConversationSimulator {
     // Initialize server
     await this.server.initialize({ dataDir: this.config.dataDir });
 
-    // Create test server and channel
+    // Create test server and default channel
     const msgSrv = await this.server.createServer({
       name: "test-conversation-server",
       sourceType: "test",
     });
 
-    const channel = await this.server.createChannel({
+    const serverChannel = await this.server.createChannel({
       messageServerId: msgSrv.id,
       name: "test-conversation-room",
       type: ChannelType.GROUP,
     });
-    this.currentChannel = channel.id;
+
+    // Create default channel for backward compatibility
+    this.defaultChannelId = serverChannel.id;
+    const defaultChannel: Channel = {
+      id: serverChannel.id,
+      name: "default",
+      participants: new Map(),
+      messages: [],
+      createdAt: Date.now(),
+      isExhausted: false,
+      observers: [],
+    };
+    this.channels.set(serverChannel.id, defaultChannel);
 
     // Start server if port specified
     if (this.config.serverPort) {
       this.server.start(this.config.serverPort);
     }
+  }
+
+  /**
+   * Create a new channel with specified participants and configuration
+   */
+  async createChannel(config: ChannelConfig): Promise<UUID> {
+    if (!this.defaultChannelId) {
+      throw new Error(
+        "Simulator not initialized. Please run initialize() first."
+      );
+    }
+
+    // Create server channel (use the same server as the default channel)
+    const servers = await this.server.getServers();
+    const testServer = servers.find(
+      (s) => s.name === "test-conversation-server"
+    );
+    if (!testServer) {
+      throw new Error(
+        "Test server not found. Please ensure initialize() was called first."
+      );
+    }
+
+    const serverChannel = await this.server.createChannel({
+      messageServerId: testServer.id,
+      name: config.name,
+      type: ChannelType.GROUP,
+    });
+
+    // Process participants
+    const participants = new Map<string, ParticipantMode>();
+    for (const participant of config.participants) {
+      if (typeof participant === "string") {
+        participants.set(participant, ParticipantMode.READ_WRITE);
+      } else {
+        participants.set(participant.agentName, participant.mode);
+      }
+    }
+
+    // Create channel metadata
+    const channel: Channel = {
+      id: serverChannel.id,
+      name: config.name,
+      participants,
+      messages: [],
+      maxMessages: config.maxMessages,
+      timeoutMs: config.timeoutMs,
+      createdAt: Date.now(),
+      isExhausted: false,
+      observers: [],
+    };
+
+    this.channels.set(serverChannel.id, channel);
+    return serverChannel.id;
+  }
+
+  /**
+   * Subscribe to new messages in a channel
+   */
+  observeChannel(
+    channelId: UUID,
+    observer: (message: ConversationMessage) => void
+  ): () => void {
+    const channel = this.channels.get(channelId);
+    if (!channel) {
+      throw new Error(`Channel ${channelId} not found`);
+    }
+
+    channel.observers.push(observer);
+
+    // Return unsubscribe function
+    return () => {
+      const index = channel.observers.indexOf(observer);
+      if (index > -1) {
+        channel.observers.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Check if a channel is exhausted (reached message limit or timeout)
+   */
+  isChannelExhausted(channelId: UUID): boolean {
+    const channel = this.channels.get(channelId);
+    if (!channel) return true;
+
+    if (channel.isExhausted) return true;
+
+    // Check message limit
+    if (channel.maxMessages && channel.messages.length >= channel.maxMessages) {
+      channel.isExhausted = true;
+      return true;
+    }
+
+    // Check timeout
+    if (
+      channel.timeoutMs &&
+      Date.now() - channel.createdAt > channel.timeoutMs
+    ) {
+      channel.isExhausted = true;
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -154,28 +321,14 @@ export class ConversationSimulator {
     character: any,
     plugins: any[] = []
   ): Promise<IAgentRuntime> {
-    // Filter out local-ai plugin in playback mode to prevent actual model calls
-    let filteredPlugins = plugins;
-    if (!process.env.MODEL_RECORD_MODE && this.modelMockingService) {
-      // Remove local-ai plugin to prevent actual inference during playback
-      filteredPlugins = plugins.filter((plugin) => {
-        const pluginName = plugin.name || plugin.constructor?.name || "";
-        return (
-          !pluginName.toLowerCase().includes("localai") &&
-          !pluginName.toLowerCase().includes("local-ai")
-        );
-      });
-
-      if (filteredPlugins.length !== plugins.length) {
-        console.log(
-          `🚫 Disabled local-ai plugin for ${agentName} in playback mode`
-        );
-      }
+    if (!this.defaultChannelId) {
+      throw new Error(
+        "Simulator not initialized - no channel available. Please run initialize() first."
+      );
     }
-
     const runtime = new AgentRuntime({
       character: { ...character, name: agentName },
-      plugins: filteredPlugins,
+      plugins,
       settings: { DATABASE_PATH: this.config.dataDir },
     });
 
@@ -183,36 +336,34 @@ export class ConversationSimulator {
     await this.server.registerAgent(runtime);
 
     // Create and ensure world and room exist for this agent
-    if (this.currentChannel) {
-      try {
-        // Create a world for this agent if not already created
-        if (!this.currentWorld) {
-          this.currentWorld = stringToUuid(`test-world-${Date.now()}`);
-        }
+    try {
+      const { agentWorldId, agentRoomId } =
+        await this.ensureWorldAndRoomExist(runtime);
 
-        // Ensure the world exists in the agent's database
-        await runtime.ensureWorldExists({
-          id: this.currentWorld,
-          agentId: runtime.agentId,
-          serverId: "00000000-0000-0000-0000-000000000000",
-        });
+      // Ensure the world exists in the agent's database
+      await runtime.ensureWorldExists({
+        id: agentWorldId,
+        agentId: runtime.agentId,
+        serverId: "00000000-0000-0000-0000-000000000000",
+      });
 
-        // Now ensure the room exists with the world context
-        await runtime.ensureRoomExists({
-          id: this.currentChannel,
-          agentId: runtime.agentId,
-          serverId: "00000000-0000-0000-0000-000000000000",
-          worldId: this.currentWorld,
-          name: "test-conversation-room",
-          source: "test",
-          type: ChannelType.WORLD,
-        });
+      // Now ensure the room exists with the world context
+      await runtime.ensureRoomExists({
+        id: agentRoomId,
+        agentId: runtime.agentId,
+        serverId: "00000000-0000-0000-0000-000000000000",
+        worldId: agentWorldId,
+        name: "test-conversation-room",
+        source: "test",
+        type: ChannelType.WORLD,
+      });
 
+      if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(`✅ Successfully set up world and room for ${agentName}`);
-      } catch (error) {
-        console.log(`❌ Failed to ensure room exists for ${agentName}:`, error);
-        // Don't throw - let the test continue but with a warning
       }
+    } catch (error) {
+      console.log(`❌ Failed to ensure room exists for ${agentName}:`, error);
+      // Don't throw - let the test continue but with a warning
     }
 
     // Set up model mocking
@@ -272,21 +423,28 @@ export class ConversationSimulator {
 
   /**
    * Send a message from one agent to the conversation
+   * @param fromAgent - Name of the agent sending the message
+   * @param toAgents - Names of agents to send to (or channel participants)
+   * @param content - Message content
+   * @param responseConfig - Response configuration (replaces shouldTriggerResponses)
+   * @param channelId - Optional channel ID (defaults to default channel)
    */
   async sendMessage(
     fromAgent: string,
+    toAgents: string[],
     content: string,
-    shouldTriggerResponses: boolean = true
+    responseConfig?: ResponseConfig | boolean, // Support both new and old API
+    channelId?: UUID
   ): Promise<{
     message: ConversationMessage;
     responses: AgentResponseResult[];
   }> {
-    if (!this.currentChannel) {
+    if (!this.defaultChannelId) {
       throw new Error("Simulator not initialized - no channel available");
     }
 
-    const runtime = this.runtimes.get(fromAgent);
-    if (!runtime) {
+    const fromRuntime = this.runtimes.get(fromAgent);
+    if (!fromRuntime) {
       throw new Error(`Agent ${fromAgent} not found`);
     }
 
@@ -295,10 +453,54 @@ export class ConversationSimulator {
     const deterministicTimestamp =
       (this.testStartTime || Date.now()) + this.messageSequence * 1000;
 
+    // Use specified channel or default
+    const targetChannelId = channelId || this.defaultChannelId!;
+    const channel = this.channels.get(targetChannelId);
+    if (!channel) {
+      throw new Error(`Channel ${targetChannelId} not found`);
+    }
+
+    // Check if channel is exhausted
+    if (this.isChannelExhausted(targetChannelId)) {
+      throw new Error(
+        `Channel ${channel.name} is exhausted (reached message limit or timeout)`
+      );
+    }
+
+    // For backward compatibility, if using default channel and sender not in participants, add them
+    if (
+      targetChannelId === this.defaultChannelId &&
+      !channel.participants.has(fromAgent)
+    ) {
+      channel.participants.set(fromAgent, ParticipantMode.READ_WRITE);
+    }
+
+    // Also add toAgents if they're not already participants (backward compatibility)
+    if (targetChannelId === this.defaultChannelId) {
+      toAgents.forEach((agentName) => {
+        if (!channel.participants.has(agentName) && agentName !== fromAgent) {
+          channel.participants.set(agentName, ParticipantMode.READ_WRITE);
+        }
+      });
+    }
+
+    // Check if sender can send to this channel
+    const senderMode = channel.participants.get(fromAgent);
+    if (!senderMode) {
+      throw new Error(
+        `Agent ${fromAgent} is not a participant in channel ${channel.name}`
+      );
+    }
+    if (senderMode === ParticipantMode.OBSERVE_ONLY) {
+      throw new Error(
+        `Agent ${fromAgent} is observe-only in channel ${channel.name}`
+      );
+    }
+
     // Create the message
-    const authorId = runtime.agentId;
+    const authorId = fromRuntime.agentId;
     const message = await this.server.createMessage({
-      channelId: this.currentChannel,
+      channelId: targetChannelId,
       authorId,
       content,
     });
@@ -309,30 +511,155 @@ export class ConversationSimulator {
       authorName: fromAgent,
       content,
       timestamp: deterministicTimestamp, // Use deterministic timestamp
-      channelId: this.currentChannel,
+      channelId: targetChannelId,
     };
 
+    // Add to channel messages
+    channel.messages.push(conversationMessage);
+
+    // Notify channel observers
+    channel.observers.forEach((observer) => {
+      try {
+        observer(conversationMessage);
+      } catch (error) {
+        console.warn("Channel observer error:", error);
+      }
+    });
+
+    // Add to global message history for backward compatibility
     this.messageHistory.push(conversationMessage);
 
-    // Optionally trigger other agents to respond
+    // Handle response configuration
     let responses: AgentResponseResult[] = [];
-    if (shouldTriggerResponses) {
-      responses = await this.triggerAgentResponses(fromAgent);
+    let maxReplies: number | undefined;
+    let shouldTriggerResponses = false;
+
+    if (typeof responseConfig === "boolean") {
+      // Backward compatibility: boolean -> maxReplies
+      maxReplies = responseConfig ? 1 : undefined;
+      shouldTriggerResponses = responseConfig;
+    } else if (responseConfig) {
+      maxReplies = responseConfig.maxReplies;
+      shouldTriggerResponses = maxReplies !== undefined && maxReplies > 0;
+    }
+
+    if (shouldTriggerResponses && maxReplies !== undefined) {
+      // Determine eligible responders based on channel participants and modes
+      const eligibleResponders = toAgents.filter((agentName) => {
+        const mode = channel.participants.get(agentName);
+        return mode === ParticipantMode.READ_WRITE; // Only read-write participants can respond
+      });
+
+      if (eligibleResponders.length > 0) {
+        // Check if we have capacity for more messages
+        const remainingCapacity = channel.maxMessages
+          ? channel.maxMessages - channel.messages.length
+          : Infinity;
+        const actualMaxReplies = Math.min(maxReplies, remainingCapacity);
+
+        if (actualMaxReplies > 0) {
+          responses = await this.triggerAgentResponses({
+            excludeAgents: [fromAgent], // Don't trigger response for the sender
+            includeAgents: eligibleResponders,
+            maxReplies: actualMaxReplies,
+            channelId: targetChannelId,
+          });
+        }
+      }
     }
 
     return { message: conversationMessage, responses };
+  }
+
+  private async ensureWorldAndRoomExist(
+    runtime: IAgentRuntime
+  ): Promise<{ agentWorldId: UUID; agentRoomId: UUID }> {
+    if (!this.defaultChannelId) {
+      throw new Error("Simulator not initialized - no channel available");
+    }
+    const agentWorldId = createUniqueUuid(
+      runtime,
+      "00000000-0000-0000-0000-000000000000"
+    );
+    const agentRoomId = createUniqueUuid(runtime, this.defaultChannelId);
+
+    try {
+      await runtime.ensureWorldExists({
+        id: agentWorldId,
+        name: "Test World",
+        agentId: runtime.agentId,
+        serverId: "00000000-0000-0000-0000-000000000000",
+        metadata: {},
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message &&
+        error.message.includes("worlds_pkey")
+      ) {
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `[${runtime.character.name}] MessageBusService: World ${agentWorldId} already exists, continuing with message processing`
+          );
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    try {
+      await runtime.ensureRoomExists({
+        id: agentRoomId,
+        name: "Test Room",
+        agentId: runtime.agentId,
+        worldId: agentWorldId,
+        channelId: this.defaultChannelId,
+        serverId: "00000000-0000-0000-0000-000000000000",
+        source: "central-bus",
+        type: ChannelType.GROUP,
+        metadata: {},
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message &&
+        error.message.includes("rooms_pkey")
+      ) {
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `[${runtime.character.name}] MessageBusService: Room ${agentRoomId} already exists, continuing with message processing`
+          );
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    return { agentWorldId, agentRoomId };
   }
 
   /**
    * Trigger other agents to potentially respond to the latest message using proper event system
    * Returns results that can be tested/asserted
    */
-  private async triggerAgentResponses(
-    excludeAgent: string
-  ): Promise<AgentResponseResult[]> {
+  private async triggerAgentResponses({
+    excludeAgents = [],
+    includeAgents = [],
+    maxReplies = 1,
+    channelId,
+  }: {
+    includeAgents?: string[];
+    excludeAgents?: string[];
+    maxReplies?: number;
+    channelId?: UUID;
+  }): Promise<AgentResponseResult[]> {
     // Sort agents for deterministic processing order
     const otherAgents = Array.from(this.runtimes.keys())
-      .filter((name) => name !== excludeAgent)
+      .filter(
+        (name) =>
+          excludeAgents.every((e) => e !== name) &&
+          (excludeAgents.length > 0 || includeAgents.includes(name))
+      )
       .sort(); // Alphabetical order for consistency
 
     const results: AgentResponseResult[] = [];
@@ -342,12 +669,12 @@ export class ConversationSimulator {
     for (let i = 0; i < otherAgents.length; i++) {
       const agentName = otherAgents[i];
       const runtime = this.runtimes.get(agentName);
-      if (!runtime || !this.currentChannel) {
+      if (!runtime) {
         results.push({
           agentName,
           responded: false,
           modelCalls: 0,
-          error: "Runtime or channel not available",
+          error: "Runtime not available",
         });
         continue;
       }
@@ -366,7 +693,7 @@ export class ConversationSimulator {
           id: memoryId,
           entityId: latestMessage.authorId,
           agentId: runtime.agentId,
-          roomId: this.currentChannel,
+          roomId: createUniqueUuid(runtime, this.defaultChannelId),
           content: {
             text: latestMessage.content,
             source: "test",
@@ -381,9 +708,11 @@ export class ConversationSimulator {
           createdAt: latestMessage.timestamp,
         };
 
-        console.log(
-          `Triggering ${agentName} (${i + 1}/${otherAgents.length}) to process message: "${latestMessage.content}"`
-        );
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `Triggering ${agentName} (${i + 1}/${otherAgents.length}) to process message: "${latestMessage.content}"`
+          );
+        }
 
         // Track response data
         const result: AgentResponseResult = {
@@ -402,11 +731,13 @@ export class ConversationSimulator {
           runtime,
           message: memory,
           callback: async (response: Content) => {
-            console.log(`${agentName} generated response:`, {
-              text: response.text,
-              actions: response.actions,
-              thought: response.thought,
-            });
+            if (process.env.TEST_LOG_LEVEL === "debug") {
+              console.log(`${agentName} generated response:`, {
+                text: response.text,
+                actions: response.actions,
+                thought: response.thought,
+              });
+            }
 
             if (
               response &&
@@ -416,17 +747,22 @@ export class ConversationSimulator {
               result.responded = true;
               result.response = response.text;
               // Create agent response message (don't trigger more responses to avoid recursion)
-              const messageResult = await this.sendMessage(
+              await this.sendMessage(
                 agentName,
+                otherAgents,
                 response.text,
                 false
               );
             } else if (response.actions?.includes("IGNORE")) {
-              console.log(`${agentName} decided to ignore the message`);
+              if (process.env.TEST_LOG_LEVEL === "debug") {
+                console.log(`${agentName} decided to ignore the message`);
+              }
             }
           },
           onComplete: () => {
-            console.log(`${agentName} completed processing message`);
+            if (process.env.TEST_LOG_LEVEL === "debug") {
+              console.log(`${agentName} completed processing message`);
+            }
           },
         });
 
@@ -446,14 +782,18 @@ export class ConversationSimulator {
 
         results.push(result);
 
-        console.log(
-          `${agentName} ${result.responded ? "provided a response" : "did not respond"} (${result.modelCalls} model calls)`
-        );
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `${agentName} ${result.responded ? "provided a response" : "did not respond"} (${result.modelCalls} model calls)`
+          );
+        }
       } catch (error) {
-        console.log(
-          `Failed to trigger response for agent ${agentName}:`,
-          error
-        );
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `Failed to trigger response for agent ${agentName}:`,
+            error
+          );
+        }
         results.push({
           agentName,
           responded: false,
@@ -601,29 +941,16 @@ export class ConversationSimulator {
   }
 
   /**
-   * Get the current channel/room ID for testing purposes
-   */
-  getRoomId(): UUID {
-    if (!this.currentChannel) {
-      throw new Error("Simulator not initialized - no channel available");
-    }
-    return this.currentChannel;
-  }
-
-  /**
    * Inspect the current state of an agent by calling runtime.composeState
    * This is useful for debugging game state issues
    */
-  async inspectAgentState(
-    agentName: string,
-    providerNames?: string[]
-  ): Promise<State> {
+  async inspectAgentState(agentName: string): Promise<State> {
     const runtime = this.runtimes.get(agentName);
     if (!runtime) {
       throw new Error(`Agent ${agentName} not found`);
     }
 
-    if (!this.currentChannel) {
+    if (!this.defaultChannelId) {
       throw new Error("Simulator not initialized - no channel available");
     }
 
@@ -632,7 +959,7 @@ export class ConversationSimulator {
       id: stringToUuid(`dummy-${Date.now()}`),
       entityId: runtime.agentId,
       agentId: runtime.agentId,
-      roomId: this.currentChannel,
+      roomId: this.defaultChannelId,
       createdAt: Date.now(),
       content: { text: "State inspection" },
       type: MemoryType.MESSAGE,
@@ -655,5 +982,101 @@ export class ConversationSimulator {
    */
   async inspectHouseGameState(): Promise<State> {
     return await this.inspectAgentState("House");
+  }
+
+  public getCurrentChannelId(): UUID | undefined {
+    return this.defaultChannelId;
+  }
+
+  /**
+   * Get a specific channel by ID
+   */
+  public getChannel(channelId: UUID): Channel | undefined {
+    return this.channels.get(channelId);
+  }
+
+  /**
+   * Get all channels
+   */
+  public getChannels(): Map<UUID, Channel> {
+    return new Map(this.channels);
+  }
+
+  /**
+   * Get messages from a specific channel
+   */
+  public getChannelMessages(channelId: UUID): ConversationMessage[] {
+    const channel = this.channels.get(channelId);
+    return channel ? [...channel.messages] : [];
+  }
+
+  /**
+   * Wait for a specific number of messages in a channel
+   */
+  public async waitForChannelMessages(
+    channelId: UUID,
+    expectedCount: number,
+    timeoutMs: number = 10000
+  ): Promise<boolean> {
+    const channel = this.channels.get(channelId);
+    if (!channel) return false;
+
+    const startTime = Date.now();
+    const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
+    const effectiveTimeout = isRecordMode
+      ? timeoutMs
+      : Math.min(timeoutMs, 3000);
+    const pollInterval = isRecordMode ? 100 : 20;
+
+    while (
+      channel.messages.length < expectedCount &&
+      Date.now() - startTime < effectiveTimeout
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    const success = channel.messages.length >= expectedCount;
+    if (!success && !isRecordMode) {
+      console.warn(
+        `⚠️ waitForChannelMessages timeout: expected ${expectedCount}, got ${channel.messages.length} (timeout: ${effectiveTimeout}ms)`
+      );
+    }
+
+    return success;
+  }
+
+  /**
+   * Create a one-on-one channel between two agents
+   */
+  public async createPrivateChannel(
+    agent1: string,
+    agent2: string
+  ): Promise<UUID> {
+    return await this.createChannel({
+      name: `private-${agent1}-${agent2}`,
+      participants: [agent1, agent2],
+    });
+  }
+
+  /**
+   * Create a broadcast channel where one agent sends and others only receive
+   */
+  public async createBroadcastChannel(
+    broadcaster: string,
+    receivers: string[],
+    channelName?: string
+  ): Promise<UUID> {
+    const participants: ChannelParticipant[] = [
+      { agentName: broadcaster, mode: ParticipantMode.BROADCAST_ONLY },
+      ...receivers.map((name) => ({
+        agentName: name,
+        mode: ParticipantMode.READ_WRITE,
+      })),
+    ];
+
+    return this.createChannel({
+      name: channelName || `broadcast-${broadcaster}`,
+      participants,
+    });
   }
 }

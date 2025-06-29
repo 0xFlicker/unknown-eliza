@@ -29,7 +29,7 @@ export const ignoreHouseAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // Explicitly do nothing - this is an ignore action
     return;
@@ -38,7 +38,7 @@ export const ignoreHouseAction: Action = {
     [
       {
         name: "house",
-        content: { text: "Alice joined the game! (1/12 players)" },
+        content: { text: "Alice joined the game! " },
       },
       {
         name: "player",
@@ -73,7 +73,7 @@ export const joinLobbyAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // This action doesn't need to do anything - it's just to trigger the behavior
     // The actual joining logic is handled by the House agent's joinGameAction
@@ -108,7 +108,7 @@ export const requestStartAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // This action doesn't need to do anything - it guides the player's language
     // The actual start logic is handled by the House agent
@@ -142,7 +142,7 @@ export const createPrivateRoomAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // This action provides context for the player - actual room creation is handled by House
     return;
@@ -175,7 +175,7 @@ export const publicStatementAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // This provides context for public statements during rumor phase
     return;
@@ -210,7 +210,7 @@ export const empowerVoteAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // Voting logic would be handled by House - this provides context
     return;
@@ -243,7 +243,7 @@ export const exposeVoteAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // Voting logic would be handled by House - this provides context
     return;
@@ -276,7 +276,7 @@ export const eliminateAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // Elimination logic would be handled by House - this provides context
     return;
@@ -309,7 +309,7 @@ export const protectAction: Action = {
     message: Memory,
     state: State,
     options: any,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ) => {
     // Protection logic would be handled by House - this provides context
     return;

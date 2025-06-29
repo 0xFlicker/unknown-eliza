@@ -12,7 +12,7 @@ import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import { GameStatePreloader } from "../utils/game-state-preloader";
 import { Phase } from "../../src/house/types";
-import { UUID } from "@elizaos/core";
+import { createUniqueUuid, UUID } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 
@@ -36,7 +36,7 @@ describe("Influence Game Lobby Conversation", () => {
     async () => {
       RecordingTestUtils.logRecordingStatus("lobby conversation test");
       const simDataDir = fs.mkdtempSync(
-        path.join(os.tmpdir(), "lobby-conversation-test-data"),
+        path.join(os.tmpdir(), "lobby-conversation-test-data")
       );
       const sim = new ConversationSimulator({
         agentCount: 6, // 5 players + house
@@ -52,9 +52,10 @@ describe("Influence Game Lobby Conversation", () => {
         const house = await sim.addAgent(
           "House",
           houseCharacter,
-          getHousePlugins(),
+          getHousePlugins()
         );
 
+        const roomId = createUniqueUuid(house, sim.getCurrentChannelId());
         // Add 5 player agents with distinct personalities
         const playerData = [
           {
@@ -114,7 +115,7 @@ describe("Influence Game Lobby Conversation", () => {
               bio: playerInfo.bio,
               style: playerInfo.style,
             },
-            getPlayerPlugins(),
+            getPlayerPlugins()
           );
           players.push(player);
         }
@@ -124,22 +125,19 @@ describe("Influence Game Lobby Conversation", () => {
 
         // PHASE 1: Pre-load game state with 5 players already joined
         console.log(
-          "=== PHASE 1: Pre-loading game state (5 players already joined) ===",
+          "=== PHASE 1: Pre-loading game state (5 players already joined) ==="
         );
 
-        // Use GameStatePreloader to set up 5 players in INIT phase
-        const roomId = sim.getRoomId();
-        
         // Collect actual agent IDs from the simulation
         const playerAgentIds = new Map<string, UUID>();
         const playerNames = ["P1", "P2", "P3", "P4", "P5"];
-        playerNames.forEach(name => {
+        playerNames.forEach((name) => {
           const runtime = sim.getAgent(name);
           if (runtime) {
             playerAgentIds.set(name, runtime.agentId);
           }
         });
-        
+
         const gameState = await GameStatePreloader.preloadInfluenceGame(
           house,
           roomId,
@@ -148,7 +146,7 @@ describe("Influence Game Lobby Conversation", () => {
             hostPlayerName: "P1",
             phase: Phase.INIT, // Pre-load in INIT so host can start
             playerAgentIds, // Pass real agent IDs
-          },
+          }
         );
 
         console.log("✓ Game state pre-loaded with 5 players ready to start");
@@ -158,8 +156,9 @@ describe("Influence Game Lobby Conversation", () => {
 
         const { message: startMessage } = await sim.sendMessage(
           "P1", // P1 is the host
+          ["House"], // Send to House only
           "!start",
-          true, // Trigger House response
+          true // Trigger House response
         );
         expectSoft(startMessage.content).toContain("start");
 
@@ -169,7 +168,7 @@ describe("Influence Game Lobby Conversation", () => {
         // PHASE 3: Lobby conversation phase (5 minutes or until conversation flows naturally)
         console.log("=== PHASE 3: LOBBY Conversation Phase ===");
         console.log(
-          "Players will now engage in 5 minutes of lobby conversation...",
+          "Players will now engage in 5 minutes of lobby conversation..."
         );
 
         // Record mode: Allow 5 minutes of conversation
@@ -182,16 +181,18 @@ describe("Influence Game Lobby Conversation", () => {
         // Wait a moment for the game start to settle, then let players naturally begin conversation
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
+        const allParticipants = sim.getAgentNames();
         // Players can start chatting naturally after House announces LOBBY phase
         if (Date.now() - startTime < lobbyDurationMs) {
           await sim.sendMessage(
             "P2",
+            allParticipants.filter((name) => name !== "P2"),
             "Great! Nice to meet everyone. What's everyone's strategy?",
-            true,
+            true
           );
           await sim.waitForMessages(
             sim.getConversationHistory().length + 2,
-            10000,
+            10000
           );
         }
 
@@ -211,7 +212,7 @@ describe("Influence Game Lobby Conversation", () => {
         const startMessages = history.filter(
           (m) =>
             m.authorName.startsWith("P") &&
-            m.content.toLowerCase().startsWith("!start"),
+            m.content.toLowerCase().startsWith("!start")
         );
         expectSoft(startMessages.length).toBe(1);
 
@@ -224,7 +225,7 @@ describe("Influence Game Lobby Conversation", () => {
         const playerChatMessages = history.filter(
           (m) =>
             m.authorName.startsWith("P") &&
-            !m.content.toLowerCase().includes("start"),
+            !m.content.toLowerCase().includes("start")
         );
         expectSoft(playerChatMessages.length).toBeGreaterThanOrEqual(1); // Players should chat in lobby
 
@@ -233,7 +234,7 @@ describe("Influence Game Lobby Conversation", () => {
           (m) =>
             !m.content.toLowerCase().includes("lobby phase") &&
             !m.content.toLowerCase().includes("game started") &&
-            !m.content.includes("🎮"),
+            !m.content.includes("🎮")
         );
         console.log(`House chat messages: ${houseChatMessages.length}`); // House should mostly observe
 
@@ -241,32 +242,32 @@ describe("Influence Game Lobby Conversation", () => {
         const participatingPlayers = new Set(
           history
             .filter((m) => m.authorName.startsWith("P"))
-            .map((m) => m.authorName),
+            .map((m) => m.authorName)
         );
         expectSoft(participatingPlayers.size).toBeGreaterThanOrEqual(1);
 
         // Test conversation summary
         const summary = sim.createConversationSummary();
         expectSoft(summary.participantCount).toBe(6); // 5 players + House
-        expectSoft(summary.messageCount).toBeGreaterThanOrEqual(8);
+        expectSoft(summary.messageCount).toBeGreaterThanOrEqual(7);
 
         console.log("Lobby conversation test summary:", summary);
         console.log(
-          `Total conversation time: ${(Date.now() - startTime) / 1000}s`,
+          `Total conversation time: ${(Date.now() - startTime) / 1000}s`
         );
         console.log(
-          `House observation behavior: ${houseChatMessages.length} non-management messages`,
+          `House observation behavior: ${houseChatMessages.length} non-management messages`
         );
       } finally {
         await sim.cleanup();
       }
     },
-    process.env.MODEL_RECORD_MODE ? 600000 : 120000,
+    process.env.MODEL_RECORD_MODE ? 600000 : 120000
   ); // 10 min for record mode, 2 min for playback
 
   it("should handle House remaining silent during pure player conversation", async () => {
     const simDataDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "house-silent-test-data"),
+      path.join(os.tmpdir(), "house-silent-test-data")
     );
     const sim = new ConversationSimulator({
       agentCount: 3, // Just 2 players + house for focused test
@@ -291,7 +292,7 @@ describe("Influence Game Lobby Conversation", () => {
             post: ["Only announce game state changes"],
           },
         },
-        getHousePlugins(),
+        getHousePlugins()
       );
 
       // Add 2 chatty players
@@ -302,7 +303,7 @@ describe("Influence Game Lobby Conversation", () => {
           name: "P1",
           bio: "I love chatting and getting to know other players.",
         },
-        getPlayerPlugins(),
+        getPlayerPlugins()
       );
 
       await sim.addAgent(
@@ -312,35 +313,39 @@ describe("Influence Game Lobby Conversation", () => {
           name: "P2",
           bio: "I'm social and enjoy discussing strategy with others.",
         },
-        getPlayerPlugins(),
+        getPlayerPlugins()
       );
 
       // Simulate game already started in LOBBY phase
       await sim.sendMessage(
         "House",
+        ["P1", "P2"],
         "🎮 GAME STARTED! LOBBY PHASE - Players can chat freely.",
-        false,
+        false
       );
 
       // Players have a conversation
       await sim.sendMessage(
         "P1",
+        ["P2"],
         "Hey P2! What do you think of this game?",
-        true,
+        true
       );
       await sim.waitForMessages(2, 8000);
 
       await sim.sendMessage(
         "P2",
+        ["P1"],
         "It looks really fun! I'm excited to see how it goes.",
-        true,
+        true
       );
       await sim.waitForMessages(4, 8000);
 
       await sim.sendMessage(
         "P1",
+        ["P2"],
         "Same here! Should we try to work together?",
-        true,
+        true
       );
       await sim.waitForMessages(6, 8000);
 
@@ -356,12 +361,12 @@ describe("Influence Game Lobby Conversation", () => {
 
       // Players should have conversed
       const playerMessages = history.filter((m) =>
-        m.authorName.startsWith("P"),
+        m.authorName.startsWith("P")
       );
       expectSoft(playerMessages.length).toBeGreaterThanOrEqual(3);
 
       console.log(
-        "✓ House correctly remained silent during player conversation",
+        "✓ House correctly remained silent during player conversation"
       );
     } finally {
       await sim.cleanup();

@@ -12,84 +12,56 @@ import {
   EventType,
   MessagePayload,
 } from "@elizaos/core";
-import { trackConversation } from "./actions/trackConversation";
-import type {
-  PlayerEntity,
-  PlayerRelationship,
-  PlayerStatement,
-  SocialStrategyState,
-} from "./types";
+
+// Import new strategic components
+import { StrategyService } from "./service/addPlayer";
+
+// Import evaluators
 import { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
-import { socialContextProvider } from "./providers/socialContext";
-import { AddPlayerService } from "./service/addPlayer";
+import { strategicRelationshipEvaluator } from "./evaluators/strategicRelationshipExtractor";
+import { strategicReflectionEvaluator } from "./evaluators/strategicReflection";
 
-// export const getPlayerInfoHandler = async (
-//   runtime: IAgentRuntime,
-//   message: Memory,
-//   state?: State
-// ) => {
-//   const socialState = state as SocialStrategyState;
+// Import providers
+import { strategicContextProvider } from "./providers/strategicContext";
+import { playerIntelligenceProvider } from "./providers/playerIntelligence";
 
-//   const player = socialState.values.players[playerId];
-//   if (!player) {
-//     return {
-//       success: false,
-//       message: "Player not found",
-//     };
-//   }
+// Import actions
+import { diaryRoomAction } from "./actions/diaryRoom";
+import { strategyReviewAction } from "./actions/strategyReview";
 
-//   // Get relationships involving this player
-//   const relationships = socialState.values.relationships.filter((rel) => {
-//     const sourceId = rel.sourceEntityId;
-//     const targetId = rel.targetEntityId;
-//     return sourceId === playerId || targetId === playerId;
-//   });
-
-//   // Get statements about this player
-//   const statements = socialState.values.statements.filter((stmt) => {
-//     const targetId = stmt.data.targetEntityId;
-//     return targetId === playerId;
-//   });
-
-//   return {
-//     success: true,
-//     data: {
-//       player,
-//       relationships,
-//       statements,
-//     },
-//   };
-// };
-
-export type SocialStrategyContext = {
-  values: {
-    players: PlayerEntity[];
-    relationships: PlayerRelationship[];
-    statements: PlayerStatement[];
-  };
-  text: string;
-};
+// Import types
+import type { StrategyPrompts, DEFAULT_STRATEGY_PROMPTS } from "./types";
 
 export const socialStrategyPlugin: Plugin = {
-  // Ensure connections default to conversation when type is undefined
-  init: async (_config, runtime) => {
-    // const service = runtime.getService(
-    //   AddPlayerService.serviceType
-    // ) as AddPlayerService;
-    // if (!service) {
-    //   throw new Error("AddPlayerService not found");
-    // }
-    // await service.getOrCreatePlayer({ handle: "TestPlayer" });
+  init: async (config?: Partial<StrategyPrompts>, runtime?: IAgentRuntime) => {
+    if (runtime) {
+      elizaLogger.info(
+        "Initializing Social Strategy Plugin with advanced AI strategy capabilities",
+      );
+
+      // Start the strategy service with custom configuration
+      const strategyService = await StrategyService.start(runtime, config);
+      elizaLogger.info("StrategyService started successfully");
+    }
   },
+
   name: "social-strategy",
   description:
-    "Tracks and manages player relationships and trust scores for social strategy analysis.",
-  providers: [socialContextProvider],
-  // Update memory with new statements and relationships before replying
+    "Advanced AI strategy system for the Influence game with relationship tracking, behavioral analysis, strategic planning, and diary room capabilities.",
+
+  providers: [
+    strategicContextProvider, // Strategic context
+    playerIntelligenceProvider, // Player intelligence reports
+  ],
+
   priority: 100,
-  // Evaluators that passively listen to the conversation and keep the
-  // social graph up-to-date.
-  evaluators: [conversationTrackingEvaluator],
+
+  evaluators: [
+    conversationTrackingEvaluator, // Enhanced conversation tracking
+    strategicRelationshipEvaluator, // Strategic relationship extraction
+    strategicReflectionEvaluator, // Diary room reflections
+  ],
+
   events: {
     [EventType.MESSAGE_RECEIVED]: [
       async ({
@@ -98,9 +70,12 @@ export const socialStrategyPlugin: Plugin = {
         callback,
         onComplete,
       }: MessagePayload & { onComplete?: () => void }) => {
+        // Ensure strategic providers are available
         message.content.providers = Array.from(
           new Set([
             ...(message.content.providers || []),
+            "STRATEGIC_CONTEXT",
+            "PLAYER_INTELLIGENCE",
             "FACTS",
             "RELATIONSHIPS",
           ]),
@@ -108,63 +83,89 @@ export const socialStrategyPlugin: Plugin = {
       },
     ],
   },
-  services: [AddPlayerService],
-  // routes: [
-  //   {
-  //     name: "addPlayer",
-  //     path: "/addPlayer",
-  //     type: "POST",
-  //     public: true,
-  //     handler: async (req, res, runtime) => {
-  //       const { handle } = req.body;
-  //       const service = runtime.getService(
-  //         AddPlayerService.serviceType
-  //       ) as AddPlayerService;
-  //       if (!service) {
-  //         throw new Error("AddPlayerService not found");
-  //       }
-  //       const player = await service.getOrCreatePlayer({ handle });
-  //       res.json(player);
-  //     },
-  //   },
-  // ],
+
+  services: [StrategyService],
+
   actions: [
-    trackConversation,
-    // {
-    //   name: "getPlayerInfo",
-    //   description: "Retrieve information about a specific player",
-    //   similes: ["PLAYER_INFO", "LOOKUP_PLAYER", "PLAYER_PROFILE"],
-    //   examples: [
-    //     [
-    //       {
-    //         name: "user",
-    //         content: { playerId: "player1", text: "Get info for player1" },
-    //       },
-    //       {
-    //         name: "agent",
-    //         content: {
-    //           text: "Player info for player1: trust 50, neutral relationship.",
-    //           actions: ["getPlayerInfo"],
-    //         },
-    //       },
-    //     ],
-    //   ],
-    //   validate: async (runtime: IAgentRuntime, message: Memory) => {
-    //     return (
-    //       typeof message.content === "object" &&
-    //       message.content !== null &&
-    //       "playerId" in message.content &&
-    //       typeof message.content.playerId === "string"
-    //     );
-    //   },
-    //   handler: getPlayerInfoHandler,
-    // },
+    diaryRoomAction, // Private strategic reflection
+    strategyReviewAction, // Strategic analysis and planning
+  ],
+
+  routes: [
+    {
+      name: "strategy-dashboard",
+      path: "/strategy",
+      type: "GET",
+      public: true,
+      handler: async (req, res, runtime) => {
+        try {
+          const strategyService = runtime.getService(
+            "social-strategy",
+          ) as StrategyService;
+          if (!strategyService) {
+            res.status(503).json({ error: "Strategy service not available" });
+            return;
+          }
+
+          const state = strategyService.getState();
+          const dashboard = {
+            phase: state.currentPhase,
+            round: state.round,
+            strategicMode: state.strategicMode,
+            relationships: Object.fromEntries(state.relationships),
+            analysis: state.analysis,
+            diaryEntries: state.diaryEntries.slice(-10), // Last 10 entries
+            playerPatterns: Object.fromEntries(state.playerPatterns),
+          };
+
+          res.json(dashboard);
+        } catch (error) {
+          elizaLogger.error("Error serving strategy dashboard:", error);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      },
+    },
+    {
+      name: "strategy-config",
+      path: "/strategy/config",
+      type: "POST",
+      public: true,
+      handler: async (req, res, runtime) => {
+        try {
+          const strategyService = runtime.getService(
+            "social-strategy",
+          ) as StrategyService;
+          if (!strategyService) {
+            res.status(503).json({ error: "Strategy service not available" });
+            return;
+          }
+
+          const config = req.body as Partial<StrategyPrompts>;
+          await strategyService.updateConfiguration(config);
+
+          res.json({
+            success: true,
+            message: "Strategy configuration updated",
+          });
+        } catch (error) {
+          elizaLogger.error("Error updating strategy config:", error);
+          res.status(500).json({ error: "Failed to update configuration" });
+        }
+      },
+    },
   ],
 };
 
-export { trackConversation } from "./actions/trackConversation";
+// Export all components for external use
+export { StrategyService };
+export { diaryRoomAction } from "./actions/diaryRoom";
+export { strategyReviewAction } from "./actions/strategyReview";
 export { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
-export { socialContextProvider } from "./providers/socialContext";
+export { strategicRelationshipEvaluator } from "./evaluators/strategicRelationshipExtractor";
+export { strategicReflectionEvaluator } from "./evaluators/strategicReflection";
+export { strategicContextProvider } from "./providers/strategicContext";
+export { playerIntelligenceProvider } from "./providers/playerIntelligence";
 export * from "./types";
 
-/* promptManager utilities no longer required in this module */
+// Legacy compatibility exports
+export const AddPlayerService = StrategyService;

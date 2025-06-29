@@ -110,9 +110,11 @@ export class ModelMockingService {
     if (this.config.mode === "record") {
       const recordingKey = this.getRecordingKey(suiteName, testName);
       this.recordings.set(recordingKey, []);
-      console.log(
-        `🧹 Cleared existing recordings for clean re-recording: ${testName}`
-      );
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log(
+          `🧹 Cleared existing recordings for clean re-recording: ${testName}`
+        );
+      }
     }
 
     // Always clear counters and tracking for fresh test run
@@ -223,14 +225,18 @@ export class ModelMockingService {
     mkdirSync(dirname(filePath), { recursive: true });
 
     writeFileSync(filePath, JSON.stringify(recordingFile, null, 2));
-    console.log(
-      `📹 Saved ${sortedRecords.length} deduplicated model call recordings to ${filePath}`
-    );
+    if (process.env.TEST_LOG_LEVEL === "debug") {
+      console.log(
+        `📹 Saved ${sortedRecords.length} deduplicated model call recordings to ${filePath}`
+      );
+    }
 
     if (records.length !== sortedRecords.length) {
-      console.log(
-        `🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`
-      );
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log(
+          `🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`
+        );
+      }
     }
   }
 
@@ -431,14 +437,18 @@ export class ModelMockingService {
         );
 
         this.recordings.set(recordingKey, cleanedRecordings);
-        console.log(
-          `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || "legacy"})`
-        );
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(
+            `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || "legacy"})`
+          );
+        }
 
         if (cleanedRecordings.length !== recordingFile.recordings.length) {
-          console.log(
-            `🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`
-          );
+          if (process.env.TEST_LOG_LEVEL === "debug") {
+            console.log(
+              `🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`
+            );
+          }
         }
       } catch (error) {
         console.warn(`⚠️ Failed to load recordings from ${filePath}:`, error);
@@ -460,7 +470,9 @@ export class ModelMockingService {
 
     // For legacy recordings (pre-2.0.0), clean up duplicates and fix IDs
     if (!version || version < "2.0.0") {
-      console.log("🔄 Migrating recordings from legacy format...");
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log("🔄 Migrating recordings from legacy format...");
+      }
 
       // Deduplicate by ID, keeping the latest
       migratedRecordings = this.deduplicateRecordings(migratedRecordings);
@@ -561,9 +573,11 @@ export class ModelMockingService {
     records.push(record);
     this.recordings.set(recordingKey, records);
 
-    console.log(
-      `🎬 Recorded model call ${callId} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
-    );
+    if (process.env.TEST_LOG_LEVEL === "debug") {
+      console.log(
+        `🎬 Recorded model call ${callId} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
+      );
+    }
     return response;
   }
 
@@ -594,9 +608,11 @@ export class ModelMockingService {
     );
 
     if (matchingRecord) {
-      console.log(
-        `▶️ Content match: ${matchingRecord.id} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
-      );
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log(
+          `▶️ Content match: ${matchingRecord.id} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
+        );
+      }
       return this.queueOrderedPlayback(matchingRecord, callId);
     }
 
@@ -609,9 +625,11 @@ export class ModelMockingService {
     );
 
     if (matchingRecord) {
-      console.log(
-        `▶️ Fuzzy match: ${matchingRecord.id} for ${agentId} (${modelType}) similarity > 80%`
-      );
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log(
+          `▶️ Fuzzy match: ${matchingRecord.id} for ${agentId} (${modelType}) similarity > 80%`
+        );
+      }
       return this.queueOrderedPlayback(matchingRecord, callId);
     }
 
@@ -626,9 +644,11 @@ export class ModelMockingService {
     if (callIndex < sortedRecords.length) {
       const record = sortedRecords[callIndex];
       this.playbackCounters.set(playbackKey, callIndex + 1);
-      console.log(
-        `▶️ Sequential fallback: ${record.id} for ${agentId} (${modelType}) call ${callIndex + 1} (seq: ${record.globalSequence})`
-      );
+      if (process.env.TEST_LOG_LEVEL === "debug") {
+        console.log(
+          `▶️ Sequential fallback: ${record.id} for ${agentId} (${modelType}) call ${callIndex + 1} (seq: ${record.globalSequence})`
+        );
+      }
       return this.queueOrderedPlayback(record, callId);
     }
 
@@ -687,9 +707,11 @@ export class ModelMockingService {
         const { resolve, record, callId } = this.playbackQueue.shift()!;
 
         try {
-          console.log(
-            `🎬 Ordered playback: ${callId} (seq: ${record.globalSequence})`
-          );
+          if (process.env.TEST_LOG_LEVEL === "debug") {
+            console.log(
+              `🎬 Ordered playback: ${callId} (seq: ${record.globalSequence})`
+            );
+          }
 
           const response = this.parseRecordedResponse(record, record.modelType);
           resolve(response);
@@ -861,7 +883,9 @@ export class ModelMockingService {
             `Current:  ${newResponse.substring(0, 100)}...`
         );
       } else {
-        console.log(`✅ Response verified for ${agentId} ${callId}`);
+        if (process.env.TEST_LOG_LEVEL === "debug") {
+          console.log(`✅ Response verified for ${agentId} ${callId}`);
+        }
       }
 
       return recordedResponse; // Return recorded for consistency
