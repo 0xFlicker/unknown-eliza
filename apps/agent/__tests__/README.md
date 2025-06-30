@@ -76,22 +76,30 @@ generator.generateExpectationsFile("./test-expectations.ts");
 
 ## Core Components
 
-### 1. ConversationSimulator
+### 1. ConversationSimulator (Legacy V2)
 
 **Location**: `__tests__/utils/conversation-simulator.ts`
 
-The main testing harness for creating and managing multi-agent conversations.
+The legacy testing harness for creating and managing multi-agent conversations. Supports **multi-channel architecture** with participant modes, message limits, and observable interfaces.
 
-#### Basic Usage
+⚠️ **MIGRATION NOTICE**: New tests should use **ConversationSimulatorV3** for better AgentServer integration.
+
+### 2. ConversationSimulatorV3 (Recommended)
+
+**Location**: `__tests__/utils/conversation-simulator-v3.ts`
+
+The **new and improved** testing harness that properly integrates with AgentServer infrastructure instead of bypassing it. Built using patterns from the Discord plugin for authentic multi-agent conversation testing.
+
+#### V3 Basic Usage
 
 ```typescript
-import { ConversationSimulator } from "./utils/conversation-simulator";
+import { ConversationSimulatorV3 } from "./utils/conversation-simulator-v3";
 
-const simulator = new ConversationSimulator({
-  agentCount: 3,
+const simulator = new ConversationSimulatorV3({
   dataDir: "./test-data",
+  useModelMockingService: true,
   testContext: {
-    suiteName: "My Test Suite",
+    suiteName: "My Test Suite", 
     testName: "multi-agent conversation",
   },
 });
@@ -104,40 +112,121 @@ try {
   const agent1 = await simulator.addAgent(
     "Alice",
     { ...baseCharacter, name: "Alice" },
-    [bootstrapPlugin, localAIPlugin, socialStrategyPlugin],
+    [bootstrapPlugin, openaiPlugin, socialStrategyPlugin],
   );
 
-  // Send messages and trigger responses
-  const { message, responses } = await simulator.sendMessage(
+  // Create a channel (implicit group channel creation)
+  const channelId = await simulator.createChannel({
+    name: "main-conversation",
+    participants: ["Alice", "Bob", "Charlie"],
+    type: ChannelType.GROUP,
+  });
+
+  // Send messages directly to channels (no explicit targeting)
+  const result = await simulator.sendMessage(
     "Alice",
-    "Hello everyone!",
-    true, // trigger other agents to respond
+    channelId,
+    "Hello everyone!"
   );
 
+  // Wait for replies and observe messages
+  await simulator.waitForChannelMessages(channelId, 3, 10000);
+  
   // Assert on results
-  expect(message.content).toBe("Hello everyone!");
-  expect(responses.length).toBeGreaterThan(0);
-  expect(responses[0].responded).toBe(true);
+  const messages = simulator.getChannelMessages(channelId);
+  expect(messages.length).toBeGreaterThan(1);
+  expect(messages[0].content).toBe("Hello everyone!");
 } finally {
   await simulator.cleanup();
 }
 ```
 
-#### Configuration Options
+#### V3 Key Improvements
+
+**🔧 AgentServer Integration**
+- Uses real AgentServer infrastructure instead of bypassing it
+- Proper channel creation via server API
+- Server-managed message storage and retrieval
+- Consistent with Discord plugin patterns
+
+**📡 Enhanced Message Flow** 
+- Direct EVENT emission to agent runtimes (like Discord plugin)
+- Proper MESSAGE_RECEIVED event handling
+- Server-generated message IDs prevent duplication
+- Automatic connection and room/world setup
+
+**🏗️ Simplified Channel Model**
+- Implicit "group" channels - no more explicit message targeting
+- Role-based channel access with ParticipantModeV3
+- Observer pattern for real-time message listening
+- Channel exhaustion (message limits, timeouts)
+
+**🎮 Game State Integration**
+- Built-in GameStatePreloader integration
+- Explicit agent role assignment (house/player/host)
+- Automatic room/world creation for game state
+- Phase-based game state pre-loading
+
+#### V3 Multi-Channel Support
 
 ```typescript
-interface SimulatorConfig {
-  /** Number of agents to create */
-  agentCount: number;
+// Create channels with different participant modes
+const diaryRoomId = await simulator.createChannel({
+  name: "diary-room-alice",
+  participants: [
+    { agentName: "House", mode: ParticipantModeV3.BROADCAST_ONLY }, // Can send, can't receive replies
+    { agentName: "Alice", mode: ParticipantModeV3.READ_WRITE }, // Full participation
+  ],
+  type: ChannelType.DM,
+  maxMessages: 10, // Limit to 10 messages
+  timeoutMs: 60000, // 1 minute timeout
+});
 
-  /** Legacy model mocking configurations (deprecated) */
-  modelMocks?: ModelMockConfig[];
+// Send to specific channel (simplified API)
+await simulator.sendMessage(
+  "House",
+  diaryRoomId,
+  "Welcome to your diary room. Share your strategic thoughts."
+);
 
+// Observe channel messages in real-time
+const unsubscribe = simulator.observeChannel(diaryRoomId, (message) => {
+  console.log(`New message in diary room: ${message.authorName}: ${message.content}`);
+});
+
+// Get messages from specific channel
+const diaryMessages = simulator.getChannelMessages(diaryRoomId);
+```
+
+#### V3 Known Issues & Limitations
+
+**⚠️ Reply Synchronization**
+- Agents may respond 5-30 seconds after a message
+- No built-in observability for delayed responses
+- `waitForChannelMessages()` helps but requires manual timeout tuning
+
+**🔁 Limited Agent Interaction**
+- Agents typically reply only once to a message
+- They see "forced" messages but may not react to each other's replies
+- Conversation chains may require manual message injection
+
+**🐛 Message Polling**
+- Uses polling instead of real-time event streaming
+- 500ms intervals in record mode, 100ms in playback mode
+- May miss rapid message sequences
+
+#### V3 Configuration Options
+
+```typescript
+interface SimulatorConfigV3 {
   /** Test data directory */
   dataDir: string;
 
   /** Server port for testing */
   serverPort?: number;
+
+  /** Enable real-time SocketIO integration */
+  enableRealTime?: boolean;
 
   /** Enable comprehensive model mocking service (default: true) */
   useModelMockingService?: boolean;
@@ -150,16 +239,159 @@ interface SimulatorConfig {
 }
 ```
 
-#### Key Methods
+#### V3 Game State Integration (NEW)
 
-- **`initialize()`**: Set up test server and channels
+```typescript
+// Create channel with pre-loaded game state
+const channelId = await simulator.createChannel({
+  name: "main-game-channel",
+  participants: ["House", "Alice", "Bob", "Charlie"],
+  type: ChannelType.GROUP,
+  gameState: {
+    phase: Phase.LOBBY,
+    round: 0,
+    agentRoles: [
+      { agentName: "House", role: "house" },
+      { agentName: "Alice", role: "host" },
+      { agentName: "Bob", role: "player" },
+      { agentName: "Charlie", role: "player" },
+    ],
+  },
+});
+
+// Alternative: Legacy role specification (deprecated)
+const channelId2 = await simulator.createChannel({
+  name: "legacy-channel", 
+  participants: ["House", "Alice", "Bob"],
+  gameState: {
+    phase: Phase.LOBBY,
+    hostPlayerName: "Alice", // deprecated
+    houseAgentName: "House", // deprecated 
+  },
+});
+```
+
+#### V3 Participant Modes
+
+```typescript
+enum ParticipantModeV3 {
+  READ_WRITE = "read_write",        // Full participation (default)
+  BROADCAST_ONLY = "broadcast_only", // Can send but doesn't receive replies
+  OBSERVE_ONLY = "observe_only",     // Can only observe, cannot send
+}
+```
+
+#### Migration Guide: V2 → V3
+
+**Key API Changes:**
+
+1. **Simplified sendMessage API**
+   ```typescript
+   // V2: Complex targeting
+   await simulator.sendMessage(
+     "Alice",
+     ["Bob", "Charlie"], // explicit targets
+     "Hello!",
+     { maxReplies: 2 },
+     channelId
+   );
+   
+   // V3: Channel-based messaging
+   await simulator.sendMessage(
+     "Alice", 
+     channelId,
+     "Hello!" // all channel participants receive
+   );
+   ```
+
+2. **No agentCount Configuration**
+   ```typescript
+   // V2: Pre-specify agent count
+   const simulator = new ConversationSimulator({
+     agentCount: 5,
+     dataDir: "./test-data"
+   });
+   
+   // V3: Add agents as needed
+   const simulator = new ConversationSimulatorV3({
+     dataDir: "./test-data"
+   });
+   ```
+
+3. **Enhanced Channel Management**
+   ```typescript
+   // V2: Limited channel support
+   const channelId = await simulator.createChannel(config);
+   
+   // V3: Rich channel features + game state
+   const channelId = await simulator.createChannel({
+     ...config,
+     gameState: { phase: Phase.LOBBY, agentRoles: [...] }
+   });
+   ```
+
+4. **Improved Message Observation**
+   ```typescript
+   // V2: Basic message tracking
+   const history = simulator.getConversationHistory();
+   
+   // V3: Real-time observation + channel-specific messages
+   simulator.observeChannel(channelId, (message) => {
+     console.log(`${message.authorName}: ${message.content}`);
+   });
+   const messages = simulator.getChannelMessages(channelId);
+   ```
+
+#### V3 Key Methods
+
+**Core Methods**
+- **`initialize()`**: Set up AgentServer and test infrastructure
+- **`addAgent(name, character, plugins)`**: Add an agent and register with server
+- **`sendMessage(fromAgent, channelId, content, options?)`**: Send message to channel
+- **`getChannelMessages(channelId)`**: Get messages from specific channel
+- **`getChannels()`**: Get all channels with metadata
+- **`cleanup()`**: Clean up resources and save recordings
+
+**Channel Management** 
+- **`createChannel(config)`**: Create channel with participants, limits, and optional game state
+- **`createPrivateChannel(agent1, agent2)`**: Quick 1-on-1 channel creation
+- **`createBroadcastChannel(broadcaster, receivers, name?)`**: Broadcaster + receivers setup
+- **`isChannelExhausted(channelId)`**: Check if channel reached limits
+
+**Observability**
+- **`observeChannel(channelId, observer)`**: Subscribe to new messages (returns unsubscribe function)
+- **`waitForChannelMessages(channelId, count, timeout?)`**: Wait for specific number of messages in channel
+
+**Utilities**
+- **`getAgent(agentName)`**: Get agent runtime by name
+- **`getAgentNames()`**: Get all registered agent names
+- **`getServer()`**: Get AgentServer instance for debugging
+- **`getModelMockingService()`**: Get model mocking service for advanced testing
+
+#### Legacy V2 Methods (for reference)
+
+**Core Methods (V2)**
+- **`initialize()`**: Set up test server and default channel
 - **`addAgent(name, character, plugins)`**: Add an agent to the conversation
-- **`sendMessage(fromAgent, content, shouldTriggerResponses)`**: Send a message and optionally trigger other agents
+- **`sendMessage(fromAgent, toAgents, content, responseConfig?, channelId?)`**: Send a message with advanced options
 - **`getConversationHistory()`**: Get all messages in chronological order
 - **`createConversationSummary()`**: Get statistics about the conversation
 - **`cleanup()`**: Clean up resources and save recordings
 
-### 2. ModelMockingService
+**Response Configuration (V2)**
+```typescript
+interface ResponseConfig {
+  maxReplies?: number; // undefined = no replies, Infinity = unlimited, number = max replies
+  timeoutMs?: number;  // Override default response timeout
+}
+
+// Usage examples (V2):
+await simulator.sendMessage("Alice", ["Bob"], "Hello", true); // Backward compatible
+await simulator.sendMessage("Alice", ["Bob"], "Hello", { maxReplies: 2 }); // Explicit config
+await simulator.sendMessage("Alice", ["Bob"], "Hello", undefined); // No replies
+```
+
+### 3. ModelMockingService
 
 **Location**: `__tests__/utils/model-mocking-service.ts`
 
@@ -256,7 +488,7 @@ cleanup();
 await mockingService.saveRecordings();
 ```
 
-### 3. Agent Response Testing
+### 4. Agent Response Testing
 
 The framework provides structured response testing through `AgentResponseResult` objects:
 
@@ -339,11 +571,12 @@ it("should handle multi-agent discussions", async () => {
   await simulator.addAgent("Strategist", strategistCharacter, plugins);
   await simulator.addAgent("Analyzer", analyzerCharacter, plugins);
 
-  // Start a discussion
+  // Start a discussion with response limits
   const { responses } = await simulator.sendMessage(
     "Diplomat",
+    ["Strategist", "Analyzer"], // explicit targets
     "We need to discuss our alliance strategy.",
-    true,
+    { maxReplies: 2 }, // limit responses to prevent runaway conversations
   );
 
   // Verify multiple agents participated
@@ -387,8 +620,9 @@ it("should test alliance formation behavior", async () => {
   // Initiate alliance discussion
   const { responses } = await simulator.sendMessage(
     "Player1",
+    ["Player2", "Player3", "Player4"],
     "I think we should form an alliance. Who's interested?",
-    true,
+    { maxReplies: 3 }, // Allow up to 3 responses
   );
 
   // Analyze responses for alliance-related keywords
@@ -403,7 +637,82 @@ it("should test alliance formation behavior", async () => {
 });
 ```
 
-### 4. Model Response Consistency
+### 4. Multi-Channel Testing (NEW)
+
+```typescript
+it("should handle private diary room sessions", async () => {
+  const simulator = new ConversationSimulator({
+    agentCount: 3, // 2 players + house
+    dataDir: testDataDir,
+    testContext: {
+      suiteName: "Influence",
+      testName: "diary room sessions",
+    },
+  });
+
+  await simulator.initialize();
+
+  // Add House as moderator and players
+  await simulator.addAgent("House", houseCharacter, [housePlugin]);
+  await simulator.addAgent("Alice", playerCharacter, [playerPlugin]);
+  await simulator.addAgent("Bob", playerCharacter, [playerPlugin]);
+
+  // Create individual diary rooms
+  const aliceDiaryId = await simulator.createChannel({
+    name: "diary-room-alice",
+    participants: [
+      { agentName: "House", mode: ParticipantMode.BROADCAST_ONLY },
+      { agentName: "Alice", mode: ParticipantMode.READ_WRITE },
+    ],
+    maxMessages: 10,
+    timeoutMs: 60000,
+  });
+
+  const bobDiaryId = await simulator.createChannel({
+    name: "diary-room-bob", 
+    participants: [
+      { agentName: "House", mode: ParticipantMode.BROADCAST_ONLY },
+      { agentName: "Bob", mode: ParticipantMode.READ_WRITE },
+    ],
+    maxMessages: 10,
+    timeoutMs: 60000,
+  });
+
+  // House sends diary room prompts
+  await simulator.sendMessage(
+    "House",
+    ["Alice"],
+    "Welcome to your diary room. Share your strategic thoughts.",
+    { maxReplies: 1 },
+    aliceDiaryId
+  );
+
+  await simulator.sendMessage(
+    "House", 
+    ["Bob"],
+    "Welcome to your diary room. Share your strategic thoughts.",
+    { maxReplies: 1 },
+    bobDiaryId
+  );
+
+  // Wait for responses
+  await simulator.waitForChannelMessages(aliceDiaryId, 2, 10000); // House + Alice
+  await simulator.waitForChannelMessages(bobDiaryId, 2, 10000); // House + Bob
+
+  // Verify isolation - Alice shouldn't see Bob's diary and vice versa
+  const aliceMessages = simulator.getChannelMessages(aliceDiaryId);
+  const bobMessages = simulator.getChannelMessages(bobDiaryId);
+
+  expect(aliceMessages.some(m => m.authorName === "Bob")).toBe(false);
+  expect(bobMessages.some(m => m.authorName === "Alice")).toBe(false);
+  
+  // Verify each player responded in their own diary room
+  expect(aliceMessages.some(m => m.authorName === "Alice")).toBe(true);
+  expect(bobMessages.some(m => m.authorName === "Bob")).toBe(true);
+});
+```
+
+### 5. Model Response Consistency
 
 ```typescript
 it("should maintain consistent responses", async () => {
@@ -629,10 +938,51 @@ This framework is specifically designed to support testing of the **Influence** 
 ```typescript
 it("should handle voting phase correctly", async () => {
   // Test voting mechanics, alliance formation, betrayal detection
+  const simulator = new ConversationSimulator({
+    agentCount: 5, // 4 players + house
+    dataDir: testDataDir,
+    testContext: { suiteName: "Influence", testName: "voting phase" },
+  });
+
+  await simulator.initialize();
+
+  // Add House and players
+  await simulator.addAgent("House", houseCharacter, [housePlugin]);
+  // ... add players with influence plugin
+
+  // Pre-load game state to VOTE phase
+  await GameStatePreloader.preloadGamePhase(house, roomId, Phase.VOTE, {
+    playerNames: ["P1", "P2", "P3", "P4"],
+    exposedPlayers: ["P1"], // P1 is exposed
+  });
+
+  // Test vote collection via private messages to House
+  await simulator.sendMessage("P2", ["House"], "!empower P3", undefined);
+  await simulator.sendMessage("P2", ["House"], "!expose P1", undefined);
+  
+  // Verify House processes votes correctly
+  // ... test assertions
 });
 
 it("should manage whisper phase interactions", async () => {
+  // Create private channels for whisper phase
+  const p1p2Channel = await simulator.createPrivateChannel("P1", "P2");
+  const p3p4Channel = await simulator.createPrivateChannel("P3", "P4");
+  
   // Test private messaging, secret alliances, information sharing
+  await simulator.sendMessage(
+    "P1", 
+    ["P2"], 
+    "Let's form a secret alliance against P3",
+    { maxReplies: 1 },
+    p1p2Channel
+  );
+  
+  // Verify messages stay private
+  const p1p2Messages = simulator.getChannelMessages(p1p2Channel);
+  const p3p4Messages = simulator.getChannelMessages(p3p4Channel);
+  
+  expect(p3p4Messages.some(m => m.content.includes("secret alliance"))).toBe(false);
 });
 ```
 
@@ -653,6 +1003,50 @@ it("should form strategic alliances", async () => {
 ```typescript
 it("should moderate game phases correctly", async () => {
   // Test phase transitions, rule enforcement, timeout handling
+  const simulator = new ConversationSimulator({
+    agentCount: 3, // 2 players + house
+    dataDir: testDataDir,
+    testContext: { suiteName: "Influence", testName: "house moderation" },
+  });
+
+  await simulator.initialize();
+
+  // Add House with broadcast-only mode for announcements
+  await simulator.addAgent("House", houseCharacter, [housePlugin]);
+  await simulator.addAgent("P1", playerCharacter, [influencerPlugin]);
+  await simulator.addAgent("P2", playerCharacter, [influencerPlugin]);
+
+  // Create announcement channel where House broadcasts and players receive
+  const announcementChannel = await simulator.createBroadcastChannel(
+    "House", 
+    ["P1", "P2"], 
+    "game-announcements"
+  );
+
+  // House announces phase transition
+  await simulator.sendMessage(
+    "House",
+    ["P1", "P2"],
+    "🎮 PHASE TRANSITION: Moving to WHISPER phase. You have 10 minutes for private conversations.",
+    undefined, // House announcements don't trigger automatic replies
+    announcementChannel
+  );
+
+  // Verify House can broadcast but players can't reply in announcement channel
+  const announcements = simulator.getChannelMessages(announcementChannel);
+  expect(announcements.length).toBe(1);
+  expect(announcements[0].authorName).toBe("House");
+
+  // Test that players respond in main channel instead
+  const { responses } = await simulator.sendMessage(
+    "P1",
+    ["P2"],
+    "Did you see that phase announcement?",
+    { maxReplies: 1 }
+  );
+
+  expect(responses.length).toBe(1);
+  expect(responses[0].agentName).toBe("P2");
 });
 ```
 
@@ -706,17 +1100,23 @@ When adding new tests:
 ```
 __tests__/
 ├── README.md                                    # This documentation
-├── agent-server.test.ts                        # Main integration tests
+├── agent-server.test.ts                        # AgentServer integration tests (V3)
+├── influence/
+│   └── strategy-diary-room.test.ts             # Strategy testing with V3 simulator
 ├── utils/
-│   ├── conversation-simulator.ts               # Multi-agent testing harness
+│   ├── conversation-simulator-v3.ts            # NEW: V3 simulator with AgentServer integration
+│   ├── conversation-simulator.ts               # Legacy V2 simulator
+│   ├── game-state-preloader.ts                 # Game state setup utilities
 │   ├── model-mocking-service.ts                # Model evaluation mocking
 │   ├── recording-test-utils.ts                 # Soft assertions for recording mode
 │   ├── recording-expectations-generator.ts     # Generate expectations from recordings
 │   ├── process-utils.ts                        # Process management utilities
 │   └── test-timeouts.ts                        # Timeout constants
 └── recordings/                                 # Model response recordings
-    ├── AgentServer_integration__*.json
-    └── SocialStrategy__*.json
+    ├── AgentServer_V3_Integration__*.json       # V3 simulator recordings
+    ├── Strategy__*.json                         # Strategy plugin recordings
+    └── legacy/                                  # Legacy V2 recordings
+        └── AgentServer_integration__*.json
 ```
 
 This framework provides a solid foundation for testing complex AI agent interactions and social strategy behaviors. Use it to build confidence in your agent implementations and ensure consistent behavior across different scenarios.

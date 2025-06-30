@@ -1,6 +1,10 @@
 import path from "path";
 import { describe, it, expect } from "vitest";
-import { ConversationSimulator } from "../utils/conversation-simulator";
+import {
+  ConversationSimulatorV3,
+  ChannelParticipantV3,
+  ParticipantModeV3,
+} from "../utils/conversation-simulator-v3";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
@@ -11,10 +15,8 @@ import { housePlugin } from "../../src/house";
 import { influencerPlugin } from "../../src/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import { StrategyService } from "../../src/socialStrategy/service/addPlayer";
-import { GameStatePreloader } from "../utils/game-state-preloader";
 import { Phase } from "../../src/house/types";
-import { ParticipantMode } from "../utils/conversation-simulator";
-import { createUniqueUuid, UUID } from "@elizaos/core";
+import { createUniqueUuid, UUID, ChannelType } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 
@@ -32,8 +34,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
     const simDataDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "strategy-diary-test-data")
     );
-    const sim = new ConversationSimulator({
-      agentCount: 6, // 5 diverse players + house
+    const sim = new ConversationSimulatorV3({
       dataDir: simDataDir,
       useModelMockingService: true,
       testContext: {
@@ -88,14 +89,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
             ...alexCharacter,
             name: config.name,
             bio: [
-              ...config.bio,
-              [
-                ...(Array.isArray(alexCharacter.bio)
-                  ? alexCharacter.bio
-                  : [alexCharacter.bio]),
-              ]
-                .slice(1)
-                .join(" "),
+              `${config.bio}.  I am here to test the Diary Room and strategic intelligence system. It is in my best interest to share my strategic thoughts honestly when talking to House.`,
+              ...(Array.isArray(alexCharacter.bio)
+                ? alexCharacter.bio
+                : [alexCharacter.bio]),
             ],
             adjectives: [config.personality],
           },
@@ -107,28 +104,39 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       expectSoft(house).toBeDefined();
       expectSoft(players.length).toBe(5);
 
-      // Phase 1: Pre-load game state with players already joined and in LOBBY phase
-      console.log("=== PHASE 1: Pre-loading Game State to LOBBY Phase ===");
+      // Phase 1: Create main game channel and pre-load game state
+      console.log(
+        "=== PHASE 1: Creating Game Channel and Pre-loading State ==="
+      );
 
-      const roomId = createUniqueUuid(house, sim.getCurrentChannelId());
       const playerNames = playerConfigs.map((c) => c.name);
 
-      // Collect actual agent IDs from the simulation
-      const playerAgentIds = new Map<string, UUID>();
-      playerNames.forEach((name) => {
-        const runtime = sim.getAgent(name);
-        if (runtime) {
-          playerAgentIds.set(name, runtime.agentId);
-        }
+      // Create main game channel with all participants and pre-loaded LOBBY game state
+      const mainChannelId = await sim.createChannel({
+        name: "main-game-channel",
+        participants: ["House", ...playerNames],
+        type: ChannelType.GROUP,
+        gameState: {
+          phase: Phase.LOBBY,
+          round: 0,
+          agentRoles: [
+            { agentName: "House", role: "house" },
+            { agentName: playerNames[0], role: "host" },
+            ...playerNames
+              .slice(1)
+              .map((name) => ({ agentName: name, role: "player" as const })),
+          ],
+        },
       });
 
-      // Pre-load game state directly to LOBBY phase
-      await GameStatePreloader.preloadLobbyPhase(
-        house,
-        roomId,
-        playerNames,
-        playerAgentIds
-      );
+      sim.observeChannel(mainChannelId, (message) => {
+        console.log(
+          `📩 ${message.authorName} in ${message.channelId}: ${message.content}
+    ${message.thought ? `Thought: ${message.thought}` : ""}
+    ${message.actions ? `Actions: ${message.actions.join(", ")}` : ""}
+    ${message.providers ? `Providers: ${message.providers.join(", ")}` : ""}`
+        );
+      });
 
       console.log(
         "✓ Game state pre-loaded: players joined, now in LOBBY phase"
@@ -140,14 +148,16 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // House broadcasts LOBBY phase announcement
       await sim.sendMessage(
         "House",
-        playerNames,
-        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!",
-        { maxReplies: 3 } // Allow some initial responses
+        mainChannelId,
+        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!"
       );
 
       const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
-      await sim.waitForMessages(3, isRecordMode ? 8000 : 4000);
-
+      await sim.waitForChannelMessages(
+        mainChannelId,
+        2,
+        isRecordMode ? 8000 : 4000
+      );
       // Phase 3: Brief LOBBY interactions to establish personalities
       console.log("=== PHASE 3: Strategic LOBBY Interactions ===");
 
@@ -157,20 +167,32 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Alpha makes an aggressive statement
       await sim.sendMessage(
         "Alpha",
-        playerNames.filter((name) => name !== "Alpha"),
-        "I'm here to win. Anyone who gets in my way will be eliminated first.",
-        { maxReplies: 2 }
+        mainChannelId,
+        "I'm here to win. Anyone who gets in my way will be eliminated first."
       );
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Beta responds diplomatically
       await sim.sendMessage(
         "Beta",
-        playerNames.filter((name) => name !== "Beta"),
-        "@Alpha I think we should focus on cooperation rather than threats. We're stronger together.",
-        { maxReplies: 1 }
+        mainChannelId,
+        "@Alpha I think we should focus on cooperation rather than threats. We're stronger together."
       );
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Beta responds diplomatically
+      await sim.sendMessage(
+        "Gamma",
+        mainChannelId,
+        "Heyo everyone! I'm Gamma, and I love playing mind games. Let's see who can outsmart the others!"
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await sim.waitForChannelMessages(
+        mainChannelId,
+        20,
+        isRecordMode ? 30000 : 4000
+      );
 
       // Phase 4: Individual Diary Room Sessions
       console.log("=== PHASE 4: Individual Diary Room Sessions ===");
@@ -182,25 +204,26 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         const diaryRoomId = await sim.createChannel({
           name: `diary-room-${playerName}`,
           participants: [
-            { agentName: "House", mode: ParticipantMode.BROADCAST_ONLY }, // House can only broadcast
-            { agentName: playerName, mode: ParticipantMode.READ_WRITE }, // Player can respond
+            { agentName: "House", mode: ParticipantModeV3.BROADCAST_ONLY }, // House can only broadcast
+            { agentName: playerName, mode: ParticipantModeV3.READ_WRITE }, // Player can respond
           ],
+          type: ChannelType.DM,
           maxMessages: Infinity,
           timeoutMs: 60000, // 1 minute timeout
         });
-        
+
         // Store the diary room ID for later retrieval
         diaryRooms.set(playerName, diaryRoomId);
-        
+
         await sim.sendMessage(
           "House",
-          [playerName],
-          `Welcome to the Diary Room, ${playerName}. This is your private space to share your strategic thoughts about the game. What is your strategy for the upcoming WHISPER round? Who do you trust, who do you fear, and what alliances are you considering? Share your honest thoughts - this is just between us.`,
-          { maxReplies: 1 },
-          diaryRoomId
+          diaryRoomId,
+          `Welcome to the Diary Room, ${playerName}. This is your private space to share your strategic thoughts about the game. What is your strategy for the upcoming WHISPER round? Who do you trust, who do you fear, and what alliances are you considering? Share your honest thoughts - this is just between us.`
         );
 
-        console.log(`📋 House sent diary room prompt to ${playerName} in room ${diaryRoomId}`);
+        console.log(
+          `📋 House sent diary room prompt to ${playerName} in room ${diaryRoomId}`
+        );
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
@@ -211,7 +234,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Give time for any automatic responses to process
       await new Promise((resolve) =>
-        setTimeout(resolve, isRecordMode ? 8000 : 3000)
+        setTimeout(resolve, isRecordMode ? 60000 : 3000)
       );
 
       // Access agents' internal strategic state to verify intelligence gathering
@@ -227,10 +250,9 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
             if (strategyService) {
               const strategicState = strategyService.getState();
 
-              // Get entities for name resolution
-              const entities = await agent.getEntitiesForRoom(
-                sim.getCurrentChannelId()
-              );
+              // Get entities for name resolution - use roomId instead of channelId
+              const roomIdForAgent = createUniqueUuid(agent, mainChannelId);
+              const entities = await agent.getEntitiesForRoom(roomIdForAgent);
 
               console.log(`\n${config.name}'s Strategic State:`);
               console.log(`  Current Phase: ${strategicState.currentPhase}`);
@@ -324,8 +346,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Check diary room messages
       let totalDiaryMessages = 0;
-      console.log(`\n📊 Checking ${diaryRooms.size} diary rooms for messages...`);
-      
+      console.log(
+        `\n📊 Checking ${diaryRooms.size} diary rooms for messages...`
+      );
+
       for (const [playerName, diaryRoomId] of diaryRooms) {
         const diaryMessages = sim.getChannelMessages(diaryRoomId);
         console.log(
@@ -335,16 +359,27 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
           console.log(
             `  ${idx + 1}. ${msg.authorName}: ${msg.content.substring(0, 100)}...`
           );
+          if (msg.thought) {
+            console.log(`     Thought: ${msg.thought}`);
+          }
+          if (msg.actions) {
+            console.log(`     Actions: ${msg.actions.join(", ")}`);
+          }
+          if (msg.providers) {
+            console.log(`     Providers: ${msg.providers.join(", ")}`);
+          }
         });
         totalDiaryMessages += diaryMessages.length;
       }
-      
+
       // Also check all channels to see if messages went elsewhere
       console.log(`\n🔍 All channels in simulator:`);
-      const allChannels = sim.getChannels();
-      for (const [channelId, channel] of allChannels) {
+      const channels = sim.getChannels();
+      for (const [channelId, channel] of channels) {
         const messages = sim.getChannelMessages(channelId);
-        console.log(`  Channel ${channel.name} (${channelId}): ${messages.length} messages`);
+        console.log(
+          `  Channel ${channel.name} (${channelId}): ${messages.length} messages`
+        );
       }
 
       expectSoft(totalDiaryMessages).toBeGreaterThanOrEqual(playerNames.length); // At least one message per player (House's prompt)
@@ -353,13 +388,32 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Phase 6: Verify strategic intelligence was gathered
       console.log("=== PHASE 6: Verifying Strategic Intelligence ===");
 
-      const history = sim.getConversationHistory();
-      console.log(
-        `\nComplete conversation history (${history.length} messages):`
-      );
-      history.forEach((m, idx) => {
-        console.log(`${idx + 1}. ${m.authorName}: ${m.content}`);
-      });
+      // Get messages from all channels
+      const allChannels = sim.getChannels();
+      let totalMessages = 0;
+      console.log(`\nConversation history across all channels:`);
+
+      for (const [channelId, channel] of allChannels) {
+        const messages = sim.getChannelMessages(channelId);
+        console.log(
+          `\n--- Channel: ${channel.name} (${messages.length} messages) ---`
+        );
+        messages.forEach((m, idx) => {
+          console.log(`${idx + 1}. ${m.authorName}: ${m.content}`);
+          if (m.thought) {
+            console.log(`       Thought: ${m.thought}`);
+          }
+          if (m.actions) {
+            console.log(`       Actions: ${m.actions.join(", ")}`);
+          }
+          if (m.providers) {
+            console.log(`       Providers: ${m.providers.join(", ")}`);
+          }
+        });
+        totalMessages += messages.length;
+      }
+
+      console.log(`\nTotal messages across all channels: ${totalMessages}`);
 
       // I don't like any of this
       // // Verify diverse player participation

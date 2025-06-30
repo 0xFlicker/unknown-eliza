@@ -90,7 +90,7 @@ GameEvent { type, details, ts }
 
 ---
 
-## 5 Discord‑Bot Command Surface
+## 5 Bot Command Surface
 
 ```text
 !join                // INIT only
@@ -104,7 +104,7 @@ GameEvent { type, details, ts }
 !status              // DM current public state (any phase)
 ```
 
-Illegal‑phase commands receive a guiding error from **The House**.
+Generally, **The House** will attempt to read intent from agents when waiting for an answer
 
 ---
 
@@ -170,17 +170,21 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 10 Security & Fairness
+## 10 Diary Room
 
-- All DM traffic logged; hashes published post‑season for auditability.
-- Players cannot hit REST endpoints directly—bot mediates everything.
-- Optional LLM confinement: enforce content length & profanity filter.
+Agents will be capable of reviewing their thoughts and building strategy, saved memories that will form future turns prompts. These periodic evaluations will create content for virtual diary rooms sessions for the agents, where they share their strategy privately with the audience. The house agent as well, while it does not speak often, will always be following along to construct the public facing narrative of the game.
+
+Influencer agents can decide to rethink strategy with their own actions, periodically, or during game transitions. This behavior is implemented with elizaOS actions and evaluators. Actions can be fired off from a single message, where as evaluators run contextually or periodically and receive larger context to work on groups of messages or memories.
 
 ---
 
 # ElizaOS v2 Agent Runtime Context & The House Plugin Superguide
 
 This section summarizes key ElizaOS v2 concepts—AgentRuntime, memory & entities, components (actions, providers, evaluators), and the plugin system—from the `.cursor` rules library, and sketches an implementation plan for "The House" Master of Ceremony (MC) agent as an ElizaOS plugin for the Influence game.
+
+## Provider.validate considerations
+
+A provider.validate function is ONLY to be used to check state and verify that a message is of the correct type (e.g. a content.text message) and NEVER to look for keywords. Always use an agentic response to decide which actions to take.
 
 ## ElizaOS AgentRuntime Overview
 
@@ -373,8 +377,10 @@ Check package.json for details, but most packages use vitest and not native bun 
 bun run test
 bun run test {path/to/test}
 cd apps/agent; bun run test:record # Record new local model responses for test. Necessary if there are prompt changes. See `apps/agent/__tests__/README.md` for details
+cd apps/agent; bun run test:record:soft # Record new model evaluations and don't fail on `expectSoft` calls. Useful for running the test to the end to get a full playback, to then adjust chained expectations
 cd apps/agent; bun run test:record apps/agent/__tests__/agent-server.test.ts # Record for a single test file
 cd apps/agent; bun run test:record apps/agent/__tests__/agent-server.test.ts -t "demonstrates model mocking and automated responses" # Record for a single test case
+cd apps/agent; timeout 90 bun test:record __tests__/influence/init-lobby-test.test.ts > debug_output.log 2>&1; echo "Test completed" # Capture all test logs for further analysis
 ```
 
 When `test:record` is enabled, the tests using `apps/agent/__tests__/utils/recording-test-utils.ts` will not throw, rather they will collect all differences into a report for the console. When `test:record` is not used, these tests will fail. It is up to the developer to look at the diff of the recordings at `apps/agent/recordings` as well as any changes necessary to the test, and make a determination on how the test should be updated and if the test should be re-recorded.
@@ -382,10 +388,15 @@ When `test:record` is enabled, the tests using `apps/agent/__tests__/utils/recor
 **IMPORTANT**
 When making changes to inside `apps/agent/src/*` that have any effect on prompts or model evaluations then any test using `ConversationSimulator` will likely need to be re-recorded.
 
+**IMPORTANT**
+Due to `expectSoft` and in order to get a complete model recording, stderr should be checked, for messages about tests that _WILL_ fail when run in playback mode.
+
 DO:
 
 - Start re-recording small, using a test that validates the changes being proposed
 - use `test:record` when making changes that effect model evaluation
+- use `test` instead of `test:record` when making console.log and other small debug changes
+- use tmp files or grep to capture large test outputs
 
 ### Development & Running
 

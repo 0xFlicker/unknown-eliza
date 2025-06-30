@@ -884,7 +884,6 @@ export class ConversationSimulator {
    * Save conversation to file for later analysis
    */
   async saveConversation(filePath: string): Promise<void> {
-    const fs = await import("fs/promises");
     const conversationData = {
       timestamp: new Date().toISOString(),
       agents: this.getAgentNames(),
@@ -892,7 +891,10 @@ export class ConversationSimulator {
       config: this.config,
     };
 
-    await fs.writeFile(filePath, JSON.stringify(conversationData, null, 2));
+    await fs.promises.writeFile(
+      filePath,
+      JSON.stringify(conversationData, null, 2)
+    );
   }
 
   /**

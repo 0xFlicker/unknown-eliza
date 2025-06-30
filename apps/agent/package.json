@@ -30,8 +30,9 @@
   "dependencies": {
     "@elizaos/cli": "^1.0.12",
     "@elizaos/core": "workspace:*",
+    "@elizaos/server": "workspace:*",
     "@elizaos/plugin-anthropic": "^1.0.3",
-    "@elizaos/plugin-bootstrap": "^1.0.11",
+    "@elizaos/plugin-bootstrap": "workspace:*",
     "@elizaos/plugin-browser": "^1.0.3",
     "@elizaos/plugin-discord": "1.0.10",
     "@elizaos/plugin-image-generation": "^0.25.6-alpha.1",
