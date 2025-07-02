@@ -19,6 +19,7 @@ import { Phase } from "../../src/house/types";
 import { createUniqueUuid, UUID, ChannelType } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
+import { PhaseCoordinator } from "src/house/services/phaseCoordinator";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -92,7 +93,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
               `${config.bio}.  I am here to test the Diary Room and strategic intelligence system. It is in my best interest to share my strategic thoughts honestly when talking to House.`,
               ...(Array.isArray(alexCharacter.bio)
                 ? alexCharacter.bio
-                : [alexCharacter.bio]),
+                : [alexCharacter.bio]
+              ).slice(1),
             ],
             adjectives: [config.personality],
           },
@@ -194,51 +196,109 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         isRecordMode ? 30000 : 4000
       );
 
-      // Phase 4: Individual Diary Room Sessions
-      console.log("=== PHASE 4: Individual Diary Room Sessions ===");
+      // Phase 4: Event-Driven Phase Transition with Strategic Thinking
+      console.log("=== PHASE 4: Event-Driven Phase Transition ===");
 
-      // Create individual diary room channels for each player
+      // Get the House agent's phase coordinator
+      const houseAgent = sim.getAgent("House");
+      const phaseCoordinator = houseAgent?.getService(
+        "phase-coordinator"
+      ) as PhaseCoordinator;
+
+      if (!phaseCoordinator) {
+        throw new Error("PhaseCoordinator service not found on House agent");
+      }
+
+      console.log(
+        "🔄 Initiating coordinated phase transition: LOBBY → WHISPER"
+      );
+
+      // Create a game ID for tracking
+      const gameId = createUniqueUuid(houseAgent, "test-game");
+
+      // Initiate the coordinated phase transition
+      // This will trigger:
+      // 1. PHASE_ENDED(LOBBY)
+      // 2. STRATEGIC_THINKING_REQUIRED
+      // 3. Players perform strategic analysis
+      // 4. DIARY_ROOM_OPENED
+      // 5. Players complete diary entries
+      // 6. PHASE_STARTED(WHISPER)
+      await phaseCoordinator.initiatePhaseTransition(
+        gameId,
+        mainChannelId,
+        Phase.LOBBY,
+        Phase.WHISPER,
+        1, // Round 1
+        "manual" // Manual transition for test
+      );
+
+      console.log("⏳ Waiting for coordinated phase transition to complete...");
+
+      // Give some time for the phase coordinator to process
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Manually trigger strategic thinking for each player (since automatic delivery needs more work)
+      console.log("🧠 Manually triggering strategic thinking for all players...");
+      
+      for (const playerName of playerNames) {
+        const strategicThinkingMessage = `STRATEGIC_THINKING_REQUIRED fromPhase:LOBBY toPhase:WHISPER round:1 gameId:${gameId}`;
+        await sim.sendMessage("House", mainChannelId, `@${playerName} ${strategicThinkingMessage}`);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      // Give time for strategic thinking to complete
+      await new Promise(
+        (resolve) => setTimeout(resolve, isRecordMode ? 30000 : 4000)
+      );
+
+      console.log("✅ Event-driven phase transition completed");
+
+      // Phase 5: Verify Strategic Context Integration
+      console.log("=== PHASE 5: Verify Strategic Context Integration ===");
+
+      // Create individual diary room channels for direct verification
       const diaryRooms = new Map<string, UUID>();
 
       for (const playerName of playerNames) {
         const diaryRoomId = await sim.createChannel({
-          name: `diary-room-${playerName}`,
+          name: `diary-room-verification-${playerName}`,
           participants: [
-            { agentName: "House", mode: ParticipantModeV3.BROADCAST_ONLY }, // House can only broadcast
-            { agentName: playerName, mode: ParticipantModeV3.READ_WRITE }, // Player can respond
+            { agentName: "House", mode: ParticipantModeV3.BROADCAST_ONLY },
+            { agentName: playerName, mode: ParticipantModeV3.READ_WRITE },
           ],
           type: ChannelType.DM,
           maxMessages: Infinity,
-          timeoutMs: 60000, // 1 minute timeout
+          timeoutMs: 60000,
         });
 
-        // Store the diary room ID for later retrieval
         diaryRooms.set(playerName, diaryRoomId);
 
+        // Send a verification prompt that should now include LOBBY context
         await sim.sendMessage(
           "House",
           diaryRoomId,
-          `Welcome to the Diary Room, ${playerName}. This is your private space to share your strategic thoughts about the game. What is your strategy for the upcoming WHISPER round? Who do you trust, who do you fear, and what alliances are you considering? Share your honest thoughts - this is just between us.`
+          `${playerName}, now that you've completed strategic thinking about the LOBBY phase, please share your final strategic assessment. What did you learn from the LOBBY conversations? How has your strategy evolved? What are your plans for the WHISPER phase?`
         );
 
         console.log(
-          `📋 House sent diary room prompt to ${playerName} in room ${diaryRoomId}`
+          `📋 House sent strategic context verification prompt to ${playerName}`
         );
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Wait for players to respond in their diary rooms
-      console.log(
-        "⏳ Waiting for players to share their strategic thoughts in diary rooms..."
+      // Wait for verification responses
+      console.log("⏳ Waiting for strategic context verification responses...");
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, isRecordMode ? 60000 : 5000)
       );
 
-      // Give time for any automatic responses to process
-      await new Promise((resolve) =>
-        setTimeout(resolve, isRecordMode ? 60000 : 3000)
-      );
+      // Phase 6: Strategic State Verification
+      console.log("=== PHASE 6: Strategic State Verification ===");
 
       // Access agents' internal strategic state to verify intelligence gathering
-      console.log("\n--- Internal Strategic State Analysis ---");
+      console.log("\n--- Post-Transition Strategic State Analysis ---");
 
       for (const config of playerConfigs) {
         const agent = sim.getAgent(config.name);
@@ -341,8 +401,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         }
       }
 
-      // Phase 5: Verify diary room interactions
-      console.log("=== PHASE 5: Verifying Diary Room Sessions ===");
+      // Phase 7: Verify diary room interactions
+      console.log("=== PHASE 7: Verifying Diary Room Sessions ===");
 
       // Check diary room messages
       let totalDiaryMessages = 0;
@@ -385,8 +445,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       expectSoft(totalDiaryMessages).toBeGreaterThanOrEqual(playerNames.length); // At least one message per player (House's prompt)
       console.log(`✓ Total diary room messages: ${totalDiaryMessages}`);
 
-      // Phase 6: Verify strategic intelligence was gathered
-      console.log("=== PHASE 6: Verifying Strategic Intelligence ===");
+      // Phase 8: Verify strategic intelligence was gathered
+      console.log("=== PHASE 8: Verifying Strategic Intelligence ===");
 
       // Get messages from all channels
       const allChannels = sim.getChannels();

@@ -1,4 +1,4 @@
-import { Plugin } from "@elizaos/core";
+import { EventHandler, EventPayload, Plugin, elizaLogger } from "@elizaos/core";
 import {
   shouldRespondProvider,
   gameContextProvider,
@@ -16,6 +16,21 @@ import {
   eliminateAction,
   protectAction,
 } from "./actions";
+import {
+  GameEventType,
+  GameEventHandler,
+  GameEventPayloadMap,
+} from "../house/events/types";
+import { StrategyService } from "../socialStrategy/service/addPlayer";
+
+const logger = elizaLogger.child({ component: "InfluencerPlugin" });
+
+/**
+ * Utility type for properly typed game event handlers in plugins
+ */
+type GameEventHandlers = Plugin["events"] & {
+  [key in keyof GameEventPayloadMap]?: GameEventHandler<key>;
+};
 
 /**
  * The influencer plugin adds player-side logic for the Influence game.

@@ -20,6 +20,7 @@ import { StrategyService } from "./service/addPlayer";
 import { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
 import { strategicRelationshipEvaluator } from "./evaluators/strategicRelationshipExtractor";
 import { strategicReflectionEvaluator } from "./evaluators/strategicReflection";
+import { phaseTransitionListenerEvaluator } from "./evaluators/phaseTransitionListener";
 
 // Import providers
 import { strategicContextProvider } from "./providers/strategicContext";
@@ -28,6 +29,7 @@ import { playerIntelligenceProvider } from "./providers/playerIntelligence";
 // Import actions
 import { diaryRoomAction } from "./actions/diaryRoom";
 import { strategyReviewAction } from "./actions/strategyReview";
+import { phaseTransitionThinkingAction } from "./actions/phaseTransitionThinking";
 
 // Import types
 import type { StrategyPrompts, DEFAULT_STRATEGY_PROMPTS } from "./types";
@@ -60,6 +62,7 @@ export const socialStrategyPlugin: Plugin = {
     conversationTrackingEvaluator, // Enhanced conversation tracking
     strategicRelationshipEvaluator, // Strategic relationship extraction
     strategicReflectionEvaluator, // Diary room reflections
+    phaseTransitionListenerEvaluator, // Game event listener for phase transitions
   ],
 
   events: {
@@ -89,6 +92,7 @@ export const socialStrategyPlugin: Plugin = {
   actions: [
     diaryRoomAction, // Private strategic reflection
     strategyReviewAction, // Strategic analysis and planning
+    phaseTransitionThinkingAction, // Phase transition strategic analysis
   ],
 
   routes: [

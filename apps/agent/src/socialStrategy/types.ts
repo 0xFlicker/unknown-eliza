@@ -61,6 +61,7 @@ export interface StrategyAnalysis {
   confidenceLevel: number; // 0-1 scale
   nextMoves: string[]; // Planned actions
   contingencies: Record<string, string>; // Backup plans
+  contextData?: Record<string, unknown>; // Additional context from events
 }
 
 /**

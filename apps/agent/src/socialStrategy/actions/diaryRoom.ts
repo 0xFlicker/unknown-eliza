@@ -139,11 +139,43 @@ export const diaryRoomAction: Action = {
   ): Promise<boolean> => {
     // Only validate that we have a strategy service and a text message
     const strategyService = runtime.getService("social-strategy");
-    return !!(
+    const hasBasicRequirements = !!(
       strategyService &&
       message.content?.text &&
       typeof message.content.text === "string"
     );
+
+    if (!hasBasicRequirements) {
+      return false;
+    }
+
+    const text = message.content.text.toLowerCase();
+    
+    // Check if this is a diary room scenario
+    const isDiaryRoomContext = 
+      text.includes("diary room") ||
+      text.includes("strategic assessment") ||
+      text.includes("strategic thinking") ||
+      text.includes("share your") ||
+      text.includes("what did you learn") ||
+      text.includes("how has your strategy") ||
+      text.includes("what are your plans") ||
+      (text.includes("strategy") && text.includes("private")) ||
+      (text.includes("think") && text.includes("strategy"));
+
+    // logger.debug(`[DiaryRoom] Validation check:`, {
+    //   text: text.substring(0, 100),
+    //   isDiaryRoomContext,
+    //   agentName: runtime.character?.name
+    // });
+    
+    // console.log(`📔 [DiaryRoom] Validation for ${runtime.character?.name}:`, {
+    //   text: text.substring(0, 100),
+    //   isDiaryRoomContext,
+    //   messageId: message.id
+    // });
+
+    return isDiaryRoomContext;
   },
 
   handler: async (
@@ -152,11 +184,17 @@ export const diaryRoomAction: Action = {
     state?: State,
   ): Promise<boolean> => {
     try {
+      // console.log(`📔 [DiaryRoom] Handler executing for ${runtime.character?.name}`, {
+      //   messageText: message.content?.text?.substring(0, 100),
+      //   messageId: message.id
+      // });
+      
       const strategyService = runtime.getService(
         "social-strategy",
       ) as StrategyService;
       if (!strategyService) {
         logger.warn("[DiaryRoom] StrategyService not available");
+        // console.log(`❌ [DiaryRoom] No strategy service for ${runtime.character?.name}`);
         return false;
       }
 

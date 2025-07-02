@@ -171,31 +171,6 @@ export class StrategyService extends Service {
     }
   }
 
-  async updatePhase(newPhase: Phase, round?: number): Promise<void> {
-    const previousPhase = this.state.currentPhase;
-    this.state.currentPhase = newPhase;
-    this.state.lastPhaseChange = Date.now();
-
-    if (round !== undefined) {
-      this.state.round = round;
-    }
-
-    // Update strategic mode based on phase
-    this.state.strategicMode = this.getStrategyModeForPhase(newPhase);
-    this.state.analysis.currentPhase = newPhase;
-    this.state.analysis.round = this.state.round;
-
-    logger.info("Phase updated", {
-      previousPhase,
-      newPhase,
-      round: this.state.round,
-      strategicMode: this.state.strategicMode,
-    });
-
-    // Trigger strategy review when phase changes
-    await this.triggerPhaseTransitionReview(previousPhase, newPhase);
-    await this.saveState();
-  }
 
   private getStrategyModeForPhase(phase: Phase): StrategyMode {
     switch (phase) {
@@ -410,6 +385,105 @@ export class StrategyService extends Service {
       newPhase,
     });
     // This would trigger strategy re-evaluation based on the new phase
+  }
+
+  /**
+   * Update strategic context based on events or phase transitions
+   */
+  async updateStrategicContext(context: {
+    phase: Phase;
+    trigger: 'phase_transition' | 'event' | 'manual';
+    contextData?: Record<string, unknown>;
+  }): Promise<void> {
+    logger.info("Updating strategic context", {
+      phase: context.phase,
+      trigger: context.trigger
+    });
+
+    // Update phase if different
+    if (this.state.currentPhase !== context.phase) {
+      await this.updatePhase(context.phase, this.state.round);
+    }
+
+    // Update strategic mode based on new context
+    const newMode = this.getStrategyModeForPhase(context.phase);
+    if (this.state.strategicMode !== newMode) {
+      this.state.strategicMode = newMode;
+      logger.debug("Strategic mode updated", { oldMode: this.state.strategicMode, newMode });
+    }
+
+    // Store context data if provided
+    if (context.contextData) {
+      // This could be stored in analysis or a separate context field
+      this.state.analysis.contextData = context.contextData;
+    }
+
+    await this.saveState();
+  }
+
+  /**
+   * Set diary prompt for phase-dependent prompting
+   */
+  async setDiaryPrompt(prompt: string): Promise<void> {
+    logger.debug("Setting phase-dependent diary prompt", { 
+      phase: this.state.currentPhase,
+      promptLength: prompt.length 
+    });
+
+    // Store the prompt in configuration for use by diary room action
+    this.state.configuration.diaryReflection = prompt;
+    await this.saveState();
+  }
+
+  /**
+   * Update the current phase and round
+   */
+  async updatePhase(phase: Phase, round: number): Promise<void> {
+    const previousPhase = this.state.currentPhase;
+    
+    this.state.currentPhase = phase;
+    this.state.round = round;
+    this.state.lastPhaseChange = Date.now();
+    this.state.strategicMode = this.getStrategyModeForPhase(phase);
+
+    logger.info("Phase updated", {
+      previousPhase,
+      newPhase: phase,
+      round,
+      strategicMode: this.state.strategicMode
+    });
+
+    await this.saveState();
+
+    // Trigger phase transition review
+    await this.triggerPhaseTransitionReview(previousPhase, phase);
+  }
+
+  /**
+   * Analyze phase completion for strategic insights
+   */
+  async analyzePhaseCompletion(phase: Phase, round: number): Promise<void> {
+    logger.info("Analyzing phase completion", { phase, round });
+
+    // Create a diary entry for phase completion analysis
+    const phaseAnalysisEntry = {
+      phase,
+      round,
+      thoughts: `Completed ${phase} phase - analyzing strategic outcomes and preparing for next phase.`,
+      emotionalState: "confident" as const,
+      observations: [
+        `Phase ${phase} completed successfully`,
+        "Gathering strategic intelligence for next phase"
+      ],
+      concerns: [],
+      opportunities: ["Prepare strategy for upcoming phase transitions"]
+    };
+
+    await this.addDiaryEntry(phaseAnalysisEntry);
+    
+    // Update last strategy review time
+    this.state.lastStrategyReview = Date.now();
+    await this.saveState();
   }
 
   // Legacy compatibility method
