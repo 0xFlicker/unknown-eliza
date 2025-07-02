@@ -274,6 +274,22 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
         diaryRooms.set(playerName, diaryRoomId);
 
+        // Debug: Check the channel type on the agent side
+        const playerAgent = sim.getAgent(playerName);
+        if (playerAgent) {
+          const playerRoomId = createUniqueUuid(playerAgent, diaryRoomId);
+          const room = await playerAgent.getRoom(playerRoomId);
+          console.log(`🔍 Debug - ${playerName}'s diary room:`, {
+            channelId: diaryRoomId,
+            roomId: playerRoomId,
+            roomType: room?.type,
+            roomTypeAsString: room?.type?.toString(),
+            expectedType: ChannelType.DM,
+            expectedTypeAsString: ChannelType.DM.toString(),
+            roomExists: !!room
+          });
+        }
+
         // Send a verification prompt that should now include LOBBY context
         await sim.sendMessage(
           "House",

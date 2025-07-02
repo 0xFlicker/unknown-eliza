@@ -107,6 +107,7 @@ export interface ChannelConfigV3 {
 export interface ChannelV3 {
   id: UUID;
   name: string;
+  type: ChannelType; // Explicit channel type instead of name-based detection
   participants: Map<string, ParticipantModeV3>; // agentName -> mode
   messages: ConversationMessageV3[];
   maxMessages?: number;
@@ -343,6 +344,7 @@ export class ConversationSimulatorV3 {
     const channel: ChannelV3 = {
       id: serverChannel.id,
       name: config.name,
+      type: config.type || ChannelType.GROUP, // Use explicit type from config
       participants,
       messages: [],
       maxMessages: config.maxMessages,
@@ -779,7 +781,7 @@ export class ConversationSimulatorV3 {
         source: "test-simulator-v3",
         channelId: channelId,
         serverId: this.testServer!.id,
-        type: channel.name.includes("dm") ? ChannelType.DM : ChannelType.GROUP,
+        type: channel.type, // Use explicit channel type
         worldId: worldId,
         worldName: "Test Conversation Server",
       });
@@ -792,9 +794,7 @@ export class ConversationSimulatorV3 {
         content: {
           text: message.content,
           source: "test-simulator-v3",
-          channelType: channel.name.includes("dm")
-            ? ChannelType.DM
-            : ChannelType.GROUP,
+          channelType: channel.type, // Use explicit channel type
         },
         metadata: {
           entityName: message.authorName,
@@ -807,25 +807,34 @@ export class ConversationSimulatorV3 {
 
       // Create response callback (similar to Discord plugin)
       const callback = async (responseContent: Content): Promise<Memory[]> => {
+        // Log the response content for debugging
+        console.log(`🤖 ${agentName} callback received:`, {
+          text: responseContent.text,
+          textLength: responseContent.text?.length || 0,
+          thought: responseContent.thought,
+          actions: responseContent.actions,
+          providers: responseContent.providers,
+        });
+
         // Filter out empty responses (common ElizaOS convention)
         const responseText = responseContent.text?.trim() || "";
 
         // Create response message and add it to our tracking
         const responseTimestamp = Date.now();
 
-        // Store response to server and get server-generated ID
+        // Store response to server and get server-generated ID (even if empty for debugging)
         const serverResponse = await this.server.createMessage({
           authorId: targetRuntime.agentId,
-          content: responseText,
+          content: responseText || "[EMPTY RESPONSE]",
           channelId,
-          metadata: { generatedResponse: true },
+          metadata: { generatedResponse: true, originalContent: responseContent },
         });
 
         const responseMessage: ConversationMessageV3 = {
           id: serverResponse.id, // Use server-generated ID to prevent duplication
           authorId: targetRuntime.agentId,
           authorName: agentName,
-          content: responseText,
+          content: responseText || "[EMPTY RESPONSE]",
           timestamp: responseTimestamp,
           channelId,
           providers: responseContent.providers,
@@ -865,13 +874,14 @@ export class ConversationSimulatorV3 {
       };
 
       // Emit MESSAGE_RECEIVED event directly (like Discord plugin does)
+      console.log(`🚀 Emitting MESSAGE_RECEIVED event to ${agentName} for message: "${message.content.substring(0, 50)}..."`);
       targetRuntime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: targetRuntime,
         message: messageMemory,
         callback,
       });
 
-      // MESSAGE_RECEIVED event emitted successfully
+      console.log(`✅ MESSAGE_RECEIVED event emitted successfully to ${agentName}`);
     }
   }
 

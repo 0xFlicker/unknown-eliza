@@ -1,9 +1,8 @@
 import { EventHandler, EventPayload, Plugin, elizaLogger } from "@elizaos/core";
 import {
   shouldRespondProvider,
+  phaseContextProvider,
   gameContextProvider,
-  playerAnalysisProvider,
-  strategyProvider,
 } from "./providers";
 import {
   ignoreHouseAction,
@@ -52,9 +51,8 @@ export const influencerPlugin: Plugin = {
   ],
   providers: [
     shouldRespondProvider,
+    phaseContextProvider,
     gameContextProvider,
-    playerAnalysisProvider,
-    strategyProvider,
   ],
   init: async (_config, _runtime) => {
     console.log("🎭 Influencer plugin initialized - ready to play the game");
