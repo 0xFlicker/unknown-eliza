@@ -1,4 +1,10 @@
-import { EventHandler, EventPayload, Plugin, elizaLogger } from "@elizaos/core";
+import {
+  EventHandler,
+  EventPayload,
+  Plugin,
+  PluginEvents,
+  elizaLogger,
+} from "@elizaos/core";
 import {
   shouldRespondProvider,
   phaseContextProvider,
@@ -20,7 +26,8 @@ import {
   GameEventHandler,
   GameEventPayloadMap,
 } from "../house/events/types";
-import { StrategyService } from "../socialStrategy/service/addPlayer";
+import { Phase } from "../house/types";
+import { CoordinationService } from "../house/coordination";
 
 const logger = elizaLogger.child({ component: "InfluencerPlugin" });
 
@@ -49,12 +56,38 @@ export const influencerPlugin: Plugin = {
     eliminateAction,
     protectAction,
   ],
-  providers: [
-    shouldRespondProvider,
-    phaseContextProvider,
-    gameContextProvider,
-  ],
+  providers: [shouldRespondProvider, phaseContextProvider, gameContextProvider],
   init: async (_config, _runtime) => {
     console.log("🎭 Influencer plugin initialized - ready to play the game");
   },
+  events: {
+    [GameEventType.PHASE_STARTED]: [
+      async ({ message, runtime }) => {
+        const phase = message.payload.phase;
+        if (phase === Phase.INIT) {
+          const coordinationService = runtime.getService(
+            CoordinationService.serviceType
+          ) as CoordinationService;
+          if (!coordinationService) {
+            logger.warn(
+              "CoordinationService not available for introduction response"
+            );
+            return;
+          }
+
+          await coordinationService.sendGameEvent(GameEventType.I_AM_READY, {
+            runtime,
+            gameId: message.payload.gameId,
+            roomId: message.payload.roomId,
+            playerId: runtime.agentId,
+            playerName: runtime.character?.name || "Unknown Player",
+            readyType: "phase_action",
+            targetPhase: Phase.LOBBY,
+            timestamp: Date.now(),
+            source: "influencer-plugin",
+          });
+        }
+      },
+    ],
+  } as unknown as PluginEvents & GameEventHandlers, // seems to be required as far as I can tell
 };

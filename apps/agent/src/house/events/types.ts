@@ -10,27 +10,28 @@ export enum GameEventType {
   PHASE_TRANSITION_INITIATED = "GAME:PHASE_TRANSITION_INITIATED",
   PHASE_STARTED = "GAME:PHASE_STARTED",
   PHASE_ENDED = "GAME:PHASE_ENDED",
-  
+
   // Player coordination events
   PLAYER_READY = "GAME:PLAYER_READY",
   ALL_PLAYERS_READY = "GAME:ALL_PLAYERS_READY",
-  
+  I_AM_READY = "GAME:I_AM_READY",
+
   // Timer management events
   TIMER_WARNING = "GAME:TIMER_WARNING",
   TIMER_EXPIRED = "GAME:TIMER_EXPIRED",
-  
+
   // Strategic events
   STRATEGIC_THINKING_REQUIRED = "GAME:STRATEGIC_THINKING_REQUIRED",
   STRATEGIC_THINKING_COMPLETED = "GAME:STRATEGIC_THINKING_COMPLETED",
-  
+
   // Diary room events
   DIARY_ROOM_OPENED = "GAME:DIARY_ROOM_OPENED",
   DIARY_ROOM_COMPLETED = "GAME:DIARY_ROOM_COMPLETED",
-  
+
   // Game state events
   GAME_STATE_CHANGED = "GAME:GAME_STATE_CHANGED",
   ROUND_STARTED = "GAME:ROUND_STARTED",
-  ROUND_ENDED = "GAME:ROUND_ENDED"
+  ROUND_ENDED = "GAME:ROUND_ENDED",
 }
 
 /**
@@ -60,7 +61,7 @@ export interface PhaseTransitionPayload extends GameEventPayload {
   fromPhase: Phase;
   toPhase: Phase;
   round: number;
-  transitionReason: 'timer_expired' | 'manual' | 'all_players_ready';
+  transitionReason: "timer_expired" | "manual" | "all_players_ready";
   requiresStrategicThinking: boolean;
   requiresDiaryRoom: boolean;
 }
@@ -71,7 +72,8 @@ export interface PhaseTransitionPayload extends GameEventPayload {
 export interface PlayerReadyPayload extends GameEventPayload {
   playerId: UUID;
   playerName: string;
-  readyType: 'strategic_thinking' | 'diary_room' | 'phase_action';
+  readyType: "strategic_thinking" | "diary_room" | "phase_action";
+  targetPhase?: Phase; // For I_AM_READY events - the phase the player is ready for
   additionalData?: Record<string, unknown>;
 }
 
@@ -79,7 +81,7 @@ export interface PlayerReadyPayload extends GameEventPayload {
  * Payload for all players ready events
  */
 export interface AllPlayersReadyPayload extends GameEventPayload {
-  readyType: 'strategic_thinking' | 'diary_room' | 'phase_action';
+  readyType: "strategic_thinking" | "diary_room" | "phase_action";
   playerCount: number;
   readyPlayers: Array<{
     playerId: UUID;
@@ -96,7 +98,7 @@ export interface TimerEventPayload extends GameEventPayload {
   round: number;
   timeRemaining: number;
   timerEndsAt: number;
-  warningType?: 'five_minutes' | 'one_minute' | 'thirty_seconds';
+  warningType?: "five_minutes" | "one_minute" | "thirty_seconds";
 }
 
 /**
@@ -108,6 +110,9 @@ export interface StrategicThinkingPayload extends GameEventPayload {
   fromPhase: Phase;
   toPhase: Phase;
   contextData?: {
+    currentPhase?: Phase;
+    nextPhase?: Phase;
+    round?: number;
     lobbyConversations?: string[];
     recentInteractions?: string[];
     currentRelationships?: Record<string, unknown>;
@@ -132,7 +137,7 @@ export interface DiaryRoomPayload extends GameEventPayload {
  * Payload for game state change events
  */
 export interface GameStateChangePayload extends GameEventPayload {
-  changeType: 'phase' | 'round' | 'player_status' | 'votes' | 'elimination';
+  changeType: "phase" | "round" | "player_status" | "votes" | "elimination";
   previousState: Record<string, unknown>;
   newState: Record<string, unknown>;
   affectedPlayers?: UUID[];
@@ -147,6 +152,7 @@ export interface GameEventPayloadMap {
   "GAME:PHASE_ENDED": PhaseEventPayload;
   "GAME:PLAYER_READY": PlayerReadyPayload;
   "GAME:ALL_PLAYERS_READY": AllPlayersReadyPayload;
+  "GAME:I_AM_READY": PlayerReadyPayload;
   "GAME:TIMER_WARNING": TimerEventPayload;
   "GAME:TIMER_EXPIRED": TimerEventPayload;
   "GAME:STRATEGIC_THINKING_REQUIRED": StrategicThinkingPayload;
@@ -170,5 +176,5 @@ export type GameEventHandler<T extends keyof GameEventPayloadMap> = (
  */
 export type GameEventEmission<T extends keyof GameEventPayloadMap> = {
   type: T;
-  payload: Omit<GameEventPayloadMap[T], 'runtime' | 'source' | 'onComplete'>;
+  payload: Omit<GameEventPayloadMap[T], "runtime" | "source" | "onComplete">;
 };

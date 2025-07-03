@@ -12,6 +12,7 @@ import { StrategyService } from "../service/addPlayer";
 import { Phase } from "../../house/types";
 import { GameEventManager } from "../../house/events/manager";
 import { GameEventType } from "../../house/events/types";
+import { CoordinationService } from "../../house/coordination";
 
 const logger = elizaLogger.child({ component: "PhaseTransitionThinking" });
 
@@ -394,24 +395,41 @@ async function signalStrategicThinkingComplete(
   context: any
 ): Promise<void> {
   try {
-    // Try to get the game event manager (House agents will have this)
-    // For player agents, we emit through the runtime's generic event system
-    const eventData = {
-      type: GameEventType.PLAYER_READY,
-      payload: {
-        gameId: context.gameId,
+    // Use coordination service to signal readiness to other agents
+    const coordinationService = runtime.getService("coordination") as CoordinationService;
+    
+    if (coordinationService) {
+      await coordinationService.sendAgentReady(
+        'strategic_thinking',
+        context.gameId,
         roomId,
-        playerId: runtime.agentId,
-        playerName: runtime.character?.name || "Unknown",
-        readyType: 'strategic_thinking' as const,
-        timestamp: Date.now()
-      }
-    };
+        { 
+          contextData: {
+            fromPhase: context.fromPhase,
+            toPhase: context.toPhase,
+            round: context.round
+          }
+        }
+      );
+      
+      logger.info(`Strategic thinking complete signal sent via coordination for ${runtime.character?.name}`);
+    } else {
+      // Fallback to local events
+      const eventData = {
+        type: GameEventType.PLAYER_READY,
+        payload: {
+          gameId: context.gameId,
+          roomId,
+          playerId: runtime.agentId,
+          playerName: runtime.character?.name || "Unknown",
+          readyType: 'strategic_thinking' as const,
+          timestamp: Date.now()
+        }
+      };
 
-    // Emit through runtime event system using native ElizaOS events
-    await runtime.emitEvent(GameEventType.PLAYER_READY, eventData.payload);
-
-    logger.info(`Strategic thinking complete signal sent for ${runtime.character?.name}`);
+      await runtime.emitEvent(GameEventType.PLAYER_READY, eventData.payload);
+      logger.info(`Strategic thinking complete signal sent locally for ${runtime.character?.name}`);
+    }
 
   } catch (error) {
     logger.error("Error signaling strategic thinking complete:", error);

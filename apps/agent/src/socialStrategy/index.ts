@@ -20,7 +20,6 @@ import { StrategyService } from "./service/addPlayer";
 import { conversationTrackingEvaluator } from "./evaluators/conversationTracker";
 import { strategicRelationshipEvaluator } from "./evaluators/strategicRelationshipExtractor";
 import { strategicReflectionEvaluator } from "./evaluators/strategicReflection";
-import { phaseTransitionListenerEvaluator } from "./evaluators/phaseTransitionListener";
 
 // Import providers
 import { strategicContextProvider } from "./providers/strategicContext";
@@ -31,6 +30,9 @@ import { diaryRoomAction } from "./actions/diaryRoom";
 import { strategyReviewAction } from "./actions/strategyReview";
 import { phaseTransitionThinkingAction } from "./actions/phaseTransitionThinking";
 
+// Import coordination
+import { CoordinationService } from "../house/coordination";
+
 // Import types
 import type { StrategyPrompts, DEFAULT_STRATEGY_PROMPTS } from "./types";
 
@@ -38,12 +40,16 @@ export const socialStrategyPlugin: Plugin = {
   init: async (config?: Partial<StrategyPrompts>, runtime?: IAgentRuntime) => {
     if (runtime) {
       elizaLogger.info(
-        "Initializing Social Strategy Plugin with advanced AI strategy capabilities",
+        "Initializing Social Strategy Plugin with advanced AI strategy capabilities"
       );
 
       // Start the strategy service with custom configuration
       const strategyService = await StrategyService.start(runtime, config);
       elizaLogger.info("StrategyService started successfully");
+
+      // Start the coordination service for cross-agent communication
+      await CoordinationService.start(runtime);
+      elizaLogger.info("CoordinationService started for player agent");
     }
   },
 
@@ -62,7 +68,6 @@ export const socialStrategyPlugin: Plugin = {
     conversationTrackingEvaluator, // Enhanced conversation tracking
     strategicRelationshipEvaluator, // Strategic relationship extraction
     strategicReflectionEvaluator, // Diary room reflections
-    phaseTransitionListenerEvaluator, // Game event listener for phase transitions
   ],
 
   events: {
@@ -81,13 +86,13 @@ export const socialStrategyPlugin: Plugin = {
             "PLAYER_INTELLIGENCE",
             "FACTS",
             "RELATIONSHIPS",
-          ]),
+          ])
         );
       },
     ],
   },
 
-  services: [StrategyService],
+  services: [StrategyService, CoordinationService],
 
   actions: [
     diaryRoomAction, // Private strategic reflection
@@ -104,7 +109,7 @@ export const socialStrategyPlugin: Plugin = {
       handler: async (req, res, runtime) => {
         try {
           const strategyService = runtime.getService(
-            "social-strategy",
+            "social-strategy"
           ) as StrategyService;
           if (!strategyService) {
             res.status(503).json({ error: "Strategy service not available" });
@@ -137,7 +142,7 @@ export const socialStrategyPlugin: Plugin = {
       handler: async (req, res, runtime) => {
         try {
           const strategyService = runtime.getService(
-            "social-strategy",
+            "social-strategy"
           ) as StrategyService;
           if (!strategyService) {
             res.status(503).json({ error: "Strategy service not available" });

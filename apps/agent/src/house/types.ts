@@ -5,6 +5,7 @@
  */
 export enum Phase {
   INIT = "INIT",
+  INTRODUCTION = "INTRODUCTION",
   LOBBY = "LOBBY",
   WHISPER = "WHISPER",
   RUMOR = "RUMOR",

@@ -1,12 +1,13 @@
 import type { IAgentRuntime, UUID } from "@elizaos/core";
 import { Service, stringToUuid, elizaLogger } from "@elizaos/core";
 import { GameEventType } from "../events/types";
-import type { 
-  PhaseTransitionPayload, 
+import { CoordinationService } from "../coordination";
+import type {
+  PhaseTransitionPayload,
   PlayerReadyPayload,
   AllPlayersReadyPayload,
   TimerEventPayload,
-  GameEventPayloadMap
+  GameEventPayloadMap,
 } from "../events/types";
 import { Phase } from "../types";
 import { getGameState, saveGameState } from "../runtime/memory";
@@ -19,18 +20,19 @@ const logger = elizaLogger.child({ component: "PhaseCoordinator" });
 interface PlayerReadyState {
   playerId: UUID;
   playerName: string;
-  readyType: 'strategic_thinking' | 'diary_room' | 'phase_action';
+  readyType: "strategic_thinking" | "diary_room" | "phase_action";
   readyAt: number;
   additionalData?: Record<string, unknown>;
 }
 
 /**
  * Service responsible for coordinating phase transitions and player synchronization
- * in the Influence game. Uses native ElizaOS event system for coordination.
+ * in the Influence game. Uses cross-agent coordination via message bus.
  */
 export class PhaseCoordinator extends Service {
   static serviceType = "phase-coordinator";
-  capabilityDescription = "Coordinates phase transitions and player synchronization in the Influence game";
+  capabilityDescription =
+    "Coordinates phase transitions and player synchronization in the Influence game";
 
   private playerReadiness = new Map<string, Map<UUID, PlayerReadyState>>();
   private transitionTimers = new Map<string, NodeJS.Timeout>();
@@ -47,7 +49,9 @@ export class PhaseCoordinator extends Service {
 
     this.runtime = runtime;
     this.isInitialized = true;
-    logger.info("PhaseCoordinator service initialized with native ElizaOS events");
+    logger.info(
+      "PhaseCoordinator service initialized with native ElizaOS events"
+    );
   }
 
   /**
@@ -56,10 +60,10 @@ export class PhaseCoordinator extends Service {
   static async start(runtime: IAgentRuntime): Promise<PhaseCoordinator> {
     const coordinator = new PhaseCoordinator(runtime);
     await coordinator.initialize(runtime);
-    
+
     // Register service with runtime
     runtime.registerService(PhaseCoordinator);
-    
+
     return coordinator;
   }
 
@@ -70,11 +74,43 @@ export class PhaseCoordinator extends Service {
     await this.cleanup();
   }
 
+  /**
+   * Get the coordination service for cross-agent communication
+   */
+  private getCoordinationService(): CoordinationService | null {
+    try {
+      return this.runtime.getService("coordination") as CoordinationService;
+    } catch (error) {
+      logger.warn(
+        "CoordinationService not available, falling back to local events"
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Emit a game event via coordination service if available, otherwise locally
+   */
+  private async emitGameEvent<T extends keyof GameEventPayloadMap>(
+    eventType: T,
+    payload: GameEventPayloadMap[T]
+  ): Promise<void> {
+    const coordinationService = this.getCoordinationService();
+
+    if (coordinationService) {
+      await coordinationService.sendGameEvent(eventType, payload);
+    } else {
+      // Fallback to local events
+      await this.runtime.emitEvent(eventType, payload);
+    }
+  }
 
   /**
    * Handle phase transition events (called by House plugin event handler)
    */
-  async handlePhaseTransitionEvent(payload: PhaseTransitionPayload): Promise<void> {
+  async handlePhaseTransitionEvent(
+    payload: PhaseTransitionPayload
+  ): Promise<void> {
     await this.handlePhaseTransition(payload);
   }
 
@@ -86,9 +122,31 @@ export class PhaseCoordinator extends Service {
   }
 
   /**
+   * Handle I_AM_READY events specifically (phase action readiness)
+   */
+  async handleIAmReadyEvent(payload: PlayerReadyPayload): Promise<void> {
+    logger.info(`Handling I_AM_READY from ${payload.playerName}`, {
+      gameId: payload.gameId,
+      roomId: payload.roomId,
+      playerId: payload.playerId,
+    });
+
+    // Mark player as ready for phase action
+    await this.handlePlayerReady({
+      ...payload,
+      readyType: "phase_action",
+    });
+
+    // Check if this triggers a phase transition
+    await this.checkForReadyPhaseTransition(payload.gameId, payload.roomId);
+  }
+
+  /**
    * Handle all players ready events (called by House plugin event handler)
    */
-  async handleAllPlayersReadyEvent(payload: AllPlayersReadyPayload): Promise<void> {
+  async handleAllPlayersReadyEvent(
+    payload: AllPlayersReadyPayload
+  ): Promise<void> {
     await this.handleAllPlayersReady(payload);
   }
 
@@ -108,21 +166,28 @@ export class PhaseCoordinator extends Service {
     fromPhase: Phase,
     toPhase: Phase,
     round: number,
-    transitionReason: 'timer_expired' | 'manual' | 'all_players_ready' = 'manual'
+    transitionReason:
+      | "timer_expired"
+      | "manual"
+      | "all_players_ready" = "manual"
   ): Promise<void> {
     try {
       logger.info(`Initiating phase transition: ${fromPhase} → ${toPhase}`, {
         gameId,
         roomId,
         round,
-        transitionReason
+        transitionReason,
       });
 
-      const requiresStrategicThinking = this.requiresStrategicThinking(fromPhase, toPhase);
+      const requiresStrategicThinking = this.requiresStrategicThinking(
+        fromPhase,
+        toPhase
+      );
       const requiresDiaryRoom = this.requiresDiaryRoom(fromPhase, toPhase);
 
-      // Emit phase transition initiated event using native ElizaOS events
-      await this.runtime.emitEvent(GameEventType.PHASE_TRANSITION_INITIATED, {
+      // Emit phase transition initiated event via coordination service
+      const coordinationService = this.getCoordinationService();
+      const payload: PhaseTransitionPayload = {
         gameId,
         roomId,
         fromPhase,
@@ -131,12 +196,27 @@ export class PhaseCoordinator extends Service {
         transitionReason,
         requiresStrategicThinking,
         requiresDiaryRoom,
-        timestamp: Date.now()
-      });
+        timestamp: Date.now(),
+        runtime: this.runtime,
+        source: "phase-coordinator",
+      };
+
+      if (coordinationService) {
+        await coordinationService.sendGameEvent(
+          GameEventType.PHASE_TRANSITION_INITIATED,
+          payload
+        );
+      } else {
+        // Fallback to local events
+        await this.runtime.emitEvent(
+          GameEventType.PHASE_TRANSITION_INITIATED,
+          payload
+        );
+      }
 
       logger.info("Phase transition initiated successfully", {
         requiresStrategicThinking,
-        requiresDiaryRoom
+        requiresDiaryRoom,
       });
     } catch (error) {
       logger.error("Failed to initiate phase transition:", error);
@@ -147,24 +227,41 @@ export class PhaseCoordinator extends Service {
   /**
    * Handle phase transition coordination
    */
-  private async handlePhaseTransition(payload: PhaseTransitionPayload): Promise<void> {
-    const { gameId, roomId, fromPhase, toPhase, round, requiresStrategicThinking, requiresDiaryRoom } = payload;
+  private async handlePhaseTransition(
+    payload: PhaseTransitionPayload
+  ): Promise<void> {
+    const {
+      gameId,
+      roomId,
+      fromPhase,
+      toPhase,
+      round,
+      requiresStrategicThinking,
+      requiresDiaryRoom,
+    } = payload;
 
     try {
       // 1. End current phase
-      await this.runtime.emitEvent(GameEventType.PHASE_ENDED, {
+      await this.emitGameEvent(GameEventType.PHASE_ENDED, {
         gameId,
         roomId,
         phase: fromPhase,
         round,
         previousPhase: fromPhase,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        runtime: this.runtime,
+        source: "phase-coordinator",
       });
       logger.info(`Phase ${fromPhase} ended`);
 
       // 2. Strategic thinking phase if required
       if (requiresStrategicThinking) {
-        await this.coordinateStrategicThinking(gameId, roomId, fromPhase, toPhase);
+        await this.coordinateStrategicThinking(
+          gameId,
+          roomId,
+          fromPhase,
+          toPhase
+        );
       }
 
       // 3. Diary room phase if required
@@ -174,7 +271,6 @@ export class PhaseCoordinator extends Service {
 
       // 4. Start next phase
       await this.startNextPhase(gameId, roomId, toPhase, round);
-
     } catch (error) {
       logger.error("Error in phase transition coordination:", error);
       throw error;
@@ -199,13 +295,16 @@ export class PhaseCoordinator extends Service {
     }
 
     // Trigger strategic thinking for all alive players
-    const alivePlayers = Array.from(gameState.players.values()).filter(p => p.status === "alive");
-    
+    const alivePlayers = Array.from(gameState.players.values()).filter(
+      (p) => p.status === "alive"
+    );
+
     for (const player of alivePlayers) {
       // console.log(`🧠 Triggering strategic thinking for ${player.name}`);
-      
-      // Emit the event using native ElizaOS events
-      await this.runtime.emitEvent(GameEventType.STRATEGIC_THINKING_REQUIRED, {
+
+      // Emit the event via coordination service
+      const coordinationService = this.getCoordinationService();
+      const payload = {
         gameId,
         roomId,
         playerId: player.id as UUID,
@@ -215,18 +314,41 @@ export class PhaseCoordinator extends Service {
         contextData: {
           currentPhase: fromPhase,
           nextPhase: toPhase,
-          round: gameState.round
+          round: gameState.round,
+          lobbyConversations: [],
+          recentInteractions: [],
+          currentRelationships: {},
         },
-        timestamp: Date.now()
-      });
-      
+        timestamp: Date.now(),
+        runtime: this.runtime,
+        source: "phase-coordinator",
+      };
+
+      if (coordinationService) {
+        await coordinationService.sendGameEvent(
+          GameEventType.STRATEGIC_THINKING_REQUIRED,
+          payload
+        );
+      } else {
+        // Fallback to local events
+        await this.runtime.emitEvent(
+          GameEventType.STRATEGIC_THINKING_REQUIRED,
+          payload
+        );
+      }
+
       // TODO: Need to integrate with conversation simulator to send strategic thinking messages
       // For now, we'll rely on the test to trigger these manually
       // console.log(`📝 Strategic thinking required for ${player.name} (${fromPhase} → ${toPhase})`);
     }
 
     // Wait for all players to complete strategic thinking
-    await this.waitForPlayersReady(gameId, roomId, 'strategic_thinking', alivePlayers.length);
+    await this.waitForPlayersReady(
+      gameId,
+      roomId,
+      "strategic_thinking",
+      alivePlayers.length
+    );
     logger.info("Strategic thinking phase completed");
   }
 
@@ -236,11 +358,13 @@ export class PhaseCoordinator extends Service {
   private async coordinateDiaryRoom(gameId: UUID, roomId: UUID): Promise<void> {
     logger.info("Coordinating diary room phase");
 
-    // Emit diary room opened event using native ElizaOS events
-    await this.runtime.emitEvent(GameEventType.DIARY_ROOM_OPENED, {
+    // Emit diary room opened event via coordination service
+    await this.emitGameEvent(GameEventType.DIARY_ROOM_OPENED, {
       gameId,
       roomId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      runtime: this.runtime,
+      source: "phase-coordinator",
     });
 
     // Get current game state to identify players
@@ -249,17 +373,29 @@ export class PhaseCoordinator extends Service {
       throw new Error("Game state not found");
     }
 
-    const alivePlayers = Array.from(gameState.players.values()).filter(p => p.status === "alive");
+    const alivePlayers = Array.from(gameState.players.values()).filter(
+      (p) => p.status === "alive"
+    );
 
     // Wait for all players to complete diary room entries
-    await this.waitForPlayersReady(gameId, roomId, 'diary_room', alivePlayers.length);
+    await this.waitForPlayersReady(
+      gameId,
+      roomId,
+      "diary_room",
+      alivePlayers.length
+    );
     logger.info("Diary room phase completed");
   }
 
   /**
    * Start the next phase
    */
-  private async startNextPhase(gameId: UUID, roomId: UUID, phase: Phase, round: number): Promise<void> {
+  private async startNextPhase(
+    gameId: UUID,
+    roomId: UUID,
+    phase: Phase,
+    round: number
+  ): Promise<void> {
     logger.info(`Starting phase ${phase}`);
 
     // Update game state
@@ -267,22 +403,27 @@ export class PhaseCoordinator extends Service {
     if (gameState) {
       gameState.phase = phase;
       gameState.round = round;
-      
+
       // Set timer for the new phase
-      const phaseTimer = gameState.settings.timers[phase.toLowerCase() as keyof typeof gameState.settings.timers];
+      const phaseTimer =
+        gameState.settings.timers[
+          phase.toLowerCase() as keyof typeof gameState.settings.timers
+        ];
       gameState.timerEndsAt = Date.now() + phaseTimer;
 
       await saveGameState(this.runtime, roomId, gameState);
     }
 
-    // Emit phase started event using native ElizaOS events
-    await this.runtime.emitEvent(GameEventType.PHASE_STARTED, {
+    // Emit phase started event via coordination service
+    await this.emitGameEvent(GameEventType.PHASE_STARTED, {
       gameId,
       roomId,
       phase,
       round,
       timerEndsAt: gameState?.timerEndsAt,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      runtime: this.runtime,
+      source: "phase-coordinator",
     });
     logger.info(`Phase ${phase} started successfully`);
   }
@@ -294,7 +435,11 @@ export class PhaseCoordinator extends Service {
     const { gameId, roomId, playerId, playerName, readyType } = payload;
     const readyKey = `${gameId}:${roomId}:${readyType}`;
 
-    logger.info(`Player ${playerName} ready for ${readyType}`, { gameId, roomId, playerId });
+    logger.info(`Player ${playerName} ready for ${readyType}`, {
+      gameId,
+      roomId,
+      playerId,
+    });
 
     // Initialize readiness tracking for this context if needed
     if (!this.playerReadiness.has(readyKey)) {
@@ -308,10 +453,12 @@ export class PhaseCoordinator extends Service {
       playerName,
       readyType,
       readyAt: Date.now(),
-      additionalData: payload.additionalData
+      additionalData: payload.additionalData,
     });
 
-    logger.debug(`Player readiness updated: ${readyMap.size} players ready for ${readyType}`);
+    logger.debug(
+      `Player readiness updated: ${readyMap.size} players ready for ${readyType}`
+    );
 
     // Check if all players are ready (this will be checked by waitForPlayersReady)
     // No need to emit ALL_PLAYERS_READY here as it's handled by the waiting mechanism
@@ -323,45 +470,53 @@ export class PhaseCoordinator extends Service {
   private async waitForPlayersReady(
     gameId: UUID,
     roomId: UUID,
-    readyType: 'strategic_thinking' | 'diary_room' | 'phase_action',
+    readyType: "strategic_thinking" | "diary_room" | "phase_action",
     expectedPlayerCount: number,
     timeoutMs: number = 300000 // 5 minutes default timeout
   ): Promise<void> {
     const readyKey = `${gameId}:${roomId}:${readyType}`;
-    
-    logger.info(`Waiting for ${expectedPlayerCount} players to be ready for ${readyType}`);
+
+    logger.info(
+      `Waiting for ${expectedPlayerCount} players to be ready for ${readyType}`
+    );
 
     return new Promise((resolve, reject) => {
       const checkInterval = setInterval(() => {
         const readyMap = this.playerReadiness.get(readyKey);
         const readyCount = readyMap?.size || 0;
 
-        logger.debug(`Ready check: ${readyCount}/${expectedPlayerCount} players ready for ${readyType}`);
+        logger.debug(
+          `Ready check: ${readyCount}/${expectedPlayerCount} players ready for ${readyType}`
+        );
 
         if (readyCount >= expectedPlayerCount) {
           clearInterval(checkInterval);
           clearTimeout(timeoutTimer);
 
           // Emit all players ready event
-          const readyPlayers = Array.from(readyMap!.values()).map(state => ({
+          const readyPlayers = Array.from(readyMap!.values()).map((state) => ({
             playerId: state.playerId,
             playerName: state.playerName,
-            readyAt: state.readyAt
+            readyAt: state.readyAt,
           }));
 
-          this.runtime.emitEvent(GameEventType.ALL_PLAYERS_READY, {
+          this.emitGameEvent(GameEventType.ALL_PLAYERS_READY, {
             gameId,
             roomId,
             readyType,
             playerCount: expectedPlayerCount,
             readyPlayers,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            runtime: this.runtime,
+            source: "phase-coordinator",
           });
 
           // Clean up readiness tracking for this context
           this.playerReadiness.delete(readyKey);
 
-          logger.info(`All ${expectedPlayerCount} players ready for ${readyType}`);
+          logger.info(
+            `All ${expectedPlayerCount} players ready for ${readyType}`
+          );
           resolve();
         }
       }, 1000); // Check every second
@@ -370,12 +525,18 @@ export class PhaseCoordinator extends Service {
       const timeoutTimer = setTimeout(() => {
         clearInterval(checkInterval);
         const readyCount = this.playerReadiness.get(readyKey)?.size || 0;
-        logger.warn(`Timeout waiting for players: ${readyCount}/${expectedPlayerCount} ready for ${readyType}`);
-        
+        logger.warn(
+          `Timeout waiting for players: ${readyCount}/${expectedPlayerCount} ready for ${readyType}`
+        );
+
         // Clean up
         this.playerReadiness.delete(readyKey);
-        
-        reject(new Error(`Timeout: Only ${readyCount}/${expectedPlayerCount} players ready for ${readyType}`));
+
+        reject(
+          new Error(
+            `Timeout: Only ${readyCount}/${expectedPlayerCount} players ready for ${readyType}`
+          )
+        );
       }, timeoutMs);
     });
   }
@@ -389,7 +550,7 @@ export class PhaseCoordinator extends Service {
   }
 
   /**
-   * Determine if diary room is required for this phase transition  
+   * Determine if diary room is required for this phase transition
    */
   private requiresDiaryRoom(fromPhase: Phase, toPhase: Phase): boolean {
     // Diary room required when transitioning from LOBBY to WHISPER
@@ -397,14 +558,98 @@ export class PhaseCoordinator extends Service {
   }
 
   /**
+   * Check if all players are ready and trigger phase transition if appropriate
+   */
+  private async checkForReadyPhaseTransition(
+    gameId: UUID,
+    roomId: UUID
+  ): Promise<void> {
+    try {
+      const gameState = await getGameState(this.runtime, roomId);
+      if (!gameState || !gameState.isActive) {
+        return;
+      }
+
+      const alivePlayers = Array.from(gameState.players.values()).filter(
+        (p: any) => p.status === "ALIVE"
+      );
+      const expectedPlayerCount = alivePlayers.length;
+
+      const readyKey = `${gameId}:${roomId}:phase_action`;
+      const readyMap = this.playerReadiness.get(readyKey);
+
+      if (!readyMap) {
+        logger.debug("No readiness tracking found for this context");
+        return;
+      }
+
+      const readyCount = readyMap.size;
+      logger.debug(
+        `Ready check: ${readyCount}/${expectedPlayerCount} players ready for phase action`
+      );
+
+      // Check if all alive players are ready
+      if (readyCount >= expectedPlayerCount) {
+        logger.info(
+          `All players ready for phase action, triggering transition`,
+          {
+            gameId,
+            roomId,
+            readyCount,
+            expectedCount: expectedPlayerCount,
+            currentPhase: gameState.phase,
+          }
+        );
+
+        // Clear readiness tracking for this context
+        this.playerReadiness.delete(readyKey);
+
+        // Determine next phase based on current phase
+        const nextPhase = this.determineNextPhaseForReady(gameState.phase);
+        if (nextPhase) {
+          await this.initiatePhaseTransition(
+            gameId,
+            roomId,
+            gameState.phase,
+            nextPhase,
+            gameState.round,
+            "all_players_ready"
+          );
+        }
+      }
+    } catch (error) {
+      logger.error("Error checking for ready phase transition:", error);
+    }
+  }
+
+  /**
+   * Determine next phase when all players are ready
+   */
+  private determineNextPhaseForReady(currentPhase: Phase): Phase | null {
+    switch (currentPhase) {
+      case Phase.INTRODUCTION:
+        return Phase.LOBBY;
+      case Phase.LOBBY:
+        return Phase.WHISPER;
+      default:
+        logger.warn(
+          `No automatic transition configured for phase: ${currentPhase}`
+        );
+        return null;
+    }
+  }
+
+  /**
    * Handle all players ready event processing
    */
-  private async handleAllPlayersReady(payload: AllPlayersReadyPayload): Promise<void> {
+  private async handleAllPlayersReady(
+    payload: AllPlayersReadyPayload
+  ): Promise<void> {
     logger.info(`All players ready for ${payload.readyType}`, {
       gameId: payload.gameId,
-      playerCount: payload.playerCount
+      playerCount: payload.playerCount,
     });
-    
+
     // Continue with the next step in phase transition
     // This would trigger diary room or phase completion based on context
   }
@@ -415,9 +660,9 @@ export class PhaseCoordinator extends Service {
   private async handleTimerExpired(payload: TimerEventPayload): Promise<void> {
     logger.info(`Timer expired for phase ${payload.phase}`, {
       gameId: payload.gameId,
-      round: payload.round
+      round: payload.round,
     });
-    
+
     // Trigger automatic phase transition
     // Implementation would determine next phase based on current phase
   }

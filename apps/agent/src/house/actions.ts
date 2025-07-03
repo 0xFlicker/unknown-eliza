@@ -6,6 +6,7 @@ import {
   State,
   stringToUuid,
   type HandlerCallback,
+  createUniqueUuid,
 } from "@elizaos/core";
 import { GameEvent, Player, Phase, PlayerStatus, PrivateRoom } from "./types";
 import {
@@ -14,6 +15,7 @@ import {
   createNewGame,
   getAuthorName,
 } from "./runtime/memory";
+import { GameStateManager } from "./gameStateManager";
 import { text } from "stream/consumers";
 
 /**
@@ -86,6 +88,10 @@ export const joinGameAction: Action = {
 
       // Save updated game state
       await saveGameState(runtime, message.roomId, gameState);
+
+      // Handle player join via GameStateManager
+      const gameManager = new GameStateManager(runtime);
+      await gameManager.handlePlayerJoin(message.roomId, playerId, agentName);
 
       // Don't call callback - let the LLM generate response based on updated state and examples
     } catch (error) {
@@ -200,6 +206,10 @@ export const startGameAction: Action = {
 
       // Save updated game state
       await saveGameState(runtime, message.roomId, gameState);
+
+      // Handle game start via GameStateManager (includes proper phase transition)
+      const gameManager = new GameStateManager(runtime);
+      await gameManager.handleGameStart(message.roomId);
 
       // Don't call callback - let the LLM generate response based on updated state and examples
     } catch (error) {

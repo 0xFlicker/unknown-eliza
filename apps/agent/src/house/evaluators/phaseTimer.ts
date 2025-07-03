@@ -9,6 +9,7 @@ import {
 import { getGameState } from "../runtime/memory";
 import { Phase } from "../types";
 import { PhaseCoordinator } from "../services/phaseCoordinator";
+import { CoordinationService } from "../coordination";
 
 const logger = elizaLogger.child({ component: "PhaseTimerEvaluator" });
 
@@ -121,7 +122,9 @@ async function checkAndEmitWarnings(
         timeRemaining: Math.round(timeRemaining / 1000)
       });
 
-      await runtime.emitEvent("GAME:TIMER_WARNING", {
+      // Emit via coordination service if available, otherwise fallback to local events
+      const coordinationService = runtime.getService("coordination") as CoordinationService | null;
+      const warningPayload = {
         gameId: gameState.id,
         roomId,
         phase: gameState.phase,
@@ -130,7 +133,13 @@ async function checkAndEmitWarnings(
         timerEndsAt: gameState.timerEndsAt,
         warningType: warning.type,
         timestamp: Date.now()
-      });
+      };
+
+      if (coordinationService) {
+        await coordinationService.sendGameEvent("GAME:TIMER_WARNING" as any, warningPayload);
+      } else {
+        await runtime.emitEvent("GAME:TIMER_WARNING", warningPayload);
+      }
 
       break; // Only emit one warning per check
     }
@@ -152,8 +161,9 @@ async function handleTimerExpiry(
       return;
     }
 
-    // Emit timer expired event using native ElizaOS events
-    await runtime.emitEvent("GAME:TIMER_EXPIRED", {
+    // Emit timer expired event via coordination service if available
+    const coordinationService = runtime.getService("coordination") as CoordinationService | null;
+    const expiredPayload = {
       gameId: gameState.id,
       roomId,
       phase: gameState.phase,
@@ -161,7 +171,13 @@ async function handleTimerExpiry(
       timeRemaining: 0,
       timerEndsAt: gameState.timerEndsAt,
       timestamp: Date.now()
-    });
+    };
+
+    if (coordinationService) {
+      await coordinationService.sendGameEvent("GAME:TIMER_EXPIRED" as any, expiredPayload);
+    } else {
+      await runtime.emitEvent("GAME:TIMER_EXPIRED", expiredPayload);
+    }
 
     // Determine next phase
     const nextPhase = determineNextPhase(gameState.phase, gameState);
@@ -205,6 +221,9 @@ function determineNextPhase(currentPhase: Phase, gameState: any): { phase: Phase
   switch (currentPhase) {
     case Phase.INIT:
       return null; // INIT should not have automated transitions
+      
+    case Phase.INTRODUCTION:
+      return { phase: Phase.LOBBY };
       
     case Phase.LOBBY:
       return { phase: Phase.WHISPER };

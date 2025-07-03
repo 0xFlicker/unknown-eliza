@@ -20,12 +20,12 @@ export const shouldRespondProvider: Provider = {
     const roomId = message.roomId;
     const room = await runtime.getRoom(roomId);
     const channelType = room?.type;
-    
+
     // Determine context based on channel type and sender
-    const senderName = message.entityId ? 
-      (await runtime.getEntity(message.entityId))?.names?.[0] || "Unknown" : 
-      "Unknown";
-    
+    const senderName = message.entityId
+      ? (await runtime.getEntityById(message.entityId))?.names?.[0] || "Unknown"
+      : "Unknown";
+
     const isHouseMessage = senderName === "House";
     const isDMChannel = channelType === ChannelType.DM;
     const isGroupChannel = channelType === ChannelType.GROUP;
@@ -70,11 +70,16 @@ export const shouldRespondProvider: Provider = {
       ];
     }
 
-    const guidance = isHouseMessage && isDMChannel ? "RESPOND to House in DM" : 
-                     isHouseMessage && isGroupChannel ? "IGNORE House in group" :
-                     "RESPOND to players";
+    const guidance =
+      isHouseMessage && isDMChannel
+        ? "RESPOND to House in DM"
+        : isHouseMessage && isGroupChannel
+          ? "IGNORE House in group"
+          : "RESPOND to players";
 
-    console.log(`📋 SHOULD_RESPOND guidance for ${runtime.character.name}: ${guidance}`);
+    console.log(
+      `📋 SHOULD_RESPOND guidance for ${runtime.character.name}: ${guidance}`
+    );
 
     return {
       text: addHeader(
@@ -98,22 +103,24 @@ export const phaseContextProvider: Provider = {
     const roomId = message.roomId;
     const room = await runtime.getRoom(roomId);
     const channelType = room?.type;
-    
+
     // Get current game phase from memory or default to unknown
     let currentPhase = "UNKNOWN";
     try {
       const gameMemories = await runtime.getMemories({
+        tableName: "game",
         roomId: roomId,
         count: 10,
       });
-      
-      const phaseMemory = gameMemories.find(m => 
-        m.content?.text?.includes("PHASE") && 
-        (m.content?.text?.includes("LOBBY") || 
-         m.content?.text?.includes("WHISPER") ||
-         m.content?.text?.includes("DIARY_ROOM"))
+
+      const phaseMemory = gameMemories.find(
+        (m) =>
+          m.content?.text?.includes("PHASE") &&
+          (m.content?.text?.includes("LOBBY") ||
+            m.content?.text?.includes("WHISPER") ||
+            m.content?.text?.includes("DIARY_ROOM"))
       );
-      
+
       if (phaseMemory?.content?.text?.includes("LOBBY")) {
         currentPhase = "LOBBY";
       } else if (phaseMemory?.content?.text?.includes("WHISPER")) {
@@ -126,10 +133,10 @@ export const phaseContextProvider: Provider = {
     }
 
     // Determine context based on channel type and sender
-    const senderName = message.entityId ? 
-      (await runtime.getEntity(message.entityId))?.names?.[0] || "Unknown" : 
-      "Unknown";
-    
+    const senderName = message.entityId
+      ? (await runtime.getEntityById(message.entityId))?.names?.[0] || "Unknown"
+      : "Unknown";
+
     const isHouseMessage = senderName === "House";
     const isDMChannel = channelType === ChannelType.DM;
     const isGroupChannel = channelType === ChannelType.GROUP;
@@ -147,7 +154,7 @@ export const phaseContextProvider: Provider = {
           "You should engage thoughtfully and provide strategic insights.",
           "This is your opportunity to reflect on your game strategy and discuss your thoughts.",
           "",
-          "RESPONSE GUIDANCE: RESPOND to House questions with strategic analysis and thoughts."
+          "RESPONSE GUIDANCE: RESPOND to House questions with strategic analysis and thoughts.",
         ].join("\n")
       );
     } else if (isHouseMessage && isGroupChannel) {
@@ -161,7 +168,7 @@ export const phaseContextProvider: Provider = {
           "Use this information to understand the current game state.",
           "Continue your conversations with other players based on this new information.",
           "",
-          "RESPONSE GUIDANCE: IGNORE direct responses to House. Focus on player interactions."
+          "RESPONSE GUIDANCE: IGNORE direct responses to House. Focus on player interactions.",
         ].join("\n")
       );
     } else if (!isHouseMessage) {
@@ -174,7 +181,7 @@ export const phaseContextProvider: Provider = {
           "Be genuine while maintaining your strategic position.",
           "Consider how this interaction fits into your overall game plan.",
           "",
-          "RESPONSE GUIDANCE: RESPOND to build relationships and advance your strategic position."
+          "RESPONSE GUIDANCE: RESPOND to build relationships and advance your strategic position.",
         ].join("\n")
       );
     }
@@ -185,9 +192,12 @@ export const phaseContextProvider: Provider = {
       senderName,
       isHouseMessage,
       isDMChannel,
-      guidance: isHouseMessage && isDMChannel ? "RESPOND to House" : 
-                isHouseMessage && isGroupChannel ? "IGNORE House announcements" :
-                "RESPOND to players"
+      guidance:
+        isHouseMessage && isDMChannel
+          ? "RESPOND to House"
+          : isHouseMessage && isGroupChannel
+            ? "IGNORE House announcements"
+            : "RESPOND to players",
     });
 
     return {
@@ -204,24 +214,26 @@ export const gameContextProvider: Provider = {
   description: "Current game state and strategic context for the influencer",
   get: async (runtime: IAgentRuntime, message: Memory) => {
     const roomId = message.roomId;
-    
+
     try {
       // Get recent memories to understand game context
       const memories = await runtime.getMemories({
+        tableName: "game",
         roomId: roomId,
         count: 10,
       });
 
       const gameStateInfo = memories
-        .filter(m => 
-          m.content?.text?.includes("LOBBY") ||
-          m.content?.text?.includes("WHISPER") ||
-          m.content?.text?.includes("VOTE") ||
-          m.content?.text?.includes("POWER")
+        .filter(
+          (m) =>
+            m.content?.text?.includes("LOBBY") ||
+            m.content?.text?.includes("WHISPER") ||
+            m.content?.text?.includes("VOTE") ||
+            m.content?.text?.includes("POWER")
         )
         .slice(0, 3)
-        .map(m => `- ${m.content?.text?.substring(0, 100)}...`)
-        .join('\n');
+        .map((m) => `- ${m.content?.text?.substring(0, 100)}...`)
+        .join("\n");
 
       return {
         text: addHeader(
@@ -232,10 +244,7 @@ export const gameContextProvider: Provider = {
     } catch (error) {
       console.warn("Error getting game context:", error);
       return {
-        text: addHeader(
-          "# CURRENT GAME CONTEXT", 
-          "Game context unavailable."
-        ),
+        text: addHeader("# CURRENT GAME CONTEXT", "Game context unavailable."),
       };
     }
   },

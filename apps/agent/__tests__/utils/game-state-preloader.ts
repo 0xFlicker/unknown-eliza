@@ -6,6 +6,7 @@ import {
   PlayerStatus,
   Phase,
   DEFAULT_GAME_SETTINGS,
+  GameSettings,
 } from "../../src/house/types";
 
 /**
@@ -22,6 +23,7 @@ export class GameStatePreloader {
     phase: Phase;
     round?: number;
     playerAgentIds?: Map<string, UUID>; // Map from player name to actual agent ID
+    settings?: Partial<GameSettings>; // Override default game settings
   }): GameState {
     const {
       playerNames,
@@ -29,6 +31,7 @@ export class GameStatePreloader {
       phase,
       round = 0,
       playerAgentIds,
+      settings: customSettings,
     } = options;
 
     const players = new Map<string, Player>();
@@ -58,7 +61,7 @@ export class GameStatePreloader {
       votes: [],
       privateRooms: new Map(),
       exposedPlayers: new Set(),
-      settings: { ...DEFAULT_GAME_SETTINGS },
+      settings: { ...DEFAULT_GAME_SETTINGS, ...customSettings },
       history: [],
       isActive: phase !== Phase.INIT,
       hostId: Array.from(players.values()).find((p) => p.isHost)?.id,

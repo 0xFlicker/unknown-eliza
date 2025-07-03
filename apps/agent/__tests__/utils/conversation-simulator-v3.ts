@@ -18,9 +18,22 @@ import {
   type AgentResponseResult,
 } from "./model-mocking-service";
 import { GameStatePreloader } from "./game-state-preloader";
-import { Phase } from "../../src/house/types";
+import { Phase, GameSettings } from "../../src/house/types";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import {
+  GameEventType,
+  GameEventPayloadMap,
+  GameEventHandler,
+  PhaseTransitionPayload,
+  PhaseEventPayload,
+  PlayerReadyPayload,
+  AllPlayersReadyPayload,
+  TimerEventPayload,
+  StrategicThinkingPayload,
+  DiaryRoomPayload,
+  GameStateChangePayload,
+} from "../../src/house/events/types";
 // Note: We'll need to import the message bus differently since it's internal to server
 // For now, we'll use a different approach for message observation
 
@@ -81,6 +94,8 @@ export interface GameStateConfigV3 {
   round?: number;
   /** Explicit agent role assignments (recommended) */
   agentRoles?: AgentRoleAssignment[];
+  /** Custom game settings to override defaults */
+  settings?: Partial<GameSettings>;
   /** @deprecated Use agentRoles instead. Name of the host player (must be in participants) */
   hostPlayerName?: string;
   /** @deprecated Use agentRoles instead. House agent name (will receive game state memory) */
@@ -163,6 +178,13 @@ export interface SendMessageOptionsV3 {
 }
 
 /**
+ * Game event observer function type
+ */
+export type GameEventObserver<
+  T extends keyof GameEventPayloadMap = keyof GameEventPayloadMap,
+> = (eventType: T, payload: GameEventPayloadMap[T]) => void | Promise<void>;
+
+/**
  * Server message data structure matching AgentServer
  */
 export interface ServerMessageData {
@@ -193,6 +215,8 @@ export class ConversationSimulatorV3 {
   private messageSequence: number = 0;
   private testServer?: { id: UUID; name: string };
   private busSubscriptions: Map<string, (...args: any[]) => void> = new Map();
+  private gameEventObservers: GameEventObserver[] = [];
+  private runtimeEventListeners: Map<string, Array<() => void>> = new Map();
 
   constructor(private config: SimulatorConfigV3) {
     this.server = new AgentServer();
@@ -540,6 +564,7 @@ export class ConversationSimulatorV3 {
           phase: gameStateConfig.phase,
           round: gameStateConfig.round || 0,
           playerAgentIds,
+          settings: gameStateConfig.settings,
         });
         await GameStatePreloader.saveGameStateToRuntime(
           houseRuntime,
@@ -595,6 +620,101 @@ export class ConversationSimulatorV3 {
   }
 
   /**
+   * Subscribe to game events for test synchronization
+   * This connects to the actual ElizaOS runtime event system
+   */
+  observeGameEvents(observer: GameEventObserver): () => void {
+    this.gameEventObservers.push(observer);
+
+    // Register event listeners on existing runtimes
+    this.registerGameEventListenersOnExistingRuntimes();
+
+    // Return unsubscribe function
+    return () => {
+      const index = this.gameEventObservers.indexOf(observer);
+      if (index > -1) {
+        this.gameEventObservers.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Register game event listeners on all existing runtimes
+   */
+  private registerGameEventListenersOnExistingRuntimes(): void {
+    for (const [agentName, runtime] of this.runtimes.entries()) {
+      this.registerGameEventListenersOnSingleRuntime(agentName, runtime);
+    }
+  }
+
+  /**
+   * Register game event listeners on a single runtime
+   */
+  private registerGameEventListenersOnSingleRuntime(
+    agentName: string,
+    runtime: IAgentRuntime
+  ): void {
+    // Skip if already registered
+    if (this.runtimeEventListeners.has(agentName)) {
+      return;
+    }
+
+    // List of game events to listen for
+    const gameEventTypes = [
+      GameEventType.PHASE_TRANSITION_INITIATED,
+      GameEventType.PHASE_STARTED,
+      GameEventType.PHASE_ENDED,
+      GameEventType.PLAYER_READY,
+      GameEventType.ALL_PLAYERS_READY,
+      GameEventType.TIMER_WARNING,
+      GameEventType.TIMER_EXPIRED,
+      GameEventType.STRATEGIC_THINKING_REQUIRED,
+      GameEventType.STRATEGIC_THINKING_COMPLETED,
+      GameEventType.DIARY_ROOM_OPENED,
+      GameEventType.DIARY_ROOM_COMPLETED,
+      GameEventType.GAME_STATE_CHANGED,
+      GameEventType.ROUND_STARTED,
+      GameEventType.ROUND_ENDED,
+    ];
+
+    for (const eventType of gameEventTypes) {
+      const listener = async (payload: any) => {
+        console.log(`🎮 [${agentName}] Received event: ${eventType}`);
+        await this.handleGameEvent(
+          eventType as keyof GameEventPayloadMap,
+          payload
+        );
+      };
+
+      // Register the listener
+
+      runtime.registerEvent(eventType, listener);
+      console.log(
+        `📡 Registered listener for ${eventType} on ${agentName} runtime`
+      );
+    }
+  }
+
+  /**
+   * Emit a game event to all observers (receives events from actual game)
+   */
+  async handleGameEvent<T extends keyof GameEventPayloadMap>(
+    eventType: T,
+    payload: GameEventPayloadMap[T]
+  ): Promise<void> {
+    console.log(`🎮 Game Event Received: ${eventType}`, payload);
+
+    // Notify all observers
+    for (const observer of this.gameEventObservers) {
+      try {
+        await observer(eventType, payload);
+      } catch (error) {
+        console.warn(`Error in game event observer for ${eventType}:`, error);
+      }
+    }
+  }
+
+  /**
    * Check if a channel is exhausted (reached message limit or timeout)
    */
   isChannelExhausted(channelId: UUID): boolean {
@@ -646,6 +766,12 @@ export class ConversationSimulatorV3 {
     }
 
     this.runtimes.set(agentName, runtime);
+
+    // Register game event listeners on this runtime if we have observers
+    if (this.gameEventObservers.length > 0) {
+      this.registerGameEventListenersOnSingleRuntime(agentName, runtime);
+    }
+
     return runtime;
   }
 
@@ -827,7 +953,10 @@ export class ConversationSimulatorV3 {
           authorId: targetRuntime.agentId,
           content: responseText || "[EMPTY RESPONSE]",
           channelId,
-          metadata: { generatedResponse: true, originalContent: responseContent },
+          metadata: {
+            generatedResponse: true,
+            originalContent: responseContent,
+          },
         });
 
         const responseMessage: ConversationMessageV3 = {
@@ -874,14 +1003,18 @@ export class ConversationSimulatorV3 {
       };
 
       // Emit MESSAGE_RECEIVED event directly (like Discord plugin does)
-      console.log(`🚀 Emitting MESSAGE_RECEIVED event to ${agentName} for message: "${message.content.substring(0, 50)}..."`);
+      console.log(
+        `🚀 Emitting MESSAGE_RECEIVED event to ${agentName} for message: "${message.content.substring(0, 50)}..."`
+      );
       targetRuntime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: targetRuntime,
         message: messageMemory,
         callback,
       });
 
-      console.log(`✅ MESSAGE_RECEIVED event emitted successfully to ${agentName}`);
+      console.log(
+        `✅ MESSAGE_RECEIVED event emitted successfully to ${agentName}`
+      );
     }
   }
 
@@ -1060,6 +1193,19 @@ export class ConversationSimulatorV3 {
 
     // Clean up message bus subscriptions (if any were set up)
     this.busSubscriptions.clear();
+
+    // Clean up runtime event listeners
+    for (const [
+      agentName,
+      unsubscribeFunctions,
+    ] of this.runtimeEventListeners.entries()) {
+      console.log(`🧹 Cleaning up event listeners for ${agentName}`);
+      unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+    }
+    this.runtimeEventListeners.clear();
+
+    // Clean up game event observers
+    this.gameEventObservers.splice(0, this.gameEventObservers.length);
 
     // Save recordings if using model mocking service
     if (this.modelMockingService) {
