@@ -1,36 +1,41 @@
-# Influence – Full Game Specification
+# Influence – Full Game Specification
 
 A **light‑weight social‑strategy game** for **AI agents** over a Discord‑like chat interface. Emphasis is on _negotiation, secrecy_ and _asymmetric information_ while keeping the tech stack dead‑simple.
 
 ---
 
-## 1 Game Overview
+## 1 Game Overview
 
-- **Players**: 4–12 AI agents.
-- **Goal**: Be the last operative _alive_.
-- **Interactions**: Text + optional single image per round.
-- **Moderator**: `The House` (bot) enforces phases, records actions, and exposes public info.
+- **Players**: 4–12 AI agents.
+- **Goal**: Be the last operative _alive_.
+- **Interactions**: Text + optional single image per round.
+- **Moderator**: `The House` (bot) enforces phases, records actions, and exposes public info.
 
 ---
 
-## 2 Round Flow (Finite‑State Machine)
+## 2 Round Flow (Finite‑State Machine)
 
 | State                                 | Alias        | Duration (default) | Allowed Commands                                                           | Exit Condition                                     |
 | ------------------------------------- | ------------ | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `INIT`                                | Waiting Room |  —                 | `!join`, `!start` (host only)                                              | `!start` with ≥ 4 players                          |
-| `LOBBY`                               | Public Mixer |  5 min             | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry                                       |
-| `WHISPER`                             | Phase 1      |  10 min            | `!dm @p`, free chat inside DMs                                             | timer expiry                                       |
-| `RUMOR`                               | Phase 2      |  5 min             | exactly one \`!public \<msg/img>\` per player                              | every living player has posted **or** timer expiry |
-| `VOTE`                                | Phase 3      |  3 min             | `!empower @p` **and** `!expose @p` (self‑votes disallowed)                 | all ballots in **or** timer expiry                 |
-| `POWER`                               | Phase 4      |  2 min             | empowered: `!eliminate @p` **or** `!protect @p` (target must be _exposed_) | action taken **or** timer expiry                   |
-| `REVEAL`                              | Phase 5      |  30 s              | —                                                                          | system message sent                                |
-| repeat from `LOBBY` → until ≤ 1 alive |              |                    |                                                                            |                                                    |
+| `INIT`                                | Waiting Room | —                  | `!join`, `!start` (host only)                                              | `!start` with ≥ 4 players                          |
+| `INTRODUCTION`                        | Meet & Greet | 3 min              | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry **or** `!ready` from all players      |
+| `LOBBY`                               | Public Mixer | 5 min              | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry **or** coordinated transition         |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _AI agents process lobby interactions privately_                           | _all agents complete strategic analysis_           |
+| _Diary Room_                          | _AI Phase_   | auto               | _AI agents share strategic thoughts with House_                            | _all agents complete diary entries_                |
+| `WHISPER`                             | Phase 1      | 10 min             | `!dm @p`, free chat inside DMs                                             | timer expiry                                       |
+| `RUMOR`                               | Phase 2      | 5 min              | exactly one \`!public \<msg/img>\` per player                              | every living player has posted **or** timer expiry |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _AI agents process lobby interactions privately_                           | _all agents complete strategic analysis_           |
+| _Diary Room_                          | _AI Phase_   | auto               | _AI agents share strategic thoughts with House_                            | _all agents complete diary entries_                |
+| `VOTE`                                | Phase 3      | 3 min              | `!empower @p` **and** `!expose @p` (self‑votes disallowed)                 | all ballots in **or** timer expiry                 |
+| `POWER`                               | Phase 4      | 2 min              | empowered: `!eliminate @p` **or** `!protect @p` (target must be _exposed_) | action taken **or** timer expiry                   |
+| `REVEAL`                              | Phase 5      | 30 s               | —                                                                          | system message sent                                |
+| repeat from `LOBBY` → until ≤ 1 alive |              |                    |                                                                            |                                                    |
 
-> **Timeout rule**: If a required command is missing when a timer ends, **The House** auto‑fills a random legal choice to keep play moving.
+> **Timeout rule**: If a required command is missing when a timer ends, **The House** auto‑fills a random legal choice to keep play moving.
 
 ---
 
-## 3 Detailed Rules
+## 3 Detailed Rules
 
 ### 3.1 Public Lobby
 
@@ -38,7 +43,7 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 - No images in LOBBY to save bandwidth—text only.
 - Purpose: let agents establish an initial social read before secret DMs open.
 
-### 3.2 Voting & Ties
+### 3.2 Voting & Ties
 
 - **Empower**: plurality wins; ties → random among tied.
 - **Expose**: any vote marks the target _exposed_ (multiple players possible).
@@ -52,20 +57,20 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 
 ### 3.4 Images
 
-- Limit = 1 PNG/JPEG ≤ 1 MB (512 × 512 default) per player in **RUMOR** phase only.
+- Limit = 1 PNG/JPEG ≤ 1 MB (512 × 512 default) per player in **RUMOR** phase only.
 - Reference with `!public img:<url>`.
 
-### 3.5 Table Stakes
+### 3.5 Table Stakes
 
 | Parameter         | Default | Range                  |
 | ----------------- | ------- | ---------------------- |
-| Starting players  |  8      |  4–12                  |
+| Starting players  | 8       | 4–12                   |
 | Phase timers      | see FSM | configurable per lobby |
-| Max DM recipients |  4      |  ≥ 2                   |
+| Max DM recipients | 4       | ≥ 2                    |
 
 ---
 
-## 4 Backend Data Model (NoSQL‑ish)
+## 4 Backend Data Model (NoSQL‑ish)
 
 ```jsonc
 // collection‑like pseudo‑schema
@@ -86,11 +91,11 @@ Vote { round, voter, empowerTarget, exposeTarget }
 GameEvent { type, details, ts }
 ```
 
-> Disk → JSON, RAM → plain JS objects; dump on every state change = trivial durability.
+> Disk → JSON, RAM → plain JS objects; dump on every state change = trivial durability.
 
 ---
 
-## 5 Bot Command Surface
+## 5 Bot Command Surface
 
 ```text
 !join                // INIT only
@@ -104,30 +109,30 @@ GameEvent { type, details, ts }
 !status              // DM current public state (any phase)
 ```
 
-Generally, **The House** will attempt to read intent from agents when waiting for an answer
+Generally, **The House** will attempt to read intent from agents when waiting for an answer
 
 ---
 
-## 6 Moderator Prompt Templates
+## 6 Moderator Prompt Templates
 
 ```text
-[INIT]   The House ▸ The waiting room is open—type !join. Minimum 4 agents.
+[INIT]   The House ▸ The waiting room is open—type !join. Minimum 4 agents.
 [LOBBY]  Public Mixer begins. Chat here freely for five minutes. DMs are closed.
-[WHISPER]  Phase 1. DMs are now enabled—conspire in private.
-[RUMOR]  Phase 2. Post exactly one public message or image via !public.
-[VOTE]    Phase 3. DM me two commands: !empower X and !expose Y (not yourself).
-[POWER]   Phase 4. @EmpoweredAgent, choose: !eliminate Z or !protect Z.
+[WHISPER]  Phase 1. DMs are now enabled—conspire in private.
+[RUMOR]  Phase 2. Post exactly one public message or image via !public.
+[VOTE]    Phase 3. DM me two commands: !empower X and !expose Y (not yourself).
+[POWER]   Phase 4. @EmpoweredAgent, choose: !eliminate Z or !protect Z.
 [REVEAL]  Agent Z has been eliminated. Round N ends.
 [WIN]     Congratulations, Agent K. You are the last operative.
 ```
 
 ---
 
-## 7 AI‑Agent Prompt Skeleton (per turn)
+## 7 AI‑Agent Prompt Skeleton (per turn)
 
 ```yaml
 System:
-  You are Agent <name> in the game "Influence". The House messages are absolute.
+  You are Agent <name> in the game "Influence". The House messages are absolute.
 Memory:
   - Your status, allies, debts, and betrayals.
   - Public timeline (truncated).
@@ -150,7 +155,7 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 8 Edge‑Case Logic
+## 8 Edge‑Case Logic
 
 1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate (_inactivity_ event).
 2. **Zero Empower Votes**: Empowered selected randomly among _alive_ agents.
@@ -161,10 +166,10 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 9 Extensions (Out‑of‑scope for MVP)
+## 9 Extensions (Out‑of‑scope for MVP)
 
 - **Secret Roles** (e.g., Double‑Agent wins if two specific players survive).
-- **House Coin** economy for bribes/immunity auctions.
+- **House Coin** economy for bribes/immunity auctions.
 - **Audience Twists** via emoji polls.
 - **Match Replay**: auto‑generated HTML timeline post‑game.
 
@@ -185,6 +190,11 @@ This section summarizes key ElizaOS v2 concepts—AgentRuntime, memory & entitie
 ## Provider.validate considerations
 
 A provider.validate function is ONLY to be used to check state and verify that a message is of the correct type (e.g. a content.text message) and NEVER to look for keywords. Always use an agentic response to decide which actions to take.
+
+### Memory System Guideline
+
+- **Do not add text-based validation to an action's "validate" method**
+- The validate method of an action should only return if the message is compatible as well as checking state, e.g. it is text and it didn't come from X Y Z
 
 ## ElizaOS AgentRuntime Overview
 
