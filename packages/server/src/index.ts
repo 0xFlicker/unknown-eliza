@@ -2,37 +2,43 @@ import {
   type Character,
   DatabaseAdapter,
   type IAgentRuntime,
-  logger,
+  createLogger,
   type UUID,
-} from '@elizaos/core';
-import cors from 'cors';
-import express, { Request, Response } from 'express';
-import helmet from 'helmet';
-import * as fs from 'node:fs';
-import http from 'node:http';
-import path, { basename, dirname, extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Server as SocketIOServer } from 'socket.io';
-import { createApiRouter, createPluginRouteHandler, setupSocketIO } from './api/index.js';
-import { apiKeyAuthMiddleware } from './authMiddleware.js';
-import { messageBusConnectorPlugin } from './services/message.js';
-import { loadCharacterTryPath, jsonToCharacter } from './loader.js';
+} from "@elizaos/core";
+import cors from "cors";
+import express, { Request, Response } from "express";
+import helmet from "helmet";
+import * as fs from "node:fs";
+import http from "node:http";
+import path, { basename, dirname, extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Server as SocketIOServer } from "socket.io";
+import {
+  createApiRouter,
+  createPluginRouteHandler,
+  setupSocketIO,
+} from "./api/index.js";
+import { apiKeyAuthMiddleware } from "./authMiddleware.js";
+import { messageBusConnectorPlugin } from "./services/message.js";
+import { loadCharacterTryPath, jsonToCharacter } from "./loader.js";
 
 import {
   createDatabaseAdapter,
   DatabaseMigrationService,
   plugin as sqlPlugin,
-} from '@elizaos/plugin-sql';
-import internalMessageBus from './bus.js';
+} from "@elizaos/plugin-sql";
+import internalMessageBus from "./bus.js";
 import type {
   CentralRootMessage,
   MessageChannel,
   MessageServer,
   MessageServiceStructure,
-} from './types.js';
-import { existsSync } from 'node:fs';
-import { resolveEnvFile } from './api/system/environment.js';
-import dotenv from 'dotenv';
+} from "./types.js";
+import { existsSync } from "node:fs";
+import { resolveEnvFile } from "./api/system/environment.js";
+import dotenv from "dotenv";
+
+const logger = createLogger();
 
 /**
  * Expands a file path starting with `~` to the project directory.
@@ -45,12 +51,12 @@ export function expandTildePath(filepath: string): string {
     return filepath;
   }
 
-  if (filepath.startsWith('~')) {
-    if (filepath === '~') {
+  if (filepath.startsWith("~")) {
+    if (filepath === "~") {
       return process.cwd();
-    } else if (filepath.startsWith('~/')) {
+    } else if (filepath.startsWith("~/")) {
       return path.join(process.cwd(), filepath.slice(2));
-    } else if (filepath.startsWith('~~')) {
+    } else if (filepath.startsWith("~~")) {
       // Don't expand ~~
       return filepath;
     } else {
@@ -72,13 +78,13 @@ export function resolvePgliteDir(dir?: string, fallbackDir?: string): string {
     dir ??
     process.env.PGLITE_DATA_DIR ??
     fallbackDir ??
-    path.join(process.cwd(), '.eliza', '.elizadb');
+    path.join(process.cwd(), ".eliza", ".elizadb");
 
   // Automatically migrate legacy path (<cwd>/.elizadb) to new location (<cwd>/.eliza/.elizadb)
   const resolved = expandTildePath(base);
-  const legacyPath = path.join(process.cwd(), '.elizadb');
+  const legacyPath = path.join(process.cwd(), ".elizadb");
   if (resolved === legacyPath) {
-    const newPath = path.join(process.cwd(), '.eliza', '.elizadb');
+    const newPath = path.join(process.cwd(), ".eliza", ".elizadb");
     process.env.PGLITE_DATA_DIR = newPath;
     return newPath;
   }
@@ -88,7 +94,7 @@ export function resolvePgliteDir(dir?: string, fallbackDir?: string): string {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID; // Single default server
+const DEFAULT_SERVER_ID = "00000000-0000-0000-0000-000000000000" as UUID; // Single default server
 
 /**
  * Represents a function that acts as a server middleware.
@@ -142,14 +148,14 @@ export class AgentServer {
    */
   constructor() {
     try {
-      logger.debug('Initializing AgentServer (constructor)...');
+      logger.debug("Initializing AgentServer (constructor)...");
       this.agents = new Map();
 
       // Initialize character loading functions
       this.loadCharacterTryPath = loadCharacterTryPath;
       this.jsonToCharacter = jsonToCharacter;
     } catch (error) {
-      logger.error('Failed to initialize AgentServer (constructor):', error);
+      logger.error("Failed to initialize AgentServer (constructor):", error);
       throw error;
     }
   }
@@ -162,12 +168,14 @@ export class AgentServer {
    */
   public async initialize(options?: ServerOptions): Promise<void> {
     if (this.isInitialized) {
-      logger.warn('AgentServer is already initialized, skipping initialization');
+      logger.warn(
+        "AgentServer is already initialized, skipping initialization"
+      );
       return;
     }
 
     try {
-      logger.debug('Initializing AgentServer (async operations)...');
+      logger.debug("Initializing AgentServer (async operations)...");
 
       const agentDataDir = await resolvePgliteDir(options?.dataDir);
       logger.info(`[INIT] Database Dir for SQL plugin: ${agentDataDir}`);
@@ -176,13 +184,13 @@ export class AgentServer {
           dataDir: agentDataDir,
           postgresUrl: options?.postgresUrl,
         },
-        '00000000-0000-0000-0000-000000000002'
+        "00000000-0000-0000-0000-000000000002"
       ) as DatabaseAdapter;
       await this.database.init();
-      logger.success('Consolidated database initialized successfully');
+      logger.info("Consolidated database initialized successfully");
 
       // Run migrations for the SQL plugin schema
-      logger.info('[INIT] Running database migrations for messaging tables...');
+      logger.info("[INIT] Running database migrations for messaging tables...");
       try {
         const migrationService = new DatabaseMigrationService();
 
@@ -196,9 +204,12 @@ export class AgentServer {
         // Run the migrations
         await migrationService.runAllPluginMigrations();
 
-        logger.success('[INIT] Database migrations completed successfully');
+        logger.info("[INIT] Database migrations completed successfully");
       } catch (migrationError) {
-        logger.error('[INIT] Failed to run database migrations:', migrationError);
+        logger.error(
+          "[INIT] Failed to run database migrations:",
+          migrationError
+        );
         throw new Error(
           `Database migration failed: ${migrationError instanceof Error ? migrationError.message : String(migrationError)}`
         );
@@ -208,15 +219,18 @@ export class AgentServer {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Ensure default server exists
-      logger.info('[INIT] Ensuring default server exists...');
+      logger.info("[INIT] Ensuring default server exists...");
       await this.ensureDefaultServer();
-      logger.success('[INIT] Default server setup complete');
+      logger.info("[INIT] Default server setup complete");
 
       await this.initializeServer(options);
       await new Promise((resolve) => setTimeout(resolve, 250));
       this.isInitialized = true;
     } catch (error) {
-      logger.error('Failed to initialize AgentServer (async operations):', error);
+      logger.error(
+        "Failed to initialize AgentServer (async operations):",
+        error
+      );
       console.trace(error);
       throw error;
     }
@@ -225,22 +239,24 @@ export class AgentServer {
   private async ensureDefaultServer(): Promise<void> {
     try {
       // Check if the default server exists
-      logger.info('[AgentServer] Checking for default server...');
+      logger.info("[AgentServer] Checking for default server...");
       const servers = await (this.database as any).getMessageServers();
       logger.debug(`[AgentServer] Found ${servers.length} existing servers`);
 
       // Log all existing servers for debugging
       servers.forEach((s: any) => {
-        logger.debug(`[AgentServer] Existing server: ID=${s.id}, Name=${s.name}`);
+        logger.debug(
+          `[AgentServer] Existing server: ID=${s.id}, Name=${s.name}`
+        );
       });
 
       const defaultServer = servers.find(
-        (s: any) => s.id === '00000000-0000-0000-0000-000000000000'
+        (s: any) => s.id === "00000000-0000-0000-0000-000000000000"
       );
 
       if (!defaultServer) {
         logger.info(
-          '[AgentServer] Creating default server with UUID 00000000-0000-0000-0000-000000000000...'
+          "[AgentServer] Creating default server with UUID 00000000-0000-0000-0000-000000000000..."
         );
 
         // Use raw SQL to ensure the server is created with the exact ID
@@ -250,50 +266,69 @@ export class AgentServer {
             VALUES ('00000000-0000-0000-0000-000000000000', 'Default Server', 'eliza_default', NOW(), NOW())
             ON CONFLICT (id) DO NOTHING
           `);
-          logger.success('[AgentServer] Default server created via raw SQL');
+          logger.info("[AgentServer] Default server created via raw SQL");
 
           // Immediately check if it was created
           const checkResult = await (this.database as any).db.execute(
             "SELECT id, name FROM message_servers WHERE id = '00000000-0000-0000-0000-000000000000'"
           );
-          logger.debug('[AgentServer] Raw SQL check result:', checkResult);
+          logger.debug("[AgentServer] Raw SQL check result:", checkResult);
         } catch (sqlError: any) {
-          logger.error('[AgentServer] Raw SQL insert failed:', sqlError);
+          logger.error("[AgentServer] Raw SQL insert failed:", sqlError);
 
           // Try creating with ORM as fallback
           try {
             const server = await (this.database as any).createMessageServer({
-              id: '00000000-0000-0000-0000-000000000000' as UUID,
-              name: 'Default Server',
-              sourceType: 'eliza_default',
+              id: "00000000-0000-0000-0000-000000000000" as UUID,
+              name: "Default Server",
+              sourceType: "eliza_default",
             });
-            logger.success('[AgentServer] Default server created via ORM with ID:', server.id);
+            logger.info(
+              "[AgentServer] Default server created via ORM with ID:",
+              server.id
+            );
           } catch (ormError: any) {
-            logger.error('[AgentServer] Both SQL and ORM creation failed:', ormError);
-            throw new Error(`Failed to create default server: ${ormError.message}`);
+            logger.error(
+              "[AgentServer] Both SQL and ORM creation failed:",
+              ormError
+            );
+            throw new Error(
+              `Failed to create default server: ${ormError.message}`
+            );
           }
         }
 
         // Verify it was created
         const verifyServers = await (this.database as any).getMessageServers();
-        logger.debug(`[AgentServer] After creation attempt, found ${verifyServers.length} servers`);
+        logger.debug(
+          `[AgentServer] After creation attempt, found ${verifyServers.length} servers`
+        );
         verifyServers.forEach((s: any) => {
-          logger.debug(`[AgentServer] Server after creation: ID=${s.id}, Name=${s.name}`);
+          logger.debug(
+            `[AgentServer] Server after creation: ID=${s.id}, Name=${s.name}`
+          );
         });
 
         const verifyDefault = verifyServers.find(
-          (s: any) => s.id === '00000000-0000-0000-0000-000000000000'
+          (s: any) => s.id === "00000000-0000-0000-0000-000000000000"
         );
         if (!verifyDefault) {
-          throw new Error(`Failed to create or verify default server with ID ${DEFAULT_SERVER_ID}`);
+          throw new Error(
+            `Failed to create or verify default server with ID ${DEFAULT_SERVER_ID}`
+          );
         } else {
-          logger.success('[AgentServer] Default server creation verified successfully');
+          logger.info(
+            "[AgentServer] Default server creation verified successfully"
+          );
         }
       } else {
-        logger.info('[AgentServer] Default server already exists with ID:', defaultServer.id);
+        logger.info(
+          "[AgentServer] Default server already exists with ID:",
+          defaultServer.id
+        );
       }
     } catch (error) {
-      logger.error('[AgentServer] Error ensuring default server:', error);
+      logger.error("[AgentServer] Error ensuring default server:", error);
       throw error; // Re-throw to prevent startup if default server can't be created
     }
   }
@@ -310,11 +345,11 @@ export class AgentServer {
       this.app = express();
 
       // Security headers first - before any other middleware
-      const isProd = process.env.NODE_ENV === 'production';
-      logger.debug('Setting up security headers...');
+      const isProd = process.env.NODE_ENV === "production";
+      logger.debug("Setting up security headers...");
       if (!isProd) {
         logger.debug(`NODE_ENV: ${process.env.NODE_ENV}`);
-        logger.debug(`CSP will be: ${isProd ? 'ENABLED' : 'MINIMAL_DEV'}`);
+        logger.debug(`CSP will be: ${isProd ? "ENABLED" : "MINIMAL_DEV"}`);
       }
       this.app.use(
         helmet({
@@ -324,12 +359,12 @@ export class AgentServer {
                 // Production CSP - includes upgrade-insecure-requests
                 directives: {
                   defaultSrc: ["'self'"],
-                  styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+                  styleSrc: ["'self'", "'unsafe-inline'", "https:"],
                   scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-                  imgSrc: ["'self'", 'data:', 'blob:', 'https:', 'http:'],
-                  fontSrc: ["'self'", 'https:', 'data:'],
-                  connectSrc: ["'self'", 'ws:', 'wss:', 'https:', 'http:'],
-                  mediaSrc: ["'self'", 'blob:', 'data:'],
+                  imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+                  fontSrc: ["'self'", "https:", "data:"],
+                  connectSrc: ["'self'", "ws:", "wss:", "https:", "http:"],
+                  mediaSrc: ["'self'", "blob:", "data:"],
                   objectSrc: ["'none'"],
                   frameSrc: ["'none'"],
                   baseUri: ["'self'"],
@@ -342,14 +377,14 @@ export class AgentServer {
                 // Development CSP - minimal policy without upgrade-insecure-requests
                 directives: {
                   defaultSrc: ["'self'"],
-                  styleSrc: ["'self'", "'unsafe-inline'", 'https:', 'http:'],
+                  styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:"],
                   scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-                  imgSrc: ["'self'", 'data:', 'blob:', 'https:', 'http:'],
-                  fontSrc: ["'self'", 'https:', 'http:', 'data:'],
-                  connectSrc: ["'self'", 'ws:', 'wss:', 'https:', 'http:'],
-                  mediaSrc: ["'self'", 'blob:', 'data:'],
+                  imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+                  fontSrc: ["'self'", "https:", "http:", "data:"],
+                  connectSrc: ["'self'", "ws:", "wss:", "https:", "http:"],
+                  mediaSrc: ["'self'", "blob:", "data:"],
                   objectSrc: ["'none'"],
-                  frameSrc: ["'self'", 'data:'],
+                  frameSrc: ["'self'", "data:"],
                   baseUri: ["'self'"],
                   formAction: ["'self'"],
                   // Note: upgrade-insecure-requests is intentionally omitted for Safari compatibility
@@ -359,9 +394,9 @@ export class AgentServer {
           // Cross-Origin Embedder Policy - disabled for compatibility
           crossOriginEmbedderPolicy: false,
           // Cross-Origin Resource Policy
-          crossOriginResourcePolicy: { policy: 'cross-origin' },
+          crossOriginResourcePolicy: { policy: "cross-origin" },
           // Frame Options - allow same-origin iframes to align with frameSrc CSP
-          frameguard: { action: 'sameorigin' },
+          frameguard: { action: "sameorigin" },
           // Hide Powered-By header
           hidePoweredBy: true,
           // HTTP Strict Transport Security - only in production
@@ -375,7 +410,7 @@ export class AgentServer {
           // No Sniff
           noSniff: true,
           // Referrer Policy
-          referrerPolicy: { policy: 'no-referrer-when-downgrade' },
+          referrerPolicy: { policy: "no-referrer-when-downgrade" },
           // X-XSS-Protection
           xssFilter: true,
         })
@@ -383,25 +418,25 @@ export class AgentServer {
 
       // Apply custom middlewares if provided
       if (options?.middlewares) {
-        logger.debug('Applying custom middlewares...');
+        logger.debug("Applying custom middlewares...");
         for (const middleware of options.middlewares) {
           this.app.use(middleware);
         }
       }
 
       // Setup middleware for all requests
-      logger.debug('Setting up standard middlewares...');
+      logger.debug("Setting up standard middlewares...");
       this.app.use(
         cors({
           origin: process.env.CORS_ORIGIN || true,
           credentials: true,
-          methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-          allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY'],
+          methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+          allowedHeaders: ["Content-Type", "Authorization", "X-API-KEY"],
         })
       ); // Enable CORS
       this.app.use(
         express.json({
-          limit: process.env.EXPRESS_MAX_PAYLOAD || '100kb',
+          limit: process.env.EXPRESS_MAX_PAYLOAD || "100kb",
         })
       ); // Parse JSON bodies
 
@@ -411,51 +446,69 @@ export class AgentServer {
       // Optional Authentication Middleware
       const serverAuthToken = process.env.ELIZA_SERVER_AUTH_TOKEN;
       if (serverAuthToken) {
-        logger.info('Server authentication enabled. Requires X-API-KEY header for /api routes.');
+        logger.info(
+          "Server authentication enabled. Requires X-API-KEY header for /api routes."
+        );
         // Apply middleware only to /api paths
-        this.app.use('/api', (req, res, next) => {
+        this.app.use("/api", (req, res, next) => {
           apiKeyAuthMiddleware(req, res, next);
         });
       } else {
         logger.warn(
-          'Server authentication is disabled. Set ELIZA_SERVER_AUTH_TOKEN environment variable to enable.'
+          "Server authentication is disabled. Set ELIZA_SERVER_AUTH_TOKEN environment variable to enable."
         );
       }
 
-      const uploadsBasePath = path.join(process.cwd(), '.eliza', 'data', 'uploads', 'agents');
-      const generatedBasePath = path.join(process.cwd(), '.eliza', 'data', 'generated');
+      const uploadsBasePath = path.join(
+        process.cwd(),
+        ".eliza",
+        "data",
+        "uploads",
+        "agents"
+      );
+      const generatedBasePath = path.join(
+        process.cwd(),
+        ".eliza",
+        "data",
+        "generated"
+      );
       fs.mkdirSync(uploadsBasePath, { recursive: true });
       fs.mkdirSync(generatedBasePath, { recursive: true });
 
       // Agent-specific media serving - only serve files from agent-specific directories
       this.app.get(
-        '/media/uploads/agents/:agentId/:filename',
+        "/media/uploads/agents/:agentId/:filename",
         // @ts-expect-error - this is a valid express route
         (req: express.Request, res: express.Response) => {
           const agentId = req.params.agentId as string;
           const filename = req.params.filename as string;
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           if (!uuidRegex.test(agentId)) {
-            return res.status(400).json({ error: 'Invalid agent ID format' });
+            return res.status(400).json({ error: "Invalid agent ID format" });
           }
           const sanitizedFilename = basename(filename);
           const agentUploadsPath = join(uploadsBasePath, agentId);
           const filePath = join(agentUploadsPath, sanitizedFilename);
           if (!filePath.startsWith(agentUploadsPath)) {
-            return res.status(403).json({ error: 'Access denied' });
+            return res.status(403).json({ error: "Access denied" });
           }
 
           if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ error: 'File does not exist!!!!!!!' });
+            return res
+              .status(404)
+              .json({ error: "File does not exist!!!!!!!" });
           }
 
           res.sendFile(sanitizedFilename, { root: agentUploadsPath }, (err) => {
             if (err) {
-              if (err.message === 'Request aborted') {
+              if (err.message === "Request aborted") {
                 logger.warn(`[MEDIA] Download aborted: ${req.originalUrl}`);
               } else if (!res.headersSent) {
-                logger.warn(`[MEDIA] File not found: ${agentUploadsPath}/${sanitizedFilename}`);
-                res.status(404).json({ error: 'File not found' });
+                logger.warn(
+                  `[MEDIA] File not found: ${agentUploadsPath}/${sanitizedFilename}`
+                );
+                res.status(404).json({ error: "File not found" });
               }
             } else {
               logger.debug(`[MEDIA] Successfully served: ${sanitizedFilename}`);
@@ -465,24 +518,28 @@ export class AgentServer {
       );
 
       this.app.get(
-        '/media/generated/:agentId/:filename',
+        "/media/generated/:agentId/:filename",
         // @ts-expect-error - this is a valid express route
-        (req: express.Request<{ agentId: string; filename: string }>, res: express.Response) => {
+        (
+          req: express.Request<{ agentId: string; filename: string }>,
+          res: express.Response
+        ) => {
           const agentId = req.params.agentId;
           const filename = req.params.filename;
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           if (!uuidRegex.test(agentId)) {
-            return res.status(400).json({ error: 'Invalid agent ID format' });
+            return res.status(400).json({ error: "Invalid agent ID format" });
           }
           const sanitizedFilename = basename(filename);
           const agentGeneratedPath = join(generatedBasePath, agentId);
           const filePath = join(agentGeneratedPath, sanitizedFilename);
           if (!filePath.startsWith(agentGeneratedPath)) {
-            return res.status(403).json({ error: 'Access denied' });
+            return res.status(403).json({ error: "Access denied" });
           }
           res.sendFile(filePath, (err) => {
             if (err) {
-              res.status(404).json({ error: 'File not found' });
+              res.status(404).json({ error: "File not found" });
             }
           });
         }
@@ -490,31 +547,42 @@ export class AgentServer {
 
       // Channel-specific media serving
       this.app.get(
-        '/media/uploads/channels/:channelId/:filename',
-        (req: express.Request<{ channelId: string; filename: string }>, res: express.Response) => {
+        "/media/uploads/channels/:channelId/:filename",
+        (
+          req: express.Request<{ channelId: string; filename: string }>,
+          res: express.Response
+        ) => {
           const channelId = req.params.channelId as string;
           const filename = req.params.filename as string;
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
           if (!uuidRegex.test(channelId)) {
-            res.status(400).json({ error: 'Invalid channel ID format' });
+            res.status(400).json({ error: "Invalid channel ID format" });
             return;
           }
 
           const sanitizedFilename = basename(filename);
-          const channelUploadsPath = join(uploadsBasePath, 'channels', channelId);
+          const channelUploadsPath = join(
+            uploadsBasePath,
+            "channels",
+            channelId
+          );
           const filePath = join(channelUploadsPath, sanitizedFilename);
 
           if (!filePath.startsWith(channelUploadsPath)) {
-            res.status(403).json({ error: 'Access denied' });
+            res.status(403).json({ error: "Access denied" });
             return;
           }
 
           res.sendFile(filePath, (err) => {
             if (err) {
-              logger.warn(`[STATIC] Channel media file not found: ${filePath}`, err);
+              logger.warn(
+                `[STATIC] Channel media file not found: ${filePath}`,
+                err
+              );
               if (!res.headersSent) {
-                res.status(404).json({ error: 'File not found' });
+                res.status(404).json({ error: "File not found" });
               }
             } else {
               logger.debug(`[STATIC] Served channel media file: ${filePath}`);
@@ -529,16 +597,16 @@ export class AgentServer {
         const ext = extname(req.path).toLowerCase();
 
         // Set correct content type based on file extension
-        if (ext === '.js' || ext === '.mjs') {
-          res.setHeader('Content-Type', 'application/javascript');
-        } else if (ext === '.css') {
-          res.setHeader('Content-Type', 'text/css');
-        } else if (ext === '.svg') {
-          res.setHeader('Content-Type', 'image/svg+xml');
-        } else if (ext === '.png') {
-          res.setHeader('Content-Type', 'image/png');
-        } else if (ext === '.jpg' || ext === '.jpeg') {
-          res.setHeader('Content-Type', 'image/jpeg');
+        if (ext === ".js" || ext === ".mjs") {
+          res.setHeader("Content-Type", "application/javascript");
+        } else if (ext === ".css") {
+          res.setHeader("Content-Type", "text/css");
+        } else if (ext === ".svg") {
+          res.setHeader("Content-Type", "image/svg+xml");
+        } else if (ext === ".png") {
+          res.setHeader("Content-Type", "image/png");
+        } else if (ext === ".jpg" || ext === ".jpeg") {
+          res.setHeader("Content-Type", "image/jpeg");
         }
 
         // Continue processing
@@ -552,25 +620,25 @@ export class AgentServer {
         setHeaders: (res: express.Response, filePath: string) => {
           // Set the correct content type for different file extensions
           const ext = extname(filePath).toLowerCase();
-          if (ext === '.css') {
-            res.setHeader('Content-Type', 'text/css');
-          } else if (ext === '.js') {
-            res.setHeader('Content-Type', 'application/javascript');
-          } else if (ext === '.html') {
-            res.setHeader('Content-Type', 'text/html');
-          } else if (ext === '.png') {
-            res.setHeader('Content-Type', 'image/png');
-          } else if (ext === '.jpg' || ext === '.jpeg') {
-            res.setHeader('Content-Type', 'image/jpeg');
-          } else if (ext === '.svg') {
-            res.setHeader('Content-Type', 'image/svg+xml');
+          if (ext === ".css") {
+            res.setHeader("Content-Type", "text/css");
+          } else if (ext === ".js") {
+            res.setHeader("Content-Type", "application/javascript");
+          } else if (ext === ".html") {
+            res.setHeader("Content-Type", "text/html");
+          } else if (ext === ".png") {
+            res.setHeader("Content-Type", "image/png");
+          } else if (ext === ".jpg" || ext === ".jpeg") {
+            res.setHeader("Content-Type", "image/jpeg");
+          } else if (ext === ".svg") {
+            res.setHeader("Content-Type", "image/svg+xml");
           }
         },
       };
 
       // Serve static assets from the client dist path
       // Client files are built into the CLI package's dist directory
-      const clientPath = path.resolve(__dirname, '../../cli/dist');
+      const clientPath = path.resolve(__dirname, "../../cli/dist");
       this.app.use(express.static(clientPath, staticOptions));
 
       // *** NEW: Mount the plugin route handler BEFORE static serving ***
@@ -589,20 +657,29 @@ export class AgentServer {
       // - /api/system/* - System configuration and health checks
       const apiRouter = createApiRouter(this.agents, this);
       this.app.use(
-        '/api',
-        (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-          if (req.path !== '/ping') {
+        "/api",
+        (
+          req: express.Request,
+          _res: express.Response,
+          next: express.NextFunction
+        ) => {
+          if (req.path !== "/ping") {
             logger.debug(`API request: ${req.method} ${req.path}`);
           }
           next();
         },
         apiRouter,
-        (err: any, req: Request, res: Response, _next: express.NextFunction) => {
+        (
+          err: any,
+          req: Request,
+          res: Response,
+          _next: express.NextFunction
+        ) => {
           logger.error(`API error: ${req.method} ${req.path}`, err);
           res.status(500).json({
             success: false,
             error: {
-              message: err.message || 'Internal Server Error',
+              message: err.message || "Internal Server Error",
               code: err.code || 500,
             },
           });
@@ -612,13 +689,13 @@ export class AgentServer {
       // Add a catch-all route for API 404s
       this.app.use((req, res, next) => {
         // Check if this is an API route that wasn't handled
-        if (req.path.startsWith('/api/')) {
+        if (req.path.startsWith("/api/")) {
           // worms are going to hitting it all the time, use a reverse proxy if you need this type of logging
           //logger.warn(`API 404: ${req.method} ${req.path}`);
           res.status(404).json({
             success: false,
             error: {
-              message: 'API endpoint not found',
+              message: "API endpoint not found",
               code: 404,
             },
           });
@@ -634,18 +711,20 @@ export class AgentServer {
         // For JavaScript requests that weren't handled by static middleware,
         // return a JavaScript response instead of HTML
         if (
-          req.path.endsWith('.js') ||
-          req.path.includes('.js?') ||
+          req.path.endsWith(".js") ||
+          req.path.includes(".js?") ||
           req.path.match(/\/[a-zA-Z0-9_-]+-[A-Za-z0-9]{8}\.js/)
         ) {
-          res.setHeader('Content-Type', 'application/javascript');
-          return res.status(404).send(`// JavaScript module not found: ${req.path}`);
+          res.setHeader("Content-Type", "application/javascript");
+          return res
+            .status(404)
+            .send(`// JavaScript module not found: ${req.path}`);
         }
 
         // For all other routes, serve the SPA's index.html
         // Client files are built into the CLI package's dist directory
-        const cliDistPath = path.resolve(__dirname, '../../cli/dist');
-        res.sendFile(path.join(cliDistPath, 'index.html'));
+        const cliDistPath = path.resolve(__dirname, "../../cli/dist");
+        res.sendFile(path.join(cliDistPath, "index.html"));
       });
 
       // Create HTTP server for Socket.io
@@ -654,9 +733,9 @@ export class AgentServer {
       // Initialize Socket.io, passing the AgentServer instance
       this.socketIO = setupSocketIO(this.server, this.agents, this);
 
-      logger.success('AgentServer HTTP server and Socket.IO initialized');
+      logger.info("AgentServer HTTP server and Socket.IO initialized");
     } catch (error) {
-      logger.error('Failed to complete server initialization:', error);
+      logger.error("Failed to complete server initialization:", error);
       throw error;
     }
   }
@@ -669,19 +748,25 @@ export class AgentServer {
    * or if there are any errors during registration.
    */
   public async registerAgent(runtime: IAgentRuntime) {
+    logger.info(`Registering agent...`);
+
     try {
       if (!runtime) {
-        throw new Error('Attempted to register null/undefined runtime');
+        throw new Error("Attempted to register null/undefined runtime");
       }
       if (!runtime.agentId) {
-        throw new Error('Runtime missing agentId');
+        throw new Error("Runtime missing agentId");
       }
       if (!runtime.character) {
-        throw new Error('Runtime missing character configuration');
+        throw new Error("Runtime missing character configuration");
       }
-
+      logger.info(
+        `Registering agent ${runtime.character.name} (${runtime.agentId})`
+      );
       this.agents.set(runtime.agentId, runtime);
-      logger.debug(`Agent ${runtime.character.name} (${runtime.agentId}) added to agents map`);
+      logger.debug(
+        `Agent ${runtime.character.name} (${runtime.agentId}) added to agents map`
+      );
 
       // Auto-register the MessageBusConnector plugin
       try {
@@ -691,7 +776,9 @@ export class AgentServer {
             `[AgentServer] Automatically registered MessageBusConnector for agent ${runtime.character.name}`
           );
         } else {
-          logger.error(`[AgentServer] CRITICAL: MessageBusConnector plugin definition not found.`);
+          logger.error(
+            `[AgentServer] CRITICAL: MessageBusConnector plugin definition not found.`
+          );
         }
       } catch (e) {
         logger.error(
@@ -702,7 +789,9 @@ export class AgentServer {
       }
 
       // Register TEE plugin if present
-      const teePlugin = runtime.plugins.find((p) => p.name === 'phala-tee-plugin');
+      const teePlugin = runtime.plugins.find(
+        (p) => p.name === "phala-tee-plugin"
+      );
       if (teePlugin) {
         logger.debug(`Found TEE plugin for agent ${runtime.agentId}`);
         if (teePlugin.providers) {
@@ -719,7 +808,7 @@ export class AgentServer {
         }
       }
 
-      logger.success(
+      logger.info(
         `Successfully registered agent ${runtime.character.name} (${runtime.agentId}) with core services.`
       );
 
@@ -728,7 +817,7 @@ export class AgentServer {
         `[AgentServer] Auto-associated agent ${runtime.character.name} with server ID: ${DEFAULT_SERVER_ID}`
       );
     } catch (error) {
-      logger.error('Failed to register agent:', error);
+      logger.error("Failed to register agent:", error);
       throw error;
     }
   }
@@ -741,7 +830,9 @@ export class AgentServer {
    */
   public unregisterAgent(agentId: UUID) {
     if (!agentId) {
-      logger.warn('[AGENT UNREGISTER] Attempted to unregister undefined or invalid agent runtime');
+      logger.warn(
+        "[AGENT UNREGISTER] Attempted to unregister undefined or invalid agent runtime"
+      );
       return;
     }
 
@@ -758,9 +849,14 @@ export class AgentServer {
               stopError
             );
           });
-          logger.debug(`[AGENT UNREGISTER] Stopping services for agent ${agentId}`);
+          logger.debug(
+            `[AGENT UNREGISTER] Stopping services for agent ${agentId}`
+          );
         } catch (stopError) {
-          logger.error(`[AGENT UNREGISTER] Error initiating stop for agent ${agentId}:`, stopError);
+          logger.error(
+            `[AGENT UNREGISTER] Error initiating stop for agent ${agentId}:`,
+            stopError
+          );
         }
       }
 
@@ -788,7 +884,7 @@ export class AgentServer {
    */
   public start(port: number) {
     try {
-      if (!port || typeof port !== 'number') {
+      if (!port || typeof port !== "number") {
         throw new Error(`Invalid port number: ${port}`);
       }
 
@@ -798,12 +894,12 @@ export class AgentServer {
 
       // Use http server instead of app.listen with explicit host binding and error handling
       // For tests and macOS compatibility, prefer 127.0.0.1 when specified
-      const host = process.env.SERVER_HOST || '0.0.0.0';
+      const host = process.env.SERVER_HOST || "0.0.0.0";
 
       this.server
         .listen(port, host, () => {
           // Only show the dashboard URL in production mode
-          if (process.env.NODE_ENV !== 'development') {
+          if (process.env.NODE_ENV !== "development") {
             // Display the dashboard URL with the correct port after the server is actually listening
             console.log(
               `\x1b[32mStartup successful!\nGo to the dashboard at \x1b[1mhttp://localhost:${port}\x1b[22m\x1b[0m`
@@ -813,7 +909,7 @@ export class AgentServer {
           // Add log for test readiness
           console.log(`AgentServer is listening on port ${port}`);
 
-          logger.success(
+          logger.info(
             `REST API bound to ${host}:${port}. If running locally, access it at http://localhost:${port}.`
           );
           logger.debug(`Active agents: ${this.agents.size}`);
@@ -821,19 +917,19 @@ export class AgentServer {
             logger.debug(`- Agent ${id}: ${agent.character.name}`);
           });
         })
-        .on('error', (error: any) => {
+        .on("error", (error: any) => {
           logger.error(`Failed to bind server to ${host}:${port}:`, error);
 
           // Provide helpful error messages for common issues
-          if (error.code === 'EADDRINUSE') {
+          if (error.code === "EADDRINUSE") {
             logger.error(
               `Port ${port} is already in use. Please try a different port or stop the process using that port.`
             );
-          } else if (error.code === 'EACCES') {
+          } else if (error.code === "EACCES") {
             logger.error(
               `Permission denied to bind to port ${port}. Try using a port above 1024 or running with appropriate permissions.`
             );
-          } else if (error.code === 'EADDRNOTAVAIL') {
+          } else if (error.code === "EADDRNOTAVAIL") {
             logger.error(
               `Cannot bind to ${host}:${port} - address not available. Check if the host address is correct.`
             );
@@ -844,10 +940,12 @@ export class AgentServer {
 
       // Enhanced graceful shutdown
       const gracefulShutdown = async () => {
-        logger.info('Received shutdown signal, initiating graceful shutdown...');
+        logger.info(
+          "Received shutdown signal, initiating graceful shutdown..."
+        );
 
         // Stop all agents first
-        logger.debug('Stopping all agents...');
+        logger.debug("Stopping all agents...");
         for (const [id, agent] of this.agents.entries()) {
           try {
             await agent.stop();
@@ -861,31 +959,31 @@ export class AgentServer {
         if (this.database) {
           try {
             await this.database.close();
-            logger.info('Database closed.');
+            logger.info("Database closed.");
           } catch (error) {
-            logger.error('Error closing database:', error);
+            logger.error("Error closing database:", error);
           }
         }
 
         // Close server
         this.server.close(() => {
-          logger.success('Server closed successfully');
+          logger.info("Server closed successfully");
           process.exit(0);
         });
 
         // Force close after timeout
         setTimeout(() => {
-          logger.error('Could not close connections in time, forcing shutdown');
+          logger.error("Could not close connections in time, forcing shutdown");
           process.exit(1);
         }, 5000);
       };
 
-      process.on('SIGTERM', gracefulShutdown);
-      process.on('SIGINT', gracefulShutdown);
+      process.on("SIGTERM", gracefulShutdown);
+      process.on("SIGINT", gracefulShutdown);
 
-      logger.debug('Shutdown handlers registered');
+      logger.debug("Shutdown handlers registered");
     } catch (error) {
-      logger.error('Failed to start server:', error);
+      logger.error("Failed to start server:", error);
       throw error;
     }
   }
@@ -897,14 +995,14 @@ export class AgentServer {
   public async stop(): Promise<void> {
     if (this.server) {
       this.server.close(() => {
-        logger.success('Server stopped');
+        logger.info("Server stopped");
       });
     }
   }
 
   // Central DB Data Access Methods
   async createServer(
-    data: Omit<MessageServer, 'id' | 'createdAt' | 'updatedAt'>
+    data: Omit<MessageServer, "id" | "createdAt" | "updatedAt">
   ): Promise<MessageServer> {
     return (this.database as any).createMessageServer(data);
   }
@@ -917,20 +1015,29 @@ export class AgentServer {
     return (this.database as any).getMessageServerById(serverId);
   }
 
-  async getServerBySourceType(sourceType: string): Promise<MessageServer | null> {
+  async getServerBySourceType(
+    sourceType: string
+  ): Promise<MessageServer | null> {
     const servers = await (this.database as any).getMessageServers();
-    const filtered = servers.filter((s: MessageServer) => s.sourceType === sourceType);
+    const filtered = servers.filter(
+      (s: MessageServer) => s.sourceType === sourceType
+    );
     return filtered.length > 0 ? filtered[0] : null;
   }
 
   async createChannel(
-    data: Omit<MessageChannel, 'id' | 'createdAt' | 'updatedAt'> & { id?: UUID },
+    data: Omit<MessageChannel, "id" | "createdAt" | "updatedAt"> & {
+      id?: UUID;
+    },
     participantIds?: UUID[]
   ): Promise<MessageChannel> {
     return (this.database as any).createChannel(data, participantIds);
   }
 
-  async addParticipantsToChannel(channelId: UUID, userIds: UUID[]): Promise<void> {
+  async addParticipantsToChannel(
+    channelId: UUID,
+    userIds: UUID[]
+  ): Promise<void> {
     return (this.database as any).addChannelParticipants(channelId, userIds);
   }
 
@@ -952,7 +1059,11 @@ export class AgentServer {
 
   async updateChannel(
     channelId: UUID,
-    updates: { name?: string; participantCentralUserIds?: UUID[]; metadata?: any }
+    updates: {
+      name?: string;
+      participantCentralUserIds?: UUID[];
+      metadata?: any;
+    }
   ): Promise<MessageChannel> {
     return (this.database as any).updateChannel(channelId, updates);
   }
@@ -963,11 +1074,16 @@ export class AgentServer {
 
   async clearChannelMessages(channelId: UUID): Promise<void> {
     // Get all messages for the channel and delete them one by one
-    const messages = await (this.database as any).getMessagesForChannel(channelId, 1000);
+    const messages = await (this.database as any).getMessagesForChannel(
+      channelId,
+      1000
+    );
     for (const message of messages) {
       await (this.database as any).deleteMessage(message.id);
     }
-    logger.info(`[AgentServer] Cleared all messages for central channel: ${channelId}`);
+    logger.info(
+      `[AgentServer] Cleared all messages for central channel: ${channelId}`
+    );
   }
 
   async findOrCreateCentralDmChannel(
@@ -975,11 +1091,15 @@ export class AgentServer {
     user2Id: UUID,
     messageServerId: UUID
   ): Promise<MessageChannel> {
-    return (this.database as any).findOrCreateDmChannel(user1Id, user2Id, messageServerId);
+    return (this.database as any).findOrCreateDmChannel(
+      user1Id,
+      user2Id,
+      messageServerId
+    );
   }
 
   async createMessage(
-    data: Omit<CentralRootMessage, 'id' | 'createdAt' | 'updatedAt'>
+    data: Omit<CentralRootMessage, "id" | "createdAt" | "updatedAt">
   ): Promise<CentralRootMessage> {
     const createdMessage = await (this.database as any).createMessage(data);
 
@@ -990,7 +1110,7 @@ export class AgentServer {
       const messageForBus: MessageServiceStructure = {
         id: createdMessage.id,
         channel_id: createdMessage.channelId,
-        server_id: channel.messageServerId,
+        server_id: "00000000-0000-0000-0000-000000000000",
         author_id: createdMessage.authorId,
         content: createdMessage.content,
         raw_message: createdMessage.rawMessage,
@@ -1001,8 +1121,10 @@ export class AgentServer {
         metadata: createdMessage.metadata,
       };
 
-      internalMessageBus.emit('new_message', messageForBus);
-      logger.info(`[AgentServer] Published message ${createdMessage.id} to internal message bus`);
+      internalMessageBus.emit("new_message", messageForBus);
+      logger.info(
+        `[AgentServer] Published message ${createdMessage.id} to internal message bus`
+      );
     }
 
     return createdMessage;
@@ -1013,7 +1135,11 @@ export class AgentServer {
     limit: number = 50,
     beforeTimestamp?: Date
   ): Promise<CentralRootMessage[]> {
-    return (this.database as any).getMessagesForChannel(channelId, limit, beforeTimestamp);
+    return (this.database as any).getMessagesForChannel(
+      channelId,
+      limit,
+      beforeTimestamp
+    );
   }
 
   // Optional: Method to remove a participant
@@ -1089,7 +1215,8 @@ export {
   loadCharacterTryPath,
   hasValidRemoteUrls,
   loadCharacters,
-} from './loader';
+} from "./loader";
 
 // Export types
-export * from './types';
+export * from "./types";
+export { default as internalMessageBus } from "./bus";

@@ -21,6 +21,7 @@ import { createUniqueUuid, UUID, ChannelType } from "@elizaos/core";
 import { GameEventType } from "../../src/house/events/types";
 import fs from "fs";
 import os from "os";
+import { CoordinationService } from "../../src/coordinator/service";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -39,6 +40,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
     const sim = new ConversationSimulatorV3({
       dataDir: simDataDir,
       useModelMockingService: true,
+      enableRealTime: true,
+      serverPort: 3001,
       testContext: {
         suiteName: "Strategy",
         testName: "diary room and strategic intelligence",
@@ -134,6 +137,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         players.push(player);
       }
 
+      await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
+
       expectSoft(house).toBeDefined();
       expectSoft(players.length).toBe(5);
 
@@ -164,6 +169,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
               .map((name) => ({ agentName: name, role: "player" as const })),
           ],
         },
+        room: {
+          name: "main-game-room",
+          type: ChannelType.GROUP,
+        },
       });
 
       // Observe channel messages for debugging and collect them
@@ -183,10 +192,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Phase 2: House announces LOBBY phase to all players
       console.log("=== PHASE 2: House Announces LOBBY Phase ===");
-
-      // Clear message tracking before LOBBY begins
-      messagesSinceLastEvent = [];
-      const eventsBeforeLobby = gameEvents.length;
 
       // House broadcasts LOBBY phase announcement
       await sim.sendMessage(
@@ -221,10 +226,17 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Wait for some natural responses and log what we get
       const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
-      await sim.waitForChannelMessages(
+      // await sim.waitForChannelMessages(
+      //   mainChannelId,
+      //   15,
+      //   isRecordMode ? 20000 : 8000
+      // );
+      await sim.waitForEvents(
         mainChannelId,
-        15,
-        isRecordMode ? 20000 : 8000
+        (events) => {
+          return events.length > 10;
+        },
+        120000
       );
 
       console.log(
@@ -255,67 +267,65 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // This should emit the proper game events
       const gameId = createUniqueUuid(houseAgent, mainChannelId);
 
-      // Emit the phase transition initiation event directly to test coordination
-      await houseAgent.emitEvent(GameEventType.PHASE_TRANSITION_INITIATED, {
-        gameId,
-        roomId: mainChannelId,
-        fromPhase: Phase.LOBBY,
-        toPhase: Phase.WHISPER,
-        round: 1,
-        transitionReason: "manual",
-        requiresStrategicThinking: true,
-        requiresDiaryRoom: true,
-        timestamp: Date.now(),
-      });
-
-      // Wait for STRATEGIC_THINKING_REQUIRED event
-      console.log("⏳ Waiting for STRATEGIC_THINKING_REQUIRED event...");
-      const waitForStrategicThinking = new Promise<void>((resolve) => {
-        const checkForEvent = () => {
-          const strategicThinkingEvent = gameEvents.find(
-            (e) =>
-              e.type === GameEventType.STRATEGIC_THINKING_REQUIRED &&
-              e.timestamp > eventsBeforeTransition
-          );
-          if (strategicThinkingEvent) {
-            console.log("✅ STRATEGIC_THINKING_REQUIRED event detected");
-            resolve();
-          } else {
-            setTimeout(checkForEvent, 500);
+      const coordinationService = houseAgent.getService<CoordinationService>(
+        CoordinationService.serviceType
+      );
+      if (coordinationService) {
+        coordinationService.sendGameEvent(
+          GameEventType.PHASE_TRANSITION_INITIATED,
+          {
+            gameId,
+            roomId: mainChannelId,
+            fromPhase: Phase.LOBBY,
+            toPhase: Phase.WHISPER,
+            round: 1,
+            transitionReason: "manual",
+            requiresStrategicThinking: true,
+            requiresDiaryRoom: true,
+            timestamp: Date.now(),
+            source: houseAgent.agentId,
           }
-        };
-        checkForEvent();
-      });
-
-      // Timeout for strategic thinking event
-      const strategicTimeout = new Promise<void>((resolve) => {
-        setTimeout(() => {
-          console.log(
-            "⚠️ Timeout waiting for STRATEGIC_THINKING_REQUIRED, proceeding anyway"
-          );
-          resolve();
-        }, 10000);
-      });
-
-      await Promise.race([waitForStrategicThinking, strategicTimeout]);
-
-      // If no strategic thinking event was detected, manually emit it
-      if (
-        gameEvents.findIndex(
-          (e) => e.type === GameEventType.STRATEGIC_THINKING_REQUIRED
-        ) === -1
-      ) {
-        console.log("🧠 Manually triggering STRATEGIC_THINKING_REQUIRED event");
-        await houseAgent.emitEvent(GameEventType.STRATEGIC_THINKING_REQUIRED, {
-          gameId,
-          roomId: mainChannelId,
-          playerId: "all-players",
-          playerName: "All Players",
-          fromPhase: Phase.LOBBY,
-          toPhase: Phase.WHISPER,
-          timestamp: Date.now(),
-        });
+        );
       }
+
+      // Emit the phase transition initiation event directly to test coordination
+      // await houseAgent.emitEvent(GameEventType.PHASE_TRANSITION_INITIATED, {
+      //   gameId,
+      //   roomId: mainChannelId,
+      //   fromPhase: Phase.LOBBY,
+      //   toPhase: Phase.WHISPER,
+      //   round: 1,
+      //   transitionReason: "manual",
+      //   requiresStrategicThinking: true,
+      //   requiresDiaryRoom: true,
+      //   timestamp: Date.now(),
+      // });
+      const alpha = sim.getAgent("Alpha");
+      if (!alpha) {
+        throw new Error("Alpha agent not found");
+      }
+      const memories = await alpha.getMemoriesByRoomIds({
+        roomIds: [sim.getChannelIdToRoomId(mainChannelId)],
+        tableName: "messages",
+      });
+      console.log(
+        "🔍 Alpha memories:",
+        memories.map(
+          (m) =>
+            `Entity: ${m.entityId} [${(m.metadata as any).agentName}] - ${m.content.text}`
+        )
+      );
+
+      const coordinationEvents = await sim.waitForEvents(
+        sim.getCoordinationChannelId(),
+        (events) => {
+          return events.some(
+            (e) =>
+              e.coordinationEvent?.type ===
+              GameEventType.PHASE_TRANSITION_INITIATED
+          );
+        }
+      );
 
       // Collect messages that occurred during strategic thinking
       console.log(
@@ -376,12 +386,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         "=== PHASE 6: Diary Room Completion and Message Collection ==="
       );
 
-      // Collect all messages that occurred during the diary room phase
-      const diaryMessages = [...messagesSinceLastEvent];
-      console.log(
-        `📝 Diary room phase: ${diaryMessages.length} messages since diary room opened`
-      );
-
       // Wait for DIARY_ROOM_COMPLETED event to confirm process finished
       const waitForDiaryCompletion = new Promise<void>((resolve) => {
         const checkForEvent = () => {
@@ -428,8 +432,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Phase 7: Verify final phase transition to WHISPER
       console.log("=== PHASE 7: Verify WHISPER Phase Start ===");
-
-      const finalMessages = [...messagesSinceLastEvent];
 
       const waitForWhisperPhase = new Promise<void>((resolve) => {
         const checkForEvent = () => {
@@ -498,16 +500,21 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         );
       });
 
+      console.log("=== COORDINATION EVENTS ===");
+      console.log("---> LOBBY <----");
+      // Verify all messages collected during the flow
+      const allMessagesCollected = await sim.getChannelMessages(mainChannelId);
+      allMessagesCollected.forEach((message) => {
+        console.log(
+          `📩 ${message.authorName}: ${message.content}
+    ${message.thought ? `Thought: ${message.thought}` : ""}
+    ${message.actions ? `Actions: ${message.actions.join(", ")}` : ""}
+    ${message.providers ? `Providers: ${message.providers.join(", ")}` : ""}`
+        );
+      });
+
       // Phase 8: Strategic State Verification
       console.log("=== PHASE 8: Strategic State Verification ===");
-
-      // Verify all messages collected during the flow
-      const allMessagesCollected = [
-        ...messagesSinceLastEvent, // Messages from lobby
-        ...diaryRoomMessages, // Messages during strategic thinking
-        ...diaryMessages, // Messages during diary room
-        ...finalMessages, // Messages during final phase
-      ];
 
       console.log(
         `📊 Total messages collected across all phases: ${allMessagesCollected.length}`

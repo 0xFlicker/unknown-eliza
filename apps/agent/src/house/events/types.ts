@@ -1,4 +1,8 @@
-import type { EventPayload } from "@elizaos/core";
+import type {
+  EventHandler,
+  EventPayload,
+  EventPayloadMap,
+} from "@elizaos/core";
 import type { UUID } from "@elizaos/core";
 import { Phase } from "../types";
 
@@ -169,7 +173,7 @@ export interface GameEventPayloadMap {
  */
 export type GameEventHandler<T extends keyof GameEventPayloadMap> = (
   payload: GameEventPayloadMap[T]
-) => Promise<void> | void;
+) => Promise<void>;
 
 /**
  * Helper type for event emission - ensures type safety when emitting game events
@@ -177,4 +181,13 @@ export type GameEventHandler<T extends keyof GameEventPayloadMap> = (
 export type GameEventEmission<T extends keyof GameEventPayloadMap> = {
   type: T;
   payload: Omit<GameEventPayloadMap[T], "runtime" | "source" | "onComplete">;
+};
+
+/**
+ * Utility type for properly typed game event handlers in plugins
+ */
+export type GameEventHandlers = {
+  [K in keyof EventPayloadMap]?: EventHandler<K>[];
+} & {
+  [key in keyof GameEventPayloadMap]?: GameEventHandler<key>[];
 };

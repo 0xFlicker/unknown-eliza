@@ -9,7 +9,8 @@ import {
 import { getGameState } from "../runtime/memory";
 import { Phase } from "../types";
 import { PhaseCoordinator } from "../services/phaseCoordinator";
-import { CoordinationService } from "../coordination";
+import { CoordinationService } from "../../coordinator/service";
+import { GameEventType } from "../events/types";
 
 const logger = elizaLogger.child({ component: "PhaseTimerEvaluator" });
 
@@ -19,12 +20,13 @@ const logger = elizaLogger.child({ component: "PhaseTimerEvaluator" });
  */
 export const phaseTimerEvaluator: Evaluator = {
   name: "PHASE_TIMER",
-  description: "Monitors game timers and triggers automated phase transitions when timers expire",
-  
+  description:
+    "Monitors game timers and triggers automated phase transitions when timers expire",
+
   // Run this evaluator frequently to check timers
   alwaysRun: true,
   examples: [],
-  
+
   async validate(): Promise<boolean> {
     return true; // Always run for House agents
   },
@@ -55,17 +57,23 @@ export const phaseTimerEvaluator: Evaluator = {
       const timeRemaining = gameState.timerEndsAt - currentTime;
 
       // Log timer status occasionally for debugging
-      if (Math.random() < 0.01) { // Log ~1% of the time to avoid spam
+      if (Math.random() < 0.01) {
+        // Log ~1% of the time to avoid spam
         logger.debug("Timer check", {
           phase: gameState.phase,
           round: gameState.round,
           timeRemaining: Math.round(timeRemaining / 1000) + "s",
-          timerEndsAt: new Date(gameState.timerEndsAt).toISOString()
+          timerEndsAt: new Date(gameState.timerEndsAt).toISOString(),
         });
       }
 
       // Emit warnings at specific intervals
-      await this.checkAndEmitWarnings(runtime, message.roomId, gameState, timeRemaining);
+      await checkAndEmitWarnings(
+        runtime,
+        message.roomId,
+        gameState,
+        timeRemaining
+      );
 
       // Check if timer has expired
       if (timeRemaining <= 0) {
@@ -74,10 +82,10 @@ export const phaseTimerEvaluator: Evaluator = {
           roomId: message.roomId,
           phase: gameState.phase,
           round: gameState.round,
-          expiredBy: Math.abs(timeRemaining)
+          expiredBy: Math.abs(timeRemaining),
         });
 
-        await this.handleTimerExpiry(runtime, message.roomId, gameState);
+        await handleTimerExpiry(runtime, message.roomId, gameState);
         return true; // Indicate that we took action
       }
 
@@ -86,7 +94,7 @@ export const phaseTimerEvaluator: Evaluator = {
       logger.error("Error in phase timer evaluator:", error);
       return false;
     }
-  }
+  },
 };
 
 /**
@@ -98,47 +106,54 @@ async function checkAndEmitWarnings(
   gameState: any,
   timeRemaining: number
 ): Promise<void> {
-  const coordinator = runtime.getService("phase-coordinator") as PhaseCoordinator | null;
+  const coordinator = runtime.getService<PhaseCoordinator>(
+    PhaseCoordinator.serviceType
+  );
   if (!coordinator) {
     return;
   }
 
   // Use runtime directly for native ElizaOS events
-  
+
   // Warning thresholds in milliseconds
   const warnings = [
     { threshold: 5 * 60 * 1000, type: "five_minutes" as const },
     { threshold: 1 * 60 * 1000, type: "one_minute" as const },
-    { threshold: 30 * 1000, type: "thirty_seconds" as const }
+    { threshold: 30 * 1000, type: "thirty_seconds" as const },
   ];
 
   for (const warning of warnings) {
     // Check if we're within the warning threshold (with a small buffer to avoid duplicate warnings)
-    if (timeRemaining <= warning.threshold && timeRemaining > warning.threshold - 5000) {
-      logger.info(`Timer warning: ${warning.type} remaining for phase ${gameState.phase}`, {
-        gameId: gameState.id,
-        roomId,
-        phase: gameState.phase,
-        timeRemaining: Math.round(timeRemaining / 1000)
-      });
+    if (
+      timeRemaining <= warning.threshold &&
+      timeRemaining > warning.threshold - 5000
+    ) {
+      logger.info(
+        `Timer warning: ${warning.type} remaining for phase ${gameState.phase}`,
+        {
+          gameId: gameState.id,
+          roomId,
+          phase: gameState.phase,
+          timeRemaining: Math.round(timeRemaining / 1000),
+        }
+      );
 
       // Emit via coordination service if available, otherwise fallback to local events
-      const coordinationService = runtime.getService("coordination") as CoordinationService | null;
-      const warningPayload = {
-        gameId: gameState.id,
-        roomId,
-        phase: gameState.phase,
-        round: gameState.round,
-        timeRemaining: Math.round(timeRemaining),
-        timerEndsAt: gameState.timerEndsAt,
-        warningType: warning.type,
-        timestamp: Date.now()
-      };
-
+      const coordinationService = runtime.getService<CoordinationService>(
+        CoordinationService.serviceType
+      );
       if (coordinationService) {
-        await coordinationService.sendGameEvent("GAME:TIMER_WARNING" as any, warningPayload);
-      } else {
-        await runtime.emitEvent("GAME:TIMER_WARNING", warningPayload);
+        await coordinationService.sendGameEvent(GameEventType.TIMER_WARNING, {
+          gameId: gameState.id,
+          roomId,
+          phase: gameState.phase,
+          round: gameState.round,
+          timeRemaining: Math.round(timeRemaining),
+          timerEndsAt: gameState.timerEndsAt,
+          warningType: warning.type,
+          timestamp: Date.now(),
+          source: runtime.agentId,
+        });
       }
 
       break; // Only emit one warning per check
@@ -155,14 +170,18 @@ async function handleTimerExpiry(
   gameState: any
 ): Promise<void> {
   try {
-    const coordinator = runtime.getService("phase-coordinator") as PhaseCoordinator | null;
+    const coordinator = runtime.getService(
+      "phase-coordinator"
+    ) as PhaseCoordinator | null;
     if (!coordinator) {
       logger.error("PhaseCoordinator service not found");
       return;
     }
 
     // Emit timer expired event via coordination service if available
-    const coordinationService = runtime.getService("coordination") as CoordinationService | null;
+    const coordinationService = runtime.getService(
+      "coordination"
+    ) as CoordinationService | null;
     const expiredPayload = {
       gameId: gameState.id,
       roomId,
@@ -170,11 +189,14 @@ async function handleTimerExpiry(
       round: gameState.round,
       timeRemaining: 0,
       timerEndsAt: gameState.timerEndsAt,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     if (coordinationService) {
-      await coordinationService.sendGameEvent("GAME:TIMER_EXPIRED" as any, expiredPayload);
+      await coordinationService.sendGameEvent(
+        "GAME:TIMER_EXPIRED" as any,
+        expiredPayload
+      );
     } else {
       await runtime.emitEvent("GAME:TIMER_EXPIRED", expiredPayload);
     }
@@ -182,32 +204,36 @@ async function handleTimerExpiry(
     // Determine next phase
     const nextPhase = determineNextPhase(gameState.phase, gameState);
     if (!nextPhase) {
-      logger.warn(`No next phase determined for current phase ${gameState.phase}`);
+      logger.warn(
+        `No next phase determined for current phase ${gameState.phase}`
+      );
       return;
     }
 
-    const nextRound = shouldIncrementRound(gameState.phase, nextPhase.phase) 
-      ? gameState.round + 1 
+    const nextRound = shouldIncrementRound(gameState.phase, nextPhase.phase)
+      ? gameState.round + 1
       : gameState.round;
 
-    logger.info(`Triggering automatic phase transition: ${gameState.phase} → ${nextPhase.phase}`, {
-      gameId: gameState.id,
-      roomId,
-      currentRound: gameState.round,
-      nextRound,
-      reason: "timer_expired"
-    });
+    logger.info(
+      `Triggering automatic phase transition: ${gameState.phase} → ${nextPhase.phase}`,
+      {
+        gameId: gameState.id,
+        roomId,
+        currentRound: gameState.round,
+        nextRound,
+        reason: "timer_expired",
+      }
+    );
 
-    // Initiate coordinated phase transition  
+    // Initiate coordinated phase transition
     await coordinator.initiatePhaseTransition(
       gameState.id,
       roomId,
       gameState.phase,
       nextPhase.phase,
       nextRound,
-      'timer_expired'
+      "timer_expired"
     );
-
   } catch (error) {
     logger.error("Error handling timer expiry:", error);
     throw error;
@@ -217,35 +243,38 @@ async function handleTimerExpiry(
 /**
  * Determine the next phase in the game flow
  */
-function determineNextPhase(currentPhase: Phase, gameState: any): { phase: Phase } | null {
+function determineNextPhase(
+  currentPhase: Phase,
+  gameState: any
+): { phase: Phase } | null {
   switch (currentPhase) {
     case Phase.INIT:
       return null; // INIT should not have automated transitions
-      
+
     case Phase.INTRODUCTION:
       return { phase: Phase.LOBBY };
-      
+
     case Phase.LOBBY:
       return { phase: Phase.WHISPER };
-      
+
     case Phase.WHISPER:
       return { phase: Phase.RUMOR };
-      
+
     case Phase.RUMOR:
       return { phase: Phase.VOTE };
-      
+
     case Phase.VOTE:
       return { phase: Phase.POWER };
-      
+
     case Phase.POWER:
       return { phase: Phase.REVEAL };
-      
+
     case Phase.REVEAL:
       // Check if game should end
       const alivePlayers = Array.from(gameState.players.values()).filter(
         (p: any) => p.status === "ALIVE"
       );
-      
+
       if (alivePlayers.length <= 1) {
         // Game ends
         return null;
@@ -253,7 +282,7 @@ function determineNextPhase(currentPhase: Phase, gameState: any): { phase: Phase
         // Start next round
         return { phase: Phase.LOBBY };
       }
-      
+
     default:
       logger.warn(`Unknown phase for transition: ${currentPhase}`);
       return null;

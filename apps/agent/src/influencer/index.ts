@@ -1,9 +1,11 @@
 import {
   EventHandler,
   EventPayload,
+  EventPayloadMap,
   Plugin,
   PluginEvents,
   elizaLogger,
+  EventType,
 } from "@elizaos/core";
 import {
   shouldRespondProvider,
@@ -25,18 +27,16 @@ import {
   GameEventType,
   GameEventHandler,
   GameEventPayloadMap,
+  GameEventHandlers,
 } from "../house/events/types";
 import { Phase } from "../house/types";
-import { CoordinationService } from "../house/coordination";
+import {
+  CoordinationService,
+  isCoordinationMessage,
+  type AnyCoordinationMessage,
+} from "../coordinator";
 
 const logger = elizaLogger.child({ component: "InfluencerPlugin" });
-
-/**
- * Utility type for properly typed game event handlers in plugins
- */
-type GameEventHandlers = Plugin["events"] & {
-  [key in keyof GameEventPayloadMap]?: GameEventHandler<key>;
-};
 
 /**
  * The influencer plugin adds player-side logic for the Influence game.
@@ -61,9 +61,93 @@ export const influencerPlugin: Plugin = {
     console.log("🎭 Influencer plugin initialized - ready to play the game");
   },
   events: {
-    [GameEventType.PHASE_STARTED]: [
+    [EventType.MESSAGE_RECEIVED]: [
       async ({ message, runtime }) => {
-        const phase = message.payload.phase;
+        const coordinationService = runtime.getService<CoordinationService>(
+          CoordinationService.serviceType
+        );
+        if (!coordinationService) {
+          return;
+        }
+        const coordinationChannelId =
+          coordinationService.getCoordinationChannelId();
+        // Only process messages from the coordination channel
+        if (message.roomId !== coordinationChannelId) {
+          return;
+        }
+
+        // Don't process messages from ourselves
+        if (message.content.source === runtime.agentId) {
+          return;
+        }
+
+        // Must have text content
+        if (!message.content.text) {
+          return;
+        }
+
+        // Try to parse as coordination message
+        try {
+          const parsed = JSON.parse(message.content.text);
+          const isValid = isCoordinationMessage(parsed);
+
+          if (isValid) {
+            // Check if this message is targeted to us
+            const msg = parsed as AnyCoordinationMessage;
+            const isTargeted =
+              msg.targetAgents === "all" ||
+              msg.targetAgents === "others" ||
+              (Array.isArray(msg.targetAgents) &&
+                msg.targetAgents.includes(runtime.agentId));
+
+            if (isTargeted) {
+              console.log(
+                `🎭 Influencer ${runtime.character?.name} received coordination message:`,
+                {
+                  messageType: msg.type,
+                  sourceAgent: msg.sourceAgent,
+                  targetAgents: msg.targetAgents,
+                }
+              );
+
+              const coordinationMessage = JSON.parse(
+                message.content.text!
+              ) as AnyCoordinationMessage;
+
+              // Route to appropriate handler based on message type
+              switch (coordinationMessage.type) {
+                // case "game_event":
+                //   await handleGameEvent(runtime, coordinationMessage);
+                //   return;
+
+                // case "agent_ready":
+                //   await handleAgentReady(runtime, coordinationMessage);
+                //   return;
+
+                // case "heartbeat":
+                //   await handleHeartbeat(runtime, coordinationMessage);
+                //   return;
+
+                // case "coordination_ack":
+                //   await handleCoordinationAck(runtime, coordinationMessage);
+                //   return;
+
+                default:
+                  logger.warn(
+                    `Unknown coordination message type: ${(coordinationMessage as AnyCoordinationMessage).type}`
+                  );
+                  return;
+              }
+            }
+          }
+        } catch (error) {
+          // Not a valid JSON coordination message
+          return;
+        }
+      },
+    ],
+    [GameEventType.PHASE_STARTED]: [
+      async ({ runtime, phase, gameId, roomId }) => {
         if (phase === Phase.INIT) {
           const coordinationService = runtime.getService(
             CoordinationService.serviceType
@@ -76,9 +160,8 @@ export const influencerPlugin: Plugin = {
           }
 
           await coordinationService.sendGameEvent(GameEventType.I_AM_READY, {
-            runtime,
-            gameId: message.payload.gameId,
-            roomId: message.payload.roomId,
+            gameId,
+            roomId,
             playerId: runtime.agentId,
             playerName: runtime.character?.name || "Unknown Player",
             readyType: "phase_action",
@@ -89,5 +172,16 @@ export const influencerPlugin: Plugin = {
         }
       },
     ],
-  } as unknown as PluginEvents & GameEventHandlers, // seems to be required as far as I can tell
+    [GameEventType.DIARY_ROOM_OPENED]: [
+      async ({ runtime, gameId, roomId }) => {
+        logger.info(`Diary room opened for ${runtime.character?.name}`, {
+          gameId,
+          roomId,
+        });
+
+        // The coordination system will create a synthetic message
+        // that should trigger the diary room action
+      },
+    ],
+  } as GameEventHandlers, // seems to be required as far as I can tell
 };

@@ -186,19 +186,19 @@ export const phaseContextProvider: Provider = {
       );
     }
 
-    console.log(`🎯 Phase context for ${runtime.character.name}:`, {
-      currentPhase,
-      channelType,
-      senderName,
-      isHouseMessage,
-      isDMChannel,
-      guidance:
-        isHouseMessage && isDMChannel
-          ? "RESPOND to House"
-          : isHouseMessage && isGroupChannel
-            ? "IGNORE House announcements"
-            : "RESPOND to players",
-    });
+    // console.log(`🎯 Phase context for ${runtime.character.name}:`, {
+    //   currentPhase,
+    //   channelType,
+    //   senderName,
+    //   isHouseMessage,
+    //   isDMChannel,
+    //   guidance:
+    //     isHouseMessage && isDMChannel
+    //       ? "RESPOND to House"
+    //       : isHouseMessage && isGroupChannel
+    //         ? "IGNORE House announcements"
+    //         : "RESPOND to players",
+    // });
 
     return {
       text: contextText,

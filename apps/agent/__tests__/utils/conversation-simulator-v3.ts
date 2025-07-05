@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import dotenv from "dotenv";
-import { AgentServer } from "@elizaos/server";
+import { AgentServer, internalMessageBus } from "@elizaos/server";
 import {
   AgentRuntime,
   ChannelType,
@@ -34,8 +34,28 @@ import {
   DiaryRoomPayload,
   GameStateChangePayload,
 } from "../../src/house/events/types";
-// Note: We'll need to import the message bus differently since it's internal to server
-// For now, we'll use a different approach for message observation
+import {
+  AnyCoordinationMessage,
+  MessageServiceMessage,
+} from "../../src/coordinator/types";
+import { CoordinationService } from "src/coordinator/service";
+
+/**
+ * Coordination event for tracking cross-agent communication
+ */
+export interface CoordinationEvent {
+  type: string;
+  sourceAgent: UUID;
+  targetAgents: UUID[] | "all" | "others";
+  timestamp: number;
+  payload: any;
+  messageId: string;
+}
+
+/**
+ * Event matcher function for flexible event waiting
+ */
+export type EventMatcher = (events: ConversationMessageV3[]) => boolean;
 
 const testEnv = dotenv.config({
   path: ".env.test",
@@ -55,6 +75,7 @@ export interface ConversationMessageV3 {
   actions?: string[]; // Actions taken by the agent
   thought?: string; // Optional thoughts for debugging
   metadata?: any;
+  coordinationEvent?: CoordinationEvent;
 }
 
 /**
@@ -114,6 +135,10 @@ export interface ChannelConfigV3 {
   metadata?: any;
   /** Optional game state to pre-load for this channel */
   gameState?: GameStateConfigV3;
+  room?: {
+    type: ChannelType;
+    name: string;
+  };
 }
 
 /**
@@ -218,7 +243,15 @@ export class ConversationSimulatorV3 {
   private gameEventObservers: GameEventObserver[] = [];
   private runtimeEventListeners: Map<string, Array<() => void>> = new Map();
 
+  private channelIdToRoomId: Map<UUID, UUID> = new Map();
+
+  // Coordination event tracking
+  private coordinationEvents: CoordinationEvent[] = [];
+  private eventCounts = new Map<string, number>();
+  private coordinationChannelId?: UUID;
+
   constructor(private config: SimulatorConfigV3) {
+    process.env.SERVER_PORT = config.serverPort?.toString() || "3100";
     this.server = new AgentServer();
 
     // Initialize model mocking service if enabled
@@ -232,6 +265,89 @@ export class ConversationSimulatorV3 {
         );
       }
     }
+
+    // CRITICAL: Subscribe to AgentServer's internalMessageBus to capture coordination messages
+    const messageHandler = async (messageForBus: MessageServiceMessage) => {
+      const message = messageForBus;
+
+      console.log(
+        `📩 Captured message via AgentServer message bus: ${JSON.stringify(
+          message
+        )}`
+      );
+      if (this.channels.has(message.channel_id)) {
+        const channel = this.channels.get(message.channel_id);
+        const roomIdsInChannel = this.channelIdToRoomId.get(message.channel_id);
+        if (channel) {
+          const conversationMessage: ConversationMessageV3 = {
+            authorId: message.author_id,
+            authorName: message.metadata?.agentName,
+            content: message.content,
+            timestamp: new Date(message.created_at).getTime(),
+            channelId: message.channel_id,
+            actions: message.metadata?.actions || [],
+            thought: message.metadata?.thought || "",
+            providers: message.metadata?.providers || [],
+            metadata: message.metadata,
+          };
+          channel.messages.push(conversationMessage);
+
+          for (const [participant, mode] of channel.participants.entries()) {
+            if (participant === message.metadata?.agentName) continue;
+            // get our default room id for this participant
+            const roomId = this.channelIdToRoomId.get(message.channel_id);
+            const runtime = this.runtimes.get(participant);
+            if (runtime && mode === ParticipantModeV3.READ_WRITE) {
+              const worldId = createUniqueUuid(runtime, "game-world");
+              const memory: Memory = {
+                id: createUniqueUuid(runtime, message.id),
+                entityId: runtime.agentId,
+                agentId: runtime.agentId,
+                worldId,
+                content: {
+                  text: message.content,
+                  thought: message.metadata?.thought,
+                  actions: message.metadata?.actions,
+                  inReplyTo: message.metadata?.inReplyTo,
+                  channelType: channel.type,
+                  providers: message.metadata?.providers,
+                  source: "test-simulator-v3",
+                  target: message.metadata?.target,
+                  url: message.metadata?.url,
+                },
+                roomId,
+                createdAt: conversationMessage.timestamp,
+                metadata: message.metadata,
+              };
+              await runtime.createMemory(memory, "messages");
+            }
+          }
+          // for (const roomId of roomIdsInChannel) {
+          //   const actions = content.actions;
+
+          //   const memory: Memory = {
+          //     id: createUniqueUuid(this.runtime, m.id),
+          //     entityId: this.runtime.agentId,
+          //     agentId: this.runtime.agentId,
+          //   };
+          // }
+          // const actions = content.actions;
+
+          // for (const m of memories) {
+          //   await this.runtime.createMemory(m, "messages");
+          // }
+          if (message.channel_id === this.coordinationChannelId) {
+            this.trackCoordinationMessage(conversationMessage);
+          }
+        }
+      }
+    };
+
+    // Subscribe to the internal message bus
+    internalMessageBus.on("new_message", messageHandler);
+
+    // Store the subscription for cleanup
+    this.busSubscriptions.set("internal-message-handler", messageHandler);
   }
 
   /**
@@ -316,81 +432,6 @@ export class ConversationSimulatorV3 {
       }
     }
     return undefined;
-  }
-
-  /**
-   * Create a new channel using AgentServer infrastructure
-   */
-  async createChannel(config: ChannelConfigV3): Promise<UUID> {
-    if (!this.testServer) {
-      throw new Error(
-        "Simulator not initialized. Please run initialize() first."
-      );
-    }
-
-    // Create channel via AgentServer API
-    const serverChannel = await this.server.createChannel({
-      messageServerId: this.testServer.id,
-      name: config.name,
-      type: config.type || ChannelType.GROUP,
-      metadata: config.metadata,
-    });
-
-    // Process participants and add them to the channel
-    const participantIds: UUID[] = [];
-    const participants = new Map<string, ParticipantModeV3>();
-
-    for (const participant of config.participants) {
-      if (typeof participant === "string") {
-        participants.set(participant, ParticipantModeV3.READ_WRITE);
-        const agentId = this.getAgentId(participant);
-        if (agentId) {
-          participantIds.push(agentId);
-        }
-      } else {
-        participants.set(participant.agentName, participant.mode);
-        const agentId = this.getAgentId(participant.agentName);
-        if (agentId) {
-          participantIds.push(agentId);
-        }
-      }
-    }
-
-    // Add participants to the channel via server API
-    if (participantIds.length > 0) {
-      await this.server.addParticipantsToChannel(
-        serverChannel.id,
-        participantIds
-      );
-    }
-
-    // Create channel metadata for tracking
-    const channel: ChannelV3 = {
-      id: serverChannel.id,
-      name: config.name,
-      type: config.type || ChannelType.GROUP, // Use explicit type from config
-      participants,
-      messages: [],
-      maxMessages: config.maxMessages,
-      timeoutMs: config.timeoutMs,
-      createdAt: Date.now(),
-      isExhausted: false,
-      observers: [],
-    };
-
-    this.channels.set(serverChannel.id, channel);
-    this.messageObservers.set(serverChannel.id, []);
-
-    // Handle optional game state pre-loading
-    if (config.gameState) {
-      await this.setupGameState(
-        serverChannel.id,
-        config.gameState,
-        participants
-      );
-    }
-
-    return serverChannel.id;
   }
 
   /**
@@ -590,6 +631,13 @@ export class ConversationSimulatorV3 {
   }
 
   /**
+   * Get the coordination channel ID
+   */
+  public getCoordinationChannelId(): UUID {
+    return this.coordinationChannelId;
+  }
+
+  /**
    * Subscribe to new messages in a channel
    */
   observeChannel(
@@ -702,8 +750,6 @@ export class ConversationSimulatorV3 {
     eventType: T,
     payload: GameEventPayloadMap[T]
   ): Promise<void> {
-    console.log(`🎮 Game Event Received: ${eventType}`, payload);
-
     // Notify all observers
     for (const observer of this.gameEventObservers) {
       try {
@@ -749,12 +795,14 @@ export class ConversationSimulatorV3 {
     character: any,
     plugins: any[] = []
   ): Promise<IAgentRuntime> {
+    console.log(`Adding agent ${agentName}...`);
     const runtime = new AgentRuntime({
       character: { ...character, name: agentName },
       plugins,
       settings: {
         ...testEnv.parsed,
         DATABASE_PATH: this.config.dataDir,
+        LOG_LEVEL: "info",
       },
     });
 
@@ -819,16 +867,7 @@ export class ConversationSimulatorV3 {
     const deterministicTimestamp =
       (this.testStartTime || Date.now()) + this.messageSequence * 1000;
 
-    // Store the message to the server to maintain data consistency and get server-generated ID
-    const serverMessage = await this.server.createMessage({
-      authorId: fromRuntime.agentId,
-      content,
-      channelId,
-      metadata: options?.metadata,
-    });
-
     const conversationMessage: ConversationMessageV3 = {
-      id: serverMessage.id, // Use server-generated ID to prevent duplication
       authorId: fromRuntime.agentId,
       authorName: fromAgent,
       content,
@@ -838,22 +877,38 @@ export class ConversationSimulatorV3 {
     };
 
     // Add to local tracking immediately
-    channel.messages.push(conversationMessage);
+    // channel.messages.push(conversationMessage);
 
     // Notify channel observers immediately
-    const observers = this.messageObservers.get(channelId);
-    if (observers) {
-      observers.forEach((observer) => {
-        try {
-          observer(conversationMessage);
-        } catch (error) {
-          console.warn("Channel observer error:", error);
-        }
-      });
-    }
+    // const observers = this.messageObservers.get(channelId);
+    // if (observers) {
+    //   observers.forEach((observer) => {
+    //     try {
+    //       observer(conversationMessage);
+    //     } catch (error) {
+    //       console.warn("Channel observer error:", error);
+    //     }
+    //   });
+    // }
 
-    // NOW THE KEY PART: Emit MESSAGE_RECEIVED events directly to all participating agents
-    // This mimics what Discord plugin does and should trigger automatic responses
+    // // NOW THE KEY PART: Emit MESSAGE_RECEIVED events directly to all participating agents
+    // // This mimics what Discord plugin does and should trigger automatic responses
+    // await this.emitMessageToParticipants(
+    //   channelId,
+    //   conversationMessage,
+    //   fromAgent
+    // );
+
+    // internalMessageBus.emit("new_message", {
+    //   id: serverMessage.id,
+    //   channel_id: channelId,
+    //   server_id: "00000000-0000-0000-0000-000000000000",
+    //   author_id: fromRuntime.agentId,
+    //   content: content,
+    //   created_at: deterministicTimestamp,
+    //   metadata: options?.metadata,
+    // } as MessageServiceMessage);
+
     await this.emitMessageToParticipants(
       channelId,
       conversationMessage,
@@ -894,183 +949,146 @@ export class ConversationSimulatorV3 {
       // Emit MESSAGE_RECEIVED event to agent
 
       // Create the message memory for this agent (similar to Discord plugin)
-      const roomId = createUniqueUuid(targetRuntime, channelId);
+      // const roomId = createUniqueUuid(targetRuntime, channelId);
       const worldId = createUniqueUuid(targetRuntime, this.testServer!.id);
       const authorEntityId = createUniqueUuid(targetRuntime, message.authorId);
 
       // CRITICAL: Ensure connection exists first (like Discord does)
-      await targetRuntime.ensureConnection({
-        entityId: authorEntityId,
-        roomId: roomId,
-        userName: message.authorName,
-        name: message.authorName,
-        source: "test-simulator-v3",
-        channelId: channelId,
-        serverId: this.testServer!.id,
-        type: channel.type, // Use explicit channel type
-        worldId: worldId,
-        worldName: "Test Conversation Server",
-      });
+      // await targetRuntime.ensureConnection({
+      //   entityId: message.authorId,
+      //   roomId: channelId,
+      //   userName: message.authorName,
+      //   name: message.authorName,
+      //   source: "test-simulator-v3",
+      //   channelId: channelId,
+      //   serverId: this.testServer!.id,
+      //   type: channel.type, // Use explicit channel type
+      //   worldId: worldId,
+      //   worldName: "Test Conversation Server",
+      // });
 
-      const messageMemory: Memory = {
-        id: createUniqueUuid(targetRuntime, message.id || randomUUID()),
-        entityId: authorEntityId,
-        agentId: targetRuntime.agentId,
-        roomId: roomId,
-        content: {
-          text: message.content,
-          source: "test-simulator-v3",
-          channelType: channel.type, // Use explicit channel type
-        },
-        metadata: {
-          entityName: message.authorName,
-          fromId: message.authorId,
-          type: "message",
-          ...message.metadata,
-        },
-        createdAt: message.timestamp,
-      };
+      // await targetRuntime.ens
 
-      // Create response callback (similar to Discord plugin)
-      const callback = async (responseContent: Content): Promise<Memory[]> => {
-        // Log the response content for debugging
-        console.log(`🤖 ${agentName} callback received:`, {
-          text: responseContent.text,
-          textLength: responseContent.text?.length || 0,
-          thought: responseContent.thought,
-          actions: responseContent.actions,
-          providers: responseContent.providers,
-        });
-
-        // Filter out empty responses (common ElizaOS convention)
-        const responseText = responseContent.text?.trim() || "";
-
-        // Create response message and add it to our tracking
-        const responseTimestamp = Date.now();
-
-        // Store response to server and get server-generated ID (even if empty for debugging)
-        const serverResponse = await this.server.createMessage({
-          authorId: targetRuntime.agentId,
-          content: responseText || "[EMPTY RESPONSE]",
-          channelId,
-          metadata: {
-            generatedResponse: true,
-            originalContent: responseContent,
-          },
-        });
-
-        const responseMessage: ConversationMessageV3 = {
-          id: serverResponse.id, // Use server-generated ID to prevent duplication
-          authorId: targetRuntime.agentId,
-          authorName: agentName,
-          content: responseText || "[EMPTY RESPONSE]",
-          timestamp: responseTimestamp,
-          channelId,
-          providers: responseContent.providers,
-          thought: responseContent.thought,
-          actions: responseContent.actions,
-          metadata: { generatedResponse: true },
-        };
-
-        // Add to local tracking
-        channel.messages.push(responseMessage);
-
-        // Notify observers
-        const observers = this.messageObservers.get(channelId);
-        if (observers) {
-          observers.forEach((observer) => {
-            try {
-              observer(responseMessage);
-            } catch (error) {
-              console.warn("Channel observer error:", error);
-            }
-          });
-        }
-
-        // Response added to channel
-
-        // Return memory for the response (required by callback interface)
-        const responseMemory: Memory = {
-          id: createUniqueUuid(targetRuntime, serverResponse.id),
-          entityId: targetRuntime.agentId,
-          agentId: targetRuntime.agentId,
-          content: responseContent,
-          roomId: roomId,
-          createdAt: responseTimestamp,
-        };
-
-        return [responseMemory];
-      };
+      // const messageMemory: Memory = {
+      //   id: createUniqueUuid(targetRuntime, message.id || randomUUID()),
+      //   entityId: authorEntityId,
+      //   agentId: targetRuntime.agentId,
+      //   roomId: roomId,
+      //   content: {
+      //     text: message.content,
+      //     source: "test-simulator-v3",
+      //     channelType: channel.type, // Use explicit channel type
+      //   },
+      //   metadata: {
+      //     entityName: message.authorName,
+      //     fromId: message.authorId,
+      //     type: "message",
+      //     ...message.metadata,
+      //   },
+      //   createdAt: message.timestamp,
+      // };
 
       // Emit MESSAGE_RECEIVED event directly (like Discord plugin does)
       console.log(
         `🚀 Emitting MESSAGE_RECEIVED event to ${agentName} for message: "${message.content.substring(0, 50)}..."`
       );
-      targetRuntime.emitEvent(EventType.MESSAGE_RECEIVED, {
-        runtime: targetRuntime,
-        message: messageMemory,
-        callback,
-      });
 
       console.log(
         `✅ MESSAGE_RECEIVED event emitted successfully to ${agentName}`
       );
     }
+
+    const authorId = this.runtimes.get(senderAgent)?.agentId;
+    const baseUrl = `http://localhost:${this.config.serverPort}`;
+    const payloadToServer = {
+      channel_id: channelId,
+      server_id: this.testServer!.id,
+      author_id: authorId, // This needs careful consideration: is it the agent's core ID or a specific central identity for the agent?
+      content: message.content,
+      in_reply_to_message_id: undefined,
+      source_type: "agent_response",
+      raw_message: {
+        text: message.content,
+        // thought: message.metadata?.thought,
+        // actions: message.metadata?.actions,
+      },
+      metadata: {
+        agent_id: authorId,
+        agentName: message.authorName,
+        attachments: [],
+        channelType: channel.type,
+        isDm: channel.type === ChannelType.DM,
+      },
+    };
+    await fetch(`${baseUrl}/api/messaging/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payloadToServer),
+    });
+    // await this.server.createMessage({
+    //   authorId: authorId,
+    //   content: message.content,
+    //   channelId,
+    //   metadata: message.metadata,
+    //   sourceType: "test-simulator-v3",
+    // });
   }
 
-  /**
-   * Wait for a specific number of messages in a channel
-   */
-  async waitForChannelMessages(
-    channelId: UUID,
-    expectedCount: number,
-    timeoutMs: number = 10000
-  ): Promise<boolean> {
-    const channel = this.channels.get(channelId);
-    if (!channel) return false;
+  // /**
+  //  * Wait for a specific number of messages in a channel
+  //  */
+  // async waitForChannelMessages(
+  //   channelId: UUID,
+  //   expectedCount: number,
+  //   timeoutMs: number = 10000
+  // ): Promise<boolean> {
+  //   const channel = this.channels.get(channelId);
+  //   if (!channel) return false;
 
-    const startTime = Date.now();
-    const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
-    const pollInterval = isRecordMode ? 500 : 100; // Poll every 500ms in record mode, 100ms in playback
+  //   const startTime = Date.now();
+  //   const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
+  //   const pollInterval = isRecordMode ? 500 : 100; // Poll every 500ms in record mode, 100ms in playback
 
-    while (Date.now() - startTime < timeoutMs) {
-      // Poll for new messages from the server
-      const newMessages = await this.pollForNewMessages(channelId);
+  //   while (Date.now() - startTime < timeoutMs) {
+  //     // Poll for new messages from the server
+  //     const newMessages = await this.pollForNewMessages(channelId);
 
-      // Add any new messages to our local store and notify observers
-      for (const newMsg of newMessages) {
-        channel.messages.push(newMsg);
+  //     // Add any new messages to our local store and notify observers
+  //     for (const newMsg of newMessages) {
+  //       channel.messages.push(newMsg);
 
-        // Notify observers
-        const observers = this.messageObservers.get(channelId);
-        if (observers) {
-          observers.forEach((observer) => {
-            try {
-              observer(newMsg);
-            } catch (error) {
-              console.warn("Channel observer error:", error);
-            }
-          });
-        }
-      }
+  //       // Notify observers
+  //       const observers = this.messageObservers.get(channelId);
+  //       if (observers) {
+  //         observers.forEach((observer) => {
+  //           try {
+  //             observer(newMsg);
+  //           } catch (error) {
+  //             console.warn("Channel observer error:", error);
+  //           }
+  //         });
+  //       }
+  //     }
 
-      // Check if we have enough messages now
-      if (channel.messages.length >= expectedCount) {
-        return true;
-      }
+  //     // Check if we have enough messages now
+  //     if (channel.messages.length >= expectedCount) {
+  //       return true;
+  //     }
 
-      // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    }
+  //     // Wait before next poll
+  //     await new Promise((resolve) => setTimeout(resolve, pollInterval));
+  //   }
 
-    // Timeout reached
-    if (!isRecordMode) {
-      console.warn(
-        `⚠️ waitForChannelMessages timeout: expected ${expectedCount}, got ${channel.messages.length} (timeout: ${timeoutMs}ms)`
-      );
-    }
-    return false;
-  }
+  //   // Timeout reached
+  //   if (!isRecordMode) {
+  //     console.warn(
+  //       `⚠️ waitForChannelMessages timeout: expected ${expectedCount}, got ${channel.messages.length} (timeout: ${timeoutMs}ms)`
+  //     );
+  //   }
+  //   return false;
+  // }
 
   /**
    * Get messages from a specific channel
@@ -1101,37 +1119,342 @@ export class ConversationSimulatorV3 {
     return new Map(this.channels);
   }
 
-  /**
-   * Create a one-on-one channel between two agents
-   */
-  async createPrivateChannel(agent1: string, agent2: string): Promise<UUID> {
-    return await this.createChannel({
-      name: `private-${agent1}-${agent2}`,
-      participants: [agent1, agent2],
-      type: ChannelType.DM,
-    });
+  getChannelIdToRoomId(channelId: UUID): UUID | undefined {
+    return this.channelIdToRoomId.get(channelId);
   }
 
   /**
-   * Create a broadcast channel where one agent sends and others only receive
+   * Create a new channel using AgentServer infrastructure
    */
-  async createBroadcastChannel(
-    broadcaster: string,
-    receivers: string[],
-    channelName?: string
-  ): Promise<UUID> {
-    const participants: ChannelParticipantV3[] = [
-      { agentName: broadcaster, mode: ParticipantModeV3.BROADCAST_ONLY },
-      ...receivers.map((name) => ({
-        agentName: name,
-        mode: ParticipantModeV3.READ_WRITE,
-      })),
-    ];
+  async createChannel(config: ChannelConfigV3): Promise<UUID> {
+    if (!this.testServer) {
+      throw new Error(
+        "Simulator not initialized. Please run initialize() first."
+      );
+    }
 
-    return this.createChannel({
-      name: channelName || `broadcast-${broadcaster}`,
-      participants,
+    // Create channel via AgentServer API
+    const serverChannel = await this.server.createChannel({
+      messageServerId: this.testServer.id,
+      name: config.name,
+      type: config.type || ChannelType.GROUP,
+      metadata: config.metadata,
     });
+
+    // Process participants and add them to the channel
+    const participantIds: UUID[] = [];
+    const participants = new Map<string, ParticipantModeV3>();
+
+    for (const participant of config.participants) {
+      if (typeof participant === "string") {
+        participants.set(participant, ParticipantModeV3.READ_WRITE);
+        const agentId = this.getAgentId(participant);
+        if (agentId) {
+          participantIds.push(agentId);
+        }
+      } else {
+        participants.set(participant.agentName, participant.mode);
+        const agentId = this.getAgentId(participant.agentName);
+        if (agentId) {
+          participantIds.push(agentId);
+        }
+      }
+    }
+
+    // Add participants to the channel via server API
+    if (participantIds.length > 0) {
+      await this.server.addParticipantsToChannel(
+        serverChannel.id,
+        participantIds
+      );
+    }
+
+    // Create a default room for the channel
+    const participantNames = config.room ? [...participants.keys()] : [];
+    for (const participantName of participantNames) {
+      const runtime = this.runtimes.get(participantName);
+      const roomId = createUniqueUuid(runtime, serverChannel.id);
+      const worldId = createUniqueUuid(runtime, "game-world");
+
+      await runtime.ensureWorldExists({
+        id: worldId,
+        name: "Game World",
+        agentId: runtime.agentId,
+        serverId: "game-server",
+      });
+      await runtime.ensureRoomExists({
+        id: roomId,
+        type: config.room.type,
+        name: config.room.name,
+        agentId: runtime.agentId,
+        worldId: worldId,
+        channelId: serverChannel.id,
+        serverId: this.testServer!.id,
+        source: "test-simulator-v3",
+      });
+      await runtime.ensureParticipantInRoom(runtime.agentId, roomId);
+      await runtime.setParticipantUserState(
+        roomId,
+        runtime.agentId,
+        "FOLLOWED"
+      );
+      this.channelIdToRoomId.set(serverChannel.id, roomId);
+
+      // Create the entity for each participant on each other participant's runtime
+      for (const otherParticipantName of participantNames.filter(
+        (name) => name !== participantName
+      )) {
+        const otherRuntime = this.runtimes.get(otherParticipantName);
+        if (otherRuntime) {
+          await otherRuntime.createEntity({
+            id: createUniqueUuid(otherRuntime, runtime.agentId),
+            names: [otherParticipantName],
+            agentId: otherRuntime.agentId,
+            metadata: {
+              source: "test-simulator-v3",
+            },
+          });
+        }
+      }
+    }
+
+    // Create channel metadata for tracking
+    const channel: ChannelV3 = {
+      id: serverChannel.id,
+      name: config.name,
+      type: config.type || ChannelType.GROUP, // Use explicit type from config
+      participants,
+      messages: [],
+      maxMessages: config.maxMessages,
+      timeoutMs: config.timeoutMs,
+      createdAt: Date.now(),
+      isExhausted: false,
+      observers: [],
+    };
+
+    this.channels.set(serverChannel.id, channel);
+    this.messageObservers.set(serverChannel.id, []);
+
+    // Handle optional game state pre-loading
+    if (config.gameState) {
+      await this.setupGameState(
+        serverChannel.id,
+        config.gameState,
+        participants
+      );
+    }
+
+    return serverChannel.id;
+  }
+
+  // /**
+  //  * Register a channel with a specific ID (for coordination testing)
+  //  */
+  // async registerChannel(
+  //   channelId: UUID,
+  //   config: ChannelConfigV3
+  // ): Promise<void> {
+  //   if (!this.testServer) {
+  //     throw new Error(
+  //       "Simulator not initialized. Please run initialize() first."
+  //     );
+  //   }
+
+  //   // Create the room directly in the runtimes' databases
+  //   const participants = new Map<string, ParticipantModeV3>();
+
+  //   for (const participant of config.participants) {
+  //     const agentName =
+  //       typeof participant === "string" ? participant : participant.agentName;
+  //     const mode =
+  //       typeof participant === "string"
+  //         ? ParticipantModeV3.READ_WRITE
+  //         : participant.mode;
+  //     participants.set(agentName, mode);
+
+  //     // Create the room in each participant's runtime
+  //     const runtime = this.runtimes.get(agentName);
+  //     if (runtime) {
+  //       await runtime.createRoom({
+  //         id: channelId,
+  //         worldId: createUniqueUuid(runtime, "test-world"),
+  //         name: config.name,
+  //         type: config.type || ChannelType.GROUP,
+  //         metadata: config.metadata || {},
+  //         source: "test-coordinator",
+  //       });
+  //     }
+  //   }
+
+  //   // Register channel in simulator tracking
+  //   const channel: ChannelV3 = {
+  //     id: channelId,
+  //     name: config.name,
+  //     type: config.type || ChannelType.GROUP,
+  //     participants,
+  //     messages: [],
+  //     maxMessages: config.maxMessages,
+  //     timeoutMs: config.timeoutMs,
+  //     createdAt: Date.now(),
+  //     isExhausted: false,
+  //     observers: [],
+  //   };
+
+  //   this.channels.set(channelId, channel);
+  //   this.messageObservers.set(channelId, []);
+
+  //   console.log(`📡 Registered coordination channel: ${channelId}`);
+  // }
+
+  /**
+   * Create a coordination channel with a predetermined ID
+   */
+  async createCoordinationChannel(participants: string[]): Promise<UUID> {
+    const coordinationChannelId = await this.createChannel({
+      name: "coordination-channel",
+      participants,
+      type: ChannelType.API,
+      metadata: { purpose: "cross-agent-coordination" },
+    });
+    // Configure all agents to use the coordination channel and AgentServer
+    for (const agentIds of participants) {
+      const runtime = this.runtimes.get(agentIds);
+      if (!runtime) {
+        throw new Error(`Agent ${agentIds} not found`);
+      }
+      const coordinationService = runtime.getService<CoordinationService>(
+        CoordinationService.serviceType
+      );
+      if (coordinationService) {
+        if ("setCoordinationChannelId" in coordinationService) {
+          coordinationService.setCoordinationChannelId(coordinationChannelId);
+        } else {
+          console.log(
+            `🔧 Coordination service for ${agentIds} does not support setCoordinationChannelId`
+          );
+        }
+        if ("setAgentServer" in coordinationService) {
+          coordinationService.setAgentServer(this.server);
+        } else {
+          console.log(
+            `🔧 Coordination service for ${agentIds} does not support setAgentServer`
+          );
+        }
+        console.log(
+          `🔧 Set coordination channel for ${agentIds}: ${coordinationChannelId}`
+        );
+      }
+    }
+    this.coordinationChannelId = coordinationChannelId;
+
+    // Set up coordination message tracking via channel observer
+    // this.observeChannel(coordinationChannelId, (message) => {
+    //   this.trackCoordinationMessage(message);
+    // });
+
+    return coordinationChannelId;
+  }
+
+  /**
+   * Track coordination messages for event analysis
+   */
+  trackCoordinationMessage(message: ConversationMessageV3): void {
+    try {
+      const parsed = JSON.parse(message.content);
+      if (
+        parsed.type &&
+        ["game_event", "agent_ready", "heartbeat", "coordination_ack"].includes(
+          parsed.type
+        )
+      ) {
+        const event: CoordinationEvent = {
+          messageId: parsed.messageId || message.id || "",
+          timestamp: message.timestamp,
+          sourceAgent: parsed.sourceAgent || message.authorId,
+          targetAgents: parsed.targetAgents || "all",
+          type: parsed.gameEventType || parsed.type,
+          payload: parsed.payload || parsed,
+        };
+        message.coordinationEvent = event;
+
+        this.coordinationEvents.push(event);
+
+        // Update event counts
+        const eventKey = `${parsed.type}:${parsed.gameEventType || parsed.type}`;
+        this.eventCounts.set(
+          eventKey,
+          (this.eventCounts.get(eventKey) || 0) + 1
+        );
+
+        console.log(
+          `📊 Tracked coordination event: ${eventKey} from ${message.authorName}`
+        );
+      }
+    } catch (error) {
+      // Not a coordination message, ignore
+    }
+  }
+
+  /**
+   * Wait for coordination events matching the provided condition
+   */
+  async waitForEvents(
+    channelId: UUID,
+    matcher: EventMatcher,
+    timeoutMs: number = 10000
+  ): Promise<ConversationMessageV3[]> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      const events = this.getChannelMessages(channelId);
+      if (matcher(events)) {
+        return [...events];
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    throw new Error(
+      `Timeout waiting for events after ${timeoutMs}ms. Current events: ${this.getChannelMessages(channelId)?.length}`
+    );
+  }
+
+  /**
+   * Get coordination event counts for debugging
+   */
+  getEventCounts(): Map<string, number> {
+    return new Map(this.eventCounts);
+  }
+
+  /**
+   * Get all coordination events
+   */
+  getCoordinationEvents(): CoordinationEvent[] {
+    return [...this.coordinationEvents];
+  }
+
+  /**
+   * Clear coordination event tracking
+   */
+  clearCoordinationEvents(): void {
+    this.coordinationEvents.length = 0;
+    this.eventCounts.clear();
+  }
+
+  /**
+   * Emit an event directly to a specific agent's runtime
+   */
+  async emitEventToAgent(
+    agentName: string,
+    eventType: string,
+    payload: any
+  ): Promise<void> {
+    const runtime = this.runtimes.get(agentName);
+    if (!runtime) {
+      throw new Error(`Agent ${agentName} not found`);
+    }
+
+    await runtime.emitEvent(eventType, payload);
+    console.log(`🚀 Emitted ${eventType} to ${agentName}`);
   }
 
   /**
@@ -1191,7 +1514,13 @@ export class ConversationSimulatorV3 {
     }
     this.runtimeCleanupFunctions.clear();
 
-    // Clean up message bus subscriptions (if any were set up)
+    // Clean up AgentServer message bus subscriptions
+    for (const [subscriptionId, handler] of this.busSubscriptions.entries()) {
+      internalMessageBus.off("new_message", handler);
+      console.log(
+        `🧹 Unsubscribed from AgentServer message bus: ${subscriptionId}`
+      );
+    }
     this.busSubscriptions.clear();
 
     // Clean up runtime event listeners

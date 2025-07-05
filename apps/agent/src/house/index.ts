@@ -20,20 +20,16 @@ import { phaseTimerEvaluator } from "./evaluators/phaseTimer";
 import { PhaseCoordinator } from "./services/phaseCoordinator";
 import {
   AnyCoordinationMessage,
-  COORDINATION_CHANNEL_ID,
   CoordinationService,
-  handleAgentReady,
-  handleCoordinationAck,
-  handleGameEvent,
-  handleHeartbeat,
   isCoordinationMessage,
-} from "./coordination";
+} from "../coordinator";
 import {
   GameEventType,
   GameEventHandler,
   GameEventPayloadMap,
 } from "./events/types";
 import { MessageEvent } from "node:http";
+import { handleGameEvent } from "./coordination";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 
@@ -61,8 +57,16 @@ export const housePlugin: Plugin = {
   events: {
     [EventType.MESSAGE_RECEIVED]: [
       async ({ message, runtime }) => {
+        const coordinationService = runtime.getService<CoordinationService>(
+          CoordinationService.serviceType
+        );
+        if (!coordinationService) {
+          return;
+        }
+        const coordinationChannelId =
+          coordinationService.getCoordinationChannelId();
         // Only process messages from the coordination channel
-        if (message.roomId !== COORDINATION_CHANNEL_ID) {
+        if (message.roomId !== coordinationChannelId) {
           return;
         }
 
@@ -105,21 +109,21 @@ export const housePlugin: Plugin = {
 
               // Route to appropriate handler based on message type
               switch (coordinationMessage.type) {
-                case "game_event":
-                  await handleGameEvent(runtime, coordinationMessage);
-                  return;
+                // case "game_event":
+                //   await handleGameEvent(runtime, coordinationMessage);
+                //   return;
 
-                case "agent_ready":
-                  await handleAgentReady(runtime, coordinationMessage);
-                  return;
+                // case "agent_ready":
+                //   await handleAgentReady(runtime, coordinationMessage);
+                //   return;
 
-                case "heartbeat":
-                  await handleHeartbeat(runtime, coordinationMessage);
-                  return;
+                // case "heartbeat":
+                //   await handleHeartbeat(runtime, coordinationMessage);
+                //   return;
 
-                case "coordination_ack":
-                  await handleCoordinationAck(runtime, coordinationMessage);
-                  return;
+                // case "coordination_ack":
+                //   await handleCoordinationAck(runtime, coordinationMessage);
+                //   return;
 
                 default:
                   logger.warn(

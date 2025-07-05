@@ -21,7 +21,7 @@ export const logger: Record<
 > = {
   trace: (...args: any[]) => {
     const [message = "", ...rest] = args;
-    return coreLogger.trace.apply(coreLogger, [String(message), ...rest]);
+    return coreLogger.debug.apply(coreLogger, [String(message), ...rest]);
   },
   debug: (...args: any[]) => {
     const [message = "", ...rest] = args;
@@ -53,7 +53,7 @@ export const logger: Record<
   },
   fatal: (...args: any[]) => {
     const [message = "", ...rest] = args;
-    return coreLogger.fatal.apply(coreLogger, [String(message), ...rest]);
+    return coreLogger.error.apply(coreLogger, [String(message), ...rest]);
   },
   clear: (...args: any[]) => {
     const [message = "", ...rest] = args;

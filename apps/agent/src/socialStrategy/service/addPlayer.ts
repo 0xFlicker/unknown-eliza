@@ -54,7 +54,7 @@ export class StrategyService extends Service {
   static async stop(runtime: IAgentRuntime): Promise<unknown> {
     logger.info("*** Stopping StrategyService ***");
     const service = runtime.getService(
-      StrategyService.serviceType,
+      StrategyService.serviceType
     ) as StrategyService;
     if (!service) {
       throw new Error("StrategyService not found");
@@ -65,7 +65,7 @@ export class StrategyService extends Service {
 
   static async start(
     runtime: IAgentRuntime,
-    config?: Partial<StrategyPrompts>,
+    config?: Partial<StrategyPrompts>
   ): Promise<Service> {
     logger.info("*** Starting StrategyService ***");
     const service = new StrategyService(runtime, config);
@@ -132,7 +132,7 @@ export class StrategyService extends Service {
   private async loadState(): Promise<void> {
     try {
       const stateMemory = await this.runtime.getCache<StrategyState>(
-        `strategy-state-${this.state.agentId}`,
+        `strategy-state-${this.state.agentId}`
       );
       if (stateMemory) {
         // Restore state but keep constructor-provided configuration
@@ -141,10 +141,10 @@ export class StrategyService extends Service {
           ...stateMemory,
           configuration: { ...stateMemory.configuration, ...config },
           relationships: new Map(
-            Object.entries(stateMemory.relationships || {}) as [UUID, any][],
+            Object.entries(stateMemory.relationships || {}) as [UUID, any][]
           ),
           playerPatterns: new Map(
-            Object.entries(stateMemory.playerPatterns || {}) as [UUID, any][],
+            Object.entries(stateMemory.playerPatterns || {}) as [UUID, any][]
           ),
         };
         logger.info("Loaded existing strategy state from memory");
@@ -163,14 +163,13 @@ export class StrategyService extends Service {
       };
       await this.runtime.setCache(
         `strategy-state-${this.state.agentId}`,
-        serializedState,
+        serializedState
       );
       logger.debug("Strategy state saved to memory");
     } catch (error) {
       logger.error("Failed to save strategy state", error);
     }
   }
-
 
   private getStrategyModeForPhase(phase: Phase): StrategyMode {
     switch (phase) {
@@ -195,7 +194,7 @@ export class StrategyService extends Service {
   async updateRelationship(
     playerId: UUID,
     playerName: string,
-    updates: Partial<StrategicRelationship>,
+    updates: Partial<StrategicRelationship>
   ): Promise<void> {
     const existing = this.state.relationships.get(playerId) || {
       playerId,
@@ -228,7 +227,7 @@ export class StrategyService extends Service {
   }
 
   async addDiaryEntry(
-    entry: Omit<DiaryEntry, "id" | "timestamp">,
+    entry: Omit<DiaryEntry, "id" | "timestamp">
   ): Promise<DiaryEntry> {
     const diaryEntry: DiaryEntry = {
       ...entry,
@@ -256,7 +255,7 @@ export class StrategyService extends Service {
 
   async updatePlayerPattern(
     playerId: UUID,
-    updates: Partial<PlayerPattern>,
+    updates: Partial<PlayerPattern>
   ): Promise<void> {
     const existing = this.state.playerPatterns.get(playerId) || {
       playerId,
@@ -282,13 +281,12 @@ export class StrategyService extends Service {
   }
 
   async generatePlayerIntelligence(
-    playerId: UUID,
+    playerId: UUID
   ): Promise<PlayerIntelligence | null> {
     const relationship = this.state.relationships.get(playerId);
     const pattern = this.state.playerPatterns.get(playerId);
 
     if (!relationship) {
-      logger.warn("No strategic relationship found for player", { playerId });
       return null;
     }
 
@@ -311,8 +309,8 @@ export class StrategyService extends Service {
             m.content?.text
               ?.toLowerCase()
               .includes(relationship.playerName.toLowerCase()) &&
-            m.entityId !== playerId,
-        ),
+            m.entityId !== playerId
+        )
       );
 
     const intelligence: PlayerIntelligence = {
@@ -378,7 +376,7 @@ export class StrategyService extends Service {
 
   private async triggerPhaseTransitionReview(
     previousPhase: Phase,
-    newPhase: Phase,
+    newPhase: Phase
   ): Promise<void> {
     logger.info("Triggering phase transition review", {
       previousPhase,
@@ -392,12 +390,12 @@ export class StrategyService extends Service {
    */
   async updateStrategicContext(context: {
     phase: Phase;
-    trigger: 'phase_transition' | 'event' | 'manual';
+    trigger: "phase_transition" | "event" | "manual";
     contextData?: Record<string, unknown>;
   }): Promise<void> {
     logger.info("Updating strategic context", {
       phase: context.phase,
-      trigger: context.trigger
+      trigger: context.trigger,
     });
 
     // Update phase if different
@@ -409,7 +407,10 @@ export class StrategyService extends Service {
     const newMode = this.getStrategyModeForPhase(context.phase);
     if (this.state.strategicMode !== newMode) {
       this.state.strategicMode = newMode;
-      logger.debug("Strategic mode updated", { oldMode: this.state.strategicMode, newMode });
+      logger.debug("Strategic mode updated", {
+        oldMode: this.state.strategicMode,
+        newMode,
+      });
     }
 
     // Store context data if provided
@@ -425,9 +426,9 @@ export class StrategyService extends Service {
    * Set diary prompt for phase-dependent prompting
    */
   async setDiaryPrompt(prompt: string): Promise<void> {
-    logger.debug("Setting phase-dependent diary prompt", { 
+    logger.debug("Setting phase-dependent diary prompt", {
       phase: this.state.currentPhase,
-      promptLength: prompt.length 
+      promptLength: prompt.length,
     });
 
     // Store the prompt in configuration for use by diary room action
@@ -440,7 +441,7 @@ export class StrategyService extends Service {
    */
   async updatePhase(phase: Phase, round: number): Promise<void> {
     const previousPhase = this.state.currentPhase;
-    
+
     this.state.currentPhase = phase;
     this.state.round = round;
     this.state.lastPhaseChange = Date.now();
@@ -450,7 +451,7 @@ export class StrategyService extends Service {
       previousPhase,
       newPhase: phase,
       round,
-      strategicMode: this.state.strategicMode
+      strategicMode: this.state.strategicMode,
     });
 
     await this.saveState();
@@ -473,14 +474,14 @@ export class StrategyService extends Service {
       emotionalState: "confident" as const,
       observations: [
         `Phase ${phase} completed successfully`,
-        "Gathering strategic intelligence for next phase"
+        "Gathering strategic intelligence for next phase",
       ],
       concerns: [],
-      opportunities: ["Prepare strategy for upcoming phase transitions"]
+      opportunities: ["Prepare strategy for upcoming phase transitions"],
     };
 
     await this.addDiaryEntry(phaseAnalysisEntry);
-    
+
     // Update last strategy review time
     this.state.lastStrategyReview = Date.now();
     await this.saveState();
@@ -490,7 +491,7 @@ export class StrategyService extends Service {
   async getOrCreatePlayer({ handle }: { handle: string }): Promise<Entity> {
     logger.info("*** Adding player to memories (legacy compatibility) ***");
     const id = stringToUuid(
-      `${this.runtime.agentId}:player:${handle.toLowerCase()}`,
+      `${this.runtime.agentId}:player:${handle.toLowerCase()}`
     );
 
     const entity = await this.runtime.getEntityById(id);

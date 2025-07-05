@@ -8,6 +8,7 @@ import {
   type UUID,
   ModelType,
   composePrompt,
+  parseJSONObjectFromText,
 } from "@elizaos/core";
 import { StrategyService } from "../service/addPlayer";
 import { Phase } from "../../house/types";
@@ -131,7 +132,7 @@ export const strategicReflectionEvaluator: Evaluator = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State,
+    state?: State
   ): Promise<boolean> => {
     // Only validate basic requirements - let evaluator logic handle pattern matching
     const strategyService = runtime.getService("social-strategy");
@@ -145,11 +146,11 @@ export const strategicReflectionEvaluator: Evaluator = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State,
+    state?: State
   ): Promise<State | null> => {
     try {
       const strategyService = runtime.getService(
-        "social-strategy",
+        "social-strategy"
       ) as StrategyService;
       if (!strategyService) {
         logger.warn("[StrategicReflection] StrategyService not available");
@@ -174,14 +175,14 @@ export const strategicReflectionEvaluator: Evaluator = {
 
       // Count alive players (assuming all entities except agent are players)
       const alivePlayers = entities.filter(
-        (e) => e.id !== runtime.agentId,
+        (e) => e.id !== runtime.agentId
       ).length;
 
       // Format strategic relationships
       const relationships = Array.from(strategyState.relationships.values())
         .map(
           (rel) =>
-            `${rel.playerName}: Trust=${rel.trustLevel}, Influence=${rel.influence}, Threat=${rel.threat}`,
+            `${rel.playerName}: Trust=${rel.trustLevel}, Influence=${rel.influence}, Threat=${rel.threat}`
         )
         .join("\n");
 
@@ -191,8 +192,10 @@ export const strategicReflectionEvaluator: Evaluator = {
           ? strategyState.diaryEntries[strategyState.diaryEntries.length - 1]
           : null;
 
+      const template = strategicReflectionTemplate;
+
       const prompt = composePrompt({
-        template: config.diaryReflection || strategicReflectionTemplate,
+        template,
         state: {
           agentName,
           currentPhase: strategyState.currentPhase,
@@ -215,9 +218,100 @@ export const strategicReflectionEvaluator: Evaluator = {
       });
 
       // Generate strategic reflection
-      const reflection = (await runtime.useModel(ModelType.OBJECT_SMALL, {
+      const reflectionResponse = await runtime.useModel<
+        typeof ModelType.OBJECT_LARGE,
+        StrategicReflectionOutput
+      >(ModelType.OBJECT_LARGE, {
         prompt,
-      })) as StrategicReflectionOutput;
+        output: "object",
+        schema: {
+          type: "object",
+          properties: {
+            thoughts: { type: "string" },
+            emotionalState: {
+              type: "string",
+              enum: [
+                "confident",
+                "nervous",
+                "suspicious",
+                "optimistic",
+                "defeated",
+              ],
+            },
+            observations: {
+              type: "array",
+              items: { type: "string" },
+            },
+            concerns: {
+              type: "array",
+              items: { type: "string" },
+            },
+            opportunities: {
+              type: "array",
+              items: { type: "string" },
+            },
+            strategyShift: { type: "string" },
+            threatAssessment: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  playerId: { type: "string" },
+                  playerName: { type: "string" },
+                  threatLevel: { type: "number" },
+                  reason: { type: "string" },
+                },
+                required: ["playerId", "playerName", "threatLevel", "reason"],
+              },
+            },
+            allianceStatus: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  playerId: { type: "string" },
+                  playerName: { type: "string" },
+                  trustLevel: { type: "string" },
+                  strength: { type: "number" },
+                  recommendation: { type: "string" },
+                },
+                required: [
+                  "playerId",
+                  "playerName",
+                  "trustLevel",
+                  "strength",
+                  "recommendation",
+                ],
+              },
+            },
+            nextMoves: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "thoughts",
+            "emotionalState",
+            "observations",
+            "concerns",
+            "opportunities",
+            "threatAssessment",
+            "allianceStatus",
+            "nextMoves",
+          ],
+        },
+      });
+
+      if (!reflectionResponse) {
+        logger.warn("Failed to parse entity reflection result");
+        return null;
+      }
+
+      logger.info(
+        `[StrategicReflection] Response: ${JSON.stringify(reflectionResponse)}`
+      );
+
+      const reflection = reflectionResponse as StrategicReflectionOutput;
 
       if (!reflection || !reflection.thoughts) {
         logger.warn("[StrategicReflection] Failed to generate reflection");
@@ -246,7 +340,7 @@ export const strategicReflectionEvaluator: Evaluator = {
               {
                 threat: Math.max(0, Math.min(1, threat.threatLevel)),
                 notes: [threat.reason],
-              },
+              }
             );
           }
         }
@@ -268,7 +362,7 @@ export const strategicReflectionEvaluator: Evaluator = {
                 trustLevel,
                 reliability: alliance.strength || 0.5,
                 notes: [alliance.recommendation],
-              },
+              }
             );
           }
         }
@@ -284,7 +378,7 @@ export const strategicReflectionEvaluator: Evaluator = {
             ?.map((a) => a.playerId) || [],
         nextMoves: reflection.nextMoves || [],
         confidenceLevel: calculateConfidenceFromEmotion(
-          reflection.emotionalState,
+          reflection.emotionalState
         ),
       };
 

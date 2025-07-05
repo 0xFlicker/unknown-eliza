@@ -1,5 +1,6 @@
-import pino, { type DestinationStream, type LogFn } from "pino";
+import winston from "winston";
 import { Sentry } from "./sentry/instrument";
+import { StreamTransportOptions } from "winston/lib/winston/transports";
 
 // Local utility function to avoid circular dependency
 function parseBooleanFromText(value: string | undefined | null): boolean {
@@ -18,67 +19,45 @@ function parseBooleanFromText(value: string | undefined | null): boolean {
  * @property {number} [time] - The timestamp of the log entry.
  * @property {unknown} [key] - Additional properties that can be added to the log entry.
  */
-/**
- * Interface representing a log entry.
- * @typedef {Object} LogEntry
- * @property {number} [time] - The time the log entry was created.
- * @property {string} key - The key for the log entry.
- * @property {unknown} value - The value associated with the key in the log entry.
- */
 interface LogEntry {
   time?: number;
   [key: string]: unknown;
 }
 
-// Custom destination that maintains recent logs in memory
 /**
- * Class representing an in-memory destination stream for logging.
- * Implements DestinationStream interface.
+ * Custom winston transport that maintains recent logs in memory.
+ * This transport filters service/agent logs and provides access to recent logs.
  */
-class InMemoryDestination implements DestinationStream {
+class InMemoryTransport extends winston.transports.Stream {
   private logs: LogEntry[] = [];
   private maxLogs = 1000; // Keep last 1000 logs
-  private stream: DestinationStream | null;
+  private prettyTransport: typeof winston.transports.Stream | null = null;
 
-  /**
-   * Constructor for creating a new instance of the class.
-   * @param {DestinationStream|null} stream - The stream to assign to the instance. Can be null.
-   */
-  constructor(stream: DestinationStream | null) {
-    this.stream = stream;
+  constructor(options: StreamTransportOptions = { stream: process.stdout }) {
+    super(options);
+    (this as any).name = "in-memory";
   }
 
   /**
-   * Writes a log entry to the memory buffer and forwards it to the pretty print stream if available.
-   *
-   * @param {string | LogEntry} data - The data to be written, which can be either a string or a LogEntry object.
-   * @returns {void}
+   * Sets the pretty transport for console output
+   * @param {winston.transports.Stream} transport - The winston transport for pretty output
    */
-  write(data: string | LogEntry): void {
-    // Parse the log entry if it's a string
-    let logEntry: LogEntry;
-    let stringData: string;
+  setPrettyTransport(transport: typeof winston.transports.Stream): void {
+    this.prettyTransport = transport;
+  }
 
-    if (typeof data === "string") {
-      stringData = data;
-      try {
-        logEntry = JSON.parse(data);
-      } catch (e) {
-        // If it's not valid JSON, just pass it through
-        if (this.stream) {
-          this.stream.write(data);
-        }
-        return;
-      }
-    } else {
-      logEntry = data;
-      stringData = JSON.stringify(data);
-    }
-
-    // Add timestamp if not present
-    if (!logEntry.time) {
-      logEntry.time = Date.now();
-    }
+  /**
+   * Log method required by winston Transport interface
+   * @param {any} info - The log info object
+   * @param {Function} callback - The callback function
+   */
+  log(info: any, callback?: () => void): void {
+    const logEntry: LogEntry = {
+      time: Date.now(),
+      level: info.level,
+      message: info.message,
+      ...info,
+    };
 
     // Filter out service registration logs unless in debug mode
     const isDebugMode =
@@ -93,7 +72,7 @@ class InMemoryDestination implements DestinationStream {
     if (!isDebugMode) {
       // Check if this is a service or agent log that we want to filter
       if (logEntry.agentName && logEntry.agentId) {
-        const msg = logEntry.msg || "";
+        const msg = info.message || "";
         // Filter only service/agent registration logs, not all agent logs
         if (
           typeof msg === "string" &&
@@ -104,9 +83,10 @@ class InMemoryDestination implements DestinationStream {
             msg.includes("Started"))
         ) {
           if (isLoggingDiagnostic) {
-            console.error("Filtered log:", stringData);
+            console.error("Filtered log:", JSON.stringify(logEntry));
           }
           // This is a service registration/agent log, skip it
+          if (callback) callback();
           return;
         }
       }
@@ -120,15 +100,16 @@ class InMemoryDestination implements DestinationStream {
       this.logs.shift();
     }
 
-    // Forward to pretty print stream if available
-    if (this.stream) {
-      this.stream.write(stringData);
+    // Forward to pretty transport if available
+    if (this.prettyTransport) {
+      this.prettyTransport.log(info, callback);
+    } else if (callback) {
+      callback();
     }
   }
 
   /**
-   * Retrieves the recent logs from the system.
-   *
+   * Retrieves the recent logs from memory.
    * @returns {LogEntry[]} An array of LogEntry objects representing the recent logs.
    */
   recentLogs(): LogEntry[] {
@@ -137,27 +118,30 @@ class InMemoryDestination implements DestinationStream {
 
   /**
    * Clears all logs from memory.
-   *
-   * @returns {void}
    */
   clear(): void {
     this.logs = [];
   }
 }
 
-const customLevels: Record<string, number> = {
-  fatal: 60,
-  error: 50,
-  warn: 40,
-  info: 30,
-  log: 29,
-  progress: 28,
-  success: 27,
-  debug: 20,
-  trace: 10,
+// Define custom levels matching pino levels
+const customLevels = {
+  colors: {
+    fatal: "red",
+    error: "red",
+    warn: "yellow",
+    info: "blue",
+    progress: "cyan",
+    success: "brightGreen",
+    debug: "magenta",
+    trace: "grey",
+  },
 };
 
-const raw = parseBooleanFromText(process?.env?.LOG_JSON_FORMAT) || false;
+// Add custom levels to winston
+winston.addColors(customLevels.colors);
+
+// const raw = parseBooleanFromText(process?.env?.LOG_JSON_FORMAT) || false;
 
 // Set default log level to info to allow regular logs, but still filter service logs
 const isDebugMode = (process?.env?.LOG_LEVEL || "").toLowerCase() === "debug";
@@ -165,209 +149,137 @@ const effectiveLogLevel = isDebugMode
   ? "debug"
   : process?.env?.DEFAULT_LOG_LEVEL || "info";
 
-// Create a function to generate the pretty configuration
-const createPrettyConfig = () => ({
-  colorize: true,
-  translateTime: "yyyy-mm-dd HH:MM:ss",
-  ignore: "pid,hostname",
-  levelColors: {
-    60: "red", // fatal
-    50: "red", // error
-    40: "yellow", // warn
-    30: "blue", // info
-    29: "green", // log
-    28: "cyan", // progress
-    27: "greenBright", // success
-    20: "magenta", // debug
-    10: "grey", // trace
-    "*": "white", // default for any unspecified level
-  },
-  customPrettifiers: {
-    level: (inputData: any) => {
-      let level;
-      if (typeof inputData === "object" && inputData !== null) {
-        level = inputData.level || inputData.value;
-      } else {
-        level = inputData;
-      }
+/**
+ * Creates a winston format for pretty printing logs with custom colors and formatting.
+ * @returns {winston.Format} The winston format for pretty printing
+ */
+const createPrettyFormat = () => {
+  return winston.format.combine(
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    winston.format.colorize({ all: true }),
+    winston.format.printf(({ timestamp, level, message, ...meta }) => {
+      const cleanMessage =
+        typeof message === "string"
+          ? message.replace(/ERROR \([^)]+\):/g, "ERROR:")
+          : message;
 
-      const levelNames: Record<number, string> = {
-        10: "TRACE",
-        20: "DEBUG",
-        27: "SUCCESS",
-        28: "PROGRESS",
-        29: "LOG",
-        30: "INFO",
-        40: "WARN",
-        50: "ERROR",
-        60: "FATAL",
-      };
+      // Include metadata if present
+      const metaString =
+        Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
 
-      if (typeof level === "number") {
-        return levelNames[level] || `LEVEL${level}`;
-      }
-
-      if (level === undefined || level === null) {
-        return "UNKNOWN";
-      }
-
-      return String(level).toUpperCase();
-    },
-    // Add a custom prettifier for error messages
-    msg: (msg: string) => {
-      // Replace "ERROR (TypeError):" pattern with just "ERROR:"
-      return msg.replace(/ERROR \([^)]+\):/g, "ERROR:");
-    },
-  },
-  messageFormat: "{msg}",
-});
-
-const createStream = async () => {
-  if (raw) {
-    return undefined;
-  }
-  // dynamically import pretty to avoid importing it in the browser
-  const pretty = await import("pino-pretty");
-  return pretty.default(createPrettyConfig());
+      return `${timestamp} ${level}: ${cleanMessage}${metaString}`;
+    })
+  );
 };
 
-// Create options with appropriate level
-const options = {
-  level: effectiveLogLevel, // Use more restrictive level unless in debug mode
-  customLevels,
-  hooks: {
-    logMethod(
-      inputArgs: [string | Record<string, unknown>, ...unknown[]],
-      method: LogFn,
-    ): void {
-      const [arg1, ...rest] = inputArgs;
-      if (process.env.SENTRY_LOGGING !== "false") {
-        if (arg1 instanceof Error) {
-          Sentry.captureException(arg1);
-        } else {
-          for (const item of rest) {
-            if (item instanceof Error) {
-              Sentry.captureException(item);
-            }
-          }
-        }
-      }
+/**
+ * Creates a winston format for JSON output.
+ * @returns {winston.Format} The winston format for JSON output
+ */
+const createJSONFormat = () => {
+  return winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  );
+};
 
-      const formatError = (err: Error) => ({
-        message: `(${err.name}) ${err.message}`,
-        stack: err.stack?.split("\n").map((line) => line.trim()),
+// Create the in-memory transport
+const inMemoryTransport = new InMemoryTransport();
+
+// Create winston logger with custom levels and transports
+const createWinstonLogger = (bindings: any | boolean = false) => {
+  const transports: winston.transport[] = [
+    inMemoryTransport,
+    new winston.transports.Console({
+      format: createPrettyFormat(),
+    }),
+  ];
+
+  // Add console transport if not in raw mode
+  // if (!raw) {
+  //   const consoleTransport = new winston.transports.Console({
+  //     format: createPrettyFormat(),
+  //   });
+  //   transports.push(consoleTransport);
+  //   inMemoryTransport.setPrettyTransport(consoleTransport);
+  // } else {
+  //   const jsonTransport = new winston.transports.Console({
+  //     format: createJSONFormat(),
+  //   });
+  //   transports.push(jsonTransport);
+  //   inMemoryTransport.setPrettyTransport(jsonTransport);
+  // }
+
+  const logger = winston.createLogger({
+    level: effectiveLogLevel,
+    transports,
+    defaultMeta: bindings || {},
+  });
+
+  // // Add Sentry integration and error formatting
+  const originalLog = logger.log.bind(logger);
+  logger.log = (level: any, message?: any, meta?: any) => {
+    // Handle Sentry logging
+    if (process.env.SENTRY_LOGGING !== "false") {
+      if (message instanceof Error) {
+        Sentry.captureException(message);
+      } else if (meta instanceof Error) {
+        Sentry.captureException(meta);
+      }
+    }
+
+    // Format errors
+    const formatError = (err: Error) => ({
+      message: `(${err.name}) ${err.message}`,
+      stack: err.stack?.split("\n").map((line) => line.trim()),
+    });
+
+    // Handle different argument patterns
+    if (typeof level === "object" && level.level) {
+      // If level is actually a log object
+      return originalLog(level);
+    }
+
+    if (message instanceof Error) {
+      return originalLog(level, message.message, {
+        error: formatError(message),
+        ...meta,
       });
+    }
 
-      if (typeof arg1 === "object") {
-        if (arg1 instanceof Error) {
-          method.apply(this, [
-            {
-              error: formatError(arg1),
-            },
-          ]);
-        } else {
-          const messageParts = rest.map((arg) =>
-            typeof arg === "string" ? arg : JSON.stringify(arg),
-          );
-          const message = messageParts.join(" ");
-          method.apply(this, [arg1, message]);
-        }
-      } else {
-        const context = {};
-        const messageParts = [arg1, ...rest].map((arg) => {
-          if (arg instanceof Error) {
-            return formatError(arg);
-          }
-          return typeof arg === "string" ? arg : arg;
-        });
-        const message = messageParts
-          .filter((part) => typeof part === "string")
-          .join(" ");
-        const jsonParts = messageParts.filter(
-          (part) => typeof part === "object",
-        );
+    if (meta instanceof Error) {
+      return originalLog(level, message, {
+        error: formatError(meta),
+      });
+    }
 
-        Object.assign(context, ...jsonParts);
+    return originalLog(level, message, meta);
+  };
 
-        method.apply(this, [context, message]);
-      }
-    },
-  },
-};
-
-// allow runtime logger to inherent options set here
-const createLogger = (bindings: any | boolean = false) => {
-  const opts: any = { ...options }; // shallow copy
-  if (bindings) {
-    //opts.level = process.env.LOG_LEVEL || 'info'
-    opts.base = bindings; // shallow change
-    opts.transport = {
-      target: "pino-pretty", // this is just a string, not a dynamic import
-      options: {
-        colorize: true,
-        translateTime: "SYS:standard",
-        ignore: "pid,hostname",
-      },
-    };
-  }
-  const logger = pino(opts);
   return logger;
 };
 
-// Create basic logger initially
-let logger = pino(options);
 // Add type for logger with clear method
-interface LoggerWithClear extends pino.Logger {
-  clear: () => void;
-}
+interface LoggerWithClear extends winston.Logger {}
 
-// Enhance logger with custom destination in Node.js environment
-if (typeof process !== "undefined") {
-  // Create the destination with in-memory logging
-  // Instead of async initialization, initialize synchronously to avoid race conditions
-  let stream = null;
+// Create the main logger
+const logger = createWinstonLogger() as LoggerWithClear;
 
-  if (!raw) {
-    // If we're in a Node.js environment where require is available, use require for pino-pretty
-    // This will ensure synchronous loading
-    try {
-      const pretty = require("pino-pretty");
-      stream = pretty.default ? pretty.default(createPrettyConfig()) : null;
-    } catch (e) {
-      // Fall back to async loading if synchronous loading fails
-      createStream().then((prettyStream) => {
-        const destination = new InMemoryDestination(prettyStream);
-        logger = pino(options, destination);
-        (logger as unknown)[Symbol.for("pino-destination")] = destination;
+// Add clear method to logger
+logger.clear = () => {
+  inMemoryTransport.clear();
+  return logger;
+};
 
-        // Add clear method to logger
-        (logger as unknown as LoggerWithClear).clear = () => {
-          const destination = (logger as unknown)[
-            Symbol.for("pino-destination")
-          ];
-          if (destination instanceof InMemoryDestination) {
-            destination.clear();
-          }
-        };
-      });
-    }
-  }
-
-  // If stream was created synchronously, use it now
-  if (stream !== null || raw) {
-    const destination = new InMemoryDestination(stream);
-    logger = pino(options, destination);
-    (logger as unknown)[Symbol.for("pino-destination")] = destination;
-
-    // Add clear method to logger
-    (logger as unknown as LoggerWithClear).clear = () => {
-      const destination = (logger as unknown)[Symbol.for("pino-destination")];
-      if (destination instanceof InMemoryDestination) {
-        destination.clear();
-      }
-    };
-  }
-}
+/**
+ * Creates a logger instance with optional bindings.
+ * @param {any | boolean} bindings - Optional bindings to add to all log messages
+ * @returns {winston.Logger} A winston logger instance
+ */
+const createLogger = (bindings: any | boolean = false) => {
+  return createWinstonLogger(bindings);
+};
 
 export { createLogger, logger };
 

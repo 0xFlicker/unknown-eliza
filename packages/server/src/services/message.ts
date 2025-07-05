@@ -10,8 +10,8 @@ import {
   type Memory,
   type Plugin,
   type UUID,
-} from '@elizaos/core';
-import internalMessageBus from '../bus'; // Import the bus
+} from "@elizaos/core";
+import internalMessageBus from "../bus"; // Import the bus
 
 // This interface defines the structure of messages coming from the server
 export interface MessageServiceMessage {
@@ -30,10 +30,13 @@ export interface MessageServiceMessage {
 }
 
 export class MessageBusService extends Service {
-  static serviceType = 'message-bus-service';
-  capabilityDescription = 'Manages connection and message synchronization with the message server.';
+  static serviceType = "message-bus-service";
+  capabilityDescription =
+    "Manages connection and message synchronization with the message server.";
 
-  private boundHandleIncomingMessage: (message: MessageServiceMessage) => Promise<void>;
+  private boundHandleIncomingMessage: (
+    message: MessageServiceMessage
+  ) => Promise<void>;
   private boundHandleServerAgentUpdate: (data: any) => Promise<void>;
   private boundHandleMessageDeleted: (data: any) => Promise<void>;
   private boundHandleChannelCleared: (data: any) => Promise<void>;
@@ -63,10 +66,13 @@ export class MessageBusService extends Service {
     logger.info(
       `[${this.runtime.character.name}] MessageBusService: Subscribing to internal message bus for 'new_message', 'message_deleted', and 'channel_cleared' events.`
     );
-    internalMessageBus.on('new_message', this.boundHandleIncomingMessage);
-    internalMessageBus.on('server_agent_update', this.boundHandleServerAgentUpdate);
-    internalMessageBus.on('message_deleted', this.boundHandleMessageDeleted);
-    internalMessageBus.on('channel_cleared', this.boundHandleChannelCleared);
+    internalMessageBus.on("new_message", this.boundHandleIncomingMessage);
+    internalMessageBus.on(
+      "server_agent_update",
+      this.boundHandleServerAgentUpdate
+    );
+    internalMessageBus.on("message_deleted", this.boundHandleMessageDeleted);
+    internalMessageBus.on("channel_cleared", this.boundHandleChannelCleared);
 
     // Initialize by fetching servers this agent belongs to
     await this.fetchAgentServers();
@@ -84,7 +90,7 @@ export class MessageBusService extends Service {
       this.validChannelIds.clear();
 
       // Include the default server ID if not already in subscribed servers
-      const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID;
+      const DEFAULT_SERVER_ID = "00000000-0000-0000-0000-000000000000" as UUID;
       const serversToCheck = new Set(this.subscribedServers);
       serversToCheck.add(DEFAULT_SERVER_ID);
 
@@ -101,7 +107,11 @@ export class MessageBusService extends Service {
           });
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data?.channels && Array.isArray(data.data.channels)) {
+            if (
+              data.success &&
+              data.data?.channels &&
+              Array.isArray(data.data.channels)
+            ) {
               // Add channel IDs to the set
               data.data.channels.forEach((channel: any) => {
                 if (channel.id && validateUuid(channel.id)) {
@@ -216,7 +226,8 @@ export class MessageBusService extends Service {
         if (data.success && data.data?.servers) {
           this.subscribedServers = new Set(data.data.servers);
           // Always include the default server
-          const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID;
+          const DEFAULT_SERVER_ID =
+            "00000000-0000-0000-0000-000000000000" as UUID;
           this.subscribedServers.add(DEFAULT_SERVER_ID);
           logger.info(
             `[${this.runtime.character.name}] MessageBusService: Agent is subscribed to ${this.subscribedServers.size} servers (including default server)`
@@ -224,7 +235,8 @@ export class MessageBusService extends Service {
         }
       } else {
         // Even if the request fails, ensure we're subscribed to the default server
-        const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID;
+        const DEFAULT_SERVER_ID =
+          "00000000-0000-0000-0000-000000000000" as UUID;
         this.subscribedServers.add(DEFAULT_SERVER_ID);
         logger.warn(
           `[${this.runtime.character.name}] MessageBusService: Failed to fetch agent servers, but added default server`
@@ -236,7 +248,7 @@ export class MessageBusService extends Service {
         error
       );
       // Even on error, ensure we're subscribed to the default server
-      const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID;
+      const DEFAULT_SERVER_ID = "00000000-0000-0000-0000-000000000000" as UUID;
       this.subscribedServers.add(DEFAULT_SERVER_ID);
       logger.info(
         `[${this.runtime.character.name}] MessageBusService: Added default server after error`
@@ -249,14 +261,14 @@ export class MessageBusService extends Service {
       return; // Not for this agent
     }
 
-    if (data.type === 'agent_added_to_server') {
+    if (data.type === "agent_added_to_server") {
       this.subscribedServers.add(data.serverId);
       logger.info(
         `[${this.runtime.character.name}] MessageBusService: Agent added to server ${data.serverId}`
       );
       // Refresh channel IDs to include channels from the new server
       await this.fetchValidChannelIds();
-    } else if (data.type === 'agent_removed_from_server') {
+    } else if (data.type === "agent_removed_from_server") {
       this.subscribedServers.delete(data.serverId);
       logger.info(
         `[${this.runtime.character.name}] MessageBusService: Agent removed from server ${data.serverId}`
@@ -266,24 +278,19 @@ export class MessageBusService extends Service {
     }
   }
 
-  private async validateServerSubscription(message: MessageServiceMessage): Promise<boolean> {
+  private async validateServerSubscription(
+    message: MessageServiceMessage
+  ): Promise<boolean> {
     if (!this.subscribedServers.has(message.server_id)) {
-      logger.debug(
-        `[${this.runtime.character.name}] MessageBusService: Agent not subscribed to server ${message.server_id}, ignoring message`
-      );
       return false;
     }
-    logger.info(
-      `[${this.runtime.character.name}] MessageBusService: Passed server subscription check for ${message.server_id}`
-    );
     return true;
   }
 
-  private async validateNotSelfMessage(message: MessageServiceMessage): Promise<boolean> {
+  private async validateNotSelfMessage(
+    message: MessageServiceMessage
+  ): Promise<boolean> {
     if (message.author_id === this.runtime.agentId) {
-      logger.debug(
-        `[${this.runtime.character.name}] MessageBusService: Agent is the author of the message, ignoring message`
-      );
       return false;
     }
     return true;
@@ -298,7 +305,9 @@ export class MessageBusService extends Service {
     try {
       await this.runtime.ensureWorldExists({
         id: agentWorldId,
-        name: message.metadata?.serverName || `Server ${message.server_id.substring(0, 8)}`,
+        name:
+          message.metadata?.serverName ||
+          `Server ${message.server_id.substring(0, 8)}`,
         agentId: this.runtime.agentId,
         serverId: message.server_id,
         metadata: {
@@ -306,7 +315,7 @@ export class MessageBusService extends Service {
         },
       });
     } catch (error: any) {
-      if (error.message && error.message.includes('worlds_pkey')) {
+      if (error.message && error.message.includes("worlds_pkey")) {
         logger.debug(
           `[${this.runtime.character.name}] MessageBusService: World ${agentWorldId} already exists, continuing with message processing`
         );
@@ -318,19 +327,21 @@ export class MessageBusService extends Service {
     try {
       await this.runtime.ensureRoomExists({
         id: agentRoomId,
-        name: message.metadata?.channelName || `Channel ${message.channel_id.substring(0, 8)}`,
+        name:
+          message.metadata?.channelName ||
+          `Channel ${message.channel_id.substring(0, 8)}`,
         agentId: this.runtime.agentId,
         worldId: agentWorldId,
         channelId: message.channel_id,
         serverId: message.server_id,
-        source: message.source_type || 'central-bus',
+        source: message.source_type || "central-bus",
         type: message.metadata?.channelType || ChannelType.GROUP,
         metadata: {
           ...(message.metadata?.channelMetadata || {}),
         },
       });
     } catch (error: any) {
-      if (error.message && error.message.includes('rooms_pkey')) {
+      if (error.message && error.message.includes("rooms_pkey")) {
         logger.debug(
           `[${this.runtime.character.name}] MessageBusService: Room ${agentRoomId} already exists, continuing with message processing`
         );
@@ -342,14 +353,22 @@ export class MessageBusService extends Service {
     return { agentWorldId, agentRoomId };
   }
 
-  private async ensureAuthorEntityExists(message: MessageServiceMessage): Promise<UUID> {
-    const agentAuthorEntityId = createUniqueUuid(this.runtime, message.author_id);
+  private async ensureAuthorEntityExists(
+    message: MessageServiceMessage
+  ): Promise<UUID> {
+    const agentAuthorEntityId = createUniqueUuid(
+      this.runtime,
+      message.author_id
+    );
 
     const authorEntity = await this.runtime.getEntityById(agentAuthorEntityId);
     if (!authorEntity) {
       await this.runtime.createEntity({
         id: agentAuthorEntityId,
-        names: [message.author_display_name || `User-${message.author_id.substring(0, 8)}`],
+        names: [
+          message.author_display_name ||
+            `User-${message.author_id.substring(0, 8)}`,
+        ],
         agentId: this.runtime.agentId,
         metadata: {
           author_id: message.author_id,
@@ -369,7 +388,7 @@ export class MessageBusService extends Service {
   ): Memory {
     const messageContent: Content = {
       text: message.content,
-      source: message.source_type || 'central-bus',
+      source: message.source_type || "central-bus",
       attachments: message.metadata?.attachments,
       inReplyTo: message.in_reply_to_message_id
         ? createUniqueUuid(this.runtime, message.in_reply_to_message_id)
@@ -385,12 +404,14 @@ export class MessageBusService extends Service {
       content: messageContent,
       createdAt: message.created_at,
       metadata: {
-        type: 'message',
-        source: message.source_type || 'central-bus',
+        type: "message",
+        source: message.source_type || "central-bus",
         sourceId: message.id,
         raw: {
           ...message.raw_message,
-          senderName: message.author_display_name || `User-${message.author_id.substring(0, 8)}`,
+          senderName:
+            message.author_display_name ||
+            `User-${message.author_id.substring(0, 8)}`,
           senderId: message.author_id,
         },
       },
@@ -400,31 +421,26 @@ export class MessageBusService extends Service {
   public async handleIncomingMessage(message: MessageServiceMessage) {
     logger.info(
       `[${this.runtime.character.name}] MessageBusService: Received message from central bus`,
-      { messageId: message.id }
+      {
+        messageId: message.id,
+        channelId: message.channel_id,
+        authorId: message.author_id,
+      }
     );
 
     const participants = await this.getChannelParticipants(message.channel_id);
 
     if (!participants.includes(this.runtime.agentId)) {
-      logger.info(
-        `[${this.runtime.character.name}] MessageBusService: Agent not a participant in channel ${message.channel_id}, ignoring message`
-      );
       return;
     }
-
-    logger.info(
-      `[${this.runtime.character.name} - ${this.runtime.agentId}] MessageBusService: Agent is a participant in channel ${message.channel_id}, proceeding with message processing`
-    );
-
     try {
-      if (!(await this.validateServerSubscription(message))) return;
-      if (!(await this.validateNotSelfMessage(message))) return;
+      const serverCheck = await this.validateServerSubscription(message);
+      if (!serverCheck) return;
 
-      logger.info(
-        `[${this.runtime.character.name}] MessageBusService: All checks passed, proceeding to create agent memory and emit MESSAGE_RECEIVED event`
-      );
-
-      const { agentWorldId, agentRoomId } = await this.ensureWorldAndRoomExist(message);
+      const selfCheck = await this.validateNotSelfMessage(message);
+      if (!selfCheck) return;
+      const { agentWorldId, agentRoomId } =
+        await this.ensureWorldAndRoomExist(message);
       const agentAuthorEntityId = await this.ensureAuthorEntityExists(message);
       const agentMemory = this.createAgentMemory(
         message,
@@ -434,19 +450,16 @@ export class MessageBusService extends Service {
       );
 
       // Check if this memory already exists (in case of duplicate processing)
-      const existingMemory = await this.runtime.getMemoryById(agentMemory.id as UUID);
+      const existingMemory = await this.runtime.getMemoryById(
+        agentMemory.id as UUID
+      );
       if (existingMemory) {
-        logger.debug(
-          `[${this.runtime.character.name}] MessageBusService: Memory ${agentMemory.id} already exists, skipping duplicate processing`
-        );
         return;
       }
 
-      const callbackForCentralBus = async (responseContent: Content): Promise<Memory[]> => {
-        logger.info(
-          `[${this.runtime.character.name}] Agent generated response for message. Preparing to send back to bus.`
-        );
-
+      const callbackForCentralBus = async (
+        responseContent: Content
+      ): Promise<Memory[]> => {
         await this.runtime.createMemory(
           {
             entityId: this.runtime.agentId,
@@ -455,7 +468,7 @@ export class MessageBusService extends Service {
             worldId: agentWorldId,
             agentId: this.runtime.agentId,
           },
-          'messages'
+          "messages"
         );
 
         // Send response to central bus
@@ -510,7 +523,7 @@ export class MessageBusService extends Service {
         await this.runtime.emitEvent(EventType.MESSAGE_DELETED, {
           runtime: this.runtime,
           message: existingMemory,
-          source: 'message-bus-service',
+          source: "message-bus-service",
         });
 
         logger.debug(
@@ -540,7 +553,7 @@ export class MessageBusService extends Service {
 
       // Get all memories for this room and emit deletion events for each
       const memories = await this.runtime.getMemoriesByRoomIds({
-        tableName: 'messages',
+        tableName: "messages",
         roomIds: [agentRoomId],
       });
 
@@ -551,7 +564,7 @@ export class MessageBusService extends Service {
       // Emit CHANNEL_CLEARED event to bootstrap which will handle bulk deletion
       await this.runtime.emitEvent(EventType.CHANNEL_CLEARED, {
         runtime: this.runtime,
-        source: 'message-bus-service',
+        source: "message-bus-service",
         roomId: agentRoomId,
         channelId: data.channelId,
         memoryCount: memories.length,
@@ -591,11 +604,13 @@ export class MessageBusService extends Service {
 
       // If agent decides to IGNORE or has no valid text, notify completion and skip sending response
       const shouldSkip =
-        content.actions?.includes('IGNORE') || !content.text || content.text.trim() === '';
+        content.actions?.includes("IGNORE") ||
+        !content.text ||
+        content.text.trim() === "";
 
       if (shouldSkip) {
         logger.info(
-          `[${this.runtime.character.name}] MessageBusService: Skipping response (reason: ${content.actions?.includes('IGNORE') ? 'IGNORE action' : 'No text'})`
+          `[${this.runtime.character.name}] MessageBusService: Skipping response (reason: ${content.actions?.includes("IGNORE") ? "IGNORE action" : "No text"})`
         );
         return;
       }
@@ -603,9 +618,12 @@ export class MessageBusService extends Service {
       // Resolve reply-to message ID from agent memory metadata
       let centralInReplyToRootMessageId: UUID | undefined = undefined;
       if (inReplyToAgentMemoryId) {
-        const originalAgentMemory = await this.runtime.getMemoryById(inReplyToAgentMemoryId);
+        const originalAgentMemory = await this.runtime.getMemoryById(
+          inReplyToAgentMemoryId
+        );
         if (originalAgentMemory?.metadata?.sourceId) {
-          centralInReplyToRootMessageId = originalAgentMemory.metadata.sourceId as UUID;
+          centralInReplyToRootMessageId = originalAgentMemory.metadata
+            .sourceId as UUID;
         }
       }
 
@@ -615,7 +633,7 @@ export class MessageBusService extends Service {
         author_id: this.runtime.agentId, // This needs careful consideration: is it the agent's core ID or a specific central identity for the agent?
         content: content.text,
         in_reply_to_message_id: centralInReplyToRootMessageId,
-        source_type: 'agent_response',
+        source_type: "agent_response",
         raw_message: {
           text: content.text,
           thought: content.thought,
@@ -628,7 +646,8 @@ export class MessageBusService extends Service {
           channelType: originalMessage?.metadata?.channelType || room?.type,
           isDm:
             originalMessage?.metadata?.isDm ||
-            (originalMessage?.metadata?.channelType || room?.type) === ChannelType.DM,
+            (originalMessage?.metadata?.channelType || room?.type) ===
+              ChannelType.DM,
         },
       };
 
@@ -640,10 +659,10 @@ export class MessageBusService extends Service {
       // Actual fetch to the central server API
       const baseUrl = this.getCentralMessageServerUrl();
       // Use URL constructor for safe URL building
-      const submitUrl = new URL('/api/messaging/submit', baseUrl);
+      const submitUrl = new URL("/api/messaging/submit", baseUrl);
       const serverApiUrl = submitUrl.toString();
       const response = await fetch(serverApiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
         body: JSON.stringify(payloadToServer),
       });
@@ -665,9 +684,12 @@ export class MessageBusService extends Service {
     if (!channelId || !serverId) return;
 
     try {
-      const completeUrl = new URL('/api/messaging/complete', this.getCentralMessageServerUrl());
+      const completeUrl = new URL(
+        "/api/messaging/complete",
+        this.getCentralMessageServerUrl()
+      );
       await fetch(completeUrl.toString(), {
-        method: 'POST',
+        method: "POST",
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ channel_id: channelId, server_id: serverId }),
       });
@@ -681,19 +703,19 @@ export class MessageBusService extends Service {
 
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Add authentication header if ELIZA_SERVER_AUTH_TOKEN is configured
     const serverAuthToken = process.env.ELIZA_SERVER_AUTH_TOKEN;
     if (serverAuthToken) {
-      headers['X-API-KEY'] = serverAuthToken;
+      headers["X-API-KEY"] = serverAuthToken;
     }
 
     return headers;
   }
 
-  getCentralMessageServerUrl(): string {
+  public getCentralMessageServerUrl(): string {
     const serverPort = process.env.SERVER_PORT;
     const envUrl = process.env.CENTRAL_MESSAGE_SERVER_URL;
 
@@ -704,13 +726,15 @@ export class MessageBusService extends Service {
       if (!isNaN(portNum) && portNum > 0 && portNum <= 65535) {
         validatedPort = portNum;
       } else {
-        logger.warn(`[MessageBusService] Invalid SERVER_PORT value: ${serverPort}`);
+        logger.warn(
+          `[MessageBusService] Invalid SERVER_PORT value: ${serverPort}`
+        );
       }
     }
 
     const defaultUrl = validatedPort
       ? `http://localhost:${validatedPort}`
-      : 'http://localhost:3000';
+      : "http://localhost:3000";
     const baseUrl = envUrl ?? defaultUrl;
 
     // Strict validation to prevent SSRF attacks
@@ -718,7 +742,7 @@ export class MessageBusService extends Service {
       const url = new URL(baseUrl);
 
       // Only allow HTTP/HTTPS protocols
-      if (!['http:', 'https:'].includes(url.protocol)) {
+      if (!["http:", "https:"].includes(url.protocol)) {
         logger.warn(
           `[MessageBusService] Unsafe protocol in CENTRAL_MESSAGE_SERVER_URL: ${url.protocol}`
         );
@@ -726,7 +750,7 @@ export class MessageBusService extends Service {
       }
 
       // Only allow safe localhost variants and block private/internal IPs
-      const allowedHosts = ['localhost', '127.0.0.1', '::1'];
+      const allowedHosts = ["localhost", "127.0.0.1", "::1"];
       if (!allowedHosts.includes(url.hostname)) {
         logger.warn(
           `[MessageBusService] Unsafe hostname in CENTRAL_MESSAGE_SERVER_URL: ${url.hostname}`
@@ -746,11 +770,11 @@ export class MessageBusService extends Service {
       }
 
       // Remove any potentially dangerous URL components
-      url.username = '';
-      url.password = '';
-      url.hash = '';
+      url.username = "";
+      url.password = "";
+      url.hash = "";
 
-      return url.toString().replace(/\/$/, ''); // Remove trailing slash
+      return url.toString().replace(/\/$/, ""); // Remove trailing slash
     } catch (error) {
       logger.error(
         `[MessageBusService] Invalid URL format in CENTRAL_MESSAGE_SERVER_URL: ${baseUrl}`
@@ -760,17 +784,22 @@ export class MessageBusService extends Service {
   }
 
   async stop(): Promise<void> {
-    logger.info(`[${this.runtime.character.name}] MessageBusService stopping...`);
-    internalMessageBus.off('new_message', this.boundHandleIncomingMessage);
-    internalMessageBus.off('server_agent_update', this.boundHandleServerAgentUpdate);
-    internalMessageBus.off('message_deleted', this.boundHandleMessageDeleted);
-    internalMessageBus.off('channel_cleared', this.boundHandleChannelCleared);
+    logger.info(
+      `[${this.runtime.character.name}] MessageBusService stopping...`
+    );
+    internalMessageBus.off("new_message", this.boundHandleIncomingMessage);
+    internalMessageBus.off(
+      "server_agent_update",
+      this.boundHandleServerAgentUpdate
+    );
+    internalMessageBus.off("message_deleted", this.boundHandleMessageDeleted);
+    internalMessageBus.off("channel_cleared", this.boundHandleChannelCleared);
   }
 }
 
 // Minimal plugin definition to register the service
 export const messageBusConnectorPlugin: Plugin = {
-  name: 'internal-message-bus-connector',
-  description: 'Internal service to connect agent to the message bus.',
+  name: "internal-message-bus-connector",
+  description: "Internal service to connect agent to the message bus.",
   services: [MessageBusService],
 };

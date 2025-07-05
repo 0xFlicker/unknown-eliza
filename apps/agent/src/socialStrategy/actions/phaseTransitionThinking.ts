@@ -10,7 +10,6 @@ import {
 } from "@elizaos/core";
 import { StrategyService } from "../service/addPlayer";
 import { Phase } from "../../house/types";
-import { GameEventManager } from "../../house/events/manager";
 import { GameEventType } from "../../house/events/types";
 import { CoordinationService } from "../../house/coordination";
 
@@ -52,7 +51,13 @@ interface PhaseTransitionAnalysis {
     keyMessages: string[];
     playerTargets: string[];
   };
-  emotionalState: "confident" | "nervous" | "suspicious" | "optimistic" | "defeated" | "determined";
+  emotionalState:
+    | "confident"
+    | "nervous"
+    | "suspicious"
+    | "optimistic"
+    | "defeated"
+    | "determined";
   readyForTransition: boolean;
 }
 
@@ -127,21 +132,27 @@ Respond with a detailed analysis in the following JSON format:
  */
 export const phaseTransitionThinkingAction: Action = {
   name: "PHASE_TRANSITION_THINKING",
-  description: "Perform strategic analysis and preparation during game phase transitions",
-  
+  description:
+    "Perform strategic analysis and preparation during game phase transitions",
+
   examples: [], // This action is event-triggered, not conversational
-  
-  async validate(runtime: IAgentRuntime, message: Memory, state?: State): Promise<boolean> {
+
+  async validate(
+    runtime: IAgentRuntime,
+    message: Memory,
+    state?: State
+  ): Promise<boolean> {
     // This action is only triggered by events, not by user messages
     // Check if this is in response to a STRATEGIC_THINKING_REQUIRED event
-    const isStrategicThinking = message.content?.text?.includes("STRATEGIC_THINKING_REQUIRED") === true;
-    
+    const isStrategicThinking =
+      message.content?.text?.includes("STRATEGIC_THINKING_REQUIRED") === true;
+
     // console.log(`🧠 [PhaseTransition] Validation check for ${runtime.character?.name}:`, {
     //   messageText: message.content?.text?.substring(0, 100),
     //   isStrategicThinking,
     //   messageId: message.id
     // });
-    
+
     return isStrategicThinking;
   },
 
@@ -151,12 +162,18 @@ export const phaseTransitionThinkingAction: Action = {
     state?: State
   ): Promise<boolean> {
     try {
-      logger.info(`${runtime.character?.name} performing phase transition thinking`);
+      logger.info(
+        `${runtime.character?.name} performing phase transition thinking`
+      );
 
       // Get strategy service
-      const strategyService = runtime.getService("social-strategy") as StrategyService;
+      const strategyService = runtime.getService(
+        "social-strategy"
+      ) as StrategyService;
       if (!strategyService) {
-        logger.warn("StrategyService not available for phase transition thinking");
+        logger.warn(
+          "StrategyService not available for phase transition thinking"
+        );
         return false;
       }
 
@@ -169,8 +186,8 @@ export const phaseTransitionThinkingAction: Action = {
 
       // Get recent conversation history for analysis
       const conversationHistory = await getRecentConversationHistory(
-        runtime, 
-        message.roomId, 
+        runtime,
+        message.roomId,
         context.fromPhase
       );
 
@@ -187,20 +204,20 @@ export const phaseTransitionThinkingAction: Action = {
           toPhase: context.toPhase,
           round: context.round.toString(),
           conversationHistory,
-          strategicContext
-        }
+          strategicContext,
+        },
       });
 
       logger.debug("Generating phase transition analysis", {
         fromPhase: context.fromPhase,
         toPhase: context.toPhase,
-        conversationLength: conversationHistory.length
+        conversationLength: conversationHistory.length,
       });
 
       // Generate strategic analysis using AI
       const analysisResult = await runtime.useModel(ModelType.OBJECT_SMALL, {
         prompt,
-        temperature: 0.7
+        temperature: 0.7,
       });
 
       if (!analysisResult) {
@@ -209,27 +226,34 @@ export const phaseTransitionThinkingAction: Action = {
       }
 
       const analysis = analysisResult as PhaseTransitionAnalysis;
-      
+
       // Process and store the strategic analysis
-      await processTransitionAnalysis(runtime, strategyService, analysis, context);
+      await processTransitionAnalysis(
+        runtime,
+        strategyService,
+        analysis,
+        context
+      );
 
       // Signal that strategic thinking is complete
       await signalStrategicThinkingComplete(runtime, message.roomId, context);
 
-      logger.info(`Phase transition thinking completed for ${runtime.character?.name}`, {
-        fromPhase: context.fromPhase,
-        toPhase: context.toPhase,
-        readiness: analysis.phaseAssessment.readiness,
-        emotionalState: analysis.emotionalState
-      });
+      logger.info(
+        `Phase transition thinking completed for ${runtime.character?.name}`,
+        {
+          fromPhase: context.fromPhase,
+          toPhase: context.toPhase,
+          readiness: analysis.phaseAssessment.readiness,
+          emotionalState: analysis.emotionalState,
+        }
+      );
 
       return true;
-
     } catch (error) {
       logger.error("Error in phase transition thinking:", error);
       return false;
     }
-  }
+  },
 };
 
 /**
@@ -257,7 +281,7 @@ function extractPhaseContext(message: Memory): {
       fromPhase: fromPhaseMatch[1] as Phase,
       toPhase: toPhaseMatch[1] as Phase,
       round: parseInt(roundMatch[1]),
-      gameId: gameIdMatch[1] as UUID
+      gameId: gameIdMatch[1] as UUID,
     };
   } catch (error) {
     logger.error("Error extracting phase context:", error);
@@ -279,7 +303,7 @@ async function getRecentConversationHistory(
       roomId,
       count: 50, // Last 50 messages
       unique: false,
-      tableName: "memories"
+      tableName: "memories",
     });
 
     if (!memories || memories.length === 0) {
@@ -288,8 +312,8 @@ async function getRecentConversationHistory(
 
     // Filter and format conversations
     const conversations = memories
-      .filter(m => m.content?.text && m.content.source !== runtime.agentId)
-      .map(m => `${m.content.source}: ${m.content.text}`)
+      .filter((m) => m.content?.text && m.content.source !== runtime.agentId)
+      .map((m) => `${m.content.source}: ${m.content.text}`)
       .slice(-20) // Last 20 relevant messages
       .join("\n");
 
@@ -306,7 +330,10 @@ async function getRecentConversationHistory(
 function formatStrategicContext(strategicState: any): string {
   try {
     const relationships = Array.from(strategicState.relationships.values())
-      .map((rel: any) => `${rel.playerName}: Trust=${rel.trustLevel}, Threat=${rel.threat}`)
+      .map(
+        (rel: any) =>
+          `${rel.playerName}: Trust=${rel.trustLevel}, Threat=${rel.threat}`
+      )
       .join("\n");
 
     const recentInsights = strategicState.diaryEntries
@@ -351,14 +378,22 @@ async function processTransitionAnalysis(
         playerName: behavior.playerName,
         behavior: behavior.behavior,
         trustChange: behavior.trustChange,
-        threatLevel: behavior.threatLevel
+        threatLevel: behavior.threatLevel,
       });
     }
 
     // Store strategic insights as diary entry
-    const allowedEmotionalStates = ["confident", "nervous", "suspicious", "optimistic", "defeated"] as const;
-    const emotionalState = allowedEmotionalStates.includes(analysis.emotionalState as any) 
-      ? analysis.emotionalState as typeof allowedEmotionalStates[number]
+    const allowedEmotionalStates = [
+      "confident",
+      "nervous",
+      "suspicious",
+      "optimistic",
+      "defeated",
+    ] as const;
+    const emotionalState = allowedEmotionalStates.includes(
+      analysis.emotionalState as any
+    )
+      ? (analysis.emotionalState as (typeof allowedEmotionalStates)[number])
       : "confident"; // Default fallback
 
     await strategyService.addDiaryEntry({
@@ -368,19 +403,18 @@ async function processTransitionAnalysis(
       thoughts: `Phase transition analysis: ${context.fromPhase} → ${context.toPhase}`,
       observations: [
         ...analysis.conversationAnalysis.keyInteractions,
-        ...analysis.strategicShifts.newPriorities
+        ...analysis.strategicShifts.newPriorities,
       ],
       concerns: analysis.conversationAnalysis.detectedThreats,
       opportunities: analysis.nextPhasePreparation.primaryObjectives,
-      strategyShift: analysis.strategicShifts.tacticChanges.join("; ")
+      strategyShift: analysis.strategicShifts.tacticChanges.join("; "),
     });
 
     logger.debug("Processed transition analysis", {
       behaviorUpdates: analysis.conversationAnalysis.playerBehaviors.length,
       strategicShifts: analysis.strategicShifts.newPriorities.length,
-      emotionalState: analysis.emotionalState
+      emotionalState: analysis.emotionalState,
     });
-
   } catch (error) {
     logger.error("Error processing transition analysis:", error);
   }
@@ -396,23 +430,27 @@ async function signalStrategicThinkingComplete(
 ): Promise<void> {
   try {
     // Use coordination service to signal readiness to other agents
-    const coordinationService = runtime.getService("coordination") as CoordinationService;
-    
+    const coordinationService = runtime.getService(
+      "coordination"
+    ) as CoordinationService;
+
     if (coordinationService) {
       await coordinationService.sendAgentReady(
-        'strategic_thinking',
+        "strategic_thinking",
         context.gameId,
         roomId,
-        { 
+        {
           contextData: {
             fromPhase: context.fromPhase,
             toPhase: context.toPhase,
-            round: context.round
-          }
+            round: context.round,
+          },
         }
       );
-      
-      logger.info(`Strategic thinking complete signal sent via coordination for ${runtime.character?.name}`);
+
+      logger.info(
+        `Strategic thinking complete signal sent via coordination for ${runtime.character?.name}`
+      );
     } else {
       // Fallback to local events
       const eventData = {
@@ -422,15 +460,16 @@ async function signalStrategicThinkingComplete(
           roomId,
           playerId: runtime.agentId,
           playerName: runtime.character?.name || "Unknown",
-          readyType: 'strategic_thinking' as const,
-          timestamp: Date.now()
-        }
+          readyType: "strategic_thinking" as const,
+          timestamp: Date.now(),
+        },
       };
 
       await runtime.emitEvent(GameEventType.PLAYER_READY, eventData.payload);
-      logger.info(`Strategic thinking complete signal sent locally for ${runtime.character?.name}`);
+      logger.info(
+        `Strategic thinking complete signal sent locally for ${runtime.character?.name}`
+      );
     }
-
   } catch (error) {
     logger.error("Error signaling strategic thinking complete:", error);
   }

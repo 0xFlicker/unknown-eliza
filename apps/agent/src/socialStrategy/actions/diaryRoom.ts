@@ -7,9 +7,11 @@ import {
   stringToUuid,
   ModelType,
   composePrompt,
+  parseJSONObjectFromText,
 } from "@elizaos/core";
 import { StrategyService } from "../service/addPlayer";
 import { Phase } from "../../house/types";
+import { CoordinationService } from "src/house/coordination";
 
 const logger = elizaLogger;
 
@@ -135,7 +137,7 @@ export const diaryRoomAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State,
+    state?: State
   ): Promise<boolean> => {
     // Only validate that we have a strategy service and a text message
     const strategyService = runtime.getService("social-strategy");
@@ -149,48 +151,21 @@ export const diaryRoomAction: Action = {
       return false;
     }
 
-    const text = message.content.text.toLowerCase();
-    
-    // Check if this is a diary room scenario
-    const isDiaryRoomContext = 
-      text.includes("diary room") ||
-      text.includes("strategic assessment") ||
-      text.includes("strategic thinking") ||
-      text.includes("share your") ||
-      text.includes("what did you learn") ||
-      text.includes("how has your strategy") ||
-      text.includes("what are your plans") ||
-      (text.includes("strategy") && text.includes("private")) ||
-      (text.includes("think") && text.includes("strategy"));
-
-    // logger.debug(`[DiaryRoom] Validation check:`, {
-    //   text: text.substring(0, 100),
-    //   isDiaryRoomContext,
-    //   agentName: runtime.character?.name
-    // });
-    
-    // console.log(`📔 [DiaryRoom] Validation for ${runtime.character?.name}:`, {
-    //   text: text.substring(0, 100),
-    //   isDiaryRoomContext,
-    //   messageId: message.id
-    // });
-
-    return isDiaryRoomContext;
+    return true;
   },
 
-  handler: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-    state?: State,
-  ): Promise<boolean> => {
+  handler: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
     try {
-      // console.log(`📔 [DiaryRoom] Handler executing for ${runtime.character?.name}`, {
-      //   messageText: message.content?.text?.substring(0, 100),
-      //   messageId: message.id
-      // });
-      
+      console.log(
+        `📔 [DiaryRoom] Handler executing for ${runtime.character?.name}`,
+        {
+          messageText: message.content?.text?.substring(0, 100),
+          messageId: message.id,
+        }
+      );
+
       const strategyService = runtime.getService(
-        "social-strategy",
+        "social-strategy"
       ) as StrategyService;
       if (!strategyService) {
         logger.warn("[DiaryRoom] StrategyService not available");
@@ -199,7 +174,6 @@ export const diaryRoomAction: Action = {
       }
 
       const text = message.content?.text || "";
-      const request = parseRequest(text);
 
       // Get current strategic context
       const strategyState = strategyService.getState();
@@ -219,7 +193,7 @@ export const diaryRoomAction: Action = {
       const recentEvents = formatRecentEvents(
         recentMessages,
         entities,
-        runtime.agentId,
+        runtime.agentId
       );
       const strategicStateText = formatStrategicState(strategyState);
 
@@ -229,15 +203,26 @@ export const diaryRoomAction: Action = {
           currentContext,
           recentEvents,
           strategicState: strategicStateText,
-          requestType: request.type,
-          subjectFocus: request.subject ? `Focus: ${request.subject}` : "",
+          requestType: "diary",
+          subjectFocus: "All players",
         },
       });
 
       // Generate diary entry
-      const diaryResponse = (await runtime.useModel(ModelType.OBJECT_SMALL, {
-        prompt,
-      })) as DiaryRoomResponse;
+      const diaryResponsePrompt = await runtime.useModel(
+        ModelType.OBJECT_SMALL,
+        {
+          prompt,
+        }
+      );
+
+      const diaryResponse = parseJSONObjectFromText(
+        diaryResponsePrompt
+      ) as DiaryRoomResponse;
+      if (!diaryResponse) {
+        logger.warn("[DiaryRoom] Failed to parse diary response");
+        return false;
+      }
 
       if (!diaryResponse || !diaryResponse.thoughts) {
         logger.warn("[DiaryRoom] Failed to generate diary entry");
@@ -270,7 +255,14 @@ export const diaryRoomAction: Action = {
       // The diary room is completely private - no public responses
       // Strategic thinking happens silently in the background
 
-      return true;
+      // const coordinationService = runtime.getService<CoordinationService>(
+      //   CoordinationService.serviceType
+      // );
+
+      return {
+        text: diaryResponse.thoughts,
+        actions: ["REPLY"],
+      };
     } catch (error) {
       logger.error("[DiaryRoom] Error creating diary entry:", error);
       return false;
@@ -278,45 +270,18 @@ export const diaryRoomAction: Action = {
   },
 };
 
-function parseRequest(text: string): DiaryRoomRequest {
-  const lowerText = text.toLowerCase();
-
-  let type: "diary" | "reflection" | "analysis" = "diary";
-  if (lowerText.includes("reflect") || lowerText.includes("reflection")) {
-    type = "reflection";
-  } else if (lowerText.includes("analyz") || lowerText.includes("assess")) {
-    type = "analysis";
-  }
-
-  // Extract subject if mentioned
-  let subject: string | undefined;
-  const playerMentionMatch = lowerText.match(/(?:about|on|regarding)\s+(\w+)/);
-  if (playerMentionMatch) {
-    subject = playerMentionMatch[1];
-  }
-
-  const urgent =
-    lowerText.includes("urgent") ||
-    lowerText.includes("immediately") ||
-    lowerText.includes("now") ||
-    lowerText.includes("phase") ||
-    lowerText.includes("changing");
-
-  return { type, subject, urgent };
-}
-
 async function buildCurrentContext(
   strategyState: any,
-  entities: any[],
+  entities: any[]
 ): Promise<string> {
   const alivePlayers = entities.filter(
-    (e) => e.id !== strategyState.agentId,
+    (e) => e.id !== strategyState.agentId
   ).length;
   const allies = Array.from(strategyState.relationships.values()).filter(
-    (rel: any) => rel.trustLevel === "ally",
+    (rel: any) => rel.trustLevel === "ally"
   ).length;
   const threats = Array.from(strategyState.relationships.values()).filter(
-    (rel: any) => rel.trustLevel === "threat" || rel.trustLevel === "enemy",
+    (rel: any) => rel.trustLevel === "threat" || rel.trustLevel === "enemy"
   ).length;
 
   return `Phase: ${strategyState.currentPhase}
@@ -330,7 +295,7 @@ Confidence: ${Math.round(strategyState.analysis.confidenceLevel * 100)}%`;
 function formatRecentEvents(
   messages: Memory[],
   entities: any[],
-  agentId: string,
+  agentId: string
 ): string {
   const recentEvents = messages
     .reverse()
