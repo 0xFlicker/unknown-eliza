@@ -32,7 +32,7 @@ export async function start() {
     },
     IAgentRuntime
   >({
-    dataDir: "./elizaos/data",
+    dataDir: "./.elizaos/data",
     serverPort: 3333,
     context: {
       environment: "production",
@@ -104,12 +104,13 @@ export async function start() {
     metadata: { gameType: "social-strategy" },
   };
 
-  const channelId = await app.createChannel(channelConfig);
-  console.log(`Created channel: ${channelId}`);
-
   // Start the server
   await app.start();
-  console.log("Server started on port 3100");
+
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  const channelId = await app.createChannel(channelConfig);
+  console.log(`Created channel: ${channelId}`);
 
   // Return the app for further use
   return app;

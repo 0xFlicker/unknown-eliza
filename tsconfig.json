@@ -12,8 +12,8 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@elizaos/core": ["packages/core/src"],
-      "@elizaos/core/*": ["packages/core/src/*"]
+      "@elizaos/*": ["packages/*/src"],
+      "src/*": ["apps/agent/src/*"]
     }
   },
   "files": [],

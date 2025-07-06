@@ -19,7 +19,6 @@
     "dist"
   ],
   "dependencies": {
-    "@elizaos/cli": "^1.0.11",
     "@elizaos/core": "^1.0.11",
     "@elizaos/plugin-sql": "^1.0.11",
     "zod": "^3.24.2"

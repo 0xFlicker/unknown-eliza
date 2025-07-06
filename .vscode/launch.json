@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🟢 Debug with Bun (TS paths)",
+      "type": "node",
+      "request": "launch",
+
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--inspect-brk", "--tsconfig-override", "tsconfig.json"],
+
+      "program": "${workspaceFolder}/apps/agent/src/server/dev.ts",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "🟡 Attach to Bun",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "localhost",
+      "restart": false,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

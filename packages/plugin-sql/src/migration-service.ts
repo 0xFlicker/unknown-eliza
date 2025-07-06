@@ -1,6 +1,6 @@
-import { logger, type Plugin } from '@elizaos/core';
-import { runPluginMigrations } from './custom-migrator';
-import type { DrizzleDatabase } from './types';
+import { logger, type Plugin } from "@elizaos/core";
+import { runPluginMigrations } from "./custom-migrator";
+import type { DrizzleDatabase } from "./types";
 
 export class DatabaseMigrationService {
   private db: DrizzleDatabase | null = null;
@@ -12,7 +12,11 @@ export class DatabaseMigrationService {
 
   async initializeWithDatabase(db: DrizzleDatabase): Promise<void> {
     this.db = db;
-    logger.info('DatabaseMigrationService initialized with database');
+    // logger.info("DatabaseMigrationService initialized with database");
+  }
+
+  getRegisteredSchemas(): Map<string, any> {
+    return this.registeredSchemas;
   }
 
   discoverAndRegisterPluginSchemas(plugins: Plugin[]): void {
@@ -29,21 +33,25 @@ export class DatabaseMigrationService {
 
   async runAllPluginMigrations(): Promise<void> {
     if (!this.db) {
-      throw new Error('Database not initialized in DatabaseMigrationService');
+      throw new Error("Database not initialized in DatabaseMigrationService");
     }
 
-    logger.info(`Running migrations for ${this.registeredSchemas.size} plugins...`);
+    logger.info(
+      `Running migrations for ${this.registeredSchemas.size} plugins...`
+    );
 
     for (const [pluginName, schema] of this.registeredSchemas) {
       logger.info(`Starting migration for plugin: ${pluginName}`);
-      // console.log(`[MIGRATION DEBUG] Processing plugin: ${pluginName}`);
-      // console.log(`[MIGRATION DEBUG] Schema keys:`, Object.keys(schema));
+      console.log(`[MIGRATION DEBUG] Processing plugin: ${pluginName}`);
+      console.log(`[MIGRATION DEBUG] Schema keys:`, Object.keys(schema));
 
       await runPluginMigrations(this.db!, pluginName, schema);
 
-      // console.log(`[MIGRATION DEBUG] Completed migration for plugin: ${pluginName}`);
+      console.log(
+        `[MIGRATION DEBUG] Completed migration for plugin: ${pluginName}`
+      );
     }
 
-    logger.info('All plugin migrations completed.');
+    logger.info("All plugin migrations completed.");
   }
 }

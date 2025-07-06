@@ -12,6 +12,7 @@ import { createAgentServer } from "./factory";
 import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
+import { apiClient } from "../lib/api";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
@@ -51,15 +52,15 @@ export class InfluenceApp<
       this.config
     );
     process.env.SERVER_PORT = serverPort.toString();
-    const postgresUrl = `file:${
+    const dataDir =
       this.config.dataDir ??
       (() => {
         const dataDir = fs.mkdtempSync(
           path.join(os.tmpdir(), "influence-app-data")
         );
         return dataDir;
-      })()
-    }`;
+      })();
+    const postgresUrl = `file:${dataDir}`;
     process.env.POSTGRES_URL = postgresUrl;
     this.server = agentServer;
     this.serverMetadata = server.metadata as AppContext;
@@ -70,7 +71,7 @@ export class InfluenceApp<
     this.agentManager = new AgentManager<AgentContext>(
       this.server,
       {
-        POSTGRES_URL: postgresUrl,
+        PGLITE_DATA_DIR: dataDir,
         ...this.config.runtimeConfig?.runtimeSettings,
       },
       this.defaultRuntimeDecorators
@@ -120,6 +121,10 @@ export class InfluenceApp<
 
   async createChannel(config: Parameters<ChannelManager["createChannel"]>[0]) {
     return this.channelManager.createChannel(config);
+  }
+
+  getServerPort() {
+    return this.serverPort;
   }
 
   // Get statistics

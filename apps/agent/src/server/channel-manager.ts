@@ -15,6 +15,7 @@ import {
   AgentChannelAssociation,
 } from "./types";
 import { AssociationManager } from "./association-manager";
+import { apiClient } from "src/lib/api";
 
 /**
  * Production-ready channel manager for handling channel lifecycle and n² agent associations
@@ -40,6 +41,14 @@ export class ChannelManager {
       `Creating channel: ${config.name} with ${config.participants.length} participants`
     );
 
+    const channel = await apiClient.createCentralGroupChat({
+      name: config.name,
+      participantCentralUserIds: config.participants.map((p) => p.agentId),
+      type: config.type,
+      server_id: this.messageServer.id,
+      metadata: config.metadata,
+    });
+
     // Validate all participants exist
     for (const participant of config.participants) {
       const runtime = this.agentManager.getAgentRuntime(participant.agentId);
@@ -50,37 +59,47 @@ export class ChannelManager {
       }
     }
 
-    // Create channel via AgentServer
-    const serverChannel = await this.server.createChannel({
-      messageServerId: this.messageServer.id,
-      name: config.name,
-      type: config.type,
-      metadata: config.metadata,
-    });
+    // // Create channel via AgentServer
+    // const serverChannel = await this.server.createChannel({
+    //   messageServerId: this.messageServer.id,
+    //   name: config.name,
+    //   type: config.type,
+    //   metadata: config.metadata,
+    // });
 
-    // Create channel record
-    const channel: Channel = {
-      id: serverChannel.id,
-      name: config.name,
-      type: config.type,
-      participants: new Map(),
-      createdAt: Date.now(),
-      maxMessages: config.maxMessages,
-      timeoutMs: config.timeoutMs,
-      metadata: config.metadata,
-    };
+    // // Create channel record
+    // const channel: Channel = {
+    //   id: serverChannel.id,
+    //   name: config.name,
+    //   type: config.type,
+    //   participants: new Map(),
+    //   createdAt: Date.now(),
+    //   maxMessages: config.maxMessages,
+    //   timeoutMs: config.timeoutMs,
+    //   metadata: config.metadata,
+    // };
 
     // Set up n² associations for all participants
-    await this.setupChannelAssociations(channel, config.participants);
+    const channelMessage = {
+      createdAt: Date.now(),
+      id: channel.data.id,
+      name: channel.data.name,
+      type: channel.data.type,
+      metadata: channel.data.metadata,
+      participants: new Map(),
+      maxMessages: 100,
+      timeoutMs: 1000 * 60 * 60 * 24,
+    };
+    // await this.setupChannelAssociations(channelMessage, config.participants);
 
     // Store channel
-    this.channels.set(channel.id, channel);
+    this.channels.set(channelMessage.id, channelMessage);
 
     logger.info(
-      `Successfully created channel ${config.name} with ID: ${channel.id}`
+      `Successfully created channel ${config.name} with ID: ${channel.data.id}`
     );
 
-    return channel.id;
+    return channelMessage.id;
   }
 
   /**

@@ -21,7 +21,6 @@
     "noEmitOnError": false,
     "moduleDetection": "force",
     "allowArbitraryExtensions": true,
-    "baseUrl": ".",
   },
   "include": ["src/**/*.ts", "__tests__/**/*.ts"]
 }
