@@ -4,7 +4,7 @@ import type {
   ProjectAgent,
   Project,
 } from "@elizaos/core";
-import { socialStrategyPlugin } from "./socialStrategy/index";
+import { socialStrategyPlugin } from "./plugins/socialStrategy/index";
 import alexCharacter from "./characters/alex";
 import bethanyCharacter from "./characters/bethany";
 

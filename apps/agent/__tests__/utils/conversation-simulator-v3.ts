@@ -12,13 +12,14 @@ import {
   validateUuid,
   type Memory,
   EventType,
+  logger,
 } from "@elizaos/core";
 import {
   ModelMockingService,
   type AgentResponseResult,
 } from "./model-mocking-service";
 import { GameStatePreloader } from "./game-state-preloader";
-import { Phase, GameSettings } from "../../src/house/types";
+import { Phase, GameSettings } from "../../src/plugins/house/types";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import {
@@ -33,12 +34,12 @@ import {
   StrategicThinkingPayload,
   DiaryRoomPayload,
   GameStateChangePayload,
-} from "../../src/house/events/types";
+} from "../../src/plugins/house/events/types";
 import {
   AnyCoordinationMessage,
   MessageServiceMessage,
-} from "../../src/coordinator/types";
-import { CoordinationService } from "src/coordinator/service";
+} from "../../src/plugins/coordinator/types";
+import { CoordinationService } from "src/plugins/coordinator/service";
 
 /**
  * Coordination event for tracking cross-agent communication
@@ -182,6 +183,9 @@ export interface SimulatorConfigV3 {
     suiteName: string;
     testName: string;
   };
+  allowReplyToMessages?:
+    | false
+    | ((message: ConversationMessageV3, messageCount: number) => boolean);
 }
 
 /**
@@ -243,8 +247,6 @@ export class ConversationSimulatorV3 {
   private gameEventObservers: GameEventObserver[] = [];
   private runtimeEventListeners: Map<string, Array<() => void>> = new Map();
 
-  private channelIdToRoomId: Map<UUID, UUID> = new Map();
-
   // Coordination event tracking
   private coordinationEvents: CoordinationEvent[] = [];
   private eventCounts = new Map<string, number>();
@@ -269,19 +271,18 @@ export class ConversationSimulatorV3 {
     // CRITICAL: Subscribe to AgentServer's internalMessageBus to capture coordination messages
     const messageHandler = async (messageForBus: MessageServiceMessage) => {
       const message = messageForBus;
-
-      console.log(
-        `📩 Captured message via AgentServer message bus: ${JSON.stringify(
-          message
-        )}`
-      );
+      if (!messageForBus.raw_message) {
+        return;
+      }
       if (this.channels.has(message.channel_id)) {
         const channel = this.channels.get(message.channel_id);
-        const roomIdsInChannel = this.channelIdToRoomId.get(message.channel_id);
         if (channel) {
           const conversationMessage: ConversationMessageV3 = {
             authorId: message.author_id,
-            authorName: message.metadata?.agentName,
+            authorName:
+              message.metadata?.agentName ||
+              this.getAgentNameById(message.author_id) ||
+              "Unknown",
             content: message.content,
             timestamp: new Date(message.created_at).getTime(),
             channelId: message.channel_id,
@@ -290,52 +291,100 @@ export class ConversationSimulatorV3 {
             providers: message.metadata?.providers || [],
             metadata: message.metadata,
           };
+          console.log(
+            `📩 Captured message via AgentServer message bus: ${JSON.stringify(
+              conversationMessage
+            )}`
+          );
           channel.messages.push(conversationMessage);
 
-          for (const [participant, mode] of channel.participants.entries()) {
-            if (participant === message.metadata?.agentName) continue;
-            // get our default room id for this participant
-            const roomId = this.channelIdToRoomId.get(message.channel_id);
-            const runtime = this.runtimes.get(participant);
-            if (runtime && mode === ParticipantModeV3.READ_WRITE) {
-              const worldId = createUniqueUuid(runtime, "game-world");
-              const memory: Memory = {
-                id: createUniqueUuid(runtime, message.id),
-                entityId: runtime.agentId,
-                agentId: runtime.agentId,
-                worldId,
-                content: {
-                  text: message.content,
-                  thought: message.metadata?.thought,
-                  actions: message.metadata?.actions,
-                  inReplyTo: message.metadata?.inReplyTo,
-                  channelType: channel.type,
-                  providers: message.metadata?.providers,
-                  source: "test-simulator-v3",
-                  target: message.metadata?.target,
-                  url: message.metadata?.url,
-                },
-                roomId,
-                createdAt: conversationMessage.timestamp,
-                metadata: message.metadata,
-              };
-              await runtime.createMemory(memory, "messages");
-            }
+          // First: Create memories for all participants who should receive this message
+          // for (const [participant, mode] of channel.participants.entries()) {
+          //   if (participant === message.metadata?.agentName) continue;
+          //   // get our default room id for this participant
+          //   const runtime = this.runtimes.get(participant);
+          //   if (runtime && mode === ParticipantModeV3.READ_WRITE) {
+          //     const worldId = createUniqueUuid(runtime, this.testServer!.id);
+          //     const roomId = createUniqueUuid(runtime, channel.id);
+          //     const memory: Memory = {
+          //       id: createUniqueUuid(runtime, message.id),
+          //       entityId: createUniqueUuid(runtime, message.author_id),
+          //       agentId: runtime.agentId,
+          //       worldId,
+          //       content: {
+          //         text: message.content,
+          //         thought: message.metadata?.thought,
+          //         actions: message.metadata?.actions,
+          //         inReplyTo: message.metadata?.inReplyTo,
+          //         channelType: channel.type,
+          //         providers: message.metadata?.providers,
+          //         source: "test-simulator-v3",
+          //         target: message.metadata?.target,
+          //         url: message.metadata?.url,
+          //       },
+          //       roomId,
+          //       createdAt: conversationMessage.timestamp,
+          //       metadata: message.metadata,
+          //     };
+          //     await runtime.createMemory(memory, "messages");
+          //   }
+          // }
+
+          // Second: Send message to all participants who should respond (separate from memory creation)
+          const authorId = message.author_id;
+          const runtime = this.runtimes.get(message.metadata?.agentName);
+          if (!runtime) {
+            console.warn(
+              `Agent ${message.metadata?.agentName} runtime not found`
+            );
+            return;
           }
-          // for (const roomId of roomIdsInChannel) {
-          //   const actions = content.actions;
 
-          //   const memory: Memory = {
-          //     id: createUniqueUuid(this.runtime, m.id),
-          //     entityId: this.runtime.agentId,
-          //     agentId: this.runtime.agentId,
-          //   };
-          // }
-          // const actions = content.actions;
+          // If agent decides to IGNORE or has no valid text, skip sending response
+          const shouldSkip =
+            message.metadata?.actions?.includes("IGNORE") ||
+            !message.content ||
+            message.content.trim() === "";
 
-          // for (const m of memories) {
-          //   await this.runtime.createMemory(m, "messages");
-          // }
+          if (shouldSkip) {
+            logger.info(
+              `[${message.metadata?.agentName}] ConversationSimulatorV3: Skipping response (reason: ${message.metadata?.actions?.includes("IGNORE") ? "IGNORE action" : "No text"})`
+            );
+            return;
+          }
+
+          // Resolve reply-to message ID from agent memory metadata
+          let centralInReplyToRootMessageId: UUID | undefined = undefined;
+          if (message.metadata?.sourceId) {
+            centralInReplyToRootMessageId = message.metadata.sourceId as UUID;
+          }
+
+          const baseUrl = `http://localhost:${this.config.serverPort}`;
+          const payloadToServer = {
+            channel_id: channel.id,
+            server_id: this.testServer!.id,
+            author_id: authorId,
+            content: message.content,
+            in_reply_to_message_id: centralInReplyToRootMessageId,
+            source_type: "agent_response",
+            raw_message: {
+              text: message.content,
+            },
+            metadata: {
+              agent_id: authorId,
+              agentName: runtime.character.name,
+              attachments: [],
+              channelType: channel.type,
+              isDm: channel.type === ChannelType.DM,
+            },
+          };
+          // await fetch(`${baseUrl}/api/messaging/submit`, {
+          //   method: "POST",
+          //   headers: {
+          //     "Content-Type": "application/json",
+          //   },
+          //   body: JSON.stringify(payloadToServer),
+          // });
           if (message.channel_id === this.coordinationChannelId) {
             this.trackCoordinationMessage(conversationMessage);
           }
@@ -425,7 +474,7 @@ export class ConversationSimulatorV3 {
   /**
    * Get agent name by ID
    */
-  private getAgentNameById(agentId: UUID): string | undefined {
+  public getAgentNameById(agentId: UUID): string | undefined {
     for (const [name, runtime] of this.runtimes.entries()) {
       if (runtime.agentId === agentId) {
         return name;
@@ -547,13 +596,13 @@ export class ConversationSimulatorV3 {
 
     // Create room/world structure for House agent
     const roomId = createUniqueUuid(houseRuntime, channelId);
-    const worldId = createUniqueUuid(houseRuntime, "game-world");
+    const worldId = createUniqueUuid(houseRuntime, this.testServer!.id);
 
     await houseRuntime.ensureWorldExists({
       id: worldId,
       name: "Game World",
       agentId: houseRuntime.agentId,
-      serverId: "game-server",
+      serverId: this.testServer!.id,
     });
 
     await houseRuntime.ensureRoomExists({
@@ -562,7 +611,7 @@ export class ConversationSimulatorV3 {
       agentId: houseRuntime.agentId,
       worldId: worldId,
       channelId: channelId,
-      serverId: "game-server",
+      serverId: this.testServer!.id,
       source: "test-simulator-v3",
       type: ChannelType.GROUP,
     });
@@ -933,162 +982,73 @@ export class ConversationSimulatorV3 {
     const channel = this.channels.get(channelId);
     if (!channel) return;
 
-    // Emit MESSAGE_RECEIVED events to participating agents
+    // 1. Create memory for the sender (since they won't get it via HTTP POST)
+    const senderRuntime = this.runtimes.get(senderAgent);
+    if (senderRuntime) {
+      const roomId = createUniqueUuid(senderRuntime, channelId);
+      const authorEntityId = createUniqueUuid(senderRuntime, message.authorId);
 
-    // Find all participating agents (except the sender)
-    for (const [agentName, mode] of channel.participants.entries()) {
-      if (agentName === senderAgent) continue; // Don't send to sender
-      if (mode === ParticipantModeV3.BROADCAST_ONLY) continue; // Can't receive
+      const senderMemory: Memory = {
+        entityId: authorEntityId,
+        agentId: senderRuntime.agentId,
+        roomId: roomId,
+        content: {
+          text: message.content,
+          source: "test-simulator-v3",
+          channelType: channel.type,
+        },
+        metadata: {
+          entityName: message.authorName,
+          fromId: message.authorId,
+          type: "message",
+          ...message.metadata,
+        },
+        createdAt: message.timestamp,
+      };
 
-      const targetRuntime = this.runtimes.get(agentName);
-      if (!targetRuntime) {
-        console.warn(`Agent ${agentName} runtime not found`);
-        continue;
-      }
-
-      // Emit MESSAGE_RECEIVED event to agent
-
-      // Create the message memory for this agent (similar to Discord plugin)
-      // const roomId = createUniqueUuid(targetRuntime, channelId);
-      const worldId = createUniqueUuid(targetRuntime, this.testServer!.id);
-      const authorEntityId = createUniqueUuid(targetRuntime, message.authorId);
-
-      // CRITICAL: Ensure connection exists first (like Discord does)
-      // await targetRuntime.ensureConnection({
-      //   entityId: message.authorId,
-      //   roomId: channelId,
-      //   userName: message.authorName,
-      //   name: message.authorName,
-      //   source: "test-simulator-v3",
-      //   channelId: channelId,
-      //   serverId: this.testServer!.id,
-      //   type: channel.type, // Use explicit channel type
-      //   worldId: worldId,
-      //   worldName: "Test Conversation Server",
-      // });
-
-      // await targetRuntime.ens
-
-      // const messageMemory: Memory = {
-      //   id: createUniqueUuid(targetRuntime, message.id || randomUUID()),
-      //   entityId: authorEntityId,
-      //   agentId: targetRuntime.agentId,
-      //   roomId: roomId,
-      //   content: {
-      //     text: message.content,
-      //     source: "test-simulator-v3",
-      //     channelType: channel.type, // Use explicit channel type
-      //   },
-      //   metadata: {
-      //     entityName: message.authorName,
-      //     fromId: message.authorId,
-      //     type: "message",
-      //     ...message.metadata,
-      //   },
-      //   createdAt: message.timestamp,
-      // };
-
-      // Emit MESSAGE_RECEIVED event directly (like Discord plugin does)
+      await senderRuntime.createMemory(senderMemory, "messages");
       console.log(
-        `🚀 Emitting MESSAGE_RECEIVED event to ${agentName} for message: "${message.content.substring(0, 50)}..."`
-      );
-
-      console.log(
-        `✅ MESSAGE_RECEIVED event emitted successfully to ${agentName}`
+        `📝 Created memory for sender ${senderAgent}: "${message.content.substring(0, 50)}..."`
       );
     }
 
-    const authorId = this.runtimes.get(senderAgent)?.agentId;
+    // 2. HTTP POST to all participants (except sender)
     const baseUrl = `http://localhost:${this.config.serverPort}`;
+
     const payloadToServer = {
       channel_id: channelId,
       server_id: this.testServer!.id,
-      author_id: authorId, // This needs careful consideration: is it the agent's core ID or a specific central identity for the agent?
+      author_id: message.authorId, // Use the original author's ID
       content: message.content,
       in_reply_to_message_id: undefined,
       source_type: "agent_response",
       raw_message: {
         text: message.content,
-        // thought: message.metadata?.thought,
-        // actions: message.metadata?.actions,
       },
       metadata: {
-        agent_id: authorId,
+        agent_id: message.authorId,
         agentName: message.authorName,
         attachments: [],
         channelType: channel.type,
         isDm: channel.type === ChannelType.DM,
       },
     };
-    await fetch(`${baseUrl}/api/messaging/submit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payloadToServer),
-    });
-    // await this.server.createMessage({
-    //   authorId: authorId,
-    //   content: message.content,
-    //   channelId,
-    //   metadata: message.metadata,
-    //   sourceType: "test-simulator-v3",
-    // });
+
+    try {
+      await fetch(`${baseUrl}/api/messaging/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payloadToServer),
+      });
+      console.log(
+        `📤 Posted message to ${senderAgent}: "${message.content.substring(0, 50)}..."`
+      );
+    } catch (error) {
+      console.error(`Failed to post message to ${senderAgent}:`, error);
+    }
   }
-
-  // /**
-  //  * Wait for a specific number of messages in a channel
-  //  */
-  // async waitForChannelMessages(
-  //   channelId: UUID,
-  //   expectedCount: number,
-  //   timeoutMs: number = 10000
-  // ): Promise<boolean> {
-  //   const channel = this.channels.get(channelId);
-  //   if (!channel) return false;
-
-  //   const startTime = Date.now();
-  //   const isRecordMode = process.env.MODEL_RECORD_MODE === "true";
-  //   const pollInterval = isRecordMode ? 500 : 100; // Poll every 500ms in record mode, 100ms in playback
-
-  //   while (Date.now() - startTime < timeoutMs) {
-  //     // Poll for new messages from the server
-  //     const newMessages = await this.pollForNewMessages(channelId);
-
-  //     // Add any new messages to our local store and notify observers
-  //     for (const newMsg of newMessages) {
-  //       channel.messages.push(newMsg);
-
-  //       // Notify observers
-  //       const observers = this.messageObservers.get(channelId);
-  //       if (observers) {
-  //         observers.forEach((observer) => {
-  //           try {
-  //             observer(newMsg);
-  //           } catch (error) {
-  //             console.warn("Channel observer error:", error);
-  //           }
-  //         });
-  //       }
-  //     }
-
-  //     // Check if we have enough messages now
-  //     if (channel.messages.length >= expectedCount) {
-  //       return true;
-  //     }
-
-  //     // Wait before next poll
-  //     await new Promise((resolve) => setTimeout(resolve, pollInterval));
-  //   }
-
-  //   // Timeout reached
-  //   if (!isRecordMode) {
-  //     console.warn(
-  //       `⚠️ waitForChannelMessages timeout: expected ${expectedCount}, got ${channel.messages.length} (timeout: ${timeoutMs}ms)`
-  //     );
-  //   }
-  //   return false;
-  // }
 
   /**
    * Get messages from a specific channel
@@ -1117,10 +1077,6 @@ export class ConversationSimulatorV3 {
    */
   getChannels(): Map<UUID, ChannelV3> {
     return new Map(this.channels);
-  }
-
-  getChannelIdToRoomId(channelId: UUID): UUID | undefined {
-    return this.channelIdToRoomId.get(channelId);
   }
 
   /**
@@ -1169,18 +1125,55 @@ export class ConversationSimulatorV3 {
       );
     }
 
-    // Create a default room for the channel
+    // Create entities for ALL participants on ALL runtimes FIRST
     const participantNames = config.room ? [...participants.keys()] : [];
+
+    // Create entities for ALL participants on ALL runtimes
+    for (const sourceParticipantName of participantNames) {
+      const sourceRuntime = this.runtimes.get(sourceParticipantName);
+      if (!sourceRuntime) continue;
+
+      // Create this participant's entity on ALL OTHER runtimes
+      for (const [
+        targetParticipantName,
+        targetRuntime,
+      ] of this.runtimes.entries()) {
+        if (sourceParticipantName === targetParticipantName) continue;
+
+        const entityId = createUniqueUuid(targetRuntime, sourceRuntime.agentId);
+
+        try {
+          await targetRuntime.createEntity({
+            id: entityId,
+            names: [sourceParticipantName],
+            agentId: targetRuntime.agentId, // The runtime that owns this entity record
+            metadata: {
+              source: "test-simulator-v3",
+              originalAgentId: sourceRuntime.agentId, // Reference to actual agent
+            },
+          });
+          console.log(
+            `✅ Created entity for ${sourceParticipantName} on ${targetParticipantName}'s runtime with ID: ${entityId}`
+          );
+        } catch (error) {
+          console.warn(
+            `❌ Failed to create entity for ${sourceParticipantName} on ${targetParticipantName}'s runtime:`,
+            error
+          );
+        }
+      }
+    }
+
+    // Now create rooms for each participant
     for (const participantName of participantNames) {
       const runtime = this.runtimes.get(participantName);
       const roomId = createUniqueUuid(runtime, serverChannel.id);
-      const worldId = createUniqueUuid(runtime, "game-world");
-
+      const worldId = createUniqueUuid(runtime, this.testServer!.id);
       await runtime.ensureWorldExists({
         id: worldId,
         name: "Game World",
         agentId: runtime.agentId,
-        serverId: "game-server",
+        serverId: this.testServer!.id,
       });
       await runtime.ensureRoomExists({
         id: roomId,
@@ -1192,30 +1185,23 @@ export class ConversationSimulatorV3 {
         serverId: this.testServer!.id,
         source: "test-simulator-v3",
       });
-      await runtime.ensureParticipantInRoom(runtime.agentId, roomId);
+      await runtime.addParticipant(runtime.agentId, roomId);
+      for (const otherParticipantName of participantNames) {
+        const otherRuntime = this.runtimes.get(otherParticipantName);
+        if (otherRuntime) {
+          // Use the SAME UUID generation as entity creation
+          const participantEntityId = createUniqueUuid(
+            runtime,
+            otherRuntime.agentId
+          );
+          await runtime.ensureParticipantInRoom(participantEntityId, roomId);
+        }
+      }
       await runtime.setParticipantUserState(
         roomId,
         runtime.agentId,
         "FOLLOWED"
       );
-      this.channelIdToRoomId.set(serverChannel.id, roomId);
-
-      // Create the entity for each participant on each other participant's runtime
-      for (const otherParticipantName of participantNames.filter(
-        (name) => name !== participantName
-      )) {
-        const otherRuntime = this.runtimes.get(otherParticipantName);
-        if (otherRuntime) {
-          await otherRuntime.createEntity({
-            id: createUniqueUuid(otherRuntime, runtime.agentId),
-            names: [otherParticipantName],
-            agentId: otherRuntime.agentId,
-            metadata: {
-              source: "test-simulator-v3",
-            },
-          });
-        }
-      }
     }
 
     // Create channel metadata for tracking

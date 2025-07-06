@@ -8,4 +8,4 @@ export type {
   PlayerPattern,
   PlayerIntelligence,
   StrategyPrompts,
-} from "./socialStrategy/types";
+} from "./plugins/socialStrategy/types";

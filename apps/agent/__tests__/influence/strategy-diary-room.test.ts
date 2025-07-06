@@ -5,23 +5,24 @@ import {
   ChannelParticipantV3,
   ParticipantModeV3,
   GameEventObserver,
+  ConversationMessageV3,
 } from "../utils/conversation-simulator-v3";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
-import { socialStrategyPlugin } from "../../src/socialStrategy";
+import { socialStrategyPlugin } from "../../src/plugins/socialStrategy";
 import alexCharacter from "../../src/characters/alex";
 import houseCharacter from "../../src/characters/house";
-import { housePlugin } from "../../src/house";
-import { influencerPlugin } from "../../src/influencer";
+import { housePlugin } from "../../src/plugins/house";
+import { influencerPlugin } from "../../src/plugins/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
-import { StrategyService } from "../../src/socialStrategy/service/addPlayer";
-import { Phase } from "../../src/house/types";
+import { StrategyService } from "../../src/plugins/socialStrategy/service/addPlayer";
+import { Phase } from "../../src/plugins/house/types";
 import { createUniqueUuid, UUID, ChannelType } from "@elizaos/core";
-import { GameEventType } from "../../src/house/events/types";
+import { GameEventType } from "../../src/plugins/house/events/types";
 import fs from "fs";
 import os from "os";
-import { CoordinationService } from "../../src/coordinator/service";
+import { CoordinationService } from "../../src/plugins/coordinator/service";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -45,6 +46,9 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       testContext: {
         suiteName: "Strategy",
         testName: "diary room and strategic intelligence",
+      },
+      allowReplyToMessages(message, messageCount) {
+        return messageCount < 6;
       },
     });
 
@@ -148,7 +152,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       );
 
       const playerNames = playerConfigs.map((c) => c.name);
-      let messagesSinceLastEvent: Array<any> = [];
+      let messagesSinceLastEvent: Array<ConversationMessageV3> = [];
 
       // Create main game channel with all participants and pre-loaded LOBBY game state
       const mainChannelId = await sim.createChannel({
@@ -234,6 +238,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       await sim.waitForEvents(
         mainChannelId,
         (events) => {
+          messagesSinceLastEvent = events;
           return events.length > 10;
         },
         120000
@@ -245,10 +250,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Phase 4: Event-Driven Phase Transition LOBBY → WHISPER
       console.log("=== PHASE 4: Coordinated LOBBY → WHISPER Transition ===");
-
-      // Clear tracking for transition events
-      messagesSinceLastEvent = [];
-      const eventsBeforeTransition = gameEvents.length;
 
       // Use the actual PhaseCoordinator to trigger LOBBY → WHISPER transition
       const houseAgent = sim.getAgent("House");
@@ -305,14 +306,25 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         throw new Error("Alpha agent not found");
       }
       const memories = await alpha.getMemoriesByRoomIds({
-        roomIds: [sim.getChannelIdToRoomId(mainChannelId)],
+        roomIds: [createUniqueUuid(alpha, mainChannelId)],
         tableName: "messages",
       });
+      // Get entities to resolve names properly
+      const alphaEntities = await alpha.getEntitiesForRoom(createUniqueUuid(alpha, mainChannelId));
+      const entityMap = new Map(alphaEntities.map(e => [e.id, e.names[0] || "Unknown"]));
+      
       console.log(
         "🔍 Alpha memories:",
         memories.map(
           (m) =>
-            `Entity: ${m.entityId} [${(m.metadata as any).agentName}] - ${m.content.text}`
+            `Entity: ${m.entityId} [${entityMap.get(m.entityId) || "Unknown"}] - ${m.content.text}`
+        )
+      );
+
+      console.log(
+        "All Channel Messages:",
+        messagesSinceLastEvent.map(
+          (m) => `Entity: ${m.authorId} [${m.authorName}] - ${m.content}`
         )
       );
 
@@ -341,9 +353,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       const waitForDiaryRoom = new Promise<void>((resolve) => {
         const checkForEvent = () => {
           const diaryRoomEvent = gameEvents.find(
-            (e) =>
-              e.type === GameEventType.DIARY_ROOM_OPENED &&
-              e.timestamp > eventsBeforeTransition
+            (e) => e.type === GameEventType.DIARY_ROOM_OPENED
           );
           if (diaryRoomEvent) {
             console.log("✅ DIARY_ROOM_OPENED event detected");
@@ -390,9 +400,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       const waitForDiaryCompletion = new Promise<void>((resolve) => {
         const checkForEvent = () => {
           const diaryCompletedEvent = gameEvents.find(
-            (e) =>
-              e.type === GameEventType.DIARY_ROOM_COMPLETED &&
-              e.timestamp > eventsBeforeTransition
+            (e) => e.type === GameEventType.DIARY_ROOM_COMPLETED
           );
           if (diaryCompletedEvent) {
             console.log("✅ DIARY_ROOM_COMPLETED event detected");
@@ -438,8 +446,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
           const whisperPhaseEvent = gameEvents.find(
             (e) =>
               e.type === GameEventType.PHASE_STARTED &&
-              e.payload.phase === Phase.WHISPER &&
-              e.timestamp > eventsBeforeTransition
+              e.payload.phase === Phase.WHISPER
           );
           if (whisperPhaseEvent) {
             console.log(
