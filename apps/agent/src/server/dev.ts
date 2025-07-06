@@ -1,5 +1,5 @@
 import "dotenv/config";
-import houseCharacter from "src/characters/house";
+import houseCharacter from "../characters/house";
 import { InfluenceApp } from "./influence-app";
 import {
   AgentConfig,
@@ -9,8 +9,8 @@ import {
   AgentContext,
 } from "./types";
 import { Character, ChannelType, IAgentRuntime } from "@elizaos/core";
-import alexCharacter from "src/characters/alex";
-import bethanyCharacter from "src/characters/bethany";
+import alexCharacter from "../characters/alex";
+import bethanyCharacter from "../characters/bethany";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
@@ -82,7 +82,7 @@ export async function start() {
   console.log("Creating channel...");
 
   const channelConfig: ChannelConfig = {
-    name: "Game Channel",
+    name: "Game Channel v2",
     type: ChannelType.GROUP,
     participants: [
       {

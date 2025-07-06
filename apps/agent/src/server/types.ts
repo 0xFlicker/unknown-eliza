@@ -160,14 +160,13 @@ export interface AppServerConfig<
 }
 
 /**
- * Agent-channel association tracking for n² complexity
+ * Agent-channel association tracking for simplified channel management
  */
 export interface AgentChannelAssociation {
   agentId: UUID;
   channelId: UUID;
   participant: ChannelParticipant;
   entityId: UUID; // Entity ID of this agent on the target runtime
-  roomId: UUID; // Room ID for this channel on the target runtime
 }
 
 export type AgentContext = {

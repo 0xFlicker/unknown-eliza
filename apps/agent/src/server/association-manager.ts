@@ -2,11 +2,11 @@ import { UUID } from "@elizaos/core";
 import { AgentChannelAssociation, ChannelParticipant } from "./types";
 
 /**
- * Production-ready association manager for tracking n² agent-channel relationships
+ * Simplified association manager for tracking agent-channel relationships
  *
  * This handles the complexity of:
  * - Each agent needs to know about all other agents in each channel
- * - Each agent needs its own room for each channel
+ * - Each channel has a single room where roomId equals channelId
  * - Each agent needs entities for all other agents in each channel
  * - Participant states and modes must be tracked per agent-channel pair
  */
@@ -209,7 +209,7 @@ export class AssociationManager {
   }
 
   /**
-   * Clear all associations (for cleanup)
+   * Clear all associations
    */
   clear(): void {
     this.agentToChannelAssociations.clear();
