@@ -8,7 +8,7 @@
     "lib": ["ES2021.String"],
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
     "declaration": true,
     "emitDeclarationOnly": true,

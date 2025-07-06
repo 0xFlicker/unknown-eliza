@@ -13,13 +13,15 @@
     "baseUrl": ".",
     "paths": {
       "@elizaos/*": ["packages/*/src"],
-      "src/*": ["apps/agent/src/*"]
     }
   },
   "files": [],
   "references": [
     {
       "path": "packages/core"
+    },
+    {
+      "path": "packages/plugin-bootstrap"
     }
   ]
 }
