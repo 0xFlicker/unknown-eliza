@@ -219,9 +219,19 @@ export class AgentServer {
         logger.success('[INIT] Database migrations completed successfully');
       } catch (migrationError) {
         logger.error('[INIT] Failed to run database migrations:', migrationError);
-        throw new Error(
-          `Database migration failed: ${migrationError instanceof Error ? migrationError.message : String(migrationError)}`
-        );
+        if (options?.postgresUrl) {
+          throw new Error(
+            `Database migration failed: ${
+              migrationError instanceof Error
+                ? migrationError.message
+                : String(migrationError)
+            }`
+          );
+        } else {
+          logger.warn(
+            '[INIT] Continuing despite migration errors on local database.'
+          );
+        }
       }
 
       // Add a small delay to ensure database is fully ready
