@@ -1,6 +1,120 @@
-import { Character, IAgentRuntime, Plugin, UUID } from "@elizaos/core";
-import dotenv from "dotenv";
+import {
+  Character,
+  IAgentRuntime,
+  Plugin,
+  UUID,
+  ChannelType,
+  type Memory,
+  type Entity,
+  type Relationship,
+} from "@elizaos/core";
 import { Phase, GameSettings } from "../plugins/house/types";
+
+/**
+ * Participant state in a channel - controls message flow
+ */
+export enum ParticipantState {
+  FOLLOWED = "FOLLOWED", // Can send and receive messages
+  MUTED = "MUTED", // Cannot send messages, but can receive
+}
+
+/**
+ * Participant mode in a channel - controls permissions
+ */
+export enum ParticipantMode {
+  READ_WRITE = "read_write",
+  BROADCAST_ONLY = "broadcast_only", // Can send but doesn't receive replies
+  OBSERVE_ONLY = "observe_only", // Can only observe, cannot send
+}
+
+/**
+ * Agent role assignment for game state setup
+ */
+export interface AgentRoleAssignment {
+  /** Agent ID */
+  agentId: UUID;
+  /** Role in the game */
+  role: "house" | "player" | "host";
+}
+
+/**
+ * Configuration for a channel participant
+ */
+export interface ChannelParticipant {
+  agentId: UUID;
+  mode: ParticipantMode;
+  state: ParticipantState;
+}
+
+/**
+ * Channel configuration for creation
+ */
+export interface ChannelConfig {
+  name: string;
+  type: ChannelType;
+  participants: ChannelParticipant[];
+  metadata?: Record<string, unknown>;
+  maxMessages?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Channel state and management
+ */
+export interface Channel {
+  id: UUID;
+  name: string;
+  type: ChannelType;
+  participants: Map<UUID, ChannelParticipant>; // agentId -> participant config
+  createdAt: number;
+  maxMessages?: number;
+  timeoutMs?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Agent configuration for creation
+ */
+export interface AgentConfig {
+  character: Character;
+  plugins?: Plugin[];
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Agent state and management
+ */
+export interface Agent {
+  id: UUID;
+  runtime: IAgentRuntime;
+  character: Character;
+  metadata?: Record<string, unknown>;
+  createdAt: number;
+}
+
+/**
+ * Runtime decorator function for customizing agent behavior
+ */
+export type RuntimeDecorator<Runtime extends IAgentRuntime> = (
+  runtime: Runtime
+) => Runtime | Promise<Runtime>;
+
+/**
+ * Message observer function
+ */
+export type MessageObserver = (message: ChannelMessage) => void | Promise<void>;
+
+/**
+ * Channel message with metadata
+ */
+export interface ChannelMessage {
+  id: UUID;
+  channelId: UUID;
+  authorId: UUID;
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * Coordination event for tracking cross-agent communication
@@ -10,57 +124,26 @@ export interface CoordinationEvent {
   sourceAgent: UUID;
   targetAgents: UUID[] | "all" | "others";
   timestamp: number;
-  payload: any;
+  payload: Record<string, unknown>;
   messageId: string;
 }
 
 /**
  * Event matcher function for flexible event waiting
  */
-export type EventMatcher = (events: ConversationMessage[]) => boolean;
-
-const testEnv = dotenv.config({
-  path: ".env.test",
-});
+export type EventMatcher = (events: ChannelMessage[]) => boolean;
 
 /**
- * A message in the conversation with metadata
+ * Game event observer function type
  */
-export interface ConversationMessage {
-  id?: UUID;
-  authorId: UUID;
-  authorName: string;
-  content: string;
-  timestamp: number;
-  channelId: UUID;
-  providers?: string[]; // Providers that generated this message
-  actions?: string[]; // Actions taken by the agent
-  thought?: string; // Optional thoughts for debugging
-  metadata?: any;
-  coordinationEvent?: CoordinationEvent;
-}
+export type GameEventObserver<T = Record<string, unknown>> = (
+  eventType: string,
+  payload: T
+) => void | Promise<void>;
 
 /**
- * Participant mode in a channel
+ * Server configuration
  */
-export enum ParticipantMode {
-  READ_WRITE = "read_write",
-  BROADCAST_ONLY = "broadcast_only", // Can send but doesn't receive replies
-  OBSERVE_ONLY = "observe_only", // Can only observe, cannot send
-}
-
-export type AgentRole = "house" | "player" | "host";
-
-export interface AgentAssignment {
-  character: Character;
-  plugins: Plugin[];
-  roles: AgentRole[];
-}
-
-export type RuntimeDecorator<Runtime extends IAgentRuntime> = (
-  runtime: Partial<Runtime>
-) => Runtime | Partial<Runtime>;
-
 export interface AppServerConfig<
   Context extends Record<string, unknown>,
   Runtime extends IAgentRuntime,
@@ -72,4 +155,15 @@ export interface AppServerConfig<
     defaultPlugins?: Plugin[];
   };
   context: Context;
+}
+
+/**
+ * Agent-channel association tracking for n² complexity
+ */
+export interface AgentChannelAssociation {
+  agentId: UUID;
+  channelId: UUID;
+  participant: ChannelParticipant;
+  entityId: UUID; // Entity ID of this agent on the target runtime
+  roomId: UUID; // Room ID for this channel on the target runtime
 }
