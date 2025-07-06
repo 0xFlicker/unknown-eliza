@@ -75,7 +75,7 @@ export const shouldRespondProvider: Provider = {
         ? "RESPOND to House in DM"
         : isHouseMessage && isGroupChannel
           ? "IGNORE House in group"
-          : "RESPOND to players";
+          : "RESPOND to players ONLY if it advances your strategic position";
 
     console.log(
       `📋 SHOULD_RESPOND guidance for ${runtime.character.name}: ${guidance}`
@@ -98,7 +98,7 @@ export const shouldRespondProvider: Provider = {
 export const phaseContextProvider: Provider = {
   name: "PHASE_CONTEXT",
   description: "Provides phase-specific context and response guidance",
-  position: -1, // High priority - run early
+  // position: -1, // High priority - run early
   get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
     const roomId = message.roomId;
     const room = await runtime.getRoom(roomId);
@@ -113,7 +113,7 @@ export const phaseContextProvider: Provider = {
         count: 10,
       });
 
-      const phaseMemory = gameMemories.find(
+      const phaseMemory = gameMemories?.find(
         (m) =>
           m.content?.text?.includes("PHASE") &&
           (m.content?.text?.includes("LOBBY") ||
@@ -143,48 +143,64 @@ export const phaseContextProvider: Provider = {
 
     let contextText = "";
 
-    if (isHouseMessage && isDMChannel) {
-      // House messages in DM channels - these are diary room/strategic discussions
-      contextText = addHeader(
-        "# DIARY ROOM / STRATEGIC DISCUSSION CONTEXT",
-        [
-          "You are in a private conversation with The House (game moderator).",
-          "This is a diary room setting where you should be open and responsive.",
-          "House is asking for your strategic thoughts, assessments, or plans.",
-          "You should engage thoughtfully and provide strategic insights.",
-          "This is your opportunity to reflect on your game strategy and discuss your thoughts.",
-          "",
-          "RESPONSE GUIDANCE: RESPOND to House questions with strategic analysis and thoughts.",
-        ].join("\n")
-      );
-    } else if (isHouseMessage && isGroupChannel) {
-      // House messages in group channels - these are game management announcements
-      contextText = addHeader(
-        "# GAME MANAGEMENT ANNOUNCEMENT",
-        [
-          "The House is making a game management announcement in the main channel.",
-          "These are typically phase transitions, player joins, or game status updates.",
-          "You should focus on the information but not directly respond to House.",
-          "Use this information to understand the current game state.",
-          "Continue your conversations with other players based on this new information.",
-          "",
-          "RESPONSE GUIDANCE: IGNORE direct responses to House. Focus on player interactions.",
-        ].join("\n")
-      );
-    } else if (!isHouseMessage) {
-      // Messages from other players
-      contextText = addHeader(
-        "# PLAYER INTERACTION CONTEXT",
-        [
-          `You are interacting with another player (${senderName}) in the ${currentPhase} phase.`,
-          "This is your opportunity to build relationships, gather information, and advance your strategy.",
-          "Be genuine while maintaining your strategic position.",
-          "Consider how this interaction fits into your overall game plan.",
-          "",
-          "RESPONSE GUIDANCE: RESPOND to build relationships and advance your strategic position.",
-        ].join("\n")
-      );
-    }
+    // if (isHouseMessage && isDMChannel) {
+    //   // House messages in DM channels - these are diary room/strategic discussions
+    //   contextText = addHeader(
+    //     "# DIARY ROOM / STRATEGIC DISCUSSION CONTEXT",
+    //     [
+    //       "You are in a private conversation with The House (game moderator).",
+    //       "This is a diary room setting where you should be open and responsive.",
+    //       "House is asking for your strategic thoughts, assessments, or plans.",
+    //       "You should engage thoughtfully and provide strategic insights.",
+    //       "This is your opportunity to reflect on your game strategy and discuss your thoughts.",
+    //       "",
+    //       "RESPONSE GUIDANCE: RESPOND to House questions with strategic analysis and thoughts.",
+    //     ].join("\n")
+    //   );
+    // } else if (isHouseMessage && isGroupChannel) {
+    //   // House messages in group channels - these are game management announcements
+    //   contextText = addHeader(
+    //     "# GAME MANAGEMENT ANNOUNCEMENT",
+    //     [
+    //       "The House is making a game management announcement in the main channel.",
+    //       "These are typically phase transitions, player joins, or game status updates.",
+    //       "You should focus on the information but not directly respond to House.",
+    //       "Use this information to understand the current game state.",
+    //       "Continue your conversations with other players based on this new information.",
+    //       "",
+    //       "RESPONSE GUIDANCE: IGNORE direct responses to House. Focus on player interactions.",
+    //     ].join("\n")
+    //   );
+    // } else if (!isHouseMessage) {
+    //   // Messages from other players
+    //   contextText = addHeader(
+    //     "# PLAYER INTERACTION CONTEXT",
+    //     [
+    //       `You are interacting with another player (${senderName}) in the ${currentPhase} phase.`,
+    //       "Make your voice heard and assert your strategic presence in the game.",
+    //       "Only respond if it directly advances your strategic position - form alliances, gather intel, or manipulate perceptions.",
+    //       "Every interaction should serve your survival and victory goals. Don't waste words on pleasantries unless they serve your strategy.",
+    //       "Consider: Does this response help you gain power, eliminate threats, or secure your position?",
+    //       "",
+    //       "RESPONSE GUIDANCE: RESPOND strategically to advance your position, or stay silent to avoid revealing your hand.",
+    //     ].join("\n")
+    //   );
+    // }
+
+    contextText = addHeader(
+      "# PLAYER INTERACTION CONTEXT",
+      [
+        `You are interacting with another player (${senderName}) in the ${currentPhase} phase.`,
+        "Make your voice heard and assert your strategic presence in the game.",
+        "Only respond if it directly advances your strategic position - form alliances, gather intel, or manipulate perceptions.",
+        "Every interaction should serve your survival and victory goals. Don't waste words on pleasantries unless they serve your strategy.",
+        'NEVER respond just to "keep the conversation going" or "I\'m just here to chat" - you should be responding to something that advances your strategic position.',
+        "Consider: Does this response help you gain power, eliminate threats, or secure your position?",
+        "Consider: Are you repeating the same thing over and over again? If so, you're probably not advancing your strategic position.",
+        "",
+        "RESPONSE GUIDANCE: RESPOND ONLY if it advances your strategic position, or stay silent to avoid revealing your hand or appearing too eager.",
+      ].join("\n")
+    );
 
     // console.log(`🎯 Phase context for ${runtime.character.name}:`, {
     //   currentPhase,

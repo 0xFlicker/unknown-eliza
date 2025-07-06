@@ -50,6 +50,7 @@ export class InfluenceApp<
     const { server, agentServer, serverPort } = await createAgentServer(
       this.config
     );
+    process.env.SERVER_PORT = serverPort.toString();
     this.server = agentServer;
     this.serverMetadata = server.metadata as AppContext;
     this.serverPort = serverPort;

@@ -131,31 +131,31 @@ export default defineConfig(({ mode }): CustomUserConfig => {
       proxy: {
         // Proxy all API calls to backend server
         "/api": {
-          target: "http://localhost:3000",
+          target: "http://localhost:3333",
           changeOrigin: true,
           secure: false,
         },
         // Proxy WebSocket connections for real-time features
         "/socket.io": {
-          target: "http://localhost:3000",
+          target: "http://localhost:3333",
           changeOrigin: true,
           ws: true,
         },
         // Proxy any other backend endpoints that might exist
         "/v1": {
-          target: "http://localhost:3000",
+          target: "http://localhost:3333",
           changeOrigin: true,
           secure: false,
         },
         // Proxy health check and ping endpoints
         "/ping": {
-          target: "http://localhost:3000",
+          target: "http://localhost:3333",
           changeOrigin: true,
           secure: false,
         },
         // Proxy any direct server endpoints
         "/server": {
-          target: "http://localhost:3000",
+          target: "http://localhost:3333",
           changeOrigin: true,
           secure: false,
         },

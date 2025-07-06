@@ -532,6 +532,9 @@ const messageReceivedHandler = async ({
 
         // console.log("shouldRespond is", shouldRespond);
         // console.log("shouldSkipShouldRespond", shouldSkipShouldRespond);
+        logger.debug(
+          `[Bootstrap] shouldRespond: ${shouldRespond}, shouldSkipShouldRespond: ${shouldSkipShouldRespond}`
+        );
 
         if (shouldRespond) {
           state = await runtime.composeState(message, ["ACTIONS"]);

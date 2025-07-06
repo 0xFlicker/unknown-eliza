@@ -4,8 +4,9 @@ import alexCharacter from "./alex";
 const bethanyCharacter: Character = {
   ...alexCharacter,
   name: "Bethany",
-  bio: [...alexCharacter.bio.slice(0, 2), ...alexCharacter.bio.slice(-2)], // Include the critical House instructions
-  messageExamples: alexCharacter.messageExamples.slice(0, 2),
+  bio: [
+    "Bethany is a strategic social player who builds genuine relationships while maintaining strategic awareness. Uses humor, emojis, and casual communication to connect with others.",
+  ],
 };
 
 export default bethanyCharacter;
