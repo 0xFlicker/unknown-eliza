@@ -51,6 +51,16 @@ export class InfluenceApp<
       this.config
     );
     process.env.SERVER_PORT = serverPort.toString();
+    const postgresUrl = `file:${
+      this.config.dataDir ??
+      (() => {
+        const dataDir = fs.mkdtempSync(
+          path.join(os.tmpdir(), "influence-app-data")
+        );
+        return dataDir;
+      })()
+    }`;
+    process.env.POSTGRES_URL = postgresUrl;
     this.server = agentServer;
     this.serverMetadata = server.metadata as AppContext;
     this.serverPort = serverPort;
@@ -60,14 +70,7 @@ export class InfluenceApp<
     this.agentManager = new AgentManager<AgentContext>(
       this.server,
       {
-        DATABASE_PATH:
-          this.config.dataDir ??
-          (() => {
-            const dataDir = fs.mkdtempSync(
-              path.join(os.tmpdir(), "influence-app-data")
-            );
-            return dataDir;
-          })(),
+        POSTGRES_URL: postgresUrl,
         ...this.config.runtimeConfig?.runtimeSettings,
       },
       this.defaultRuntimeDecorators

@@ -65,7 +65,8 @@
     "test:record": "MODEL_RECORD_MODE=true vitest run",
     "test:record:soft": "MODEL_RECORD_MODE=true SOFT=true vitest run",
     "format": "prettier --write ./src",
-    "format:check": "prettier --check ./src"
+    "format:check": "prettier --check ./src",
+    "dev:debug": "bun run --inspect-brk src/server/dev.ts"
   },
   "publishConfig": {
     "access": "public"

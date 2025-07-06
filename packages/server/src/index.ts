@@ -218,20 +218,15 @@ export class AgentServer {
 
         logger.success('[INIT] Database migrations completed successfully');
       } catch (migrationError) {
+        const migrationMsg = migrationError instanceof Error
+          ? migrationError.message
+          : String(migrationError);
         logger.error('[INIT] Failed to run database migrations:', migrationError);
-        if (options?.postgresUrl) {
-          throw new Error(
-            `Database migration failed: ${
-              migrationError instanceof Error
-                ? migrationError.message
-                : String(migrationError)
-            }`
-          );
-        } else {
-          logger.warn(
-            '[INIT] Continuing despite migration errors on local database.'
-          );
-        }
+        throw new Error(
+          `Database migration failed: ${migrationMsg}\n` +
+          `→ Please ensure your database schema is initialized properly. ` +
+          `If using local PGlite, consider deleting or migrating your dataDir (${options?.dataDir}).`
+        );
       }
 
       // Add a small delay to ensure database is fully ready
