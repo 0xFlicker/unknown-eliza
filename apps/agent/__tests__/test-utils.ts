@@ -8,7 +8,7 @@ import {
   runCoreActionTests,
 } from "./utils/core-test-utils";
 import character from "../src/characters/alex";
-import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
+import { socialStrategyPlugin as plugin } from "../src/plugins/socialStrategy/index";
 
 /**
  * Creates an enhanced mock runtime for testing that includes the project's
@@ -18,7 +18,7 @@ import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
  * @returns A mock runtime for testing
  */
 export function createMockRuntime(
-  overrides: Partial<IAgentRuntime> = {},
+  overrides: Partial<IAgentRuntime> = {}
 ): IAgentRuntime {
   // Create base mock runtime with default core utilities
   const baseRuntime = createCoreMockRuntime();
@@ -52,7 +52,7 @@ export function createMockRuntime(
  */
 export function createMockMessage(
   text: string,
-  overrides: Partial<Memory> = {},
+  overrides: Partial<Memory> = {}
 ): Memory {
   const baseMessage = createCoreMockMessage(text);
   return {
@@ -87,7 +87,7 @@ export function setupTest(
     messageOverrides?: Partial<Memory>;
     runtimeOverrides?: Partial<IAgentRuntime>;
     stateOverrides?: Partial<State>;
-  } = {},
+  } = {}
 ) {
   // Create mock callback function
   const callbackFn = vi.fn();
@@ -95,7 +95,7 @@ export function setupTest(
   // Create a message
   const mockMessage = createMockMessage(
     options.messageText || "Test message",
-    options.messageOverrides || {},
+    options.messageOverrides || {}
   );
 
   // Create a state object

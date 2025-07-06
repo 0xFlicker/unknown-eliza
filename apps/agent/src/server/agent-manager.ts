@@ -1,6 +1,7 @@
 import {
   AgentRuntime,
   IAgentRuntime,
+  RuntimeSettings,
   UUID,
   createUniqueUuid,
   logger,
@@ -11,16 +12,15 @@ import { Agent, AgentConfig, RuntimeDecorator } from "./types";
 /**
  * Production-ready agent manager for handling agent lifecycle and runtime decoration
  */
-export class AgentManager {
-  private agents = new Map<UUID, Agent>();
+export class AgentManager<Context extends Record<string, unknown>> {
+  private agents = new Map<UUID, Agent<Context>>();
   private runtimeDecorators: RuntimeDecorator<IAgentRuntime>[] = [];
-  private server: AgentServer;
 
   constructor(
-    server: AgentServer,
+    private server: AgentServer,
+    private runtimeSettings: RuntimeSettings,
     defaultDecorators: RuntimeDecorator<IAgentRuntime>[] = []
   ) {
-    this.server = server;
     this.runtimeDecorators = [...defaultDecorators];
   }
 
@@ -34,7 +34,7 @@ export class AgentManager {
   /**
    * Create and add an agent to the system
    */
-  async addAgent(config: AgentConfig): Promise<Agent> {
+  async addAgent(config: AgentConfig<Context>): Promise<Agent<Context>> {
     logger.info(`Creating agent with character: ${config.character.name}`);
 
     // Create the runtime
@@ -42,8 +42,7 @@ export class AgentManager {
       character: config.character,
       plugins: config.plugins || [],
       settings: {
-        DATABASE_PATH: "./data",
-        LOG_LEVEL: "info",
+        ...this.runtimeSettings,
       },
     });
 
@@ -72,7 +71,7 @@ export class AgentManager {
     await this.server.registerAgent(decoratedRuntime);
 
     // Create agent record
-    const agent: Agent = {
+    const agent: Agent<Context> = {
       id: decoratedRuntime.agentId,
       runtime: decoratedRuntime,
       character: config.character,
@@ -93,7 +92,7 @@ export class AgentManager {
   /**
    * Get an agent by ID
    */
-  getAgent(agentId: UUID): Agent | undefined {
+  getAgent(agentId: UUID): Agent<Context> | undefined {
     return this.agents.get(agentId);
   }
 
@@ -108,7 +107,7 @@ export class AgentManager {
   /**
    * Get all agents
    */
-  getAllAgents(): Agent[] {
+  getAllAgents(): Agent<Context>[] {
     return Array.from(this.agents.values());
   }
 
@@ -161,7 +160,7 @@ export class AgentManager {
   /**
    * Find agent by character name
    */
-  findAgentByName(name: string): Agent | undefined {
+  findAgentByName(name: string): Agent<Context> | undefined {
     return Array.from(this.agents.values()).find(
       (agent) => agent.character.name === name
     );

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { logger, IAgentRuntime, Plugin } from "@elizaos/core";
-import { socialStrategyPlugin as plugin } from "../src/socialStrategy/index";
+import { socialStrategyPlugin as plugin } from "../src/plugins/socialStrategy/index";
 import { createMockRuntime } from "./test-utils";
 import * as os from "os";
 
@@ -51,7 +51,7 @@ describe("Integration: Plugin Structure", () => {
       if (plugin[component]) {
         expect(
           Array.isArray(plugin[component]) ||
-            typeof plugin[component] === "object",
+            typeof plugin[component] === "object"
         ).toBeTruthy();
       }
     });
@@ -111,7 +111,7 @@ describeScaffolding("Integration: Project Scaffolding", () => {
         const sourceFilePath = path.join(process.cwd(), "src", file);
         const targetFilePath = path.join(
           TEST_DIR,
-          file.replace("plugin/socialStrategy/", ""),
+          file.replace("plugin/socialStrategy/", "")
         );
 
         if (fs.existsSync(sourceFilePath)) {
@@ -136,7 +136,7 @@ describeScaffolding("Integration: Project Scaffolding", () => {
 
       fs.writeFileSync(
         path.join(TEST_DIR, "package.json"),
-        JSON.stringify(packageJson, null, 2),
+        JSON.stringify(packageJson, null, 2)
       );
 
       // Verify files exist

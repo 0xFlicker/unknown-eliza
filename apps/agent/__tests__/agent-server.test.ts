@@ -8,11 +8,17 @@ import alexCharacter from "../src/characters/alex";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import openaiPlugin from "@elizaos/plugin-openai";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
-import { socialStrategyPlugin } from "../src/socialStrategy/index";
+import { socialStrategyPlugin } from "../src/plugins/socialStrategy/index";
 import { killProcessOnPort } from "./utils/process-utils";
 import { TEST_TIMEOUTS } from "./utils/test-timeouts";
-import { ConversationSimulatorV3 } from "./utils/conversation-simulator-v3";
+import {
+  createAgentServer,
+  InfluenceApp,
+  ParticipantMode,
+  ParticipantState,
+} from "../src/server";
 import { expectSoft, RecordingTestUtils } from "./utils/recording-test-utils";
+import { ModelMockingService } from "./utils/model-mocking-service";
 
 describe("AgentServer V3 Integration", () => {
   let dataDir: string;
@@ -50,17 +56,78 @@ describe("AgentServer V3 Integration", () => {
       "2 agents conversation via AgentServer"
     );
 
-    const simulator = new ConversationSimulatorV3({
-      dataDir,
+    const modelMockingService = new ModelMockingService({
+      mode: "record",
+      recordingsDir: path.join(__dirname, "../recordings"),
+    });
+
+    const app = new InfluenceApp({
       serverPort: testServerPort,
-      enableRealTime: true,
-      useModelMockingService: true,
-      testContext: {
-        suiteName: "AgentServer V3 Integration",
+      runtimeConfig: {
+        runtime: (runtime) => {
+          modelMockingService.patchRuntime(runtime);
+          return runtime;
+        },
+      },
+      context: {
         testName:
           "demonstrates 2 agents having a basic conversation through AgentServer infrastructure",
+        suiteName: "AgentServer V3 Integration",
       },
     });
+
+    await app.initialize();
+    await app.start();
+
+    const agentManager = app.getAgentManager();
+    const channelManager = app.getChannelManager();
+
+    const alice = await agentManager.addAgent({
+      character: alexCharacter,
+      plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
+    });
+
+    const bob = await agentManager.addAgent({
+      character: alexCharacter,
+      plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
+    });
+
+    const channelId = await channelManager.createChannel({
+      name: "general-chat",
+      participants: [
+        {
+          agentId: alice.id,
+          mode: ParticipantMode.READ_WRITE,
+          state: ParticipantState.FOLLOWED,
+        },
+        {
+          agentId: bob.id,
+          mode: ParticipantMode.READ_WRITE,
+          state: ParticipantState.FOLLOWED,
+        },
+      ],
+      type: ChannelType.DM,
+      maxMessages: 6,
+    });
+
+    await app.sendMessage(channelId, alice.id, "Hello Bob!");
+
+    const messages = await channelManager.getMessages(channelId.id);
+    expect(messages.length).toBe(1);
+    expect(messages[0].content).toBe("Hello Bob!");
+    expect(messages[0].authorId).toBe(alice.id);
+
+    // const simulator = new ConversationSimulatorV3({
+    //   dataDir,
+    //   serverPort: testServerPort,
+    //   enableRealTime: true,
+    //   useModelMockingService: true,
+    //   testContext: {
+    //     suiteName: "AgentServer V3 Integration",
+    //     testName:
+    //       "demonstrates 2 agents having a basic conversation through AgentServer infrastructure",
+    //   },
+    // });
 
     try {
       // Initialize the V3 simulator with real AgentServer infrastructure

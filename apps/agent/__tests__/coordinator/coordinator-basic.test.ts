@@ -1,33 +1,23 @@
 import path from "path";
 import { describe, it, expect } from "vitest";
-import {
-  ConversationSimulatorV3,
-  ChannelParticipantV3,
-  ParticipantModeV3,
-} from "../utils/conversation-simulator-v3";
+import { ConversationSimulatorV3 } from "../utils/conversation-simulator-v3";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
-import { internalMessageBus } from "@elizaos/server";
-import { coordinatorPlugin, CoordinationService } from "../../src/coordinator";
+import {
+  coordinatorPlugin,
+  CoordinationService,
+} from "../../src/plugins/coordinator";
 import alexCharacter from "../../src/characters/alex";
 import houseCharacter from "../../src/characters/house";
-import {
-  createUniqueUuid,
-  UUID,
-  ChannelType,
-  Plugin,
-  stringToUuid,
-  EventType,
-} from "@elizaos/core";
+import { createUniqueUuid, ChannelType, Plugin } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
+import { Phase } from "../../src/plugins/house/types";
 import {
-  GameEventHandler,
   GameEventHandlers,
   GameEventType,
-} from "src/house/events/types";
-import { Phase } from "src/house/types";
+} from "../../src/plugins/house/events/types";
 
 describe("Coordinator Plugin - Basic Functionality", () => {
   function getBasePlugins() {
@@ -227,6 +217,7 @@ describe("Coordinator Plugin - Basic Functionality", () => {
           round: 1,
           previousPhase: Phase.INIT,
           timestamp: Date.now(),
+          source: "test-house-plugin",
         });
         console.log("✅ House sent PHASE_STARTED event successfully");
       } catch (error) {

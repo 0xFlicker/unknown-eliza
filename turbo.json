@@ -1,16 +1,28 @@
 {
   "$schema": "https://turborepo.org/schema.json",
   "tasks": {
-    "build": {
+    "build:core": {
       "dependsOn": [
         "^typecheck"
+      ],
+      "inputs": [
+        "packages/core/**/*.ts"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "build": {
+      "dependsOn": [
+        "^build:core"
       ],
       "env": [
         "LOG_LEVEL"
       ],
       "inputs": [
         "apps/**/*.ts",
-        "packages/**/*.ts"
+        "packages/**/*.ts",
+        "!packages/core/**/*.ts"
       ],
       "outputs": [
         "dist/**"

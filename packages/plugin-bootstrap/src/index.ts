@@ -1244,7 +1244,7 @@ const syncSingleUser = async (
       logger.error(`[Bootstrap] Failed to verify created world: ${error}`);
     }
 
-    logger.success(`[Bootstrap] Successfully synced user: ${entity?.id}`);
+    logger.info(`[Bootstrap] Successfully synced user: ${entity?.id}`);
   } catch (error) {
     logger.error(
       `[Bootstrap] Error syncing user: ${error instanceof Error ? error.message : String(error)}`

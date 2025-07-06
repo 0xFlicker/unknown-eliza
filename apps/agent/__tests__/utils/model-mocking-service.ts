@@ -133,13 +133,13 @@ export class ModelMockingService {
   /**
    * Monkey patch a runtime to intercept useModel calls
    */
-  patchRuntime(runtime: IAgentRuntime, agentId: string): () => void {
+  patchRuntime(runtime: IAgentRuntime): () => void {
     const originalUseModel = runtime.useModel.bind(runtime);
 
     runtime.useModel = vi
       .fn()
       .mockImplementation(async (modelType: string, options: any) => {
-        const callId = this.generateCallId(agentId, modelType);
+        const callId = this.generateCallId(runtime.agentId, modelType);
         // console.log(`📞 Model call: ${agentId} -> ${modelType} (${callId}) [${this.config.mode} mode]`);
 
         switch (this.config.mode) {
@@ -147,19 +147,24 @@ export class ModelMockingService {
             return this.recordCall(
               originalUseModel,
               callId,
-              agentId,
+              runtime.agentId,
               modelType,
               options
             );
 
           case "playback":
-            return this.playbackCall(callId, agentId, modelType, options);
+            return this.playbackCall(
+              callId,
+              runtime.agentId,
+              modelType,
+              options
+            );
 
           case "verify":
             return this.verifyCall(
               originalUseModel,
               callId,
-              agentId,
+              runtime.agentId,
               modelType,
               options
             );

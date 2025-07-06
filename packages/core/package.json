@@ -34,6 +34,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "build:core": "bun run build",
     "watch": "tsc --watch",
     "clean": "rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo",
     "dev": "tsup --watch",

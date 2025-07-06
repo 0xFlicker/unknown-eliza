@@ -7,6 +7,7 @@ import {
   type Memory,
   type Entity,
   type Relationship,
+  RuntimeSettings,
 } from "@elizaos/core";
 import { Phase, GameSettings } from "../plugins/house/types";
 
@@ -75,20 +76,20 @@ export interface Channel {
 /**
  * Agent configuration for creation
  */
-export interface AgentConfig {
+export interface AgentConfig<Context extends Record<string, unknown>> {
   character: Character;
   plugins?: Plugin[];
-  metadata?: Record<string, unknown>;
+  metadata?: Context;
 }
 
 /**
  * Agent state and management
  */
-export interface Agent {
+export interface Agent<Context extends Record<string, unknown>> {
   id: UUID;
   runtime: IAgentRuntime;
   character: Character;
-  metadata?: Record<string, unknown>;
+  metadata?: Context;
   createdAt: number;
 }
 
@@ -153,6 +154,7 @@ export interface AppServerConfig<
   runtimeConfig?: {
     runtime?: RuntimeDecorator<Runtime>;
     defaultPlugins?: Plugin[];
+    runtimeSettings?: RuntimeSettings;
   };
   context: Context;
 }
@@ -167,3 +169,8 @@ export interface AgentChannelAssociation {
   entityId: UUID; // Entity ID of this agent on the target runtime
   roomId: UUID; // Room ID for this channel on the target runtime
 }
+
+export type AgentContext = {
+  role: "house" | "player" | "host";
+  entityName: string;
+};

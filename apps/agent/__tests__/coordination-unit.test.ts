@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { CoordinationService } from "../src/coordinator/service";
-import { createGameEventMessage } from "../src/coordinator/types";
-import { GameEventType } from "../src/house/events/types";
+import { CoordinationService } from "../src/plugins/coordinator/service";
+import { createGameEventMessage } from "../src/plugins/coordinator/types";
+import { GameEventType } from "../src/plugins/house/events/types";
 import { stringToUuid } from "@elizaos/core";
 
 // Mock runtime

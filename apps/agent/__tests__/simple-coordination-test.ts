@@ -1,16 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { ConversationSimulatorV3 } from "./utils/conversation-simulator-v3";
 import {
-  ConversationSimulatorV3,
-} from "./utils/conversation-simulator-v3";
-import { coordinatorPlugin, CoordinationService } from "../src/coordinator";
+  coordinatorPlugin,
+  CoordinationService,
+} from "../src/plugins/coordinator";
 import alexCharacter from "../src/characters/alex";
 import houseCharacter from "../src/characters/house";
-import {
-  createUniqueUuid,
-  UUID,
-  stringToUuid,
-  EventType,
-} from "@elizaos/core";
+import { createUniqueUuid, UUID, stringToUuid, EventType } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -18,11 +14,11 @@ import { GameEventType } from "../src/house/events/types";
 import { Phase } from "../src/house/types";
 
 describe("Simple Coordination Test", () => {
-  it("should test coordination without complex plugins", async () => {
-    const simDataDir = fs.mkdtempSync(
+  it("should test coordination ../src/plugins/house/events/types async () => {
+    const simDataDir = ../src/plugins/house/types
       path.join(os.tmpdir(), "simple-coord-test")
     );
-    
+
     const sim = new ConversationSimulatorV3({
       dataDir: simDataDir,
       useModelMockingService: false,
@@ -47,7 +43,7 @@ describe("Simple Coordination Test", () => {
 
       expect(houseCoordination).toBeDefined();
       expect(house).toBeDefined();
-      
+
       console.log("✅ Simple coordination test passed!");
     } finally {
       await sim.cleanup();

@@ -925,39 +925,6 @@ export class ConversationSimulatorV3 {
       metadata: options?.metadata,
     };
 
-    // Add to local tracking immediately
-    // channel.messages.push(conversationMessage);
-
-    // Notify channel observers immediately
-    // const observers = this.messageObservers.get(channelId);
-    // if (observers) {
-    //   observers.forEach((observer) => {
-    //     try {
-    //       observer(conversationMessage);
-    //     } catch (error) {
-    //       console.warn("Channel observer error:", error);
-    //     }
-    //   });
-    // }
-
-    // // NOW THE KEY PART: Emit MESSAGE_RECEIVED events directly to all participating agents
-    // // This mimics what Discord plugin does and should trigger automatic responses
-    // await this.emitMessageToParticipants(
-    //   channelId,
-    //   conversationMessage,
-    //   fromAgent
-    // );
-
-    // internalMessageBus.emit("new_message", {
-    //   id: serverMessage.id,
-    //   channel_id: channelId,
-    //   server_id: "00000000-0000-0000-0000-000000000000",
-    //   author_id: fromRuntime.agentId,
-    //   content: content,
-    //   created_at: deterministicTimestamp,
-    //   metadata: options?.metadata,
-    // } as MessageServiceMessage);
-
     await this.emitMessageToParticipants(
       channelId,
       conversationMessage,

@@ -1,4 +1,4 @@
-import { InfluenceApp } from "./app";
+import { InfluenceApp } from "./influence-app";
 import {
   AgentConfig,
   ChannelConfig,
