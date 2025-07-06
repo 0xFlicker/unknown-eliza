@@ -1,9 +1,5 @@
-import {
-  addHeader,
-  ChannelType,
-  AgentRuntime as coreAgentRuntime,
-} from "../v2";
-import { formatMessages } from "./messages";
+import { addHeader, ChannelType, AgentRuntime as coreAgentRuntime } from '../v2';
+import { formatMessages } from './messages';
 import {
   type Action,
   type Adapter,
@@ -22,9 +18,9 @@ import {
   type ServiceType,
   type State,
   type UUID,
-} from "./types";
+} from './types';
 
-const DEFAULT_SERVER_ID = "00000000-0000-0000-0000-000000000000" as UUID; // Single default server
+const DEFAULT_SERVER_ID = '00000000-0000-0000-0000-000000000000' as UUID; // Single default server
 
 export class AgentRuntime implements IAgentRuntime {
   private _runtime;
@@ -238,13 +234,13 @@ export class AgentRuntime implements IAgentRuntime {
     message: Memory,
     responses: Memory[],
     state?: State,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ): Promise<void> {
     return this._runtime.processActions(
       message as any,
       responses as any,
       state as any,
-      callback as any,
+      callback as any
     );
   }
 
@@ -256,19 +252,9 @@ export class AgentRuntime implements IAgentRuntime {
    * @param callback The handler callback
    * @returns The results of the evaluation.
    */
-  async evaluate(
-    message: Memory,
-    state: State,
-    didRespond?: boolean,
-    callback?: HandlerCallback,
-  ) {
+  async evaluate(message: Memory, state: State, didRespond?: boolean, callback?: HandlerCallback) {
     // v2 now takes responses: Memory[]
-    return this._runtime.evaluate(
-      message as any,
-      state as any,
-      didRespond,
-      callback as any,
-    );
+    return this._runtime.evaluate(message as any, state as any, didRespond, callback as any);
   }
 
   /**
@@ -291,7 +277,7 @@ export class AgentRuntime implements IAgentRuntime {
     _userName: string | null,
     _name: string | null,
     _email?: string | null,
-    _source?: string | null,
+    _source?: string | null
   ) {}
 
   async ensureParticipantInRoom(userId: UUID, roomId: UUID) {
@@ -303,13 +289,13 @@ export class AgentRuntime implements IAgentRuntime {
     roomId: UUID,
     userName?: string,
     _userScreenName?: string,
-    source?: string,
+    source?: string
   ) {
     return this._runtime.ensureConnection({
       userId,
       roomId,
       userName,
-      entityId: "" as UUID,
+      entityId: '' as UUID,
       source,
     });
   }
@@ -324,9 +310,9 @@ export class AgentRuntime implements IAgentRuntime {
   async ensureRoomExists(roomId: UUID) {
     return this._runtime.ensureRoomExists({
       id: roomId,
-      name: "Unknown",
-      source: "Unknown",
-      type: "Unknown" as ChannelType,
+      name: 'Unknown',
+      source: 'Unknown',
+      type: 'Unknown' as ChannelType,
       channelId: roomId,
       serverId: DEFAULT_SERVER_ID,
       worldId: DEFAULT_SERVER_ID,
@@ -339,10 +325,7 @@ export class AgentRuntime implements IAgentRuntime {
    * @param message The message to compose the state from.
    * @returns The state of the agent.
    */
-  async composeState(
-    message: Memory,
-    _additionalKeys: { [key: string]: unknown } = {},
-  ) {
+  async composeState(message: Memory, _additionalKeys: { [key: string]: unknown } = {}) {
     return this._runtime.composeState(message as any, []);
   }
 
@@ -371,12 +354,11 @@ export class AgentRuntime implements IAgentRuntime {
 
     if (state.recentMessagesData && Array.isArray(state.recentMessagesData)) {
       const lastMessageWithAttachment = state.recentMessagesData.find(
-        (msg) => msg.content.attachments && msg.content.attachments.length > 0,
+        (msg) => msg.content.attachments && msg.content.attachments.length > 0
       );
 
       if (lastMessageWithAttachment) {
-        const lastMessageTime =
-          lastMessageWithAttachment?.createdAt ?? Date.now();
+        const lastMessageTime = lastMessageWithAttachment?.createdAt ?? Date.now();
         const oneHourBeforeLastMessage = lastMessageTime - 60 * 60 * 1000; // 1 hour before last message
 
         allAttachments = state.recentMessagesData
@@ -397,13 +379,13 @@ URL: ${attachment.url}
 Type: ${attachment.source}
 Description: ${attachment.description}
 Text: ${attachment.text}
-    `,
+    `
       )
-      .join("\n");
+      .join('\n');
 
     return {
       ...state,
-      recentMessages: addHeader("# Conversation Messages", recentMessages),
+      recentMessages: addHeader('# Conversation Messages', recentMessages),
       recentMessagesData: state.recentMessagesData,
       attachments: formattedAttachments,
     } as State;

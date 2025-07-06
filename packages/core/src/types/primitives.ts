@@ -9,10 +9,7 @@ export type UUID = `${string}-${string}-${string}-${string}-${string}`;
  * @returns The same UUID with branded type information
  */
 export function asUUID(id: string): UUID {
-  if (
-    !id ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-  ) {
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     throw new Error(`Invalid UUID format: ${id}`);
   }
   return id as UUID;
@@ -86,11 +83,11 @@ export type Media = {
 };
 
 export enum ContentType {
-  IMAGE = "image",
-  VIDEO = "video",
-  AUDIO = "audio",
-  DOCUMENT = "document",
-  LINK = "link",
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+  LINK = 'link',
 }
 
 /**

@@ -1,15 +1,8 @@
-import type { Agent } from "./agent";
-import type {
-  Component,
-  Entity,
-  Participant,
-  Relationship,
-  Room,
-  World,
-} from "./environment";
-import type { Memory, MemoryMetadata } from "./memory";
-import type { Metadata, UUID } from "./primitives";
-import type { Task } from "./task";
+import type { Agent } from './agent';
+import type { Component, Entity, Participant, Relationship, Room, World } from './environment';
+import type { Memory, MemoryMetadata } from './memory';
+import type { Metadata, UUID } from './primitives';
+import type { Task } from './task';
 
 /**
  * Represents a log entry
@@ -75,10 +68,7 @@ export interface IDatabaseAdapter {
   getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null>;
 
   /** Get entities for room */
-  getEntitiesForRoom(
-    roomId: UUID,
-    includeComponents?: boolean,
-  ): Promise<Entity[]>;
+  getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]>;
 
   /** Create new entities */
   createEntities(entities: Entity[]): Promise<boolean>;
@@ -91,15 +81,11 @@ export interface IDatabaseAdapter {
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID,
+    sourceEntityId?: UUID
   ): Promise<Component | null>;
 
   /** Get all components for an entity */
-  getComponents(
-    entityId: UUID,
-    worldId?: UUID,
-    sourceEntityId?: UUID,
-  ): Promise<Component[]>;
+  getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]>;
 
   /** Create component */
   createComponent(component: Component): Promise<boolean>;
@@ -171,15 +157,9 @@ export interface IDatabaseAdapter {
     entityId?: UUID;
   }): Promise<Memory[]>;
 
-  createMemory(
-    memory: Memory,
-    tableName: string,
-    unique?: boolean,
-  ): Promise<UUID>;
+  createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID>;
 
-  updateMemory(
-    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata },
-  ): Promise<boolean>;
+  updateMemory(memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata }): Promise<boolean>;
 
   deleteMemory(memoryId: UUID): Promise<void>;
 
@@ -187,11 +167,7 @@ export interface IDatabaseAdapter {
 
   deleteAllMemories(roomId: UUID, tableName: string): Promise<void>;
 
-  countMemories(
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string,
-  ): Promise<number>;
+  countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number>;
 
   createWorld(world: World): Promise<UUID>;
 
@@ -227,15 +203,12 @@ export interface IDatabaseAdapter {
 
   addParticipantsRoom(entityIds: UUID[], roomId: UUID): Promise<boolean>;
 
-  getParticipantUserState(
-    roomId: UUID,
-    entityId: UUID,
-  ): Promise<"FOLLOWED" | "MUTED" | null>;
+  getParticipantUserState(roomId: UUID, entityId: UUID): Promise<'FOLLOWED' | 'MUTED' | null>;
 
   setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: "FOLLOWED" | "MUTED" | null,
+    state: 'FOLLOWED' | 'MUTED' | null
   ): Promise<void>;
 
   /**
@@ -272,10 +245,7 @@ export interface IDatabaseAdapter {
    * @param params Object containing the user ID, agent ID and optional tags to filter by
    * @returns Promise resolving to an array of Relationship objects
    */
-  getRelationships(params: {
-    entityId: UUID;
-    tags?: string[];
-  }): Promise<Relationship[]>;
+  getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]>;
 
   getCache<T>(key: string): Promise<T | undefined>;
   setCache<T>(key: string, value: T): Promise<boolean>;
@@ -283,11 +253,7 @@ export interface IDatabaseAdapter {
 
   // Only task instance methods - definitions are in-memory
   createTask(task: Task): Promise<UUID>;
-  getTasks(params: {
-    roomId?: UUID;
-    tags?: string[];
-    entityId?: UUID;
-  }): Promise<Task[]>;
+  getTasks(params: { roomId?: UUID; tags?: string[]; entityId?: UUID }): Promise<Task[]>;
   getTask(id: UUID): Promise<Task | null>;
   getTasksByName(name: string): Promise<Task[]>;
   updateTask(id: UUID, task: Partial<Task>): Promise<void>;

@@ -1,16 +1,16 @@
-import type { Character } from "./agent";
-import type { Action, Evaluator, Provider } from "./components";
-import { HandlerCallback } from "./components";
-import type { IDatabaseAdapter } from "./database";
-import type { Entity, Room, World } from "./environment";
-import { Memory } from "./memory";
-import type { SendHandlerFunction, TargetInfo } from "./messaging";
-import type { ModelParamsMap, ModelResultMap, ModelTypeName } from "./model";
-import type { Plugin, Route } from "./plugin";
-import type { Content, UUID } from "./primitives";
-import type { Service, ServiceTypeName } from "./service";
-import type { State } from "./state";
-import type { TaskWorker } from "./task";
+import type { Character } from './agent';
+import type { Action, Evaluator, Provider } from './components';
+import { HandlerCallback } from './components';
+import type { IDatabaseAdapter } from './database';
+import type { Entity, Room, World } from './environment';
+import { Memory } from './memory';
+import type { SendHandlerFunction, TargetInfo } from './messaging';
+import type { ModelParamsMap, ModelResultMap, ModelTypeName } from './model';
+import type { Plugin, Route } from './plugin';
+import type { Content, UUID } from './primitives';
+import type { Service, ServiceTypeName } from './service';
+import type { State } from './state';
+import type { TaskWorker } from './task';
 
 /**
  * Represents the core runtime environment for an agent.
@@ -47,11 +47,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
   // Keep these methods for backward compatibility
   registerDatabaseAdapter(adapter: IDatabaseAdapter): void;
 
-  setSetting(
-    key: string,
-    value: string | boolean | null | any,
-    secret?: boolean,
-  ): void;
+  setSetting(key: string, value: string | boolean | null | any, secret?: boolean): void;
 
   getSetting(key: string): string | boolean | null | any;
 
@@ -61,7 +57,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     message: Memory,
     responses: Memory[],
     state?: State,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ): Promise<void>;
 
   evaluate(
@@ -69,7 +65,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     state?: State,
     didRespond?: boolean,
     callback?: HandlerCallback,
-    responses?: Memory[],
+    responses?: Memory[]
   ): Promise<Evaluator[] | null>;
 
   registerProvider(provider: Provider): void;
@@ -78,12 +74,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
 
   registerEvaluator(evaluator: Evaluator): void;
 
-  ensureConnections(
-    entities: Entity[],
-    rooms: Room[],
-    source: string,
-    world: World,
-  ): Promise<void>;
+  ensureConnections(entities: Entity[], rooms: Room[], source: string, world: World): Promise<void>;
   ensureConnection({
     entityId,
     roomId,
@@ -122,23 +113,23 @@ export interface IAgentRuntime extends IDatabaseAdapter {
     message: Memory,
     includeList?: string[],
     onlyInclude?: boolean,
-    skipCache?: boolean,
+    skipCache?: boolean
   ): Promise<State>;
 
   useModel<T extends ModelTypeName, R = ModelResultMap[T]>(
     modelType: T,
-    params: Omit<ModelParamsMap[T], "runtime"> | any,
+    params: Omit<ModelParamsMap[T], 'runtime'> | any
   ): Promise<R>;
 
   registerModel(
     modelType: ModelTypeName | string,
     handler: (params: any) => Promise<any>,
     provider: string,
-    priority?: number,
+    priority?: number
   ): void;
 
   getModel(
-    modelType: ModelTypeName | string,
+    modelType: ModelTypeName | string
   ): ((runtime: IAgentRuntime, params: any) => Promise<any>) | undefined;
 
   registerEvent(event: string, handler: (params: any) => Promise<void>): void;
@@ -169,15 +160,7 @@ export interface IAgentRuntime extends IDatabaseAdapter {
   getEntityById(entityId: UUID): Promise<Entity | null>;
   getRoom(roomId: UUID): Promise<Room | null>;
   createEntity(entity: Entity): Promise<boolean>;
-  createRoom({
-    id,
-    name,
-    source,
-    type,
-    channelId,
-    serverId,
-    worldId,
-  }: Room): Promise<UUID>;
+  createRoom({ id, name, source, type, channelId, serverId, worldId }: Room): Promise<UUID>;
   addParticipant(entityId: UUID, roomId: UUID): Promise<boolean>;
   getRooms(worldId: UUID): Promise<Room[]>;
 

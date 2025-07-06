@@ -1,4 +1,4 @@
-import { Service, ServiceType } from "./service";
+import { Service, ServiceType } from './service';
 
 /**
  * A standardized representation of a token holding.
@@ -50,7 +50,7 @@ export interface TokenData {
 export abstract class ITokenDataService extends Service {
   static override readonly serviceType = ServiceType.TOKEN_DATA;
   public readonly capabilityDescription =
-    "Provides standardized access to token market data." as string;
+    'Provides standardized access to token market data.' as string;
 
   /**
    * Fetches detailed information for a single token.
@@ -58,10 +58,7 @@ export abstract class ITokenDataService extends Service {
    * @param chain The blockchain the token resides on.
    * @returns A Promise resolving to TokenData or null if not found.
    */
-  abstract getTokenDetails(
-    address: string,
-    chain: string,
-  ): Promise<TokenData | null>;
+  abstract getTokenDetails(address: string, chain: string): Promise<TokenData | null>;
 
   /**
    * Fetches a list of trending tokens.
@@ -73,7 +70,7 @@ export abstract class ITokenDataService extends Service {
   abstract getTrendingTokens(
     chain?: string,
     limit?: number,
-    timePeriod?: string,
+    timePeriod?: string
   ): Promise<TokenData[]>;
 
   /**
@@ -83,11 +80,7 @@ export abstract class ITokenDataService extends Service {
    * @param limit Optional: Number of results to return.
    * @returns A Promise resolving to an array of TokenData.
    */
-  abstract searchTokens(
-    query: string,
-    chain?: string,
-    limit?: number,
-  ): Promise<TokenData[]>;
+  abstract searchTokens(query: string, chain?: string, limit?: number): Promise<TokenData[]>;
 
   /**
    * Fetches data for multiple tokens by their addresses on a specific chain.
@@ -95,10 +88,7 @@ export abstract class ITokenDataService extends Service {
    * @param chain The blockchain the tokens reside on.
    * @returns A Promise resolving to an array of TokenData. May not include all requested if some are not found.
    */
-  abstract getTokensByAddresses(
-    addresses: string[],
-    chain: string,
-  ): Promise<TokenData[]>;
+  abstract getTokensByAddresses(addresses: string[], chain: string): Promise<TokenData[]>;
 
   // Future potential methods:
   // getHistoricalPriceData(address: string, chain: string, timeFrame: string): Promise<any[]>;

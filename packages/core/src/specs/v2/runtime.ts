@@ -1,4 +1,4 @@
-import { ChannelType } from "../../types";
+import { ChannelType } from '../../types';
 // Import types with the 'type' keyword
 import type {
   Action,
@@ -33,12 +33,9 @@ import type {
   TaskWorker,
   UUID,
   World,
-} from "./types";
+} from './types';
 
-import {
-  AgentRuntime as coreAgentRuntime,
-  Semaphore as coreSemaphore,
-} from "../../runtime";
+import { AgentRuntime as coreAgentRuntime, Semaphore as coreSemaphore } from '../../runtime';
 
 export class Semaphore {
   private _semphonre;
@@ -78,17 +75,14 @@ export class AgentRuntime implements IAgentRuntime {
   get events(): Map<string, ((params: any) => Promise<void>)[]> {
     // If _runtime.events is already a Map, just cast it
     if (this._runtime.events instanceof Map) {
-      return this._runtime.events as Map<
-        string,
-        ((params: any) => Promise<void>)[]
-      >;
+      return this._runtime.events as Map<string, ((params: any) => Promise<void>)[]>;
     }
 
     // If it's an object that needs to be converted to a Map
     const eventsMap = new Map<string, ((params: any) => Promise<void>)[]>();
 
     // Convert object to Map if needed
-    if (this._runtime.events && typeof this._runtime.events === "object") {
+    if (this._runtime.events && typeof this._runtime.events === 'object') {
       Object.entries(this._runtime.events).forEach(([key, handlers]) => {
         eventsMap.set(key, handlers as ((params: any) => Promise<void>)[]);
       });
@@ -170,11 +164,7 @@ export class AgentRuntime implements IAgentRuntime {
     return this._runtime.getConnection();
   }
 
-  setSetting(
-    key: string,
-    value: string | boolean | null | any,
-    secret = false,
-  ) {
+  setSetting(key: string, value: string | boolean | null | any, secret = false) {
     return this._runtime.setSetting(key, value, secret);
   }
 
@@ -224,17 +214,10 @@ export class AgentRuntime implements IAgentRuntime {
         state: State,
         options: any,
         callback?: HandlerCallback,
-        responses?: Memory[],
+        responses?: Memory[]
       ) => {
         // Pass the v2 runtime instance (this) instead of the core runtime
-        return action.handler(
-          this,
-          message,
-          state,
-          options,
-          callback,
-          responses,
-        );
+        return action.handler(this, message, state, options, callback, responses);
       },
     };
     return this._runtime.registerAction(wrappedAction as any);
@@ -259,7 +242,7 @@ export class AgentRuntime implements IAgentRuntime {
     message: Memory,
     responses: Memory[],
     state?: State,
-    callback?: HandlerCallback,
+    callback?: HandlerCallback
   ): Promise<void> {
     return this._runtime.processActions(message, responses, state, callback);
   }
@@ -277,15 +260,9 @@ export class AgentRuntime implements IAgentRuntime {
     state: State,
     didRespond?: boolean,
     callback?: HandlerCallback,
-    responses?: Memory[],
+    responses?: Memory[]
   ) {
-    return this._runtime.evaluate(
-      message,
-      state,
-      didRespond,
-      callback,
-      responses,
-    ) as any;
+    return this._runtime.evaluate(message, state, didRespond, callback, responses) as any;
   }
 
   async ensureConnection({
@@ -367,16 +344,7 @@ export class AgentRuntime implements IAgentRuntime {
    * @returns The room ID of the room between the agent and the user.
    * @throws An error if the room cannot be created.
    */
-  async ensureRoomExists({
-    id,
-    name,
-    source,
-    type,
-    channelId,
-    serverId,
-    worldId,
-    metadata,
-  }: Room) {
+  async ensureRoomExists({ id, name, source, type, channelId, serverId, worldId, metadata }: Room) {
     return this._runtime.ensureRoomExists({
       id,
       name,
@@ -401,14 +369,9 @@ export class AgentRuntime implements IAgentRuntime {
     message: Memory,
     includeList: string[] | null = null,
     onlyInclude = false,
-    skipCache = false,
+    skipCache = false
   ): Promise<State> {
-    return this._runtime.composeState(
-      message,
-      includeList,
-      onlyInclude,
-      skipCache,
-    );
+    return this._runtime.composeState(message, includeList, onlyInclude, skipCache);
   }
 
   getService<T extends Service>(service: ServiceTypeName): T | null {
@@ -422,7 +385,7 @@ export class AgentRuntime implements IAgentRuntime {
   registerModel(
     modelType: ModelTypeName,
     handler: (runtime: IAgentRuntime, params: any) => Promise<any>,
-    provider = "v2",
+    provider = 'v2'
   ) {
     // Wrap the handler to ensure it receives the v2 runtime instance
     const wrappedHandler = async (_runtime: any, params: any) => {
@@ -433,7 +396,7 @@ export class AgentRuntime implements IAgentRuntime {
   }
 
   getModel(
-    modelType: ModelTypeName,
+    modelType: ModelTypeName
   ): ((runtime: IAgentRuntime, params: any) => Promise<any>) | undefined {
     return this._runtime.getModel(modelType) as any;
   }
@@ -448,7 +411,7 @@ export class AgentRuntime implements IAgentRuntime {
    */
   async useModel<T extends ModelTypeName, R = ModelResultMap[T]>(
     modelType: T,
-    params: Omit<ModelParamsMap[T], "runtime"> | any,
+    params: Omit<ModelParamsMap[T], 'runtime'> | any
   ): Promise<R> {
     return this._runtime.useModel(modelType, params) as any;
   }
@@ -526,10 +489,7 @@ export class AgentRuntime implements IAgentRuntime {
     return this._runtime.getEntityByIds(entityIds);
   }
 
-  async getEntitiesForRoom(
-    roomId: UUID,
-    includeComponents?: boolean,
-  ): Promise<Entity[]> {
+  async getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]> {
     return this._runtime.getEntitiesForRoom(roomId, includeComponents);
   }
 
@@ -549,16 +509,12 @@ export class AgentRuntime implements IAgentRuntime {
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID,
+    sourceEntityId?: UUID
   ): Promise<Component | null> {
     return this._runtime.getComponent(entityId, type, worldId, sourceEntityId);
   }
 
-  async getComponents(
-    entityId: UUID,
-    worldId?: UUID,
-    sourceEntityId?: UUID,
-  ): Promise<Component[]> {
+  async getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]> {
     return this._runtime.getComponents(entityId, worldId, sourceEntityId);
   }
 
@@ -646,16 +602,12 @@ export class AgentRuntime implements IAgentRuntime {
     return this._runtime.searchMemories(params);
   }
 
-  async createMemory(
-    memory: Memory,
-    tableName: string,
-    unique?: boolean,
-  ): Promise<UUID> {
+  async createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID> {
     return this._runtime.createMemory(memory, tableName, unique);
   }
 
   async updateMemory(
-    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata },
+    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata }
   ): Promise<boolean> {
     return this._runtime.updateMemory(memory);
   }
@@ -672,11 +624,7 @@ export class AgentRuntime implements IAgentRuntime {
     return this._runtime.deleteAllMemories(roomId, tableName);
   }
 
-  async countMemories(
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string,
-  ): Promise<number> {
+  async countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number> {
     return this._runtime.countMemories(roomId, unique, tableName);
   }
 
@@ -716,15 +664,7 @@ export class AgentRuntime implements IAgentRuntime {
   async getRoomsByIds(roomIds: UUID[]): Promise<Room[] | null> {
     return this._runtime.getRoomsByIds(roomIds);
   }
-  async createRoom({
-    id,
-    name,
-    source,
-    type,
-    channelId,
-    serverId,
-    worldId,
-  }: Room): Promise<UUID> {
+  async createRoom({ id, name, source, type, channelId, serverId, worldId }: Room): Promise<UUID> {
     return this._runtime.createRoom({
       id,
       name,
@@ -765,15 +705,15 @@ export class AgentRuntime implements IAgentRuntime {
 
   async getParticipantUserState(
     roomId: UUID,
-    entityId: UUID,
-  ): Promise<"FOLLOWED" | "MUTED" | null> {
+    entityId: UUID
+  ): Promise<'FOLLOWED' | 'MUTED' | null> {
     return this._runtime.getParticipantUserState(roomId, entityId);
   }
 
   async setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: "FOLLOWED" | "MUTED" | null,
+    state: 'FOLLOWED' | 'MUTED' | null
   ): Promise<void> {
     return this._runtime.setParticipantUserState(roomId, entityId, state);
   }
@@ -798,10 +738,7 @@ export class AgentRuntime implements IAgentRuntime {
     return this._runtime.getRelationship(params);
   }
 
-  async getRelationships(params: {
-    entityId: UUID;
-    tags?: string[];
-  }): Promise<Relationship[]> {
+  async getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]> {
     return this._runtime.getRelationships(params);
   }
 
@@ -856,7 +793,7 @@ export class AgentRuntime implements IAgentRuntime {
 
   async sendControlMessage(params: {
     roomId: UUID;
-    action: "enable_input" | "disable_input";
+    action: 'enable_input' | 'disable_input';
     target?: string;
   }): Promise<void> {
     return this._runtime.sendControlMessage(params);
@@ -876,10 +813,7 @@ export class AgentRuntime implements IAgentRuntime {
    * @param target - The target information including source and channel/user ID
    * @param content - The message content to send
    */
-  async sendMessageToTarget(
-    target: TargetInfo,
-    content: Content,
-  ): Promise<void> {
+  async sendMessageToTarget(target: TargetInfo, content: Content): Promise<void> {
     return this._runtime.sendMessageToTarget(target, content);
   }
 

@@ -1,8 +1,8 @@
 import {
   getUserServerRole as coreGetUserServerRole,
   findWorldsForOwner as coreFindWorldsForOwner,
-} from "../../roles";
-import { type IAgentRuntime, Role, type World } from "./types";
+} from '../../roles';
+import { type IAgentRuntime, Role, type World } from './types';
 
 /**
  * Interface representing the ownership state of servers.
@@ -25,7 +25,7 @@ export interface ServerOwnershipState {
 export async function getUserServerRole(
   runtime: IAgentRuntime,
   entityId: string,
-  serverId: string,
+  serverId: string
 ): Promise<Role> {
   return coreGetUserServerRole(runtime as any, entityId, serverId);
 }
@@ -35,7 +35,7 @@ export async function getUserServerRole(
  */
 export async function findWorldsForOwner(
   runtime: IAgentRuntime,
-  entityId: string,
+  entityId: string
 ): Promise<World[] | null> {
   return coreFindWorldsForOwner(runtime as any, entityId);
 }

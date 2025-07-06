@@ -14,7 +14,7 @@ import {
   unsaltSettingValue as coreUnsaltSettingValue,
   unsaltWorldSettings as coreUnsaltWorldSettings,
   updateWorldSettings as coreUpdateWorldSettings,
-} from "../../settings";
+} from '../../settings';
 
 import {
   Character,
@@ -23,7 +23,7 @@ import {
   Setting,
   World,
   WorldSettings,
-} from "../../types";
+} from '../../types';
 
 /**
  * Creates a Setting object from a configSetting object by omitting the 'value' property.
@@ -31,9 +31,7 @@ import {
  * @param {Omit<Setting, 'value'>} configSetting - The configSetting object to create the Setting from.
  * @returns {Setting} A new Setting object created from the provided configSetting object.
  */
-export function createSettingFromConfig(
-  configSetting: Omit<Setting, "value">,
-): Setting {
+export function createSettingFromConfig(configSetting: Omit<Setting, 'value'>): Setting {
   return coreCreateSettingFromConfig(configSetting);
 }
 
@@ -85,20 +83,14 @@ export function unsaltSettingValue(setting: Setting, salt: string): Setting {
 /**
  * Applies salt to all settings in a WorldSettings object
  */
-export function saltWorldSettings(
-  worldSettings: WorldSettings,
-  salt: string,
-): WorldSettings {
+export function saltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
   return coreSaltWorldSettings(worldSettings, salt);
 }
 
 /**
  * Removes salt from all settings in a WorldSettings object
  */
-export function unsaltWorldSettings(
-  worldSettings: WorldSettings,
-  salt: string,
-): WorldSettings {
+export function unsaltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
   return coreUnsaltWorldSettings(worldSettings, salt);
 }
 
@@ -108,7 +100,7 @@ export function unsaltWorldSettings(
 export async function updateWorldSettings(
   runtime: IAgentRuntime,
   serverId: string,
-  worldSettings: WorldSettings,
+  worldSettings: WorldSettings
 ): Promise<boolean> {
   return coreUpdateWorldSettings(runtime, serverId, worldSettings);
 }
@@ -118,7 +110,7 @@ export async function updateWorldSettings(
  */
 export async function getWorldSettings(
   runtime: IAgentRuntime,
-  serverId: string,
+  serverId: string
 ): Promise<WorldSettings | null> {
   return coreGetWorldSettings(runtime, serverId);
 }
@@ -129,7 +121,7 @@ export async function getWorldSettings(
 export async function initializeOnboarding(
   runtime: IAgentRuntime,
   world: World,
-  config: OnboardingConfig,
+  config: OnboardingConfig
 ): Promise<WorldSettings | null> {
   return coreInitializeOnboarding(runtime, world, config);
 }
@@ -150,10 +142,7 @@ export function encryptedCharacter(character: Character): Character {
  * @param {IAgentRuntime} runtime - The runtime information needed for salt generation
  * @returns {Character} - A copy of the character with decrypted secrets
  */
-export function decryptedCharacter(
-  character: Character,
-  runtime: IAgentRuntime,
-): Character {
+export function decryptedCharacter(character: Character, runtime: IAgentRuntime): Character {
   return coreDecryptedCharacter(character, runtime);
 }
 
@@ -163,10 +152,7 @@ export function decryptedCharacter(
  * @param {string} salt - The salt to use for encryption
  * @returns {Record<string, any>} - Object with encrypted values
  */
-export function encryptObjectValues(
-  obj: Record<string, any>,
-  salt: string,
-): Record<string, any> {
+export function encryptObjectValues(obj: Record<string, any>, salt: string): Record<string, any> {
   return coreEncryptObjectValues(obj, salt);
 }
 
@@ -176,10 +162,7 @@ export function encryptObjectValues(
  * @param {string} salt - The salt to use for decryption
  * @returns {Record<string, any>} - Object with decrypted values
  */
-export function decryptObjectValues(
-  obj: Record<string, any>,
-  salt: string,
-): Record<string, any> {
+export function decryptObjectValues(obj: Record<string, any>, salt: string): Record<string, any> {
   return coreDecryptObjectValues(obj, salt);
 }
 

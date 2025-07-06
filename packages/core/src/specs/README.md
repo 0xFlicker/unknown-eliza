@@ -12,61 +12,58 @@ When building plugins for Eliza, you can choose to target a specific API version
 
 ```typescript
 // Import v2 types and utilities
-import { Action, IAgentRuntime, Memory } from "@elizaos/core/v2";
+import { Action, IAgentRuntime, Memory } from '@elizaos/core/v2';
 
 // Import v1 types (if you need backwards compatibility)
-import { Action as ActionV1 } from "@elizaos/core/v1";
+import { Action as ActionV1 } from '@elizaos/core/v1';
 ```
 
 ### Import Latest Version (Default)
 
 ```typescript
 // Import latest version (currently v2)
-import { Action, IAgentRuntime } from "@elizaos/core";
+import { Action, IAgentRuntime } from '@elizaos/core';
 ```
 
 ## Example: Creating a v2-Compatible Plugin
 
 ```typescript
-import { Plugin, Action, IAgentRuntime, Memory, State } from "@elizaos/core/v2";
+import { Plugin, Action, IAgentRuntime, Memory, State } from '@elizaos/core/v2';
 
 const greetAction: Action = {
-  name: "greet",
-  description: "Greet a user",
-  similes: ["hello", "hi", "hey"],
+  name: 'greet',
+  description: 'Greet a user',
+  similes: ['hello', 'hi', 'hey'],
 
   validate: async (runtime: IAgentRuntime, message: Memory) => {
-    return message.content.text?.toLowerCase().includes("hello") ?? false;
+    return message.content.text?.toLowerCase().includes('hello') ?? false;
   },
 
   handler: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-    const userName = state?.userName || "friend";
+    const userName = state?.userName || 'friend';
 
-    const response = await runtime.useModel("TEXT_SMALL", {
+    const response = await runtime.useModel('TEXT_SMALL', {
       prompt: `Generate a friendly greeting for ${userName}`,
       temperature: 0.8,
     });
 
     return {
       text: response,
-      action: "GREET_COMPLETED",
+      action: 'GREET_COMPLETED',
     };
   },
 
   examples: [
     [
-      { name: "user", content: { text: "Hello!" } },
-      {
-        name: "assistant",
-        content: { text: "Hello there! How can I help you today?" },
-      },
+      { name: 'user', content: { text: 'Hello!' } },
+      { name: 'assistant', content: { text: 'Hello there! How can I help you today?' } },
     ],
   ],
 };
 
 export const greetPlugin: Plugin = {
-  name: "greet-plugin",
-  description: "A simple greeting plugin",
+  name: 'greet-plugin',
+  description: 'A simple greeting plugin',
   actions: [greetAction],
 };
 ```
@@ -99,10 +96,10 @@ export const greetPlugin: Plugin = {
 
 ```typescript
 // Before (direct core import)
-import { Action, IAgentRuntime } from "@elizaos/core";
+import { Action, IAgentRuntime } from '@elizaos/core';
 
 // After (versioned import)
-import { Action, IAgentRuntime } from "@elizaos/core/v2";
+import { Action, IAgentRuntime } from '@elizaos/core/v2';
 ```
 
 ### Handling Version Differences
@@ -110,12 +107,12 @@ import { Action, IAgentRuntime } from "@elizaos/core/v2";
 If you need to support multiple versions:
 
 ```typescript
-import * as v1 from "@elizaos/core/v1";
-import * as v2 from "@elizaos/core/v2";
+import * as v1 from '@elizaos/core/v1';
+import * as v2 from '@elizaos/core/v2';
 
 // Use type guards or version detection to handle differences
-function createAction(version: "v1" | "v2"): v1.Action | v2.Action {
-  if (version === "v1") {
+function createAction(version: 'v1' | 'v2'): v1.Action | v2.Action {
+  if (version === 'v1') {
     // Return v1-compatible action
   } else {
     // Return v2-compatible action

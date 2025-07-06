@@ -1,13 +1,13 @@
-import type { Character } from "./agent";
-import type { Action, Evaluator, Provider } from "./components";
-import type { IDatabaseAdapter } from "./database";
-import type { EventHandler, EventPayloadMap } from "./events";
-import type { IAgentRuntime } from "./runtime";
-import type { Service } from "./service";
-import type { TestSuite } from "./testing";
+import type { Character } from './agent';
+import type { Action, Evaluator, Provider } from './components';
+import type { IDatabaseAdapter } from './database';
+import type { EventHandler, EventPayloadMap } from './events';
+import type { IAgentRuntime } from './runtime';
+import type { Service } from './service';
+import type { TestSuite } from './testing';
 
 export type Route = {
-  type: "GET" | "POST" | "PUT" | "DELETE" | "STATIC";
+  type: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'STATIC';
   path: string;
   filePath?: string;
   public?: boolean;
@@ -31,10 +31,7 @@ export interface Plugin {
   description: string;
 
   // Initialize plugin with runtime services
-  init?: (
-    config: Record<string, string>,
-    runtime: IAgentRuntime,
-  ) => Promise<void>;
+  init?: (config: Record<string, string>, runtime: IAgentRuntime) => Promise<void>;
 
   // Configuration
   config?: { [key: string]: any };

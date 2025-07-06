@@ -1,9 +1,9 @@
 import {
   formatMessages as coreFormatMessages,
   formatTimestamp as coreFormatTimestamp,
-} from "../v2";
+} from '../v2';
 
-import type { Actor, IAgentRuntime, Memory, UUID } from "./types";
+import type { Actor, IAgentRuntime, Memory, UUID } from './types';
 
 /**
  * Get details for a list of actors.
@@ -15,7 +15,7 @@ export async function getActorDetails({
   runtime: IAgentRuntime;
   roomId: UUID;
 }) {
-  throw new Error("getActorDetails is not implemented.");
+  throw new Error('getActorDetails is not implemented.');
 }
 
 /**
@@ -25,9 +25,9 @@ export async function getActorDetails({
  */
 export function formatActors({ actors }: { actors: Actor[] }) {
   if (!actors || actors.length === 0) {
-    return "No actors available.";
+    return 'No actors available.';
   }
-  return actors.map((actor) => actor.name).join(", ");
+  return actors.map((actor) => actor.name).join(', ');
 }
 
 /**
@@ -36,13 +36,7 @@ export function formatActors({ actors }: { actors: Actor[] }) {
  * @param actors - list of actors
  * @returns string
  */
-export const formatMessages = ({
-  messages,
-  actors,
-}: {
-  messages: Memory[];
-  actors: Actor[];
-}) => {
+export const formatMessages = ({ messages, actors }: { messages: Memory[]; actors: Actor[] }) => {
   return coreFormatMessages(messages as any);
 };
 

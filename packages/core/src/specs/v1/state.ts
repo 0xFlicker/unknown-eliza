@@ -1,5 +1,5 @@
-import { State as StateV2 } from "../v2";
-import { State as StateFromTypes } from "./types";
+import { State as StateV2 } from '../v2';
+import { State as StateFromTypes } from './types';
 
 /**
  * Represents the state of a conversation or context
@@ -11,12 +11,12 @@ export type State = StateFromTypes;
  * Default empty state with required properties
  */
 const DEFAULT_STATE: Partial<State> = {
-  bio: "",
-  lore: "",
-  messageDirections: "",
-  postDirections: "",
-  actors: "",
-  recentMessages: "",
+  bio: '',
+  lore: '',
+  messageDirections: '',
+  postDirections: '',
+  actors: '',
+  recentMessages: '',
   recentMessagesData: [],
 };
 
@@ -35,7 +35,7 @@ export function fromV2State(stateV2: StateV2): State {
 
   // Add any other properties from the v2 state
   for (const key in stateV2) {
-    if (key !== "values" && key !== "data" && key !== "text") {
+    if (key !== 'values' && key !== 'data' && key !== 'text') {
       state[key] = stateV2[key];
     }
   }
@@ -52,12 +52,12 @@ export function toV2State(state: State): StateV2 {
   const stateV2: StateV2 = {
     values: {},
     data: {},
-    text: state.text || "",
+    text: state.text || '',
   };
 
   // Add any properties from v1 state as-is to preserve them
   for (const key in state) {
-    if (key !== "text") {
+    if (key !== 'text') {
       stateV2[key] = state[key];
     }
   }

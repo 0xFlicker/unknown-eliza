@@ -1,5 +1,5 @@
-import { formatPosts as coreFormatPosts } from "../v2";
-import type { Actor, Memory } from "./types";
+import { formatPosts as coreFormatPosts } from '../v2';
+import type { Actor, Memory } from './types';
 
 export const formatPosts = ({
   messages,

@@ -4,7 +4,7 @@ import {
   postCreationTemplate as corePostCreationTemplate,
   booleanFooter as coreBooleanFooter,
   imageDescriptionTemplate as coreImageDescriptionTemplate,
-} from "../../prompts";
+} from '../../prompts';
 
 export const shouldRespondTemplate: string = coreShouldRespondTemplate;
 export const messageHandlerTemplate: string = coreMessageHandlerTemplate;

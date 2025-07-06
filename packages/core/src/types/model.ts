@@ -1,4 +1,4 @@
-import type { IAgentRuntime } from "./runtime";
+import type { IAgentRuntime } from './runtime';
 
 export type ModelTypeName = (typeof ModelType)[keyof typeof ModelType] | string;
 
@@ -13,25 +13,25 @@ export type ModelTypeName = (typeof ModelType)[keyof typeof ModelType] | string;
  * String values are used for extensibility with custom model types.
  */
 export const ModelType = {
-  SMALL: "TEXT_SMALL", // kept for backwards compatibility
-  MEDIUM: "TEXT_LARGE", // kept for backwards compatibility
-  LARGE: "TEXT_LARGE", // kept for backwards compatibility
-  TEXT_SMALL: "TEXT_SMALL",
-  TEXT_LARGE: "TEXT_LARGE",
-  TEXT_EMBEDDING: "TEXT_EMBEDDING",
-  TEXT_TOKENIZER_ENCODE: "TEXT_TOKENIZER_ENCODE",
-  TEXT_TOKENIZER_DECODE: "TEXT_TOKENIZER_DECODE",
-  TEXT_REASONING_SMALL: "REASONING_SMALL",
-  TEXT_REASONING_LARGE: "REASONING_LARGE",
-  TEXT_COMPLETION: "TEXT_COMPLETION",
-  IMAGE: "IMAGE",
-  IMAGE_DESCRIPTION: "IMAGE_DESCRIPTION",
-  TRANSCRIPTION: "TRANSCRIPTION",
-  TEXT_TO_SPEECH: "TEXT_TO_SPEECH",
-  AUDIO: "AUDIO",
-  VIDEO: "VIDEO",
-  OBJECT_SMALL: "OBJECT_SMALL",
-  OBJECT_LARGE: "OBJECT_LARGE",
+  SMALL: 'TEXT_SMALL', // kept for backwards compatibility
+  MEDIUM: 'TEXT_LARGE', // kept for backwards compatibility
+  LARGE: 'TEXT_LARGE', // kept for backwards compatibility
+  TEXT_SMALL: 'TEXT_SMALL',
+  TEXT_LARGE: 'TEXT_LARGE',
+  TEXT_EMBEDDING: 'TEXT_EMBEDDING',
+  TEXT_TOKENIZER_ENCODE: 'TEXT_TOKENIZER_ENCODE',
+  TEXT_TOKENIZER_DECODE: 'TEXT_TOKENIZER_DECODE',
+  TEXT_REASONING_SMALL: 'REASONING_SMALL',
+  TEXT_REASONING_LARGE: 'REASONING_LARGE',
+  TEXT_COMPLETION: 'TEXT_COMPLETION',
+  IMAGE: 'IMAGE',
+  IMAGE_DESCRIPTION: 'IMAGE_DESCRIPTION',
+  TRANSCRIPTION: 'TRANSCRIPTION',
+  TEXT_TO_SPEECH: 'TEXT_TO_SPEECH',
+  AUDIO: 'AUDIO',
+  VIDEO: 'VIDEO',
+  OBJECT_SMALL: 'OBJECT_SMALL',
+  OBJECT_LARGE: 'OBJECT_LARGE',
 } as const;
 
 /**
@@ -201,7 +201,7 @@ export interface ObjectGenerationParams extends BaseModelParams {
   /** Optional JSON schema for validation */
   schema?: JSONSchema;
   /** Type of object to generate */
-  output?: "object" | "array" | "enum";
+  output?: 'object' | 'array' | 'enum';
   /** For enum type, the allowed values */
   enumValues?: string[];
   /** Model type to use */
@@ -268,10 +268,7 @@ export interface ModelResultMap {
  */
 export interface ModelHandler {
   /** The function that executes the model, taking runtime and parameters, and returning a Promise. */
-  handler: (
-    runtime: IAgentRuntime,
-    params: Record<string, unknown>,
-  ) => Promise<unknown>;
+  handler: (runtime: IAgentRuntime, params: Record<string, unknown>) => Promise<unknown>;
   /** The name of the provider (e.g., plugin name) that registered this model handler. */
   provider: string;
   /**

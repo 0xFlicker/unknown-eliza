@@ -1,5 +1,5 @@
-import type { Content, UUID } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
+import type { Content, UUID } from './primitives';
+import type { IAgentRuntime } from './runtime';
 
 /**
  * Information describing the target of a message.
@@ -20,7 +20,7 @@ export interface TargetInfo {
 export type SendHandlerFunction = (
   runtime: IAgentRuntime,
   target: TargetInfo,
-  content: Content,
+  content: Content
 ) => Promise<void>;
 
 export enum SOCKET_MESSAGE_TYPE {
@@ -38,12 +38,12 @@ export enum SOCKET_MESSAGE_TYPE {
  */
 export interface ControlMessage {
   /** Message type identifier */
-  type: "control";
+  type: 'control';
 
   /** Control message payload */
   payload: {
     /** Action to perform */
-    action: "disable_input" | "enable_input";
+    action: 'disable_input' | 'enable_input';
 
     /** Optional target element identifier */
     target?: string;

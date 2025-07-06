@@ -1,7 +1,7 @@
-import { v4 as uuidv4 } from "uuid";
-import { createUniqueUuid } from "./entities";
-import { decryptSecret, getSalt, safeReplacer } from "./index";
-import { createLogger } from "./logger";
+import { v4 as uuidv4 } from 'uuid';
+import { createUniqueUuid } from './entities';
+import { decryptSecret, getSalt, safeReplacer } from './index';
+import { createLogger } from './logger';
 import {
   ChannelType,
   ModelType,
@@ -38,10 +38,10 @@ import {
   type RuntimeSettings,
   type Component,
   IAgentRuntime,
-} from "./types";
+} from './types';
 
-import { BM25 } from "./search";
-import { stringToUuid } from "./utils";
+import { BM25 } from './search';
+import { stringToUuid } from './utils';
 
 const environmentSettings: RuntimeSettings = {};
 
@@ -134,14 +134,15 @@ export class AgentRuntime implements IAgentRuntime {
       opts?.agentId ??
       stringToUuid(opts.character?.name ?? uuidv4() + opts.character?.username);
     this.character = opts.character;
+    const logLevel = process.env.LOG_LEVEL || 'info';
 
     // Create the logger with appropriate level - only show debug logs when explicitly configured
-    this.logger = createLogger().child({
+    this.logger = createLogger({
       agentName: this.character?.name,
+      logLevel: logLevel as any,
     });
 
-    this.#conversationLength =
-      opts.conversationLength ?? this.#conversationLength;
+    this.#conversationLength = opts.conversationLength ?? this.#conversationLength;
     if (opts.adapter) {
       this.registerDatabaseAdapter(opts.adapter);
     }
@@ -198,7 +199,7 @@ export class AgentRuntime implements IAgentRuntime {
   async registerPlugin(plugin: Plugin): Promise<void> {
     if (!plugin?.name) {
       // Ensure plugin and plugin.name are defined
-      const errorMsg = "Plugin or plugin name is undefined";
+      const errorMsg = 'Plugin or plugin name is undefined';
       this.logger.error(`*** registerPlugin: ${errorMsg}`);
       throw new Error(`*** registerPlugin: ${errorMsg}`);
     }
@@ -221,34 +222,27 @@ export class AgentRuntime implements IAgentRuntime {
     if (plugin.init) {
       try {
         await plugin.init(plugin.config || {}, this);
-        this.logger.debug(
-          `Success: Plugin ${plugin.name} initialized successfully`
-        );
+        this.logger.debug(`Success: Plugin ${plugin.name} initialized successfully`);
       } catch (error) {
         // Check if the error is related to missing API keys
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         if (
-          errorMessage.includes("API key") ||
-          errorMessage.includes("environment variables") ||
-          errorMessage.includes("Invalid plugin configuration")
+          errorMessage.includes('API key') ||
+          errorMessage.includes('environment variables') ||
+          errorMessage.includes('Invalid plugin configuration')
         ) {
+          console.warn(`Plugin ${plugin.name} requires configuration. ${errorMessage}`);
           console.warn(
-            `Plugin ${plugin.name} requires configuration. ${errorMessage}`
+            'Please check your environment variables and ensure all required API keys are set.'
           );
-          console.warn(
-            "Please check your environment variables and ensure all required API keys are set."
-          );
-          console.warn("You can set these in your .env file.");
+          console.warn('You can set these in your .env file.');
         } else {
           throw error;
         }
       }
     }
     if (plugin.adapter) {
-      this.logger.debug(
-        `Registering database adapter for plugin ${plugin.name}`
-      );
+      this.logger.debug(`Registering database adapter for plugin ${plugin.name}`);
       this.registerDatabaseAdapter(plugin.adapter);
     }
     if (plugin.actions) {
@@ -306,16 +300,14 @@ export class AgentRuntime implements IAgentRuntime {
   async stop() {
     this.logger.debug(`runtime::stop - character ${this.character.name}`);
     for (const [serviceName, service] of this.services) {
-      this.logger.debug(
-        `runtime::stop - requesting service stop for ${serviceName}`
-      );
+      this.logger.debug(`runtime::stop - requesting service stop for ${serviceName}`);
       await service.stop();
     }
   }
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      this.logger.warn("Agent already initialized");
+      this.logger.warn('Agent already initialized');
       return;
     }
     const pluginRegistrationPromises = [];
@@ -333,23 +325,21 @@ export class AgentRuntime implements IAgentRuntime {
 
     if (!this.adapter) {
       this.logger.error(
-        "Database adapter not initialized. Make sure @elizaos/plugin-sql is included in your plugins."
+        'Database adapter not initialized. Make sure @elizaos/plugin-sql is included in your plugins.'
       );
       throw new Error(
-        "Database adapter not initialized. The SQL plugin (@elizaos/plugin-sql) is required for agent initialization. Please ensure it is included in your character configuration."
+        'Database adapter not initialized. The SQL plugin (@elizaos/plugin-sql) is required for agent initialization. Please ensure it is included in your character configuration.'
       );
     }
     try {
       await this.adapter.init();
 
       // Run migrations for all loaded plugins
-      this.logger.info("Running plugin migrations...");
+      this.logger.info('Running plugin migrations...');
       await this.runPluginMigrations();
-      this.logger.info("Plugin migrations completed.");
+      this.logger.info('Plugin migrations completed.');
 
-      const existingAgent = await this.ensureAgentExists(
-        this.character as Partial<Agent>
-      );
+      const existingAgent = await this.ensureAgentExists(this.character as Partial<Agent>);
       if (!existingAgent) {
         const errorMsg = `Agent ${this.character.name} does not exist in database after ensureAgentExists call`;
         throw new Error(errorMsg);
@@ -371,12 +361,9 @@ export class AgentRuntime implements IAgentRuntime {
         }
 
         agentEntity = await this.getEntityById(this.agentId);
-        if (!agentEntity)
-          throw new Error(`Agent entity not found for ${this.agentId}`);
+        if (!agentEntity) throw new Error(`Agent entity not found for ${this.agentId}`);
 
-        this.logger.debug(
-          `Success: Agent entity created successfully for ${this.character.name}`
-        );
+        this.logger.debug(`Success: Agent entity created successfully for ${this.character.name}`);
       }
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -390,25 +377,21 @@ export class AgentRuntime implements IAgentRuntime {
         await this.createRoom({
           id: this.agentId,
           name: this.character.name,
-          source: "elizaos",
+          source: 'elizaos',
           type: ChannelType.SELF,
           channelId: this.agentId,
           serverId: this.agentId,
           worldId: this.agentId,
         });
       }
-      const participants = await this.adapter.getParticipantsForRoom(
-        this.agentId
-      );
+      const participants = await this.adapter.getParticipantsForRoom(this.agentId);
       if (!participants.includes(this.agentId)) {
         const added = await this.addParticipant(this.agentId, this.agentId);
         if (!added) {
           const errorMsg = `Failed to add agent ${this.agentId} as participant to its own room`;
           throw new Error(errorMsg);
         }
-        this.logger.debug(
-          `Agent ${this.character.name} linked to its own room successfully`
-        );
+        this.logger.debug(`Agent ${this.character.name} linked to its own room successfully`);
       }
     } catch (error: any) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -432,16 +415,12 @@ export class AgentRuntime implements IAgentRuntime {
   async runPluginMigrations(): Promise<void> {
     const drizzle = (this.adapter as any)?.db;
     if (!drizzle) {
-      this.logger.warn(
-        "Drizzle instance not found on adapter, skipping plugin migrations."
-      );
+      this.logger.warn('Drizzle instance not found on adapter, skipping plugin migrations.');
       return;
     }
 
     const pluginsWithSchemas = this.plugins.filter((p) => p.schema);
-    this.logger.info(
-      `Found ${pluginsWithSchemas.length} plugins with schemas to migrate.`
-    );
+    this.logger.info(`Found ${pluginsWithSchemas.length} plugins with schemas to migrate.`);
 
     for (const p of pluginsWithSchemas) {
       if (p.schema) {
@@ -449,7 +428,7 @@ export class AgentRuntime implements IAgentRuntime {
         try {
           // You might need a more generic way to run migrations if they are not all Drizzle-based
           // For now, assuming a function on the adapter or a utility function
-          if (this.adapter && "runMigrations" in this.adapter) {
+          if (this.adapter && 'runMigrations' in this.adapter) {
             await (this.adapter as any).runMigrations(p.schema, p.name);
             this.logger.info(`Successfully migrated plugin: ${p.name}`);
           }
@@ -464,16 +443,12 @@ export class AgentRuntime implements IAgentRuntime {
   async getConnection(): Promise<unknown> {
     // Updated return type
     if (!this.adapter) {
-      throw new Error("Database adapter not registered");
+      throw new Error('Database adapter not registered');
     }
     return this.adapter.getConnection();
   }
 
-  setSetting(
-    key: string,
-    value: string | boolean | null | any,
-    secret = false
-  ) {
+  setSetting(key: string, value: string | boolean | null | any, secret = false) {
     if (secret) {
       if (!this.character.secrets) {
         this.character.secrets = {};
@@ -494,8 +469,8 @@ export class AgentRuntime implements IAgentRuntime {
       this.character.settings?.secrets?.[key] ||
       this.settings[key];
     const decryptedValue = decryptSecret(value, getSalt());
-    if (decryptedValue === "true") return true;
-    if (decryptedValue === "false") return false;
+    if (decryptedValue === 'true') return true;
+    if (decryptedValue === 'false') return false;
     return decryptedValue || null;
   }
 
@@ -506,19 +481,17 @@ export class AgentRuntime implements IAgentRuntime {
   registerDatabaseAdapter(adapter: IDatabaseAdapter) {
     if (this.adapter) {
       this.logger.warn(
-        "Database adapter already registered. Additional adapters will be ignored. This may lead to unexpected behavior."
+        'Database adapter already registered. Additional adapters will be ignored. This may lead to unexpected behavior.'
       );
     } else {
       this.adapter = adapter;
-      this.logger.debug("Success: Database adapter registered successfully.");
+      this.logger.debug('Success: Database adapter registered successfully.');
     }
   }
 
   registerProvider(provider: Provider) {
     this.providers.push(provider);
-    this.logger.debug(
-      `Success: Provider ${provider.name} registered successfully.`
-    );
+    this.logger.debug(`Success: Provider ${provider.name} registered successfully.`);
   }
 
   registerAction(action: Action) {
@@ -549,26 +522,23 @@ export class AgentRuntime implements IAgentRuntime {
   ): Promise<void> {
     for (const response of responses) {
       if (!response.content?.actions || response.content.actions.length === 0) {
-        this.logger.warn("No action found in the response content.");
+        this.logger.warn('No action found in the response content.');
         continue;
       }
       const actions = response.content.actions;
       function normalizeAction(actionString: string) {
-        return actionString.toLowerCase().replace("_", "");
+        return actionString.toLowerCase().replace('_', '');
       }
-      this.logger.debug(
-        `Found actions: ${this.actions.map((a) => normalizeAction(a.name))}`
-      );
+      this.logger.debug(`Found actions: ${this.actions.map((a) => normalizeAction(a.name))}`);
 
       for (const responseAction of actions) {
-        state = await this.composeState(message, ["RECENT_MESSAGES"]);
+        state = await this.composeState(message, ['RECENT_MESSAGES']);
 
         this.logger.debug(`Success: Calling action: ${responseAction}`);
         const normalizedResponseAction = normalizeAction(responseAction);
         // try exact first
         let action = this.actions.find(
-          (a: { name: string }) =>
-            normalizeAction(a.name) === normalizedResponseAction
+          (a: { name: string }) => normalizeAction(a.name) === normalizedResponseAction
         );
         if (!action) {
           // try relaxed
@@ -581,23 +551,16 @@ export class AgentRuntime implements IAgentRuntime {
         if (action) {
           this.logger.debug(`Success: Found action: ${action?.name}`);
         } else {
-          this.logger.debug("Attempting to find action in similes.");
+          this.logger.debug('Attempting to find action in similes.');
           for (const _action of this.actions) {
             const simileAction = _action.similes?.find(
               (simile) =>
-                simile
-                  .toLowerCase()
-                  .replace("_", "")
-                  .includes(normalizedResponseAction) ||
-                normalizedResponseAction.includes(
-                  simile.toLowerCase().replace("_", "")
-                )
+                simile.toLowerCase().replace('_', '').includes(normalizedResponseAction) ||
+                normalizedResponseAction.includes(simile.toLowerCase().replace('_', ''))
             );
             if (simileAction) {
               action = _action;
-              this.logger.debug(
-                `Success: Action found in similes: ${action.name}`
-              );
+              this.logger.debug(`Success: Action found in similes: ${action.name}`);
               break;
             }
           }
@@ -613,10 +576,10 @@ export class AgentRuntime implements IAgentRuntime {
             worldId: message.worldId,
             content: {
               thought: errorMsg,
-              source: "auto",
+              source: 'auto',
             },
           };
-          await this.createMemory(actionMemory, "messages");
+          await this.createMemory(actionMemory, 'messages');
           continue;
         }
         if (!action.handler) {
@@ -635,15 +598,13 @@ export class AgentRuntime implements IAgentRuntime {
           };
 
           await action.handler(this, message, state, {}, callback, responses);
-          this.logger.debug(
-            `Success: Action ${action.name} executed successfully.`
-          );
+          this.logger.debug(`Success: Action ${action.name} executed successfully.`);
 
           // log to database with collected prompts
           this.adapter.log({
             entityId: message.entityId,
             roomId: message.roomId,
-            type: "action",
+            type: 'action',
             body: {
               action: action.name,
               actionId: actionId,
@@ -659,8 +620,7 @@ export class AgentRuntime implements IAgentRuntime {
           // Clear action context
           this.currentActionContext = undefined;
         } catch (error: any) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.error(error);
 
           // Clear action context on error
@@ -670,13 +630,13 @@ export class AgentRuntime implements IAgentRuntime {
             id: uuidv4() as UUID,
             content: {
               thought: errorMessage,
-              source: "auto",
+              source: 'auto',
             },
             entityId: message.entityId,
             roomId: message.roomId,
             worldId: message.worldId,
           };
-          await this.createMemory(actionMemory, "messages");
+          await this.createMemory(actionMemory, 'messages');
           throw error;
         }
       }
@@ -690,43 +650,32 @@ export class AgentRuntime implements IAgentRuntime {
     callback?: HandlerCallback,
     responses?: Memory[]
   ) {
-    const evaluatorPromises = this.evaluators.map(
-      async (evaluator: Evaluator) => {
-        if (!evaluator.handler) {
-          return null;
-        }
-        if (!didRespond && !evaluator.alwaysRun) {
-          return null;
-        }
-        const result = await evaluator.validate(this, message, state);
-        if (result) {
-          return evaluator;
-        }
+    const evaluatorPromises = this.evaluators.map(async (evaluator: Evaluator) => {
+      if (!evaluator.handler) {
         return null;
       }
-    );
-    const evaluators = (await Promise.all(evaluatorPromises)).filter(
-      Boolean
-    ) as Evaluator[];
+      if (!didRespond && !evaluator.alwaysRun) {
+        return null;
+      }
+      const result = await evaluator.validate(this, message, state);
+      if (result) {
+        return evaluator;
+      }
+      return null;
+    });
+    const evaluators = (await Promise.all(evaluatorPromises)).filter(Boolean) as Evaluator[];
     if (evaluators.length === 0) {
       return [];
     }
-    state = await this.composeState(message, ["RECENT_MESSAGES", "EVALUATORS"]);
+    state = await this.composeState(message, ['RECENT_MESSAGES', 'EVALUATORS']);
     await Promise.all(
       evaluators.map(async (evaluator) => {
         if (evaluator.handler) {
-          await evaluator.handler(
-            this,
-            message,
-            state,
-            {},
-            callback,
-            responses
-          );
+          await evaluator.handler(this, message, state, {}, callback, responses);
           this.adapter.log({
             entityId: message.entityId,
             roomId: message.roomId,
-            type: "evaluator",
+            type: 'evaluator',
             body: {
               evaluator: evaluator.name,
               messageId: message.id,
@@ -745,12 +694,12 @@ export class AgentRuntime implements IAgentRuntime {
     // guards
     if (!entities) {
       console.trace();
-      this.logger.error("ensureConnections - no entities");
+      this.logger.error('ensureConnections - no entities');
       return;
     }
     if (!rooms || rooms.length === 0) {
       console.trace();
-      this.logger.error("ensureConnections - no rooms");
+      this.logger.error('ensureConnections - no rooms');
       return;
     }
 
@@ -782,9 +731,9 @@ export class AgentRuntime implements IAgentRuntime {
 
     if (roomsToCreate.length) {
       this.logger.debug(
-        "runtime/ensureConnections - create",
+        'runtime/ensureConnections - create',
         roomsToCreate.length.toLocaleString(),
-        "rooms"
+        'rooms'
       );
       const roomObjsToCreate = rooms
         .filter((r) => roomsToCreate.includes(r.id))
@@ -796,9 +745,7 @@ export class AgentRuntime implements IAgentRuntime {
     const entityIds = entities.map((e) => e.id);
     const entityExistsCheck = await this.adapter.getEntityByIds(entityIds);
     const entitiesToUpdate = entityExistsCheck.map((e) => e.id);
-    const entitiesToCreate = entities.filter(
-      (e) => !entitiesToUpdate.includes(e.id)
-    );
+    const entitiesToCreate = entities.filter((e) => !entitiesToUpdate.includes(e.id));
 
     const r = {
       roomId: firstRoom.id,
@@ -812,9 +759,9 @@ export class AgentRuntime implements IAgentRuntime {
 
     if (entitiesToCreate.length) {
       this.logger.debug(
-        "runtime/ensureConnections - creating",
+        'runtime/ensureConnections - creating',
         entitiesToCreate.length.toLocaleString(),
-        "entities..."
+        'entities...'
       );
       const ef = {
         ...r,
@@ -822,10 +769,7 @@ export class AgentRuntime implements IAgentRuntime {
         source,
         agentId: this.agentId,
       };
-      const entitiesToCreateWFields = entitiesToCreate.map((e) => ({
-        ...e,
-        ...ef,
-      }));
+      const entitiesToCreateWFields = entitiesToCreate.map((e) => ({ ...e, ...ef }));
       // pglite doesn't like over 10k records
       const batches = chunkArray(entitiesToCreateWFields, 5000);
       for (const batch of batches) {
@@ -838,19 +782,15 @@ export class AgentRuntime implements IAgentRuntime {
     await this.ensureParticipantInRoom(this.agentId, firstRoom.id);
 
     // Add all entities to the first room
-    const entityIdsInFirstRoom = await this.getParticipantsForRoom(
-      firstRoom.id
-    );
+    const entityIdsInFirstRoom = await this.getParticipantsForRoom(firstRoom.id);
     const entityIdsInFirstRoomFiltered = entityIdsInFirstRoom.filter(Boolean);
-    const missingIdsInRoom = entityIds.filter(
-      (id) => !entityIdsInFirstRoomFiltered.includes(id)
-    );
+    const missingIdsInRoom = entityIds.filter((id) => !entityIdsInFirstRoomFiltered.includes(id));
 
     if (missingIdsInRoom.length) {
       this.logger.debug(
-        "runtime/ensureConnections - Missing",
+        'runtime/ensureConnections - Missing',
         missingIdsInRoom.length.toLocaleString(),
-        "connections in",
+        'connections in',
         firstRoom.id
       );
       // pglite handle this at over 10k records fine though
@@ -912,16 +852,13 @@ export class AgentRuntime implements IAgentRuntime {
           });
           if (success) {
             this.logger.debug(
-              `Created new entity ${entityId} for user ${name || userName || "unknown"}`
+              `Created new entity ${entityId} for user ${name || userName || 'unknown'}`
             );
           } else {
             throw new Error(`Failed to create entity ${entityId}`);
           }
         } catch (error: any) {
-          if (
-            error.message?.includes("duplicate key") ||
-            error.code === "23505"
-          ) {
+          if (error.message?.includes('duplicate key') || error.code === '23505') {
             this.logger.debug(
               `Entity ${entityId} exists in database but not for this agent. This is normal in multi-agent setups.`
             );
@@ -932,9 +869,7 @@ export class AgentRuntime implements IAgentRuntime {
       } else {
         await this.adapter.updateEntity({
           id: entityId,
-          names: [...new Set([...(entity.names || []), ...names])].filter(
-            Boolean
-          ) as string[],
+          names: [...new Set([...(entity.names || []), ...names])].filter(Boolean) as string[],
           metadata: {
             ...entity.metadata,
             [source!]: {
@@ -949,12 +884,9 @@ export class AgentRuntime implements IAgentRuntime {
       }
       await this.ensureWorldExists({
         id: worldId,
-        name:
-          worldName || serverId
-            ? `World for server ${serverId}`
-            : `World for room ${roomId}`,
+        name: worldName || serverId ? `World for server ${serverId}` : `World for room ${roomId}`,
         agentId: this.agentId,
-        serverId: serverId || "default",
+        serverId: serverId || 'default',
         metadata,
       });
       await this.ensureRoomExists({
@@ -969,25 +901,19 @@ export class AgentRuntime implements IAgentRuntime {
       try {
         await this.ensureParticipantInRoom(entityId, roomId);
       } catch (error: any) {
-        if (error.message?.includes("not found")) {
+        if (error.message?.includes('not found')) {
           const added = await this.addParticipant(entityId, roomId);
           if (!added) {
-            throw new Error(
-              `Failed to add participant ${entityId} to room ${roomId}`
-            );
+            throw new Error(`Failed to add participant ${entityId} to room ${roomId}`);
           }
-          this.logger.debug(
-            `Added participant ${entityId} to room ${roomId} directly`
-          );
+          this.logger.debug(`Added participant ${entityId} to room ${roomId} directly`);
         } else {
           throw error;
         }
       }
       await this.ensureParticipantInRoom(this.agentId, roomId);
 
-      this.logger.debug(
-        `Success: Successfully connected entity ${entityId} in room ${roomId}`
-      );
+      this.logger.debug(`Success: Successfully connected entity ${entityId} in room ${roomId}`);
     } catch (error) {
       this.logger.error(
         `Failed to ensure connection: ${error instanceof Error ? error.message : String(error)}`
@@ -1007,13 +933,9 @@ export class AgentRuntime implements IAgentRuntime {
         `Entity ${entityId} not directly accessible to agent ${this.agentId}. Will attempt to add as participant anyway.`
       );
     } else if (!entity && entityId === this.agentId) {
-      throw new Error(
-        `Agent entity ${entityId} not found, cannot add as participant.`
-      );
+      throw new Error(`Agent entity ${entityId} not found, cannot add as participant.`);
     } else if (!entity) {
-      throw new Error(
-        `User entity ${entityId} not found, cannot add as participant.`
-      );
+      throw new Error(`User entity ${entityId} not found, cannot add as participant.`);
     }
     const participants = await this.adapter.getParticipantsForRoom(roomId);
     if (!participants.includes(entityId)) {
@@ -1021,18 +943,12 @@ export class AgentRuntime implements IAgentRuntime {
       const added = await this.addParticipant(entityId, roomId);
 
       if (!added) {
-        throw new Error(
-          `Failed to add participant ${entityId} to room ${roomId}`
-        );
+        throw new Error(`Failed to add participant ${entityId} to room ${roomId}`);
       }
       if (entityId === this.agentId) {
-        this.logger.debug(
-          `Agent ${this.character.name} linked to room ${roomId} successfully.`
-        );
+        this.logger.debug(`Agent ${this.character.name} linked to room ${roomId} successfully.`);
       } else {
-        this.logger.debug(
-          `User ${entityId} linked to room ${roomId} successfully.`
-        );
+        this.logger.debug(`User ${entityId} linked to room ${roomId} successfully.`);
       }
     }
   }
@@ -1063,7 +979,7 @@ export class AgentRuntime implements IAgentRuntime {
   async ensureWorldExists({ id, name, serverId, metadata }: World) {
     const world = await this.getWorld(id);
     if (!world) {
-      this.logger.debug("Creating world:", {
+      this.logger.debug('Creating world:', {
         id,
         name,
         serverId,
@@ -1073,24 +989,15 @@ export class AgentRuntime implements IAgentRuntime {
         id,
         name,
         agentId: this.agentId,
-        serverId: serverId || "default",
+        serverId: serverId || 'default',
         metadata,
       });
       this.logger.debug(`World ${id} created successfully.`);
     }
   }
 
-  async ensureRoomExists({
-    id,
-    name,
-    source,
-    type,
-    channelId,
-    serverId,
-    worldId,
-    metadata,
-  }: Room) {
-    if (!worldId) throw new Error("worldId is required");
+  async ensureRoomExists({ id, name, source, type, channelId, serverId, worldId, metadata }: Room) {
+    if (!worldId) throw new Error('worldId is required');
     const room = await this.getRoom(id);
     if (!room) {
       await this.createRoom({
@@ -1118,11 +1025,9 @@ export class AgentRuntime implements IAgentRuntime {
     const emptyObj = {
       values: {},
       data: {},
-      text: "",
+      text: '',
     } as State;
-    const cachedState = skipCache
-      ? emptyObj
-      : (await this.stateCache.get(message.id)) || emptyObj;
+    const cachedState = skipCache ? emptyObj : (await this.stateCache.get(message.id)) || emptyObj;
     const providerNames = new Set<string>();
     if (filterList && filterList.length > 0) {
       filterList.forEach((name) => providerNames.add(name));
@@ -1144,21 +1049,14 @@ export class AgentRuntime implements IAgentRuntime {
           const result = await provider.get(this, message, cachedState);
           const duration = Date.now() - start;
 
-          this.logger.debug(
-            `${provider.name} Provider took ${duration}ms to respond`
-          );
+          this.logger.debug(`${provider.name} Provider took ${duration}ms to respond`);
           return {
             ...result,
             providerName: provider.name,
           };
         } catch (error: any) {
-          console.error("provider error", provider.name, error);
-          return {
-            values: {},
-            text: "",
-            data: {},
-            providerName: provider.name,
-          };
+          console.error('provider error', provider.name, error);
+          return { values: {}, text: '', data: {}, providerName: provider.name };
         }
       })
     );
@@ -1169,30 +1067,22 @@ export class AgentRuntime implements IAgentRuntime {
     const orderedTexts: string[] = [];
     for (const provider of providersToGet) {
       const result = currentProviderResults[provider.name];
-      if (result && result.text && result.text.trim() !== "") {
+      if (result && result.text && result.text.trim() !== '') {
         orderedTexts.push(result.text);
       }
     }
-    const providersText = orderedTexts.join("\n");
+    const providersText = orderedTexts.join('\n');
     const aggregatedStateValues = { ...(cachedState.values || {}) };
     for (const provider of providersToGet) {
       const providerResult = currentProviderResults[provider.name];
-      if (
-        providerResult &&
-        providerResult.values &&
-        typeof providerResult.values === "object"
-      ) {
+      if (providerResult && providerResult.values && typeof providerResult.values === 'object') {
         Object.assign(aggregatedStateValues, providerResult.values);
       }
     }
     for (const providerName in currentProviderResults) {
       if (!providersToGet.some((p) => p.name === providerName)) {
         const providerResult = currentProviderResults[providerName];
-        if (
-          providerResult &&
-          providerResult.values &&
-          typeof providerResult.values === "object"
-        ) {
+        if (providerResult && providerResult.values && typeof providerResult.values === 'object') {
           Object.assign(aggregatedStateValues, providerResult.values);
         }
       }
@@ -1212,9 +1102,7 @@ export class AgentRuntime implements IAgentRuntime {
     return newState;
   }
 
-  getService<T extends Service = Service>(
-    serviceName: ServiceTypeName | string
-  ): T | null {
+  getService<T extends Service = Service>(serviceName: ServiceTypeName | string): T | null {
     const serviceInstance = this.services.get(serviceName as ServiceTypeName);
     if (!serviceInstance) {
       // it's not a warn, a plugin might just not be installed
@@ -1230,9 +1118,7 @@ export class AgentRuntime implements IAgentRuntime {
    * @param serviceName - The service type name
    * @returns The service instance with proper typing, or null if not found
    */
-  getTypedService<T extends Service = Service>(
-    serviceName: ServiceTypeName | string
-  ): T | null {
+  getTypedService<T extends Service = Service>(serviceName: ServiceTypeName | string): T | null {
     return this.getService<T>(serviceName);
   }
 
@@ -1275,15 +1161,14 @@ export class AgentRuntime implements IAgentRuntime {
       const serviceInstance = await serviceDef.start(this);
       this.services.set(serviceType, serviceInstance);
       this.serviceTypes.set(serviceType, serviceDef);
-      if (typeof (serviceDef as any).registerSendHandlers === "function") {
+      if (typeof (serviceDef as any).registerSendHandlers === 'function') {
         (serviceDef as any).registerSendHandlers(this, serviceInstance);
       }
       this.logger.debug(
         `${this.character.name}(${this.agentId}) - Service ${serviceType} registered successfully`
       );
     } catch (error: any) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `${this.character.name}(${this.agentId}) - Failed to register service ${serviceType}: ${errorMessage}`
       );
@@ -1297,8 +1182,7 @@ export class AgentRuntime implements IAgentRuntime {
     provider: string,
     priority?: number
   ) {
-    const modelKey =
-      typeof modelType === "string" ? modelType : ModelType[modelType];
+    const modelKey = typeof modelType === 'string' ? modelType : ModelType[modelType];
     if (!this.models.has(modelKey)) {
       this.models.set(modelKey, []);
     }
@@ -1322,8 +1206,7 @@ export class AgentRuntime implements IAgentRuntime {
     modelType: ModelTypeName,
     provider?: string
   ): ((runtime: IAgentRuntime, params: any) => Promise<any>) | undefined {
-    const modelKey =
-      typeof modelType === "string" ? modelType : ModelType[modelType];
+    const modelKey = typeof modelType === 'string' ? modelType : ModelType[modelType];
     const models = this.models.get(modelKey);
     if (!models?.length) {
       return undefined;
@@ -1351,17 +1234,14 @@ export class AgentRuntime implements IAgentRuntime {
 
   async useModel<T extends ModelTypeName, R = ModelResultMap[T]>(
     modelType: T,
-    params: Omit<ModelParamsMap[T], "runtime"> | any,
+    params: Omit<ModelParamsMap[T], 'runtime'> | any,
     provider?: string
   ): Promise<R> {
-    const modelKey =
-      typeof modelType === "string" ? modelType : ModelType[modelType];
+    const modelKey = typeof modelType === 'string' ? modelType : ModelType[modelType];
     const promptContent =
       params?.prompt ||
       params?.input ||
-      (Array.isArray(params?.messages)
-        ? JSON.stringify(params.messages)
-        : null);
+      (Array.isArray(params?.messages) ? JSON.stringify(params.messages) : null);
     const model = this.getModel(modelKey, provider);
     if (!model) {
       const errorMsg = `No handler found for delegate type: ${modelKey}`;
@@ -1371,15 +1251,15 @@ export class AgentRuntime implements IAgentRuntime {
     // Log input parameters (keep debug log if useful)
     this.logger.debug(
       `[useModel] ${modelKey} input: ` +
-        JSON.stringify(params, safeReplacer(), 2).replace(/\\n/g, "\n")
+        JSON.stringify(params, safeReplacer(), 2).replace(/\\n/g, '\n')
     );
     let paramsWithRuntime: any;
     if (
       params === null ||
       params === undefined ||
-      typeof params !== "object" ||
+      typeof params !== 'object' ||
       Array.isArray(params) ||
-      (typeof Buffer !== "undefined" && Buffer.isBuffer(params))
+      (typeof Buffer !== 'undefined' && Buffer.isBuffer(params))
     ) {
       paramsWithRuntime = params;
     } else {
@@ -1400,7 +1280,7 @@ export class AgentRuntime implements IAgentRuntime {
           ? `${JSON.stringify(response.slice(0, 5))}...${JSON.stringify(response.slice(-5))} (${
               response.length
             } items)`
-          : JSON.stringify(response, safeReplacer(), 2).replace(/\\n/g, "\n")
+          : JSON.stringify(response, safeReplacer(), 2).replace(/\\n/g, '\n')
       );
 
       // Log all prompts except TEXT_EMBEDDING to track agent behavior
@@ -1424,8 +1304,7 @@ export class AgentRuntime implements IAgentRuntime {
             runId: this.getCurrentRunId(),
             timestamp: Date.now(),
             executionTime: elapsedTime,
-            provider:
-              provider || this.models.get(modelKey)?.[0]?.provider || "unknown",
+            provider: provider || this.models.get(modelKey)?.[0]?.provider || 'unknown',
             actionContext: this.currentActionContext
               ? {
                   actionName: this.currentActionContext.actionName,
@@ -1445,15 +1324,12 @@ export class AgentRuntime implements IAgentRuntime {
           modelType,
           modelKey,
           params: {
-            ...(typeof params === "object" && !Array.isArray(params) && params
-              ? params
-              : {}),
+            ...(typeof params === 'object' && !Array.isArray(params) && params ? params : {}),
             prompt: promptContent,
           },
           response:
-            Array.isArray(response) &&
-            response.every((x) => typeof x === "number")
-              ? "[array]"
+            Array.isArray(response) && response.every((x) => typeof x === 'number')
+              ? '[array]'
               : response,
         },
         type: `useModel:${modelKey}`,
@@ -1485,19 +1361,14 @@ export class AgentRuntime implements IAgentRuntime {
       try {
         await Promise.all(eventHandlers.map((handler) => handler(params)));
       } catch (error) {
-        this.logger.error(
-          `Error during emitEvent for ${eventName} (handler execution):`,
-          error
-        );
+        this.logger.error(`Error during emitEvent for ${eventName} (handler execution):`, error);
         // throw error; // Re-throw if necessary
       }
     }
   }
 
   async ensureEmbeddingDimension() {
-    this.logger.debug(
-      `[AgentRuntime][${this.character.name}] Starting ensureEmbeddingDimension`
-    );
+    this.logger.debug(`[AgentRuntime][${this.character.name}] Starting ensureEmbeddingDimension`);
 
     if (!this.adapter) {
       throw new Error(
@@ -1512,14 +1383,10 @@ export class AgentRuntime implements IAgentRuntime {
         );
       }
 
-      this.logger.debug(
-        `[AgentRuntime][${this.character.name}] Getting embedding dimensions`
-      );
+      this.logger.debug(`[AgentRuntime][${this.character.name}] Getting embedding dimensions`);
       const embedding = await this.useModel(ModelType.TEXT_EMBEDDING, null);
       if (!embedding || !embedding.length) {
-        throw new Error(
-          `[AgentRuntime][${this.character.name}] Invalid embedding received`
-        );
+        throw new Error(`[AgentRuntime][${this.character.name}] Invalid embedding received`);
       }
 
       this.logger.debug(
@@ -1577,7 +1444,7 @@ export class AgentRuntime implements IAgentRuntime {
   }
   async ensureAgentExists(agent: Partial<Agent>): Promise<Agent> {
     if (!agent.name) {
-      throw new Error("Agent name is required");
+      throw new Error('Agent name is required');
     }
 
     const agents = await this.adapter.getAgents();
@@ -1595,9 +1462,7 @@ export class AgentRuntime implements IAgentRuntime {
       const existingAgent = await this.adapter.getAgent(existingAgentId);
 
       if (!existingAgent) {
-        throw new Error(
-          `Failed to retrieve agent after update: ${existingAgentId}`
-        );
+        throw new Error(`Failed to retrieve agent after update: ${existingAgentId}`);
       }
 
       this.logger.debug(`Updated existing agent ${agent.name} on restart`);
@@ -1627,10 +1492,7 @@ export class AgentRuntime implements IAgentRuntime {
   async getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null> {
     return await this.adapter.getEntityByIds(entityIds);
   }
-  async getEntitiesForRoom(
-    roomId: UUID,
-    includeComponents?: boolean
-  ): Promise<Entity[]> {
+  async getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]> {
     return await this.adapter.getEntitiesForRoom(roomId, includeComponents);
   }
   async createEntity(entity: Entity): Promise<boolean> {
@@ -1656,18 +1518,9 @@ export class AgentRuntime implements IAgentRuntime {
     worldId?: UUID,
     sourceEntityId?: UUID
   ): Promise<Component | null> {
-    return await this.adapter.getComponent(
-      entityId,
-      type,
-      worldId,
-      sourceEntityId
-    );
+    return await this.adapter.getComponent(entityId, type, worldId, sourceEntityId);
   }
-  async getComponents(
-    entityId: UUID,
-    worldId?: UUID,
-    sourceEntityId?: UUID
-  ): Promise<Component[]> {
+  async getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]> {
     return await this.adapter.getComponents(entityId, worldId, sourceEntityId);
   }
   async createComponent(component: Component): Promise<boolean> {
@@ -1685,14 +1538,14 @@ export class AgentRuntime implements IAgentRuntime {
     }
     const memoryText = memory.content.text;
     if (!memoryText) {
-      throw new Error("Cannot generate embedding: Memory content is empty");
+      throw new Error('Cannot generate embedding: Memory content is empty');
     }
     try {
       memory.embedding = await this.useModel(ModelType.TEXT_EMBEDDING, {
         text: memoryText,
       });
     } catch (error: any) {
-      this.logger.error("Failed to generate embedding:", error);
+      this.logger.error('Failed to generate embedding:', error);
       memory.embedding = await this.useModel(ModelType.TEXT_EMBEDDING, null);
     }
     return memory;
@@ -1710,7 +1563,7 @@ export class AgentRuntime implements IAgentRuntime {
     return await this.adapter.getMemories(params);
   }
   async getAllMemories(): Promise<Memory[]> {
-    const tables = ["memories", "messages", "facts", "documents"];
+    const tables = ['memories', 'messages', 'facts', 'documents'];
     const allMemories: Memory[] = [];
 
     for (const tableName of tables) {
@@ -1723,10 +1576,7 @@ export class AgentRuntime implements IAgentRuntime {
         allMemories.push(...memories);
       } catch (error) {
         // Continue with other tables if one fails
-        this.logger.debug(
-          `Failed to get memories from table ${tableName}:`,
-          error
-        );
+        this.logger.debug(`Failed to get memories from table ${tableName}:`, error);
       }
     }
 
@@ -1777,10 +1627,7 @@ export class AgentRuntime implements IAgentRuntime {
   }): Promise<Memory[]> {
     const memories = await this.adapter.searchMemories(params);
     if (params.query) {
-      const rerankedMemories = await this.rerankMemories(
-        params.query,
-        memories
-      );
+      const rerankedMemories = await this.rerankMemories(params.query, memories);
       return rerankedMemories;
     }
     return memories;
@@ -1794,11 +1641,7 @@ export class AgentRuntime implements IAgentRuntime {
     const results = bm25.search(query, memories.length);
     return results.map((result) => memories[result.index]);
   }
-  async createMemory(
-    memory: Memory,
-    tableName: string,
-    unique?: boolean
-  ): Promise<UUID> {
+  async createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID> {
     return await this.adapter.createMemory(memory, tableName, unique);
   }
   async updateMemory(
@@ -1813,33 +1656,25 @@ export class AgentRuntime implements IAgentRuntime {
     await this.adapter.deleteManyMemories(memoryIds);
   }
   async clearAllAgentMemories(): Promise<void> {
-    this.logger.info(
-      `Clearing all memories for agent ${this.character.name} (${this.agentId})`
-    );
+    this.logger.info(`Clearing all memories for agent ${this.character.name} (${this.agentId})`);
 
     const allMemories = await this.getAllMemories();
     const memoryIds = allMemories.map((memory) => memory.id);
 
     if (memoryIds.length === 0) {
-      this.logger.info("No memories found to delete");
+      this.logger.info('No memories found to delete');
       return;
     }
 
     this.logger.info(`Found ${memoryIds.length} memories to delete`);
     await this.adapter.deleteManyMemories(memoryIds);
 
-    this.logger.info(
-      `Successfully cleared all ${memoryIds.length} memories for agent`
-    );
+    this.logger.info(`Successfully cleared all ${memoryIds.length} memories for agent`);
   }
   async deleteAllMemories(roomId: UUID, tableName: string): Promise<void> {
     await this.adapter.deleteAllMemories(roomId, tableName);
   }
-  async countMemories(
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string
-  ): Promise<number> {
+  async countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number> {
     return await this.adapter.countMemories(roomId, unique, tableName);
   }
   async getLogs(params: {
@@ -1878,16 +1713,8 @@ export class AgentRuntime implements IAgentRuntime {
   async getRoomsByIds(roomIds: UUID[]): Promise<Room[] | null> {
     return await this.adapter.getRoomsByIds(roomIds);
   }
-  async createRoom({
-    id,
-    name,
-    source,
-    type,
-    channelId,
-    serverId,
-    worldId,
-  }: Room): Promise<UUID> {
-    if (!worldId) throw new Error("worldId is required");
+  async createRoom({ id, name, source, type, channelId, serverId, worldId }: Room): Promise<UUID> {
+    if (!worldId) throw new Error('worldId is required');
     const res = await this.adapter.createRooms([
       {
         id,
@@ -1934,13 +1761,13 @@ export class AgentRuntime implements IAgentRuntime {
   async getParticipantUserState(
     roomId: UUID,
     entityId: UUID
-  ): Promise<"FOLLOWED" | "MUTED" | null> {
+  ): Promise<'FOLLOWED' | 'MUTED' | null> {
     return await this.adapter.getParticipantUserState(roomId, entityId);
   }
   async setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: "FOLLOWED" | "MUTED" | null
+    state: 'FOLLOWED' | 'MUTED' | null
   ): Promise<void> {
     await this.adapter.setParticipantUserState(roomId, entityId, state);
   }
@@ -1961,10 +1788,7 @@ export class AgentRuntime implements IAgentRuntime {
   }): Promise<Relationship | null> {
     return await this.adapter.getRelationship(params);
   }
-  async getRelationships(params: {
-    entityId: UUID;
-    tags?: string[];
-  }): Promise<Relationship[]> {
+  async getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]> {
     return await this.adapter.getRelationships(params);
   }
   async getCache<T>(key: string): Promise<T | undefined> {
@@ -1979,11 +1803,7 @@ export class AgentRuntime implements IAgentRuntime {
   async createTask(task: Task): Promise<UUID> {
     return await this.adapter.createTask(task);
   }
-  async getTasks(params: {
-    roomId?: UUID;
-    tags?: string[];
-    entityId?: UUID;
-  }): Promise<Task[]> {
+  async getTasks(params: { roomId?: UUID; tags?: string[]; entityId?: UUID }): Promise<Task[]> {
     return await this.adapter.getTasks(params);
   }
   async getTask(id: UUID): Promise<Task | null> {
@@ -2024,23 +1844,23 @@ export class AgentRuntime implements IAgentRuntime {
   }
   async sendControlMessage(params: {
     roomId: UUID;
-    action: "enable_input" | "disable_input";
+    action: 'enable_input' | 'disable_input';
     target?: string;
   }): Promise<void> {
     try {
       const { roomId, action, target } = params;
       const controlMessage = {
-        type: "control",
+        type: 'control',
         payload: {
           action,
           target,
         },
         roomId,
       };
-      await this.emitEvent("CONTROL_MESSAGE", {
+      await this.emitEvent('CONTROL_MESSAGE', {
         runtime: this,
         message: controlMessage,
-        source: "agent",
+        source: 'agent',
       });
 
       this.logger.debug(`Sent control message: ${action} to room ${roomId}`);
@@ -2050,17 +1870,12 @@ export class AgentRuntime implements IAgentRuntime {
   }
   registerSendHandler(source: string, handler: SendHandlerFunction): void {
     if (this.sendHandlers.has(source)) {
-      this.logger.warn(
-        `Send handler for source '${source}' already registered. Overwriting.`
-      );
+      this.logger.warn(`Send handler for source '${source}' already registered. Overwriting.`);
     }
     this.sendHandlers.set(source, handler);
     this.logger.info(`Registered send handler for source: ${source}`);
   }
-  async sendMessageToTarget(
-    target: TargetInfo,
-    content: Content
-  ): Promise<void> {
+  async sendMessageToTarget(target: TargetInfo, content: Content): Promise<void> {
     const handler = this.sendHandlers.get(target.source);
     if (!handler) {
       const errorMsg = `No send handler registered for source: ${target.source}`;
@@ -2071,10 +1886,7 @@ export class AgentRuntime implements IAgentRuntime {
     try {
       await handler(this, target, content);
     } catch (error: any) {
-      this.logger.error(
-        `Error executing send handler for source ${target.source}:`,
-        error
-      );
+      this.logger.error(`Error executing send handler for source ${target.source}:`, error);
       throw error; // Re-throw error after logging and tracing
     }
   }
@@ -2086,16 +1898,16 @@ export class AgentRuntime implements IAgentRuntime {
     return await this.adapter.getMemoriesByWorldId(params);
   }
   async runMigrations(migrationsPaths?: string[]): Promise<void> {
-    if (this.adapter && "runMigrations" in this.adapter) {
+    if (this.adapter && 'runMigrations' in this.adapter) {
       await (this.adapter as any).runMigrations(migrationsPaths);
     } else {
-      this.logger.warn("Database adapter does not support migrations.");
+      this.logger.warn('Database adapter does not support migrations.');
     }
   }
 
   async isReady(): Promise<boolean> {
     if (!this.adapter) {
-      throw new Error("Database adapter not registered");
+      throw new Error('Database adapter not registered');
     }
     return await this.adapter.isReady();
   }

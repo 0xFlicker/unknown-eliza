@@ -9,24 +9,22 @@ export interface ServerHealthOptions {
   pollInterval?: number;
   requestTimeout?: number;
   host?: string;
-  protocol?: "http" | "https";
+  protocol?: 'http' | 'https';
 }
 
 /**
  * Wait for server to be ready by polling health endpoint
  * @param options - Configuration options for server health check
  */
-export async function waitForServerReady(
-  options: ServerHealthOptions,
-): Promise<void> {
+export async function waitForServerReady(options: ServerHealthOptions): Promise<void> {
   const {
     port,
-    endpoint = "/api/agents",
+    endpoint = '/api/agents',
     maxWaitTime = 30000, // 30 seconds default
     pollInterval = 1000, // 1 second
     requestTimeout = 2000, // 2 seconds
-    host = "localhost",
-    protocol = "http",
+    host = 'localhost',
+    protocol = 'http',
   } = options;
 
   const url = `${protocol}://${host}:${port}${endpoint}`;
@@ -70,24 +68,20 @@ export async function waitForServerReady(
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
-  throw new Error(
-    `Server failed to become ready at ${url} within ${maxWaitTime}ms`,
-  );
+  throw new Error(`Server failed to become ready at ${url} within ${maxWaitTime}ms`);
 }
 
 /**
  * Simple ping check for server availability (no stabilization wait)
  * @param options - Configuration options for server ping
  */
-export async function pingServer(
-  options: ServerHealthOptions,
-): Promise<boolean> {
+export async function pingServer(options: ServerHealthOptions): Promise<boolean> {
   const {
     port,
-    endpoint = "/api/agents",
+    endpoint = '/api/agents',
     requestTimeout = 2000,
-    host = "localhost",
-    protocol = "http",
+    host = 'localhost',
+    protocol = 'http',
   } = options;
 
   const url = `${protocol}://${host}:${port}${endpoint}`;

@@ -1,4 +1,4 @@
-import type { Action } from "./types";
+import type { Action } from './types';
 
 /**
  * Compose a specified number of random action examples from the given actionsData.
@@ -9,16 +9,7 @@ import type { Action } from "./types";
  */
 export const composeActionExamples = (actionsData: Action[], count: number) => {
   const actionExamples: string[] = [];
-  const names = [
-    "Alice",
-    "Bob",
-    "Charlie",
-    "David",
-    "Eve",
-    "Frank",
-    "Grace",
-    "Heidi",
-  ];
+  const names = ['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank', 'Grace', 'Heidi'];
   const usedNames = new Set<string>();
 
   // Helper function to get a random name
@@ -28,8 +19,7 @@ export const composeActionExamples = (actionsData: Action[], count: number) => {
       usedNames.clear();
       return names[Math.floor(Math.random() * names.length)];
     }
-    const name =
-      availableNames[Math.floor(Math.random() * availableNames.length)];
+    const name = availableNames[Math.floor(Math.random() * availableNames.length)];
     usedNames.add(name);
     return name;
   };
@@ -55,25 +45,22 @@ export const composeActionExamples = (actionsData: Action[], count: number) => {
     // Format the example
     const formattedExample = example
       .map((msg) => {
-        let text = msg.content.text || "";
+        let text = msg.content.text || '';
 
         // Replace placeholders with random names
         for (let j = 0; j < randomNames.length; j++) {
-          text = text.replace(
-            new RegExp(`{{name${j + 1}}}`, "g"),
-            randomNames[j],
-          );
+          text = text.replace(new RegExp(`{{name${j + 1}}}`, 'g'), randomNames[j]);
         }
 
         // Use the original name from the example (like 'name1', 'name2')
         return `${msg.name}: ${text}`;
       })
-      .join("\n");
+      .join('\n');
 
     actionExamples.push(formattedExample);
   }
 
-  return actionExamples.join("\n\n");
+  return actionExamples.join('\n\n');
 };
 
 /**
@@ -82,7 +69,7 @@ export const composeActionExamples = (actionsData: Action[], count: number) => {
  * @returns A comma-separated string of action names.
  */
 export function formatActionNames(actions: Action[]): string {
-  return actions.map((action) => action.name).join(", ");
+  return actions.map((action) => action.name).join(', ');
 }
 
 /**
@@ -91,7 +78,5 @@ export function formatActionNames(actions: Action[]): string {
  * @returns A detailed string of actions, including names and descriptions.
  */
 export function formatActions(actions: Action[]): string {
-  return actions
-    .map((action) => `${action.name}: ${action.description}`)
-    .join(",\n");
+  return actions.map((action) => `${action.name}: ${action.description}`).join(',\n');
 }

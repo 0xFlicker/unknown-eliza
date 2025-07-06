@@ -1,5 +1,5 @@
-import { Service, ServiceType } from "./service";
-import type { TokenBalance } from "./token";
+import { Service, ServiceType } from './service';
+import type { TokenBalance } from './token';
 
 /**
  * Represents a single asset holding within a wallet, including its value.
@@ -27,7 +27,7 @@ export abstract class IWalletService extends Service {
   static override readonly serviceType = ServiceType.WALLET;
 
   public readonly capabilityDescription =
-    "Provides standardized access to wallet balances and portfolios.";
+    'Provides standardized access to wallet balances and portfolios.';
 
   /**
    * Retrieves the entire portfolio of assets held by the wallet.

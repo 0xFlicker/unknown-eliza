@@ -1,69 +1,69 @@
-import type { HandlerCallback } from "./components";
-import type { Entity, Room, World } from "./environment";
-import type { Memory } from "./memory";
-import type { ModelTypeName } from "./model";
-import type { Metadata, UUID } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
+import type { HandlerCallback } from './components';
+import type { Entity, Room, World } from './environment';
+import type { Memory } from './memory';
+import type { ModelTypeName } from './model';
+import type { Metadata, UUID } from './primitives';
+import type { IAgentRuntime } from './runtime';
 
 /**
  * Standard event types across all platforms
  */
 export enum EventType {
   // World events
-  WORLD_JOINED = "WORLD_JOINED",
-  WORLD_CONNECTED = "WORLD_CONNECTED",
-  WORLD_LEFT = "WORLD_LEFT",
+  WORLD_JOINED = 'WORLD_JOINED',
+  WORLD_CONNECTED = 'WORLD_CONNECTED',
+  WORLD_LEFT = 'WORLD_LEFT',
 
   // Entity events
-  ENTITY_JOINED = "ENTITY_JOINED",
-  ENTITY_LEFT = "ENTITY_LEFT",
-  ENTITY_UPDATED = "ENTITY_UPDATED",
+  ENTITY_JOINED = 'ENTITY_JOINED',
+  ENTITY_LEFT = 'ENTITY_LEFT',
+  ENTITY_UPDATED = 'ENTITY_UPDATED',
 
   // Room events
-  ROOM_JOINED = "ROOM_JOINED",
-  ROOM_LEFT = "ROOM_LEFT",
+  ROOM_JOINED = 'ROOM_JOINED',
+  ROOM_LEFT = 'ROOM_LEFT',
 
   // Message events
-  MESSAGE_RECEIVED = "MESSAGE_RECEIVED",
-  MESSAGE_SENT = "MESSAGE_SENT",
-  MESSAGE_DELETED = "MESSAGE_DELETED",
+  MESSAGE_RECEIVED = 'MESSAGE_RECEIVED',
+  MESSAGE_SENT = 'MESSAGE_SENT',
+  MESSAGE_DELETED = 'MESSAGE_DELETED',
 
   // Channel events
-  CHANNEL_CLEARED = "CHANNEL_CLEARED",
+  CHANNEL_CLEARED = 'CHANNEL_CLEARED',
 
   // Voice events
-  VOICE_MESSAGE_RECEIVED = "VOICE_MESSAGE_RECEIVED",
-  VOICE_MESSAGE_SENT = "VOICE_MESSAGE_SENT",
+  VOICE_MESSAGE_RECEIVED = 'VOICE_MESSAGE_RECEIVED',
+  VOICE_MESSAGE_SENT = 'VOICE_MESSAGE_SENT',
 
   // Interaction events
-  REACTION_RECEIVED = "REACTION_RECEIVED",
-  POST_GENERATED = "POST_GENERATED",
-  INTERACTION_RECEIVED = "INTERACTION_RECEIVED",
+  REACTION_RECEIVED = 'REACTION_RECEIVED',
+  POST_GENERATED = 'POST_GENERATED',
+  INTERACTION_RECEIVED = 'INTERACTION_RECEIVED',
 
   // Run events
-  RUN_STARTED = "RUN_STARTED",
-  RUN_ENDED = "RUN_ENDED",
-  RUN_TIMEOUT = "RUN_TIMEOUT",
+  RUN_STARTED = 'RUN_STARTED',
+  RUN_ENDED = 'RUN_ENDED',
+  RUN_TIMEOUT = 'RUN_TIMEOUT',
 
   // Action events
-  ACTION_STARTED = "ACTION_STARTED",
-  ACTION_COMPLETED = "ACTION_COMPLETED",
+  ACTION_STARTED = 'ACTION_STARTED',
+  ACTION_COMPLETED = 'ACTION_COMPLETED',
 
   // Evaluator events
-  EVALUATOR_STARTED = "EVALUATOR_STARTED",
-  EVALUATOR_COMPLETED = "EVALUATOR_COMPLETED",
+  EVALUATOR_STARTED = 'EVALUATOR_STARTED',
+  EVALUATOR_COMPLETED = 'EVALUATOR_COMPLETED',
 
   // Model events
-  MODEL_USED = "MODEL_USED",
+  MODEL_USED = 'MODEL_USED',
 }
 
 /**
  * Platform-specific event type prefix
  */
 export enum PlatformPrefix {
-  DISCORD = "DISCORD",
-  TELEGRAM = "TELEGRAM",
-  TWITTER = "TWITTER",
+  DISCORD = 'DISCORD',
+  TELEGRAM = 'TELEGRAM',
+  TWITTER = 'TWITTER',
 }
 
 /**
@@ -137,7 +137,7 @@ export interface RunEventPayload extends EventPayload {
   roomId: UUID;
   entityId: UUID;
   startTime: number;
-  status: "started" | "completed" | "timeout";
+  status: 'started' | 'completed' | 'timeout';
   endTime?: number;
   duration?: number;
   error?: string;
@@ -217,7 +217,7 @@ export interface EventPayloadMap {
  * Event handler function type
  */
 export type EventHandler<T extends keyof EventPayloadMap> = (
-  payload: EventPayloadMap[T],
+  payload: EventPayloadMap[T]
 ) => Promise<void>;
 
 /**

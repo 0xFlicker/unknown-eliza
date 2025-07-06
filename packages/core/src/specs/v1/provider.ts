@@ -1,11 +1,6 @@
-import {
-  IAgentRuntime,
-  Memory,
-  State,
-  Provider as ProviderFromTypes,
-} from "./types";
-import { toV2State } from "./state";
-import { Provider as ProviderV2, ProviderResult } from "../v2";
+import { IAgentRuntime, Memory, State, Provider as ProviderFromTypes } from './types';
+import { toV2State } from './state';
+import { Provider as ProviderV2, ProviderResult } from '../v2';
 
 /**
  * Provider for external data/services
@@ -30,14 +25,10 @@ export function fromV2Provider(providerV2: ProviderV2): Provider {
 
       try {
         // Call the v2 provider with transformed parameters
-        const result = await providerV2.get(
-          runtime as any,
-          message as any,
-          stateV2 as any,
-        );
+        const result = await providerV2.get(runtime as any, message as any, stateV2 as any);
 
         // Extract text or use an empty string if not present
-        return result.text || "";
+        return result.text || '';
       } catch (error) {
         console.error(`Error in v2 provider ${providerV2.name}:`, error);
         throw error;
@@ -52,28 +43,24 @@ export function fromV2Provider(providerV2: ProviderV2): Provider {
  */
 export function toV2Provider(provider: Provider): ProviderV2 {
   return {
-    name: provider.name || "unnamed-provider",
+    name: provider.name || 'unnamed-provider',
     description: provider.description,
     dynamic: provider.dynamic,
     position: provider.position,
     private: provider.private,
-    get: async (
-      runtime: any,
-      message: any,
-      state: any,
-    ): Promise<ProviderResult> => {
+    get: async (runtime: any, message: any, state: any): Promise<ProviderResult> => {
       try {
         // Call the v1 provider directly
         const result = await provider.get(runtime, message, state);
 
         // Format according to V2 ProviderResult
-        if (typeof result === "object" && result !== null) {
+        if (typeof result === 'object' && result !== null) {
           // For objects, preserve all properties for full compatibility
           return {
             ...result,
             values: result.values || {},
             data: result.data || {},
-            text: result.text || "",
+            text: result.text || '',
           };
         }
 
@@ -81,13 +68,10 @@ export function toV2Provider(provider: Provider): ProviderV2 {
         return {
           values: {},
           data: {},
-          text: String(result || ""),
+          text: String(result || ''),
         };
       } catch (error) {
-        console.error(
-          `Error in v1 provider ${provider.name || "unnamed"}:`,
-          error,
-        );
+        console.error(`Error in v1 provider ${provider.name || 'unnamed'}:`, error);
         throw error;
       }
     },

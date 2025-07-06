@@ -1,9 +1,6 @@
-import { z } from "zod";
-import {
-  stringToUuid as coreStringToUuid,
-  validateUuid as coreValidateUuid,
-} from "../../utils";
-import type { UUID } from "./types";
+import { z } from 'zod';
+import { stringToUuid as coreStringToUuid, validateUuid as coreValidateUuid } from '../../utils';
+import type { UUID } from './types';
 
 export const uuidSchema = z.string().uuid() as z.ZodType<UUID>;
 

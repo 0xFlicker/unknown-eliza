@@ -1,6 +1,6 @@
-import type { Metadata } from "./primitives";
-import { Service } from "./service";
-import type { TokenBalance } from "./token";
+import type { Metadata } from './primitives';
+import { Service } from './service';
+import type { TokenBalance } from './token';
 
 /**
  * A standardized representation of a liquidity pool from any DEX.
@@ -59,10 +59,9 @@ export type TransactionResult = {
  * to allow the LP Manager to interact with them in a standardized way.
  */
 export abstract class ILpService extends Service {
-  static override readonly serviceType = "lp";
+  static override readonly serviceType = 'lp';
 
-  public readonly capabilityDescription =
-    "Provides standardized access to DEX liquidity pools.";
+  public readonly capabilityDescription = 'Provides standardized access to DEX liquidity pools.';
 
   /**
    * Returns the name of the DEX this service interacts with.
@@ -76,10 +75,7 @@ export abstract class ILpService extends Service {
    * @param tokenBMint - Optional: Filter pools by the mint address of the second token.
    * @returns A promise that resolves to an array of standardized PoolInfo objects.
    */
-  abstract getPools(
-    tokenAMint?: string,
-    tokenBMint?: string,
-  ): Promise<PoolInfo[]>;
+  abstract getPools(tokenAMint?: string, tokenBMint?: string): Promise<PoolInfo[]>;
 
   /**
    * Adds liquidity to a specified pool.
@@ -116,7 +112,7 @@ export abstract class ILpService extends Service {
    */
   abstract getLpPositionDetails(
     userAccountPublicKey: string,
-    poolOrPositionIdentifier: string,
+    poolOrPositionIdentifier: string
   ): Promise<LpPositionDetails | null>;
 
   /**
@@ -124,7 +120,5 @@ export abstract class ILpService extends Service {
    * @param poolIds - An array of pool IDs to fetch data for.
    * @returns A promise resolving to a map of pool IDs to their partial market data.
    */
-  abstract getMarketDataForPools(
-    poolIds: string[],
-  ): Promise<Record<string, Partial<PoolInfo>>>;
+  abstract getMarketDataForPools(poolIds: string[]): Promise<Record<string, Partial<PoolInfo>>>;
 }

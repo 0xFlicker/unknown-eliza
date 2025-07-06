@@ -1,5 +1,5 @@
-import { stringToUuid, validateUuid } from "../v2";
-import { UUID as UUIDv1 } from "./types";
+import { stringToUuid, validateUuid } from '../v2';
+import { UUID as UUIDv1 } from './types';
 
 /**
  * Represents a UUID string in the format "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

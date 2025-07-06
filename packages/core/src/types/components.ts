@@ -1,7 +1,7 @@
-import type { Memory } from "./memory";
-import type { Content } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
-import type { State } from "./state";
+import type { Memory } from './memory';
+import type { Content } from './primitives';
+import type { IAgentRuntime } from './runtime';
+import type { State } from './state';
 
 /**
  * Example content with associated user for demonstration purposes
@@ -17,10 +17,7 @@ export interface ActionExample {
 /**
  * Callback function type for handlers
  */
-export type HandlerCallback = (
-  response: Content,
-  files?: any,
-) => Promise<Memory[]>;
+export type HandlerCallback = (response: Content, files?: any) => Promise<Memory[]>;
 
 /**
  * Handler function type for processing messages
@@ -31,7 +28,7 @@ export type Handler = (
   state?: State,
   options?: { [key: string]: unknown },
   callback?: HandlerCallback,
-  responses?: Memory[],
+  responses?: Memory[]
 ) => Promise<unknown>;
 
 /**
@@ -40,7 +37,7 @@ export type Handler = (
 export type Validator = (
   runtime: IAgentRuntime,
   message: Memory,
-  state?: State,
+  state?: State
 ) => Promise<boolean>;
 
 /**
@@ -140,9 +137,5 @@ export interface Provider {
   private?: boolean;
 
   /** Data retrieval function */
-  get: (
-    runtime: IAgentRuntime,
-    message: Memory,
-    state: State,
-  ) => Promise<ProviderResult>;
+  get: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<ProviderResult>;
 }

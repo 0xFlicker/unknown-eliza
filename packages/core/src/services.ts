@@ -1,5 +1,5 @@
-import { Service } from "./types";
-import type { IAgentRuntime, ServiceTypeName } from "./types";
+import { Service } from './types';
+import type { IAgentRuntime, ServiceTypeName } from './types';
 
 /**
  * Service builder class that provides type-safe service creation
@@ -13,7 +13,7 @@ export class ServiceBuilder<TService extends Service = Service> {
 
   constructor(serviceType: ServiceTypeName | string) {
     this.serviceType = serviceType;
-    this.description = "";
+    this.description = '';
   }
 
   /**
@@ -56,9 +56,7 @@ export class ServiceBuilder<TService extends Service = Service> {
 
       static async start(runtime: IAgentRuntime): Promise<Service> {
         if (!startFn) {
-          throw new Error(
-            `Start function not defined for service ${serviceType}`,
-          );
+          throw new Error(`Start function not defined for service ${serviceType}`);
         }
         return startFn(runtime);
       }
@@ -78,7 +76,7 @@ export class ServiceBuilder<TService extends Service = Service> {
  * @returns A new ServiceBuilder instance
  */
 export function createService<TService extends Service = Service>(
-  serviceType: ServiceTypeName | string,
+  serviceType: ServiceTypeName | string
 ): ServiceBuilder<TService> {
   return new ServiceBuilder<TService>(serviceType);
 }
@@ -97,7 +95,7 @@ export interface ServiceDefinition<T extends Service = Service> {
  * Define a service with type safety
  */
 export function defineService<T extends Service = Service>(
-  definition: ServiceDefinition<T>,
+  definition: ServiceDefinition<T>
 ): new (runtime?: IAgentRuntime) => T {
   return createService<T>(definition.serviceType)
     .withDescription(definition.description)
