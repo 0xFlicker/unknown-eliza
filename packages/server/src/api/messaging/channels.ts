@@ -337,15 +337,14 @@ export function createChannelsRouter(
 
           return {
             ...msg,
-            created_at: new Date(msg.createdAt).getTime(), // Ensure timestamp number
+            in_reply_to_message_id: msg.inReplyToRootMessageId,
+            created_at: new Date(msg.createdAt).getTime(),
             updated_at: new Date(msg.updatedAt).getTime(),
-            // Include thought and actions from rawMessage in metadata for client compatibility
             metadata: {
               ...msg.metadata,
               thought: rawMessage?.thought,
               actions: rawMessage?.actions,
             },
-            // Ensure other fields align with client's MessageServiceStructure / ServerMessage
           };
         });
         res.json({ success: true, data: { messages: messagesForGui } });

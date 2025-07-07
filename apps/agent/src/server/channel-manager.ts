@@ -443,13 +443,20 @@ export class ChannelManager {
     const response = await apiClient.getChannelMessages(channelId);
 
     // Convert ServerMessage to ChannelMessage
-    return response.data.messages.map((message) => ({
-      id: message.id,
-      channelId: message.channelId,
-      authorId: message.authorId,
-      content: message.content,
-      timestamp: message.createdAt,
-      metadata: message.metadata,
-    }));
+    return response.data.messages.map((message) => {
+      const replyId = (message as any).in_reply_to_message_id;
+      const meta = { ...message.metadata } as Record<string, unknown>;
+      if (replyId) {
+        meta.in_reply_to_message_id = replyId;
+      }
+      return {
+        id: message.id,
+        channelId: message.channelId,
+        authorId: message.authorId,
+        content: message.content,
+        timestamp: message.createdAt,
+        metadata: meta,
+      };
+    });
   }
 }

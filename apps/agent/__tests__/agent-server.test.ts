@@ -182,5 +182,15 @@ describe("AgentServer V3 Integration", () => {
     // Verify real-time streaming worked
     expectSoft(receivedMessages.length).toBeGreaterThan(0);
     console.log("✅ Real-time message streaming is working");
+
+    // Verify reply-to linkage: agent response should reference the prompt message ID
+    if (messages.length > 1) {
+      const firstMsgId = messages[1].id;
+      const replyMeta = messages[0].metadata;
+      expectSoft(replyMeta?.in_reply_to_message_id).toBe(firstMsgId);
+      console.log(
+        `✅ Reply-to metadata set: ${replyMeta?.in_reply_to_message_id}`
+      );
+    }
   }, 90000); // Allow plenty of time for real model interactions
 });
