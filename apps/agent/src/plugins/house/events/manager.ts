@@ -50,10 +50,6 @@ export class GameEventManager {
         roomId: (payload as any).roomId
       });
       
-      // console.log(`🎯 [GameEvent] Emitting: ${eventType}`, {
-      //   gameId: (payload as any).gameId,
-      //   roomId: (payload as any).roomId
-      // });
 
       // Emit through ElizaOS runtime (using string-based events)
       await this.runtime.emitEvent(eventType as string, fullPayload);

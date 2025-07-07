@@ -1,4 +1,4 @@
-import { Readable } from 'node:stream';
+import { Readable } from "node:stream";
 
 /**
  * Determines the appropriate MIME type for audio data based on its format.
@@ -13,25 +13,32 @@ export function getAudioMimeType(audioBuffer: Buffer): string {
   // then "WAVE" identifier
   if (
     audioBuffer.length >= 12 &&
-    audioBuffer.toString('ascii', 0, 4) === 'RIFF' &&
-    audioBuffer.toString('ascii', 8, 12) === 'WAVE'
+    audioBuffer.toString("ascii", 0, 4) === "RIFF" &&
+    audioBuffer.toString("ascii", 8, 12) === "WAVE"
   ) {
-    return 'audio/wav';
+    return "audio/wav";
   }
 
   // MP3 files typically start with ID3 tag or directly with an MP3 frame
   // Check for ID3 tag (ID3v2)
-  if (audioBuffer.length >= 3 && audioBuffer.toString('ascii', 0, 3) === 'ID3') {
-    return 'audio/mpeg';
+  if (
+    audioBuffer.length >= 3 &&
+    audioBuffer.toString("ascii", 0, 3) === "ID3"
+  ) {
+    return "audio/mpeg";
   }
 
   // Check for MP3 frame header (begins with 0xFF followed by 0xE or 0xF)
-  if (audioBuffer.length >= 2 && audioBuffer[0] === 0xff && (audioBuffer[1] & 0xe0) === 0xe0) {
-    return 'audio/mpeg';
+  if (
+    audioBuffer.length >= 2 &&
+    audioBuffer[0] === 0xff &&
+    (audioBuffer[1] & 0xe0) === 0xe0
+  ) {
+    return "audio/mpeg";
   }
 
   // Default to MP3 if we can't determine (maintaining backward compatibility)
-  return 'audio/mpeg';
+  return "audio/mpeg";
 }
 
 /**
@@ -42,20 +49,22 @@ export interface AudioProcessingResult {
   mimeType: string;
 }
 
-export async function convertToAudioBuffer(speechResponse: any): Promise<Buffer>;
 export async function convertToAudioBuffer(
   speechResponse: any,
-  detectMimeType: true
+): Promise<Buffer>;
+export async function convertToAudioBuffer(
+  speechResponse: any,
+  detectMimeType: true,
 ): Promise<AudioProcessingResult>;
 export async function convertToAudioBuffer(
   speechResponse: any,
-  detectMimeType?: boolean
+  detectMimeType?: boolean,
 ): Promise<Buffer | AudioProcessingResult> {
   let resultBuffer: Buffer;
 
   if (Buffer.isBuffer(speechResponse)) {
     resultBuffer = speechResponse;
-  } else if (typeof speechResponse?.getReader === 'function') {
+  } else if (typeof speechResponse?.getReader === "function") {
     // Handle Web ReadableStream
     const reader = (speechResponse as ReadableStream<Uint8Array>).getReader();
     const chunks: Uint8Array[] = [];
@@ -74,20 +83,20 @@ export async function convertToAudioBuffer(
     speechResponse instanceof Readable ||
     (speechResponse &&
       speechResponse.readable === true &&
-      typeof speechResponse.pipe === 'function' &&
-      typeof speechResponse.on === 'function')
+      typeof speechResponse.pipe === "function" &&
+      typeof speechResponse.on === "function")
   ) {
     // Handle Node Readable Stream
     resultBuffer = await new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
-      speechResponse.on('data', (chunk: any) =>
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      speechResponse.on("data", (chunk: any) =>
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)),
       );
-      speechResponse.on('end', () => resolve(Buffer.concat(chunks)));
-      speechResponse.on('error', (err: Error) => reject(err));
+      speechResponse.on("end", () => resolve(Buffer.concat(chunks)));
+      speechResponse.on("error", (err: Error) => reject(err));
     });
   } else {
-    throw new Error('Unexpected response type from TEXT_TO_SPEECH model');
+    throw new Error("Unexpected response type from TEXT_TO_SPEECH model");
   }
 
   // Return both buffer and MIME type if requested

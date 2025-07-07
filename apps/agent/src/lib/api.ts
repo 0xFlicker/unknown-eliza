@@ -531,9 +531,9 @@ export const apiClient = {
     userId: UUID
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
-      url: `/messaging/central-channels/${channelId}/participants`,
+      url: `/messaging/central-channels/${channelId}/agents`,
       method: "POST",
-      body: { userId },
+      body: { agentId: userId },
     }),
 
   addUsersToChannel: async (
@@ -541,9 +541,9 @@ export const apiClient = {
     userIds: UUID[]
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
-      url: `/messaging/central-channels/${channelId}/participants/bulk`,
+      url: `/messaging/central-channels/${channelId}/agents/bulk`,
       method: "POST",
-      body: { userIds },
+      body: { agentIds: userIds },
     }),
 
   removeUserFromChannel: async (
@@ -551,7 +551,7 @@ export const apiClient = {
     userId: UUID
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
-      url: `/messaging/central-channels/${channelId}/participants/${userId}`,
+      url: `/messaging/central-channels/${channelId}/agents/${userId}`,
       method: "DELETE",
     }),
 

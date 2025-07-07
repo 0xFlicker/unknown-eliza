@@ -1,13 +1,16 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import multer from 'multer';
-import { validateUuid, logger } from '@elizaos/core';
-import { createSecureUploadDir, sanitizeFilename } from './api/shared/file-utils.js';
+import fs from "node:fs";
+import path from "node:path";
+import multer from "multer";
+import { validateUuid, logger } from "@elizaos/core";
+import {
+  createSecureUploadDir,
+  sanitizeFilename,
+} from "./api/shared/file-utils.js";
 import {
   MAX_FILE_SIZE,
   ALLOWED_AUDIO_MIME_TYPES,
   ALLOWED_MEDIA_MIME_TYPES,
-} from './api/shared/constants.js';
+} from "./api/shared/constants.js";
 
 // Helper function to generate secure filename
 export function generateSecureFilename(originalName: string): string {
@@ -17,7 +20,10 @@ export function generateSecureFilename(originalName: string): string {
 }
 
 // Helper function to create upload directory
-export function ensureUploadDir(id: string, type: 'agents' | 'channels'): string {
+export function ensureUploadDir(
+  id: string,
+  type: "agents" | "channels",
+): string {
   if (!validateUuid(id)) {
     throw new Error(`Invalid ${type.slice(0, -1)} ID format`);
   }
@@ -28,7 +34,9 @@ export function ensureUploadDir(id: string, type: 'agents' | 'channels'): string
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
-  logger.debug(`[UPLOAD] Secure ${type.slice(0, -1)} upload directory created: ${uploadDir}`);
+  logger.debug(
+    `[UPLOAD] Secure ${type.slice(0, -1)} upload directory created: ${uploadDir}`,
+  );
   return uploadDir;
 }
 
@@ -47,7 +55,7 @@ export const agentAudioUpload = () =>
       if (ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype as any)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid audio file type'), false);
+        cb(new Error("Invalid audio file type"));
       }
     },
   });
@@ -63,7 +71,7 @@ export const agentMediaUpload = () =>
       if (ALLOWED_MEDIA_MIME_TYPES.includes(file.mimetype as any)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid media file type'), false);
+        cb(new Error("Invalid media file type"));
       }
     },
   });
@@ -80,7 +88,7 @@ export const channelUpload = () =>
       if (ALLOWED_MEDIA_MIME_TYPES.includes(file.mimetype as any)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid file type'), false);
+        cb(new Error("Invalid file type"));
       }
     },
   });
@@ -111,7 +119,7 @@ export function validateMediaFile(file: Express.Multer.File): boolean {
 export async function processUploadedFile(
   file: Express.Multer.File,
   targetId: string,
-  type: 'agents' | 'channels'
+  type: "agents" | "channels",
 ): Promise<{ filename: string; path: string; url: string }> {
   try {
     // Ensure upload directory exists
@@ -131,7 +139,7 @@ export async function processUploadedFile(
 
     return { filename, path: finalPath, url };
   } catch (error) {
-    logger.error('[UPLOAD] Error processing uploaded file:', error);
+    logger.error("[UPLOAD] Error processing uploaded file:", error);
     throw error;
   }
 }

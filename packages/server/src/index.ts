@@ -105,7 +105,7 @@ const DEFAULT_SERVER_ID = "00000000-0000-0000-0000-000000000000" as UUID; // Sin
 export type ServerMiddleware = (
   req: express.Request,
   res: express.Response,
-  next: express.NextFunction
+  next: express.NextFunction,
 ) => void;
 
 /**
@@ -187,7 +187,7 @@ export class AgentServer {
   public async initialize(options?: ServerOptions): Promise<void> {
     if (this.isInitialized) {
       logger.warn(
-        "AgentServer is already initialized, skipping initialization"
+        "AgentServer is already initialized, skipping initialization",
       );
       return;
     }
@@ -202,7 +202,7 @@ export class AgentServer {
           dataDir: agentDataDir,
           postgresUrl: options?.postgresUrl,
         },
-        "00000000-0000-0000-0000-000000000002"
+        "00000000-0000-0000-0000-000000000002",
       ) as DatabaseAdapter;
       await this.database.init();
       logger.success("Consolidated database initialized successfully");
@@ -231,12 +231,12 @@ export class AgentServer {
             : String(migrationError);
         logger.error(
           "[INIT] Failed to run database migrations:",
-          migrationError
+          migrationError,
         );
         throw new Error(
           `Database migration failed: ${migrationMsg}\n` +
             `→ Please ensure your database schema is initialized properly. ` +
-            `If using local PGlite, consider deleting or migrating your dataDir (${options?.dataDir}).`
+            `If using local PGlite, consider deleting or migrating your dataDir (${options?.dataDir}).`,
         );
       }
 
@@ -254,7 +254,7 @@ export class AgentServer {
     } catch (error) {
       logger.error(
         "Failed to initialize AgentServer (async operations):",
-        error
+        error,
       );
       throw error;
     }
@@ -270,17 +270,17 @@ export class AgentServer {
       // Log all existing servers for debugging
       servers.forEach((s: any) => {
         logger.debug(
-          `[AgentServer] Existing server: ID=${s.id}, Name=${s.name}`
+          `[AgentServer] Existing server: ID=${s.id}, Name=${s.name}`,
         );
       });
 
       const defaultServer = servers.find(
-        (s: any) => s.id === "00000000-0000-0000-0000-000000000000"
+        (s: any) => s.id === "00000000-0000-0000-0000-000000000000",
       );
 
       if (!defaultServer) {
         logger.info(
-          "[AgentServer] Creating default server with UUID 00000000-0000-0000-0000-000000000000..."
+          "[AgentServer] Creating default server with UUID 00000000-0000-0000-0000-000000000000...",
         );
 
         // Use raw SQL to ensure the server is created with the exact ID
@@ -294,7 +294,7 @@ export class AgentServer {
 
           // Immediately check if it was created
           const checkResult = await (this.database as any).db.execute(
-            "SELECT id, name FROM message_servers WHERE id = '00000000-0000-0000-0000-000000000000'"
+            "SELECT id, name FROM message_servers WHERE id = '00000000-0000-0000-0000-000000000000'",
           );
           logger.debug("[AgentServer] Raw SQL check result:", checkResult);
         } catch (sqlError: any) {
@@ -309,15 +309,15 @@ export class AgentServer {
             });
             logger.success(
               "[AgentServer] Default server created via ORM with ID:",
-              server.id
+              server.id,
             );
           } catch (ormError: any) {
             logger.error(
               "[AgentServer] Both SQL and ORM creation failed:",
-              ormError
+              ormError,
             );
             throw new Error(
-              `Failed to create default server: ${ormError.message}`
+              `Failed to create default server: ${ormError.message}`,
             );
           }
         }
@@ -325,30 +325,30 @@ export class AgentServer {
         // Verify it was created
         const verifyServers = await (this.database as any).getMessageServers();
         logger.debug(
-          `[AgentServer] After creation attempt, found ${verifyServers.length} servers`
+          `[AgentServer] After creation attempt, found ${verifyServers.length} servers`,
         );
         verifyServers.forEach((s: any) => {
           logger.debug(
-            `[AgentServer] Server after creation: ID=${s.id}, Name=${s.name}`
+            `[AgentServer] Server after creation: ID=${s.id}, Name=${s.name}`,
           );
         });
 
         const verifyDefault = verifyServers.find(
-          (s: any) => s.id === "00000000-0000-0000-0000-000000000000"
+          (s: any) => s.id === "00000000-0000-0000-0000-000000000000",
         );
         if (!verifyDefault) {
           throw new Error(
-            `Failed to create or verify default server with ID ${DEFAULT_SERVER_ID}`
+            `Failed to create or verify default server with ID ${DEFAULT_SERVER_ID}`,
           );
         } else {
           logger.success(
-            "[AgentServer] Default server creation verified successfully"
+            "[AgentServer] Default server creation verified successfully",
           );
         }
       } else {
         logger.info(
           "[AgentServer] Default server already exists with ID:",
-          defaultServer.id
+          defaultServer.id,
         );
       }
     } catch (error) {
@@ -437,7 +437,7 @@ export class AgentServer {
           referrerPolicy: { policy: "no-referrer-when-downgrade" },
           // X-XSS-Protection
           xssFilter: true,
-        })
+        }),
       );
 
       // Apply custom middlewares if provided
@@ -456,12 +456,12 @@ export class AgentServer {
           credentials: true,
           methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
           allowedHeaders: ["Content-Type", "Authorization", "X-API-KEY"],
-        })
+        }),
       ); // Enable CORS
       this.app.use(
         express.json({
           limit: process.env.EXPRESS_MAX_PAYLOAD || "2mb",
-        })
+        }),
       ); // Parse JSON bodies with 2MB limit to support large character files
 
       // File uploads are now handled by individual routes using multer
@@ -471,7 +471,7 @@ export class AgentServer {
       const serverAuthToken = process.env.ELIZA_SERVER_AUTH_TOKEN;
       if (serverAuthToken) {
         logger.info(
-          "Server authentication enabled. Requires X-API-KEY header for /api routes."
+          "Server authentication enabled. Requires X-API-KEY header for /api routes.",
         );
         // Apply middleware only to /api paths
         this.app.use("/api", (req, res, next) => {
@@ -479,7 +479,7 @@ export class AgentServer {
         });
       } else {
         logger.warn(
-          "Server authentication is disabled. Set ELIZA_SERVER_AUTH_TOKEN environment variable to enable."
+          "Server authentication is disabled. Set ELIZA_SERVER_AUTH_TOKEN environment variable to enable.",
         );
       }
 
@@ -493,7 +493,7 @@ export class AgentServer {
         const uiEnabledEnv = process.env.ELIZA_UI_ENABLE;
         if (uiEnabledEnv !== undefined && uiEnabledEnv.trim() !== "") {
           logger.info(
-            `Web UI disabled by environment variable (ELIZA_UI_ENABLE=${uiEnabledEnv})`
+            `Web UI disabled by environment variable (ELIZA_UI_ENABLE=${uiEnabledEnv})`,
           );
         } else {
           logger.info("Web UI disabled for security (production mode)");
@@ -505,13 +505,13 @@ export class AgentServer {
         ".eliza",
         "data",
         "uploads",
-        "agents"
+        "agents",
       );
       const generatedBasePath = path.join(
         process.cwd(),
         ".eliza",
         "data",
-        "generated"
+        "generated",
       );
       fs.mkdirSync(uploadsBasePath, { recursive: true });
       fs.mkdirSync(generatedBasePath, { recursive: true });
@@ -547,7 +547,7 @@ export class AgentServer {
                 logger.warn(`[MEDIA] Download aborted: ${req.originalUrl}`);
               } else if (!res.headersSent) {
                 logger.warn(
-                  `[MEDIA] File not found: ${agentUploadsPath}/${sanitizedFilename}`
+                  `[MEDIA] File not found: ${agentUploadsPath}/${sanitizedFilename}`,
                 );
                 res.status(404).json({ error: "File not found" });
               }
@@ -555,7 +555,7 @@ export class AgentServer {
               logger.debug(`[MEDIA] Successfully served: ${sanitizedFilename}`);
             }
           });
-        }
+        },
       );
 
       this.app.get(
@@ -563,7 +563,7 @@ export class AgentServer {
         // @ts-expect-error - this is a valid express route
         (
           req: express.Request<{ agentId: string; filename: string }>,
-          res: express.Response
+          res: express.Response,
         ) => {
           const agentId = req.params.agentId;
           const filename = req.params.filename;
@@ -583,7 +583,7 @@ export class AgentServer {
               res.status(404).json({ error: "File not found" });
             }
           });
-        }
+        },
       );
 
       // Channel-specific media serving
@@ -591,7 +591,7 @@ export class AgentServer {
         "/media/uploads/channels/:channelId/:filename",
         (
           req: express.Request<{ channelId: string; filename: string }>,
-          res: express.Response
+          res: express.Response,
         ) => {
           const channelId = req.params.channelId as string;
           const filename = req.params.filename as string;
@@ -607,7 +607,7 @@ export class AgentServer {
           const channelUploadsPath = join(
             uploadsBasePath,
             "channels",
-            channelId
+            channelId,
           );
           const filePath = join(channelUploadsPath, sanitizedFilename);
 
@@ -620,7 +620,7 @@ export class AgentServer {
             if (err) {
               logger.warn(
                 `[STATIC] Channel media file not found: ${filePath}`,
-                err
+                err,
               );
               if (!res.headersSent) {
                 res.status(404).json({ error: "File not found" });
@@ -629,7 +629,7 @@ export class AgentServer {
               logger.debug(`[STATIC] Served channel media file: ${filePath}`);
             }
           });
-        }
+        },
       );
 
       // Add specific middleware to handle portal assets
@@ -704,7 +704,7 @@ export class AgentServer {
         (
           req: express.Request,
           _res: express.Response,
-          next: express.NextFunction
+          next: express.NextFunction,
         ) => {
           if (req.path !== "/ping") {
             logger.debug(`API request: ${req.method} ${req.path}`);
@@ -716,7 +716,7 @@ export class AgentServer {
           err: any,
           req: Request,
           res: Response,
-          _next: express.NextFunction
+          _next: express.NextFunction,
         ) => {
           logger.error(`API error: ${req.method} ${req.path}`, err);
           res.status(500).json({
@@ -726,7 +726,7 @@ export class AgentServer {
               code: err.code || 500,
             },
           });
-        }
+        },
       );
 
       // Add a catch-all route for API 404s
@@ -775,7 +775,7 @@ export class AgentServer {
         (this.app as any).use(
           (_req: express.Request, res: express.Response) => {
             res.sendStatus(403); // Standard HTTP 403 Forbidden
-          }
+          },
         );
       }
 
@@ -813,7 +813,7 @@ export class AgentServer {
 
       this.agents.set(runtime.agentId, runtime);
       logger.debug(
-        `Agent ${runtime.character.name} (${runtime.agentId}) added to agents map`
+        `Agent ${runtime.character.name} (${runtime.agentId}) added to agents map`,
       );
 
       // Auto-register the MessageBusConnector plugin
@@ -821,24 +821,24 @@ export class AgentServer {
         if (messageBusConnectorPlugin) {
           await runtime.registerPlugin(messageBusConnectorPlugin);
           logger.info(
-            `[AgentServer] Automatically registered MessageBusConnector for agent ${runtime.character.name}`
+            `[AgentServer] Automatically registered MessageBusConnector for agent ${runtime.character.name}`,
           );
         } else {
           logger.error(
-            `[AgentServer] CRITICAL: MessageBusConnector plugin definition not found.`
+            `[AgentServer] CRITICAL: MessageBusConnector plugin definition not found.`,
           );
         }
       } catch (e) {
         logger.error(
           `[AgentServer] CRITICAL: Failed to register MessageBusConnector for agent ${runtime.character.name}`,
-          e
+          e,
         );
         // Decide if this is a fatal error for the agent.
       }
 
       // Register TEE plugin if present
       const teePlugin = runtime.plugins.find(
-        (p) => p.name === "phala-tee-plugin"
+        (p) => p.name === "phala-tee-plugin",
       );
       if (teePlugin) {
         logger.debug(`Found TEE plugin for agent ${runtime.agentId}`);
@@ -857,12 +857,12 @@ export class AgentServer {
       }
 
       logger.success(
-        `Successfully registered agent ${runtime.character.name} (${runtime.agentId}) with core services.`
+        `Successfully registered agent ${runtime.character.name} (${runtime.agentId}) with core services.`,
       );
 
       await this.addAgentToServer(DEFAULT_SERVER_ID, runtime.agentId);
       logger.info(
-        `[AgentServer] Auto-associated agent ${runtime.character.name} with server ID: ${DEFAULT_SERVER_ID}`
+        `[AgentServer] Auto-associated agent ${runtime.character.name} with server ID: ${DEFAULT_SERVER_ID}`,
       );
     } catch (error) {
       logger.error("Failed to register agent:", error);
@@ -879,7 +879,7 @@ export class AgentServer {
   public unregisterAgent(agentId: UUID) {
     if (!agentId) {
       logger.warn(
-        "[AGENT UNREGISTER] Attempted to unregister undefined or invalid agent runtime"
+        "[AGENT UNREGISTER] Attempted to unregister undefined or invalid agent runtime",
       );
       return;
     }
@@ -894,16 +894,16 @@ export class AgentServer {
           agent.stop().catch((stopError) => {
             logger.error(
               `[AGENT UNREGISTER] Error stopping agent services for ${agentId}:`,
-              stopError
+              stopError,
             );
           });
           logger.debug(
-            `[AGENT UNREGISTER] Stopping services for agent ${agentId}`
+            `[AGENT UNREGISTER] Stopping services for agent ${agentId}`,
           );
         } catch (stopError) {
           logger.error(
             `[AGENT UNREGISTER] Error initiating stop for agent ${agentId}:`,
-            stopError
+            stopError,
           );
         }
       }
@@ -950,7 +950,7 @@ export class AgentServer {
           if (this.isWebUIEnabled && process.env.NODE_ENV !== "development") {
             // Display the dashboard URL with the correct port after the server is actually listening
             console.log(
-              `\x1b[32mStartup successful!\nGo to the dashboard at \x1b[1mhttp://localhost:${port}\x1b[22m\x1b[0m`
+              `\x1b[32mStartup successful!\nGo to the dashboard at \x1b[1mhttp://localhost:${port}\x1b[22m\x1b[0m`,
             );
           } else if (!this.isWebUIEnabled) {
             // Use actual host or localhost
@@ -962,7 +962,7 @@ export class AgentServer {
                 `\x1b[33mWeb UI disabled.\x1b[0m \x1b[32mAPI endpoints available at:\x1b[0m\n` +
                 `  \x1b[1m${baseUrl}/api/server/ping\x1b[22m\x1b[0m\n` +
                 `  \x1b[1m${baseUrl}/api/agents\x1b[22m\x1b[0m\n` +
-                `  \x1b[1m${baseUrl}/api/messaging\x1b[22m\x1b[0m`
+                `  \x1b[1m${baseUrl}/api/messaging\x1b[22m\x1b[0m`,
             );
           }
 
@@ -970,7 +970,7 @@ export class AgentServer {
           console.log(`AgentServer is listening on port ${port}`);
 
           logger.success(
-            `REST API bound to ${host}:${port}. If running locally, access it at http://localhost:${port}.`
+            `REST API bound to ${host}:${port}. If running locally, access it at http://localhost:${port}.`,
           );
           logger.debug(`Active agents: ${this.agents.size}`);
           this.agents.forEach((agent, id) => {
@@ -983,15 +983,15 @@ export class AgentServer {
           // Provide helpful error messages for common issues
           if (error.code === "EADDRINUSE") {
             logger.error(
-              `Port ${port} is already in use. Please try a different port or stop the process using that port.`
+              `Port ${port} is already in use. Please try a different port or stop the process using that port.`,
             );
           } else if (error.code === "EACCES") {
             logger.error(
-              `Permission denied to bind to port ${port}. Try using a port above 1024 or running with appropriate permissions.`
+              `Permission denied to bind to port ${port}. Try using a port above 1024 or running with appropriate permissions.`,
             );
           } else if (error.code === "EADDRNOTAVAIL") {
             logger.error(
-              `Cannot bind to ${host}:${port} - address not available. Check if the host address is correct.`
+              `Cannot bind to ${host}:${port} - address not available. Check if the host address is correct.`,
             );
           }
 
@@ -1001,7 +1001,7 @@ export class AgentServer {
       // Enhanced graceful shutdown
       const gracefulShutdown = async () => {
         logger.info(
-          "Received shutdown signal, initiating graceful shutdown..."
+          "Received shutdown signal, initiating graceful shutdown...",
         );
 
         // Stop all agents first
@@ -1062,7 +1062,7 @@ export class AgentServer {
 
   // Central DB Data Access Methods
   async createServer(
-    data: Omit<MessageServer, "id" | "createdAt" | "updatedAt">
+    data: Omit<MessageServer, "id" | "createdAt" | "updatedAt">,
   ): Promise<MessageServer> {
     return (this.database as any).createMessageServer(data);
   }
@@ -1076,11 +1076,11 @@ export class AgentServer {
   }
 
   async getServerBySourceType(
-    sourceType: string
+    sourceType: string,
   ): Promise<MessageServer | null> {
     const servers = await (this.database as any).getMessageServers();
     const filtered = servers.filter(
-      (s: MessageServer) => s.sourceType === sourceType
+      (s: MessageServer) => s.sourceType === sourceType,
     );
     return filtered.length > 0 ? filtered[0] : null;
   }
@@ -1089,14 +1089,14 @@ export class AgentServer {
     data: Omit<MessageChannel, "id" | "createdAt" | "updatedAt"> & {
       id?: UUID;
     },
-    participantIds?: UUID[]
+    participantIds?: UUID[],
   ): Promise<MessageChannel> {
     return (this.database as any).createChannel(data, participantIds);
   }
 
   async addParticipantsToChannel(
     channelId: UUID,
-    userIds: UUID[]
+    userIds: UUID[],
   ): Promise<void> {
     return (this.database as any).addChannelParticipants(channelId, userIds);
   }
@@ -1123,7 +1123,7 @@ export class AgentServer {
       name?: string;
       participantCentralUserIds?: UUID[];
       metadata?: any;
-    }
+    },
   ): Promise<MessageChannel> {
     return (this.database as any).updateChannel(channelId, updates);
   }
@@ -1136,30 +1136,30 @@ export class AgentServer {
     // Get all messages for the channel and delete them one by one
     const messages = await (this.database as any).getMessagesForChannel(
       channelId,
-      1000
+      1000,
     );
     for (const message of messages) {
       await (this.database as any).deleteMessage(message.id);
     }
     logger.info(
-      `[AgentServer] Cleared all messages for central channel: ${channelId}`
+      `[AgentServer] Cleared all messages for central channel: ${channelId}`,
     );
   }
 
   async findOrCreateCentralDmChannel(
     user1Id: UUID,
     user2Id: UUID,
-    messageServerId: UUID
+    messageServerId: UUID,
   ): Promise<MessageChannel> {
     return (this.database as any).findOrCreateDmChannel(
       user1Id,
       user2Id,
-      messageServerId
+      messageServerId,
     );
   }
 
   async createMessage(
-    data: Omit<CentralRootMessage, "id" | "createdAt" | "updatedAt">
+    data: Omit<CentralRootMessage, "id" | "createdAt" | "updatedAt">,
   ): Promise<CentralRootMessage> {
     const createdMessage = await (this.database as any).createMessage(data);
 
@@ -1183,7 +1183,7 @@ export class AgentServer {
 
       internalMessageBus.emit("new_message", messageForBus);
       logger.info(
-        `[AgentServer] Published message ${createdMessage.id} to internal message bus`
+        `[AgentServer] Published message ${createdMessage.id} to internal message bus`,
       );
     }
 
@@ -1193,12 +1193,12 @@ export class AgentServer {
   async getMessagesForChannel(
     channelId: UUID,
     limit: number = 50,
-    beforeTimestamp?: Date
+    beforeTimestamp?: Date,
   ): Promise<CentralRootMessage[]> {
     return (this.database as any).getMessagesForChannel(
       channelId,
       limit,
-      beforeTimestamp
+      beforeTimestamp,
     );
   }
 
@@ -1206,7 +1206,7 @@ export class AgentServer {
   async removeParticipantFromChannel(): Promise<void> {
     // Since we don't have a direct method for this, we'll need to handle it at the channel level
     logger.warn(
-      `[AgentServer] Remove participant operation not directly supported in database adapter`
+      `[AgentServer] Remove participant operation not directly supported in database adapter`,
     );
   }
 

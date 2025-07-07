@@ -1,4 +1,4 @@
-import express from 'express';
+import express from "express";
 
 /**
  * Sends a standardized error response
@@ -8,7 +8,7 @@ export const sendError = (
   status: number,
   code: string,
   message: string,
-  details?: string
+  details?: string,
 ) => {
   res.status(status).json({
     success: false,

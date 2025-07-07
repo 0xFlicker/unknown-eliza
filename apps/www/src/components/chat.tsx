@@ -150,7 +150,7 @@ export const MemoizedMessageContent = React.memo(
       prevProps.shouldAnimate === nextProps.shouldAnimate &&
       prevProps.isUser === nextProps.isUser
     );
-  },
+  }
 );
 
 export function MessageContent({
@@ -212,14 +212,14 @@ export function MessageContent({
 
             const mediaInfos = parseMediaFromText(message.text);
             const attachmentUrls = new Set(
-              message.attachments?.map((att) => att.url).filter(Boolean) || [],
+              message.attachments?.map((att) => att.url).filter(Boolean) || []
             );
             const uniqueMediaInfos = mediaInfos.filter(
-              (media) => !attachmentUrls.has(media.url),
+              (media) => !attachmentUrls.has(media.url)
             );
             const textWithoutUrls = removeMediaUrlsFromText(
               message.text,
-              mediaInfos,
+              mediaInfos
             );
 
             return (
@@ -259,7 +259,7 @@ export function MessageContent({
 
         {message.attachments
           ?.filter(
-            (attachment) => attachment.url && attachment.url.trim() !== "",
+            (attachment) => attachment.url && attachment.url.trim() !== ""
           )
           .map((attachment: Media) => (
             <MediaContent
@@ -285,7 +285,7 @@ export function MessageContent({
             </>
           )}
           {isUser && message.text && !message.isLoading && onRetry && (
-            <RetryButton onClick={() => onRetry(message)} />
+            <RetryButton onClick={() => onRetry(message.text!)} />
           )}
           <DeleteButton onClick={() => onDelete(message.id as string)} />
         </div>
@@ -361,7 +361,7 @@ export default function Chat({
   // For DM, we need agent data. For GROUP, we need channel data
   const { data: agentDataResponse, isLoading: isLoadingAgent } = useAgent(
     chatType === ChannelType.DM ? contextId : undefined,
-    { enabled: chatType === ChannelType.DM },
+    { enabled: chatType === ChannelType.DM }
   );
 
   // Convert AgentWithStatus to Agent, ensuring required fields have defaults
@@ -381,10 +381,10 @@ export default function Chat({
 
   // Group chat specific data
   const { data: channelDetailsData } = useChannelDetails(
-    chatType === ChannelType.GROUP ? contextId : undefined,
+    chatType === ChannelType.GROUP ? contextId : undefined
   );
   const { data: participantsData } = useChannelParticipants(
-    chatType === ChannelType.GROUP ? contextId : undefined,
+    chatType === ChannelType.GROUP ? contextId : undefined
   );
   const participants = participantsData?.data;
 
@@ -407,16 +407,16 @@ export default function Chat({
             acc[agent.id] = agent.settings.avatar;
           return acc;
         },
-        {} as Record<UUID, string | null>,
+        {} as Record<UUID, string | null>
       ),
-    [allAgents],
+    [allAgents]
   );
 
   const getAgentInMessage = useCallback(
     (agentId: UUID) => {
       return allAgents.find((a) => a.id === agentId);
     },
-    [allAgents],
+    [allAgents]
   );
 
   const {
@@ -444,7 +444,7 @@ export default function Chat({
       if (!agentIdForNewChannel || chatType !== "DM") return;
       const newChatName = `Chat - ${moment().format("MMM D, HH:mm:ss")}`;
       clientLogger.info(
-        `[Chat] Creating new distinct DM channel with agent ${agentIdForNewChannel}, name: "${newChatName}"`,
+        `[Chat] Creating new distinct DM channel with agent ${agentIdForNewChannel}, name: "${newChatName}"`
       );
       updateChatState({ isCreatingDM: true });
       try {
@@ -460,31 +460,31 @@ export default function Chat({
       } catch (error) {
         clientLogger.error(
           "[Chat] Error creating new distinct DM channel:",
-          error,
+          error
         );
         // Toast is handled by the mutation hook
       } finally {
         updateChatState({ isCreatingDM: false });
       }
     },
-    [chatType, createDmChannelMutation, updateChatState, safeScrollToBottom],
+    [chatType, createDmChannelMutation, updateChatState, safeScrollToBottom]
   );
 
   // Handle DM channel selection
   const handleSelectDmRoom = useCallback(
     (channelIdToSelect: UUID) => {
       const selectedChannel = agentDmChannels.find(
-        (channel) => channel.id === channelIdToSelect,
+        (channel) => channel.id === channelIdToSelect
       );
       if (selectedChannel) {
         clientLogger.info(
-          `[Chat] DM Channel selected: ${selectedChannel.name} (Channel ID: ${selectedChannel.id})`,
+          `[Chat] DM Channel selected: ${selectedChannel.name} (Channel ID: ${selectedChannel.id})`
         );
         updateChatState({ currentDmChannelId: selectedChannel.id, input: "" });
         setTimeout(() => safeScrollToBottom(), 150);
       }
     },
-    [agentDmChannels, updateChatState, safeScrollToBottom],
+    [agentDmChannels, updateChatState, safeScrollToBottom]
   );
 
   // Handle DM channel deletion
@@ -496,7 +496,7 @@ export default function Chat({
     )
       return;
     const channelToDelete = agentDmChannels.find(
-      (ch) => ch.id === chatState.currentDmChannelId,
+      (ch) => ch.id === chatState.currentDmChannelId
     );
     if (!channelToDelete) return;
 
@@ -515,7 +515,7 @@ export default function Chat({
           // --- Optimistically update the React-Query cache so UI refreshes instantly ---
           queryClient.setQueryData<MessageChannel[] | undefined>(
             ["dmChannels", targetAgentData.id, currentClientEntityId],
-            (old) => old?.filter((ch) => ch.id !== channelToDelete.id),
+            (old) => old?.filter((ch) => ch.id !== channelToDelete.id)
           );
 
           // Force a refetch to stay in sync with the server
@@ -541,11 +541,11 @@ export default function Chat({
             updateChatState({ currentDmChannelId: remainingChannels[0].id });
             clientLogger.info(
               "[Chat] Switched to DM channel:",
-              remainingChannels[0].id,
+              remainingChannels[0].id
             );
           } else {
             clientLogger.info(
-              "[Chat] No DM channels left after deletion. Will create a fresh chat once.",
+              "[Chat] No DM channels left after deletion. Will create a fresh chat once."
             );
             // Clear the current DM so the effect can handle creating exactly one new chat
             updateChatState({ currentDmChannelId: null });
@@ -562,7 +562,7 @@ export default function Chat({
             variant: "destructive",
           });
         }
-      },
+      }
     );
   }, [
     chatType,
@@ -583,7 +583,7 @@ export default function Chat({
 
   useEffect(() => {
     const currentChannel = agentDmChannels.find(
-      (c) => c.id === chatState.currentDmChannelId,
+      (c) => c.id === chatState.currentDmChannelId
     );
     if (currentChannel?.name) {
       chatTitleRef.current = currentChannel.name;
@@ -601,7 +601,7 @@ export default function Chat({
 
       if (!currentChannelBelongsToAgent && !isLoadingAgentDmChannels) {
         clientLogger.info(
-          `[Chat] Current DM channel ${chatState.currentDmChannelId} doesn't belong to agent ${targetAgentData.id}, clearing it`,
+          `[Chat] Current DM channel ${chatState.currentDmChannelId} doesn't belong to agent ${targetAgentData.id}, clearing it`
         );
         updateChatState({ currentDmChannelId: null });
         return; // Exit early, let the effect run again with cleared state
@@ -611,12 +611,12 @@ export default function Chat({
         // If we now have channels, ensure one is selected
         if (agentDmChannels.length > 0) {
           const currentValid = agentDmChannels.some(
-            (c) => c.id === chatState.currentDmChannelId,
+            (c) => c.id === chatState.currentDmChannelId
           );
           if (!currentValid) {
             clientLogger.info(
               "[Chat] Selecting first available DM channel:",
-              agentDmChannels[0].id,
+              agentDmChannels[0].id
             );
             updateChatState({ currentDmChannelId: agentDmChannels[0].id });
             autoCreatedDmRef.current = false;
@@ -631,7 +631,7 @@ export default function Chat({
           ) {
             // No channels at all and none expected via URL -> create exactly one
             clientLogger.info(
-              "[Chat] No existing DM channels found; auto-creating a fresh one.",
+              "[Chat] No existing DM channels found; auto-creating a fresh one."
             );
             autoCreatedDmRef.current = true;
             handleNewDmChannel(targetAgentData.id);
@@ -732,18 +732,18 @@ export default function Chat({
         "[chat] Initial messages loaded, scrolling to bottom.",
         {
           count: messages.length,
-        },
+        }
       );
       safeScrollToBottom();
     } else if (hasNewMessages) {
       if (autoScrollEnabled) {
         clientLogger.debug(
-          "[chat] New messages and autoScroll enabled, scrolling.",
+          "[chat] New messages and autoScroll enabled, scrolling."
         );
         safeScrollToBottom();
       } else {
         clientLogger.debug(
-          "[chat] New messages, but autoScroll is disabled (user scrolled up).",
+          "[chat] New messages, but autoScroll is disabled (user scrolled up)."
         );
       }
     }
@@ -764,12 +764,12 @@ export default function Chat({
 
     const data = await apiClient.getChannelTitle(
       finalChannelIdForHooks,
-      contextId,
+      contextId
     );
 
     const title = data?.data?.title;
     const participants = await apiClient.getChannelParticipants(
-      chatState.currentDmChannelId,
+      chatState.currentDmChannelId
     );
     if (title && participants) {
       await apiClient.updateChannel(finalChannelIdForHooks, {
@@ -843,14 +843,14 @@ export default function Chat({
       // If a DM channel is already being (auto) created, abort to prevent duplicate creations.
       if (chatState.isCreatingDM || createDmChannelMutation.isPending) {
         clientLogger.info(
-          "[Chat] DM channel creation already in progress; will wait for it to finish instead of creating another.",
+          "[Chat] DM channel creation already in progress; will wait for it to finish instead of creating another."
         );
         // Early return so the user can try sending again once the channel is ready.
         return;
       }
 
       clientLogger.info(
-        "[Chat] No DM channel selected, creating one before sending message",
+        "[Chat] No DM channel selected, creating one before sending message"
       );
       try {
         // Mark as auto-created so the effect doesn't attempt a duplicate.
@@ -867,7 +867,7 @@ export default function Chat({
       } catch (error) {
         clientLogger.error(
           "[Chat] Failed to create DM channel before sending message:",
-          error,
+          error
         );
         toast({
           title: "Error",
@@ -922,7 +922,7 @@ export default function Chat({
         if (failed.length > 0)
           updateMessage(tempMessageId, {
             attachments: optimisticUiMessage.attachments?.filter(
-              (att) => !failed.some((f) => f.file.id === att.id),
+              (att) => !failed.some((f) => f.file.id === att.id)
             ),
           });
         cleanupBlobUrls(blobUrls);
@@ -947,7 +947,7 @@ export default function Chat({
               : media.type === "video"
                 ? CoreContentType.VIDEO
                 : undefined,
-        }),
+        })
       );
       const finalAttachments = [
         ...processedUiAttachments,
@@ -967,7 +967,7 @@ export default function Chat({
         finalAttachments.length > 0 ? finalAttachments : undefined,
         tempMessageId,
         undefined,
-        channelIdToUse,
+        channelIdToUse
       );
     } catch (error) {
       clientLogger.error("Error sending message or uploading files:", error);
@@ -1041,7 +1041,7 @@ export default function Chat({
         message.attachments,
         retryMessageId,
         undefined,
-        finalChannelIdForHooks!,
+        finalChannelIdForHooks!
       );
     } catch (error) {
       clientLogger.error("Error sending message or uploading files:", error);
@@ -1075,7 +1075,7 @@ export default function Chat({
       },
       () => {
         clearMessagesCentral(finalChannelIdForHooks);
-      },
+      }
     );
   };
 
@@ -1181,7 +1181,7 @@ export default function Chat({
                       text.length > 30 ? `${text.substring(0, 30)}...` : text)(
                       Array.isArray(targetAgentData?.bio)
                         ? targetAgentData?.bio[0] || ""
-                        : targetAgentData?.bio || "",
+                        : targetAgentData?.bio || ""
                     )}
                   </span>
                   <span className="hidden sm:inline">
@@ -1208,7 +1208,7 @@ export default function Chat({
                         <History className="size-4 flex-shrink-0" />
                         <span className="hidden md:inline truncate text-xs sm:text-sm sm:ml-2">
                           {agentDmChannels.find(
-                            (c) => c.id === chatState.currentDmChannelId,
+                            (c) => c.id === chatState.currentDmChannelId
                           )?.name || "Select Chat"}
                         </span>
                         <Badge
@@ -1235,7 +1235,7 @@ export default function Chat({
                             className={cn(
                               "cursor-pointer",
                               channel.id === chatState.currentDmChannelId &&
-                                "bg-muted",
+                                "bg-muted"
                             )}
                           >
                             <div className="flex items-center justify-between w-full">
@@ -1245,7 +1245,7 @@ export default function Chat({
                                     "text-sm truncate",
                                     channel.id ===
                                       chatState.currentDmChannelId &&
-                                      "font-medium",
+                                      "font-medium"
                                   )}
                                 >
                                   {channel.name}
@@ -1254,7 +1254,7 @@ export default function Chat({
                                   {moment(
                                     channel.metadata?.createdAt ||
                                       channel.updatedAt ||
-                                      channel.createdAt,
+                                      channel.createdAt
                                   ).fromNow()}
                                 </span>
                               </div>
@@ -1343,7 +1343,7 @@ export default function Chat({
       const groupDisplayName = generateGroupName(
         channelDetailsData?.data || undefined,
         groupAgents,
-        currentClientEntityId,
+        currentClientEntityId
       );
 
       return (
@@ -1388,7 +1388,7 @@ export default function Chat({
                         async () => {
                           try {
                             await apiClient.deleteChannel(
-                              finalChannelIdForHooks,
+                              finalChannelIdForHooks
                             );
                             toast({
                               title: "Group Deleted",
@@ -1400,7 +1400,7 @@ export default function Chat({
                           } catch (error) {
                             clientLogger.error(
                               "[Chat] Error deleting group:",
-                              error,
+                              error
                             );
                             toast({
                               title: "Error",
@@ -1408,7 +1408,7 @@ export default function Chat({
                               variant: "destructive",
                             });
                           }
-                        },
+                        }
                       );
                     },
                     icon: <Trash2 className="size-4" />,
@@ -1502,7 +1502,7 @@ export default function Chat({
 
             <div
               className={cn(
-                "flex flex-col transition-all duration-300 w-full flex-1 min-h-0 overflow-hidden p-2 sm:p-4 pt-0",
+                "flex flex-col transition-all duration-300 w-full flex-1 min-h-0 overflow-hidden p-2 sm:p-4 pt-0"
               )}
             >
               <div className="flex-1 min-h-0 overflow-hidden">
@@ -1574,7 +1574,7 @@ export default function Chat({
 
                   <div
                     className={cn(
-                      "flex flex-col transition-all duration-300 w-full flex-1 min-h-0 overflow-hidden p-2 sm:p-4 pt-0",
+                      "flex flex-col transition-all duration-300 w-full flex-1 min-h-0 overflow-hidden p-2 sm:p-4 pt-0"
                     )}
                   >
                     <div className="flex-1 min-h-0 overflow-hidden">
@@ -1638,7 +1638,7 @@ export default function Chat({
               ) {
                 sidebarAgentId = chatState.selectedGroupAgentId;
                 const selectedAgent = allAgents.find(
-                  (a) => a.id === chatState.selectedGroupAgentId,
+                  (a) => a.id === chatState.selectedGroupAgentId
                 );
                 sidebarAgentName = selectedAgent?.name || "Group Member";
                 sidebarChannelId = contextId; // contextId is the channelId for GROUP
@@ -1689,7 +1689,7 @@ export default function Chat({
           ) {
             sidebarAgentId = chatState.selectedGroupAgentId;
             const selectedAgent = allAgents.find(
-              (a) => a.id === chatState.selectedGroupAgentId,
+              (a) => a.id === chatState.selectedGroupAgentId
             );
             sidebarAgentName = selectedAgent?.name || "Group Member";
             sidebarChannelId = contextId; // contextId is the channelId for GROUP

@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import EventEmitter from "events";
 
 /**
  * A simple in-memory message bus for distributing messages from the server

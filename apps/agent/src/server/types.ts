@@ -64,6 +64,7 @@ export interface ChannelConfig {
  */
 export interface Channel {
   id: UUID;
+  messageServerId: UUID; // Store the server ID for this channel
   name: string;
   type: ChannelType;
   participants: Map<UUID, ChannelParticipant>; // agentId -> participant config

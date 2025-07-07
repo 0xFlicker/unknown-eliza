@@ -1,18 +1,28 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { logger } from '@elizaos/core';
+import fs from "node:fs";
+import path from "node:path";
+import { logger } from "@elizaos/core";
 
 /**
  * Safely constructs and validates upload directory paths to prevent path traversal attacks
  */
-export function createSecureUploadDir(id: string, type: 'agents' | 'channels'): string {
+export function createSecureUploadDir(
+  id: string,
+  type: "agents" | "channels",
+): string {
   // Additional validation beyond UUID to ensure no path traversal
-  if (id.includes('..') || id.includes('/') || id.includes('\\') || id.includes('\0')) {
-    throw new Error(`Invalid ${type.slice(0, -1)} ID: contains illegal characters`);
+  if (
+    id.includes("..") ||
+    id.includes("/") ||
+    id.includes("\\") ||
+    id.includes("\0")
+  ) {
+    throw new Error(
+      `Invalid ${type.slice(0, -1)} ID: contains illegal characters`,
+    );
   }
 
   // Use CLI data directory structure consistently
-  const baseUploadDir = path.join(process.cwd(), '.eliza', 'data', 'uploads');
+  const baseUploadDir = path.join(process.cwd(), ".eliza", "data", "uploads");
   const finalDir = path.join(baseUploadDir, type, id);
 
   // Ensure the resolved path is still within the expected directory
@@ -20,7 +30,9 @@ export function createSecureUploadDir(id: string, type: 'agents' | 'channels'): 
   const expectedBase = path.resolve(baseUploadDir);
 
   if (!resolvedPath.startsWith(expectedBase)) {
-    throw new Error(`Invalid ${type.slice(0, -1)} upload path: outside allowed directory`);
+    throw new Error(
+      `Invalid ${type.slice(0, -1)} upload path: outside allowed directory`,
+    );
   }
 
   return resolvedPath;
@@ -31,19 +43,19 @@ export function createSecureUploadDir(id: string, type: 'agents' | 'channels'): 
  */
 export function sanitizeFilename(filename: string): string {
   if (!filename) {
-    return 'unnamed';
+    return "unnamed";
   }
 
   // Remove path separators and null bytes
   const sanitized = filename
-    .replace(/[/\\:*?"<>|]/g, '_')
-    .replace(/\0/g, '')
-    .replace(/\.+/g, '.')
+    .replace(/[/\\:*?"<>|]/g, "_")
+    .replace(/\0/g, "")
+    .replace(/\.+/g, ".")
     .trim();
 
   // Ensure filename isn't empty after sanitization
-  if (!sanitized || sanitized === '.') {
-    return 'unnamed';
+  if (!sanitized || sanitized === ".") {
+    return "unnamed";
   }
 
   // Limit filename length
@@ -51,7 +63,10 @@ export function sanitizeFilename(filename: string): string {
   if (sanitized.length > maxLength) {
     const ext = path.extname(sanitized);
     const nameWithoutExt = path.basename(sanitized, ext);
-    const truncatedName = nameWithoutExt.substring(0, maxLength - ext.length - 1);
+    const truncatedName = nameWithoutExt.substring(
+      0,
+      maxLength - ext.length - 1,
+    );
     return truncatedName + ext;
   }
 
@@ -82,7 +97,9 @@ export const cleanupFiles = (files: Express.Multer.File[]) => {
     files.forEach((file) => {
       // For multer memory storage, no temp files to clean up
       // This function is kept for compatibility
-      logger.debug(`[FILE] Multer file ${file.originalname} in memory, no cleanup needed`);
+      logger.debug(
+        `[FILE] Multer file ${file.originalname} in memory, no cleanup needed`,
+      );
     });
   }
 };
@@ -92,5 +109,7 @@ export const cleanupFiles = (files: Express.Multer.File[]) => {
  */
 export const cleanupUploadedFile = (file: Express.Multer.File) => {
   // For multer memory storage, no temp files to clean up
-  logger.debug(`[FILE] Multer file ${file.originalname} in memory, no cleanup needed`);
+  logger.debug(
+    `[FILE] Multer file ${file.originalname} in memory, no cleanup needed`,
+  );
 };

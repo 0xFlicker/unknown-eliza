@@ -300,7 +300,6 @@ export class PhaseCoordinator extends Service {
     );
 
     for (const player of alivePlayers) {
-      // console.log(`🧠 Triggering strategic thinking for ${player.name}`);
 
       // Emit the event via coordination service
       const coordinationService = this.getCoordinationService();
@@ -337,9 +336,6 @@ export class PhaseCoordinator extends Service {
         );
       }
 
-      // TODO: Need to integrate with conversation simulator to send strategic thinking messages
-      // For now, we'll rely on the test to trigger these manually
-      // console.log(`📝 Strategic thinking required for ${player.name} (${fromPhase} → ${toPhase})`);
     }
 
     // Wait for all players to complete strategic thinking

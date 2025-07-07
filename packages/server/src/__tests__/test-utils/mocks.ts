@@ -11,29 +11,31 @@ import type {
   Service,
   State,
   UUID,
-} from '@elizaos/core';
-import { ServiceType } from '@elizaos/core';
-import type { NextFunction, Request, Response } from 'express';
-import { mock, jest } from 'bun:test';
+} from "@elizaos/core";
+import { ServiceType } from "@elizaos/core";
+import type { NextFunction, Request, Response } from "express";
+import { mock, jest } from "bun:test";
 
 /**
  * Creates a mock IAgentRuntime with all required properties
  */
-export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAgentRuntime {
+export function createMockAgentRuntime(
+  overrides?: Partial<IAgentRuntime>,
+): IAgentRuntime {
   const db = { execute: jest.fn(() => Promise.resolve([])) };
 
   const baseRuntime: IAgentRuntime = {
     // Properties from IAgentRuntime interface
-    agentId: '123e4567-e89b-12d3-a456-426614174000' as UUID,
+    agentId: "123e4567-e89b-12d3-a456-426614174000" as UUID,
     character: {
-      id: 'test-character-id' as UUID,
-      name: 'Test Character',
-      description: 'A test character',
-      bio: ['Test bio'],
-      system: 'Test system',
-      modelProvider: 'openai',
+      id: "test-character-id" as UUID,
+      name: "Test Character",
+      description: "A test character",
+      bio: ["Test bio"],
+      system: "Test system",
+      modelProvider: "openai",
       settings: {
-        model: 'gpt-4',
+        model: "gpt-4",
         secrets: {},
       },
     } as Character,
@@ -68,7 +70,7 @@ export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAge
     ensureWorldExists: jest.fn(() => Promise.resolve()),
     ensureRoomExists: jest.fn(() => Promise.resolve()),
     composeState: jest.fn(() => Promise.resolve({} as State)),
-    useModel: jest.fn(() => Promise.resolve('mock response' as any)),
+    useModel: jest.fn(() => Promise.resolve("mock response" as any)),
     registerModel: jest.fn(),
     getModel: jest.fn(() => undefined),
     registerEvent: jest.fn(),
@@ -78,14 +80,18 @@ export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAge
     getTaskWorker: jest.fn(() => undefined),
     stop: jest.fn(() => Promise.resolve()),
     addEmbeddingToMemory: jest.fn((memory: Memory) => Promise.resolve(memory)),
-    createRunId: jest.fn(() => '123e4567-e89b-12d3-a456-426614174000' as UUID),
-    startRun: jest.fn(() => '123e4567-e89b-12d3-a456-426614174000' as UUID),
+    createRunId: jest.fn(() => "123e4567-e89b-12d3-a456-426614174000" as UUID),
+    startRun: jest.fn(() => "123e4567-e89b-12d3-a456-426614174000" as UUID),
     endRun: jest.fn(),
-    getCurrentRunId: jest.fn(() => '123e4567-e89b-12d3-a456-426614174000' as UUID),
+    getCurrentRunId: jest.fn(
+      () => "123e4567-e89b-12d3-a456-426614174000" as UUID,
+    ),
     getEntityById: jest.fn(() => Promise.resolve(null)),
     getRoom: jest.fn(() => Promise.resolve(null)),
     createEntity: jest.fn(() => Promise.resolve(true)),
-    createRoom: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createRoom: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     addParticipant: jest.fn(() => Promise.resolve(true)),
     getRooms: jest.fn(() => Promise.resolve([])),
     registerSendHandler: jest.fn(),
@@ -123,13 +129,17 @@ export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAge
     getLogs: jest.fn(() => Promise.resolve([])),
     deleteLog: jest.fn(() => Promise.resolve()),
     searchMemories: jest.fn(() => Promise.resolve([])),
-    createMemory: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createMemory: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     updateMemory: jest.fn(() => Promise.resolve(true)),
     deleteMemory: jest.fn(() => Promise.resolve()),
     deleteManyMemories: jest.fn(() => Promise.resolve()),
     deleteAllMemories: jest.fn(() => Promise.resolve()),
     countMemories: jest.fn(() => Promise.resolve(0)),
-    createWorld: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createWorld: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     getWorld: jest.fn(() => Promise.resolve(null)),
     removeWorld: jest.fn(() => Promise.resolve()),
     getAllWorlds: jest.fn(() => Promise.resolve([])),
@@ -155,7 +165,9 @@ export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAge
     getCache: jest.fn(() => Promise.resolve(undefined)),
     setCache: jest.fn(() => Promise.resolve(true)),
     deleteCache: jest.fn(() => Promise.resolve(true)),
-    createTask: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createTask: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     getTasks: jest.fn(() => Promise.resolve([])),
     getTask: jest.fn(() => Promise.resolve(null)),
     getTasksByName: jest.fn(() => Promise.resolve([])),
@@ -172,7 +184,9 @@ export function createMockAgentRuntime(overrides?: Partial<IAgentRuntime>): IAge
 /**
  * Creates a mock DatabaseAdapter with message server methods
  */
-export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & any {
+export function createMockDatabaseAdapter(
+  overrides?: any,
+): DatabaseAdapter & any {
   const baseAdapter = {
     // Core DatabaseAdapter methods
     db: { execute: jest.fn(() => Promise.resolve([])) },
@@ -181,7 +195,9 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
     isReady: jest.fn(() => Promise.resolve(true)),
     runMigrations: jest.fn(() => Promise.resolve()),
     close: jest.fn(() => Promise.resolve()),
-    getConnection: jest.fn(() => Promise.resolve({ execute: jest.fn(() => Promise.resolve([])) })),
+    getConnection: jest.fn(() =>
+      Promise.resolve({ execute: jest.fn(() => Promise.resolve([])) }),
+    ),
 
     // Agent methods
     getAgent: jest.fn(() => Promise.resolve(null)),
@@ -210,7 +226,9 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
     getMemoriesByRoomIds: jest.fn(() => Promise.resolve([])),
     getCachedEmbeddings: jest.fn(() => Promise.resolve([])),
     searchMemories: jest.fn(() => Promise.resolve([])),
-    createMemory: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createMemory: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     updateMemory: jest.fn(() => Promise.resolve(true)),
     deleteMemory: jest.fn(() => Promise.resolve()),
     deleteManyMemories: jest.fn(() => Promise.resolve()),
@@ -225,7 +243,9 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
     deleteLog: jest.fn(() => Promise.resolve()),
 
     // World methods
-    createWorld: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createWorld: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     getWorld: jest.fn(() => Promise.resolve(null)),
     removeWorld: jest.fn(() => Promise.resolve()),
     getAllWorlds: jest.fn(() => Promise.resolve([])),
@@ -261,7 +281,9 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
     deleteCache: jest.fn(() => Promise.resolve(true)),
 
     // Task methods
-    createTask: jest.fn(() => Promise.resolve('123e4567-e89b-12d3-a456-426614174000' as UUID)),
+    createTask: jest.fn(() =>
+      Promise.resolve("123e4567-e89b-12d3-a456-426614174000" as UUID),
+    ),
     getTasks: jest.fn(() => Promise.resolve([])),
     getTask: jest.fn(() => Promise.resolve(null)),
     getTasksByName: jest.fn(() => Promise.resolve([])),
@@ -270,20 +292,27 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
 
     // Message server methods (for AgentServer tests)
     createMessageServer: jest.fn(() =>
-      Promise.resolve({ id: '00000000-0000-0000-0000-000000000000' })
+      Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" }),
     ),
     getMessageServers: jest.fn(() =>
-      Promise.resolve([{ id: '00000000-0000-0000-0000-000000000000', name: 'Default Server' }])
+      Promise.resolve([
+        { id: "00000000-0000-0000-0000-000000000000", name: "Default Server" },
+      ]),
     ),
     getMessageServerById: jest.fn(() =>
-      Promise.resolve({ id: '00000000-0000-0000-0000-000000000000', name: 'Default Server' })
+      Promise.resolve({
+        id: "00000000-0000-0000-0000-000000000000",
+        name: "Default Server",
+      }),
     ),
     addAgentToServer: jest.fn(() => Promise.resolve()),
     removeAgentFromServer: jest.fn(() => Promise.resolve()),
     getAgentsForServer: jest.fn(() => Promise.resolve([])),
 
     // Channel methods
-    createChannel: jest.fn(() => Promise.resolve({ id: '123e4567-e89b-12d3-a456-426614174000' })),
+    createChannel: jest.fn(() =>
+      Promise.resolve({ id: "123e4567-e89b-12d3-a456-426614174000" }),
+    ),
     getChannelsForServer: jest.fn(() => Promise.resolve([])),
     getChannelDetails: jest.fn(() => Promise.resolve(null)),
     getChannelParticipants: jest.fn(() => Promise.resolve([])),
@@ -292,12 +321,14 @@ export function createMockDatabaseAdapter(overrides?: any): DatabaseAdapter & an
     deleteChannel: jest.fn(() => Promise.resolve()),
 
     // Message methods
-    createMessage: jest.fn(() => Promise.resolve({ id: 'message-id' })),
+    createMessage: jest.fn(() => Promise.resolve({ id: "message-id" })),
     getMessagesForChannel: jest.fn(() => Promise.resolve([])),
     deleteMessage: jest.fn(() => Promise.resolve()),
 
     // DM methods
-    findOrCreateDmChannel: jest.fn(() => Promise.resolve({ id: 'dm-channel-id' })),
+    findOrCreateDmChannel: jest.fn(() =>
+      Promise.resolve({ id: "dm-channel-id" }),
+    ),
 
     ...overrides,
   };
@@ -314,13 +345,13 @@ export function createMockRequest(overrides?: Partial<Request>): Request {
     query: {},
     body: {},
     headers: {},
-    method: 'GET',
-    originalUrl: '/test',
-    url: '/test',
-    path: '/test',
-    ip: '127.0.0.1',
-    get: jest.fn((_header: string) => ''),
-    header: jest.fn((_header: string) => ''),
+    method: "GET",
+    originalUrl: "/test",
+    url: "/test",
+    path: "/test",
+    ip: "127.0.0.1",
+    get: jest.fn((_header: string) => ""),
+    header: jest.fn((_header: string) => ""),
     accepts: jest.fn(),
     acceptsCharsets: jest.fn(),
     acceptsEncodings: jest.fn(),
@@ -350,7 +381,7 @@ export function createMockResponse(): Response {
     clearCookie: jest.fn().mockReturnThis(),
     attachment: jest.fn().mockReturnThis(),
     sendFile: jest.fn((_path: string, options?: any, callback?: any) => {
-      if (typeof options === 'function') {
+      if (typeof options === "function") {
         callback = options;
       }
       if (callback) callback();
@@ -415,8 +446,8 @@ export function createMockHttpServer() {
  */
 export function createMockService(overrides?: Partial<Service>): Service {
   return {
-    name: 'MockService',
-    description: 'A mock service for testing',
+    name: "MockService",
+    description: "A mock service for testing",
     serviceType: ServiceType.WEB_SEARCH,
     getInstance: jest.fn(),
     start: jest.fn(() => Promise.resolve()),
@@ -429,19 +460,19 @@ export function createMockService(overrides?: Partial<Service>): Service {
  * Creates mock multer file
  */
 export function createMockUploadedFile(
-  overrides?: Partial<Express.Multer.File>
+  overrides?: Partial<Express.Multer.File>,
 ): Express.Multer.File {
   return {
-    fieldname: 'file',
-    originalname: 'test.jpg',
-    encoding: '7bit',
-    mimetype: 'image/jpeg',
-    buffer: Buffer.from('test'),
+    fieldname: "file",
+    originalname: "test.jpg",
+    encoding: "7bit",
+    mimetype: "image/jpeg",
+    buffer: Buffer.from("test"),
     size: 12345,
     stream: undefined as any,
-    destination: '',
-    filename: '',
-    path: '',
+    destination: "",
+    filename: "",
+    path: "",
     ...overrides,
   };
 }

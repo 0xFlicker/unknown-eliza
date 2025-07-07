@@ -3,12 +3,12 @@
  * This file is loaded before all tests and configures the testing environment
  */
 
-import { beforeAll, afterAll, beforeEach, afterEach, mock } from 'bun:test';
-import { logger } from '@elizaos/core';
+import { beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
+import { logger } from "@elizaos/core";
 
 // Mock environment variables for testing
-process.env.NODE_ENV = 'test';
-process.env.LOG_LEVEL = 'error'; // Reduce log noise during tests
+process.env.NODE_ENV = "test";
+process.env.LOG_LEVEL = "error"; // Reduce log noise during tests
 
 // Suppress console output during tests unless explicitly needed
 const originalConsole = {
@@ -26,7 +26,7 @@ beforeAll(() => {
   console.info = () => {};
 
   // Configure logger for test environment
-  logger.level = 'error';
+  logger.level = "error";
 });
 
 afterAll(() => {

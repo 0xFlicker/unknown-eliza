@@ -10,14 +10,12 @@ import { createUniqueUuid, UUID, stringToUuid, EventType } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { GameEventType } from "../src/house/events/types";
-import { Phase } from "../src/house/types";
+import { GameEventType } from "../src/plugins/house/events/types";
+import { Phase } from "../src/plugins/house/types";
 
 describe("Simple Coordination Test", () => {
-  it("should test coordination ../src/plugins/house/events/types async () => {
-    const simDataDir = ../src/plugins/house/types
-      path.join(os.tmpdir(), "simple-coord-test")
-    );
+  it("should test coordination", async () => {
+    const simDataDir = path.join(path.join(os.tmpdir(), "simple-coord-test"));
 
     const sim = new ConversationSimulatorV3({
       dataDir: simDataDir,

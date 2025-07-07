@@ -1,23 +1,27 @@
-import type { IAgentRuntime, UUID } from '@elizaos/core';
-import express from 'express';
-import { validateUuid, logger } from '@elizaos/core';
-import { sendError } from './response-utils';
-import { validateChannelId } from './validation';
-import rateLimit from 'express-rate-limit';
+import type { IAgentRuntime, UUID } from "@elizaos/core";
+import express from "express";
+import { validateUuid, logger } from "@elizaos/core";
+import { sendError } from "./response-utils";
+import { validateChannelId } from "./validation";
+import rateLimit from "express-rate-limit";
 
 /**
  * Middleware to validate that an agent exists
  */
 export const agentExistsMiddleware = (agents: Map<UUID, IAgentRuntime>) => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const agentId = validateUuid(req.params.agentId);
     if (!agentId) {
-      return sendError(res, 400, 'INVALID_ID', 'Invalid agent ID format');
+      return sendError(res, 400, "INVALID_ID", "Invalid agent ID format");
     }
 
     const runtime = agents.get(agentId);
     if (!runtime) {
-      return sendError(res, 404, 'NOT_FOUND', 'Agent not found');
+      return sendError(res, 404, "NOT_FOUND", "Agent not found");
     }
 
     // Add runtime to request object for use in route handlers
@@ -31,13 +35,17 @@ export const agentExistsMiddleware = (agents: Map<UUID, IAgentRuntime>) => {
  * Middleware to validate UUID parameters
  */
 export const validateUuidMiddleware = (paramName: string) => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const paramValue = req.params[paramName];
     let validatedUuid: UUID | null;
 
     // Use enhanced validation for channel IDs
-    if (paramName === 'channelId') {
-      const clientIp = req.ip || 'unknown';
+    if (paramName === "channelId") {
+      const clientIp = req.ip || "unknown";
       validatedUuid = validateChannelId(paramValue, clientIp);
     } else {
       validatedUuid = validateUuid(paramValue);
@@ -45,9 +53,11 @@ export const validateUuidMiddleware = (paramName: string) => {
 
     if (!validatedUuid) {
       // Log security event for invalid IDs
-      const clientIp = req.ip || 'unknown';
-      logger.warn(`[SECURITY] Invalid ${paramName} from ${clientIp}: ${paramValue}`);
-      return sendError(res, 400, 'INVALID_ID', `Invalid ${paramName} format`);
+      const clientIp = req.ip || "unknown";
+      logger.warn(
+        `[SECURITY] Invalid ${paramName} from ${clientIp}: ${paramValue}`,
+      );
+      return sendError(res, 400, "INVALID_ID", `Invalid ${paramName} format`);
     }
 
     // Add validated UUID to request params
@@ -60,20 +70,36 @@ export const validateUuidMiddleware = (paramName: string) => {
  * Enhanced channel ID validation middleware with additional security
  */
 export const validateChannelIdMiddleware = () => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const channelId = req.params.channelId;
-    const clientIp = req.ip || 'unknown';
+    const clientIp = req.ip || "unknown";
 
     if (!channelId) {
-      return sendError(res, 400, 'MISSING_CHANNEL_ID', 'Channel ID is required');
+      return sendError(
+        res,
+        400,
+        "MISSING_CHANNEL_ID",
+        "Channel ID is required",
+      );
     }
 
     const validatedChannelId = validateChannelId(channelId, clientIp);
 
     if (!validatedChannelId) {
       // Rate limit failed attempts to prevent brute force
-      logger.warn(`[SECURITY] Failed channel ID validation from ${clientIp}: ${channelId}`);
-      return sendError(res, 400, 'INVALID_CHANNEL_ID', 'Invalid channel ID format');
+      logger.warn(
+        `[SECURITY] Failed channel ID validation from ${clientIp}: ${channelId}`,
+      );
+      return sendError(
+        res,
+        400,
+        "INVALID_CHANNEL_ID",
+        "Invalid channel ID format",
+      );
     }
 
     // Store validated channel ID
@@ -86,26 +112,35 @@ export const validateChannelIdMiddleware = () => {
  * Security middleware to add additional API protection
  */
 export const securityMiddleware = () => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     // Add security headers specific to API responses
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Changed from DENY to allow same-origin iframes, otherwise we can load panels from plugins
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN"); // Changed from DENY to allow same-origin iframes, otherwise we can load panels from plugins
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "no-referrer");
 
     // Remove potentially sensitive headers
-    res.removeHeader('X-Powered-By');
-    res.removeHeader('Server');
+    res.removeHeader("X-Powered-By");
+    res.removeHeader("Server");
 
     // Log security-relevant information
-    const userAgent = req.get('User-Agent');
-    const forwarded = req.get('X-Forwarded-For');
-    const realIp = req.get('X-Real-IP');
+    const userAgent = req.get("User-Agent");
+    const forwarded = req.get("X-Forwarded-For");
+    const realIp = req.get("X-Real-IP");
     const clientIp = forwarded || realIp || req.ip;
 
     // Log suspicious patterns
-    if (userAgent && (userAgent.includes('..') || userAgent.includes('<script'))) {
-      logger.warn(`[SECURITY] Suspicious User-Agent from ${clientIp}: ${userAgent}`);
+    if (
+      userAgent &&
+      (userAgent.includes("..") || userAgent.includes("<script"))
+    ) {
+      logger.warn(
+        `[SECURITY] Suspicious User-Agent from ${clientIp}: ${userAgent}`,
+      );
     }
 
     // Check for suspicious request patterns with safe, non-backtracking regexes
@@ -114,13 +149,20 @@ export const securityMiddleware = () => {
 
     // Use safer string matching instead of potentially dangerous regexes
     const suspiciousIndicators = [
-      { pattern: '..', name: 'Path traversal' },
-      { pattern: '<script', name: 'XSS attempt' },
-      { pattern: 'javascript:', name: 'JavaScript injection' },
+      { pattern: "..", name: "Path traversal" },
+      { pattern: "<script", name: "XSS attempt" },
+      { pattern: "javascript:", name: "JavaScript injection" },
     ];
 
     // Safe SQL injection detection without backtracking regex
-    const sqlKeywords = ['union', 'select', 'drop', 'delete', 'insert', 'update'];
+    const sqlKeywords = [
+      "union",
+      "select",
+      "drop",
+      "delete",
+      "insert",
+      "update",
+    ];
     let hasSqlPattern = false;
     const lowerUrl = url.toLowerCase();
     const lowerQuery = queryString.toLowerCase();
@@ -143,14 +185,21 @@ export const securityMiddleware = () => {
 
     // Check for other suspicious patterns
     for (const indicator of suspiciousIndicators) {
-      if (url.includes(indicator.pattern) || queryString.includes(indicator.pattern)) {
-        logger.warn(`[SECURITY] ${indicator.name} detected from ${clientIp}: ${url}`);
+      if (
+        url.includes(indicator.pattern) ||
+        queryString.includes(indicator.pattern)
+      ) {
+        logger.warn(
+          `[SECURITY] ${indicator.name} detected from ${clientIp}: ${url}`,
+        );
         break;
       }
     }
 
     if (hasSqlPattern) {
-      logger.warn(`[SECURITY] SQL injection pattern detected from ${clientIp}: ${url}`);
+      logger.warn(
+        `[SECURITY] SQL injection pattern detected from ${clientIp}: ${url}`,
+      );
     }
 
     next();
@@ -161,30 +210,37 @@ export const securityMiddleware = () => {
  * Middleware to validate request content type for POST/PUT/PATCH requests
  */
 export const validateContentTypeMiddleware = () => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     // Only validate Content-Type for methods that typically have request bodies
-    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-      const contentType = req.get('Content-Type');
-      const contentLength = req.get('Content-Length');
+    if (["POST", "PUT", "PATCH"].includes(req.method)) {
+      const contentType = req.get("Content-Type");
+      const contentLength = req.get("Content-Length");
 
       // Skip validation if request has no body (Content-Length is 0 or undefined)
-      if (!contentLength || contentLength === '0') {
+      if (!contentLength || contentLength === "0") {
         return next();
       }
 
       // Allow multipart for file uploads, JSON for regular API requests
       const validTypes = [
-        'application/json',
-        'multipart/form-data',
-        'application/x-www-form-urlencoded',
+        "application/json",
+        "multipart/form-data",
+        "application/x-www-form-urlencoded",
       ];
 
-      if (!contentType || !validTypes.some((type) => contentType.includes(type))) {
+      if (
+        !contentType ||
+        !validTypes.some((type) => contentType.includes(type))
+      ) {
         return sendError(
           res,
           400,
-          'INVALID_CONTENT_TYPE',
-          'Invalid or missing Content-Type header'
+          "INVALID_CONTENT_TYPE",
+          "Invalid or missing Content-Type header",
         );
       }
     }
@@ -203,20 +259,20 @@ export const createApiRateLimit = () => {
     message: {
       success: false,
       error: {
-        code: 'RATE_LIMIT_EXCEEDED',
-        message: 'Too many requests. Please try again later.',
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many requests. Please try again later.",
       },
     },
     standardHeaders: true, // Return rate limit info in the `RateLimitInfo` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     handler: (req, res) => {
-      const clientIp = req.ip || 'unknown';
+      const clientIp = req.ip || "unknown";
       logger.warn(`[SECURITY] Rate limit exceeded for IP: ${clientIp}`);
       res.status(429).json({
         success: false,
         error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many requests. Please try again later.',
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests. Please try again later.",
         },
       });
     },
@@ -233,22 +289,22 @@ export const createFileSystemRateLimit = () => {
     message: {
       success: false,
       error: {
-        code: 'FILE_RATE_LIMIT_EXCEEDED',
-        message: 'Too many file operations. Please try again later.',
+        code: "FILE_RATE_LIMIT_EXCEEDED",
+        message: "Too many file operations. Please try again later.",
       },
     },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-      const clientIp = req.ip || 'unknown';
+      const clientIp = req.ip || "unknown";
       logger.warn(
-        `[SECURITY] File system rate limit exceeded for IP: ${clientIp}, endpoint: ${req.path}`
+        `[SECURITY] File system rate limit exceeded for IP: ${clientIp}, endpoint: ${req.path}`,
       );
       res.status(429).json({
         success: false,
         error: {
-          code: 'FILE_RATE_LIMIT_EXCEEDED',
-          message: 'Too many file operations. Please try again later.',
+          code: "FILE_RATE_LIMIT_EXCEEDED",
+          message: "Too many file operations. Please try again later.",
         },
       });
     },
@@ -265,22 +321,22 @@ export const createUploadRateLimit = () => {
     message: {
       success: false,
       error: {
-        code: 'UPLOAD_RATE_LIMIT_EXCEEDED',
-        message: 'Too many upload attempts. Please try again later.',
+        code: "UPLOAD_RATE_LIMIT_EXCEEDED",
+        message: "Too many upload attempts. Please try again later.",
       },
     },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-      const clientIp = req.ip || 'unknown';
+      const clientIp = req.ip || "unknown";
       logger.warn(
-        `[SECURITY] Upload rate limit exceeded for IP: ${clientIp}, endpoint: ${req.path}`
+        `[SECURITY] Upload rate limit exceeded for IP: ${clientIp}, endpoint: ${req.path}`,
       );
       res.status(429).json({
         success: false,
         error: {
-          code: 'UPLOAD_RATE_LIMIT_EXCEEDED',
-          message: 'Too many upload attempts. Please try again later.',
+          code: "UPLOAD_RATE_LIMIT_EXCEEDED",
+          message: "Too many upload attempts. Please try again later.",
         },
       });
     },
@@ -298,8 +354,9 @@ export const createChannelValidationRateLimit = () => {
     message: {
       success: false,
       error: {
-        code: 'CHANNEL_VALIDATION_RATE_LIMIT_EXCEEDED',
-        message: 'Too many channel validation attempts. Please try again later.',
+        code: "CHANNEL_VALIDATION_RATE_LIMIT_EXCEEDED",
+        message:
+          "Too many channel validation attempts. Please try again later.",
       },
     },
     standardHeaders: true,
@@ -314,16 +371,17 @@ export const createChannelValidationRateLimit = () => {
       return false; // Apply rate limiting for invalid attempts
     },
     handler: (req, res) => {
-      const clientIp = req.ip || 'unknown';
-      const channelId = req.params.channelId || 'unknown';
+      const clientIp = req.ip || "unknown";
+      const channelId = req.params.channelId || "unknown";
       logger.warn(
-        `[SECURITY] Channel validation rate limit exceeded for IP: ${clientIp}, attempted channel: ${channelId}`
+        `[SECURITY] Channel validation rate limit exceeded for IP: ${clientIp}, attempted channel: ${channelId}`,
       );
       res.status(429).json({
         success: false,
         error: {
-          code: 'CHANNEL_VALIDATION_RATE_LIMIT_EXCEEDED',
-          message: 'Too many channel validation attempts. Please try again later.',
+          code: "CHANNEL_VALIDATION_RATE_LIMIT_EXCEEDED",
+          message:
+            "Too many channel validation attempts. Please try again later.",
         },
       });
     },

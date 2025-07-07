@@ -1,9 +1,11 @@
-import { USER_NAME } from "@/constants";
 import { SOCKET_MESSAGE_TYPE } from "@elizaos/core";
 import { Evt } from "evt";
 import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "./utils";
 import clientLogger from "./logger";
+
+// Constants for the agent app
+const USER_NAME = "The House";
 
 // Define types for the events
 export type MessageBroadcastData = {
@@ -201,8 +203,9 @@ export class SocketIOManager extends EventAdapter {
   /**
    * Initialize the Socket.io connection to the server
    * @param clientEntityId The client entity ID (central user ID)
+   * @param port Optional port number (defaults to 3333)
    */
-  public initialize(clientEntityId: string): void {
+  public initialize(clientEntityId: string, port?: number): void {
     this.clientEntityId = clientEntityId;
 
     if (this.socket) {
@@ -211,7 +214,8 @@ export class SocketIOManager extends EventAdapter {
     }
 
     // Create a single socket connection
-    const fullURL = "http://localhost:3333";
+    const actualPort = port || 3333;
+    const fullURL = `http://localhost:${actualPort}`;
     clientLogger.info("connecting to", fullURL);
     this.socket = io(fullURL, {
       autoConnect: true,
@@ -434,6 +438,15 @@ export class SocketIOManager extends EventAdapter {
       this.emit("connect_error", error);
     });
 
+    this.socket.on("error", (error) => {
+      clientLogger.error("[SocketIO] General error:", error);
+    });
+
+    // Add a catch-all event listener to see all events coming from the server
+    this.socket.onAny((event, ...args) => {
+      clientLogger.debug(`[SocketIO] Received event '${event}':`, args);
+    });
+
     // Handle log stream events
     this.socket.on("log_stream", (data) => {
       clientLogger.debug("[SocketIO] Log stream data received:", data);
@@ -475,14 +488,17 @@ export class SocketIOManager extends EventAdapter {
       new Set(this.activeChannelIds)
     );
 
-    this.socket.emit("message", {
+    const joinPayload = {
       type: SOCKET_MESSAGE_TYPE.ROOM_JOINING,
       payload: {
         channelId: channelId,
         roomId: channelId, // Keep for backward compatibility
         entityId: this.clientEntityId,
       },
-    });
+    };
+
+    this.socket.emit("message", joinPayload);
+    clientLogger.debug(`[SocketIO] ROOM_JOINING emitted for ${channelId}`);
 
     clientLogger.info(`[SocketIO] Emitted ROOM_JOINING for ${channelId}`);
   }
@@ -534,6 +550,7 @@ export class SocketIOManager extends EventAdapter {
    * @param source Source identifier (e.g., 'client_chat')
    * @param attachments Optional media attachments
    * @param messageId Optional message ID for tracking optimistic updates
+   * @param metadata Optional metadata
    */
   public async sendMessage(
     message: string,
@@ -556,15 +573,15 @@ export class SocketIOManager extends EventAdapter {
       await this.connectPromise;
     }
 
-    // Use provided messageId or generate a new one
-    const finalMessageId = messageId || randomUUID();
+    // Use provided messageId or generate a simple UUID
+    const finalMessageId = messageId || crypto.randomUUID();
 
     clientLogger.info(
       `[SocketIO] Sending message to central channel ${channelId} on server ${serverId}`
     );
 
-    // Emit message to server
-    this.socket.emit("message", {
+    // Create the message payload (matching apps/www format exactly)
+    const messagePayload = {
       type: SOCKET_MESSAGE_TYPE.SEND_MESSAGE,
       payload: {
         senderId: this.clientEntityId,
@@ -578,7 +595,11 @@ export class SocketIOManager extends EventAdapter {
         attachments,
         metadata,
       },
-    });
+    };
+
+    // Emit message to server
+    this.socket.emit("message", messagePayload);
+    clientLogger.debug("[SocketIO] Message emitted to server");
 
     // Note: We no longer broadcast locally - the server will send the message back with the proper ID
   }

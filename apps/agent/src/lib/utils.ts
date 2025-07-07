@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import localizedFormat from "dayjs/plugin/localizedFormat";
 import { twMerge } from "tailwind-merge";
 import type { Agent, UUID as CoreUUID } from "@elizaos/core";
-import type { MessageChannel as ClientMessageChannel } from "@/types";
+import type { MessageChannel as ClientMessageChannel } from "@/lib/types";
 
 /**
  * Combines multiple class names into a single string.

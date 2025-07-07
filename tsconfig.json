@@ -12,7 +12,10 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@elizaos/*": ["packages/*/src"],
+      "@elizaos/*": [
+        "packages/*/src"
+      ],
+      "src/*": ["apps/agent/src/*"]
     }
   },
   "files": [],
@@ -22,6 +25,9 @@
     },
     {
       "path": "packages/plugin-bootstrap"
+    }, 
+    {
+      "path": "packages/plugin-sql"
     }
   ]
 }

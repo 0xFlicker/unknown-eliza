@@ -313,7 +313,7 @@ export class SocketIOManager extends EventAdapter {
         clientLogger.info(
           `[SocketIO] Handling control message for active channel ${channelId}`,
         );
-
+ 
         // Emit the control message event
         this.emit("controlMessage", {
           ...data,

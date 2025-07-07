@@ -1,10 +1,9 @@
 import {
   UUID,
   ChannelType,
-  createUniqueUuid,
   logger,
   type IAgentRuntime,
-  stringToUuid,
+  EventType,
 } from "@elizaos/core";
 import { AgentServer, MessageChannel, MessageServer } from "@elizaos/server";
 import {
@@ -18,39 +17,38 @@ import {
 } from "./types";
 import { AssociationManager } from "./association-manager";
 import { apiClient } from "../lib/api";
+import { AgentManager } from "./agent-manager";
 
 /**
- * Simplified channel manager for handling channel lifecycle and agent associations
- * Each channel has a single room where roomId equals channelId
+ * Channel manager that uses the proper AgentServer infrastructure
+ * Leverages the API client and SocketIO events for compatibility with www client
  */
 export class ChannelManager {
   private channels = new Map<UUID, Channel>();
+  private agentManager: AgentManager<any>;
+  private associationManager: AssociationManager;
+  private server: AgentServer;
+  private messageServer: MessageServer;
 
   constructor(
-    private server: AgentServer,
-    private messageServer: MessageServer,
-    private associationManager: AssociationManager,
-    private agentManager: {
-      getAgentRuntime: (agentId: UUID) => IAgentRuntime | undefined;
-    }
-  ) {}
+    agentManager: AgentManager<any>,
+    associationManager: AssociationManager,
+    server: AgentServer,
+    messageServer: MessageServer
+  ) {
+    this.agentManager = agentManager;
+    this.associationManager = associationManager;
+    this.server = server;
+    this.messageServer = messageServer;
+  }
 
   /**
-   * Create a new channel with participants
-   * Simplified to use a single room per channel
+   * Create a new channel with participants using the central messaging API
    */
   async createChannel(config: ChannelConfig): Promise<UUID> {
     logger.info(
       `Creating channel: ${config.name} with ${config.participants.length} participants`
     );
-
-    const channel = await apiClient.createCentralGroupChat({
-      name: config.name,
-      participantCentralUserIds: config.participants.map((p) => p.agentId),
-      type: config.type,
-      server_id: this.messageServer.id,
-      metadata: config.metadata,
-    });
 
     // Validate all participants exist
     for (const participant of config.participants) {
@@ -62,9 +60,19 @@ export class ChannelManager {
       }
     }
 
+    // Create channel through central messaging API
+    const channel = await apiClient.createCentralGroupChat({
+      name: config.name,
+      participantCentralUserIds: config.participants.map((p) => p.agentId),
+      type: config.type,
+      server_id: this.messageServer.id,
+      metadata: config.metadata,
+    });
+
     // Create channel record
     const channelRecord: Channel = {
       id: channel.data.id,
+      messageServerId: channel.data.messageServerId,
       name: config.name,
       type: config.type,
       participants: new Map(),
@@ -74,7 +82,7 @@ export class ChannelManager {
       metadata: config.metadata,
     };
 
-    // Set up simplified associations for all participants
+    // Set up agent associations using proper AgentServer flow
     await this.setupChannelAssociations(channelRecord, config.participants);
 
     // Store channel
@@ -88,8 +96,8 @@ export class ChannelManager {
   }
 
   /**
-   * Set up simplified agent associations for a channel
-   * Each channel has a single room where roomId equals channelId
+   * Set up agent associations using proper AgentServer infrastructure
+   * This triggers the ENTITY_JOINED events that the bootstrap plugin handles
    */
   private async setupChannelAssociations(
     channel: Channel,
@@ -98,105 +106,81 @@ export class ChannelManager {
     const participantIds = participants.map((p) => p.agentId);
 
     logger.info(
-      `Setting up associations for channel ${channel.name} with ${participantIds.length} participants`
+      `Setting up associations for channel ${channel.name} (${channel.id}) with ${participantIds.length} participants`
     );
 
-    // Create a single room for the channel (roomId = channelId)
-    const roomId = channel.id;
-    const worldId = stringToUuid(this.messageServer.id, this.messageServer.id);
+    // Get the first available runtime to emit events
+    const firstRuntime = this.agentManager.getAgentRuntime(
+      participants[0].agentId
+    );
+    if (!firstRuntime) {
+      throw new Error(`No runtime available for channel setup`);
+    }
 
-    // Set up each participant in the single room
+    // Set up each participant using proper AgentServer flow
     for (const participant of participants) {
       const runtime = this.agentManager.getAgentRuntime(participant.agentId);
       if (!runtime) continue;
 
-      // Ensure world exists
-      await runtime.ensureWorldExists({
-        id: worldId,
-        name: "Production World",
-        agentId: runtime.agentId,
-        serverId: this.messageServer.id,
+      logger.info(
+        `Setting up agent ${runtime.character.name} (${participant.agentId}) for channel ${channel.name}`
+      );
+
+      // Ensure the agent is added to the server that this channel belongs to
+      // Subscribe agent to messaging server via central API (server_agent_update bus event will follow)
+      await apiClient.addAgentToServer(channel.messageServerId, participant.agentId);
+      logger.info(
+        `Subscribed agent ${runtime.character.name} to messaging server ${channel.messageServerId}`
+      );
+
+      // Emit ENTITY_JOINED event for this participant
+      // This will trigger the bootstrap plugin to create proper world/room/entity structure
+      logger.info(
+        `Emitting ENTITY_JOINED for agent ${runtime.character.name} in channel ${channel.name}`
+      );
+
+      await runtime.emitEvent([EventType.ENTITY_JOINED], {
+        runtime,
+        entityId: participant.agentId,
+        worldId: channel.messageServerId, // Use server ID as world ID
+        roomId: channel.id, // Use channel ID as room ID
+        source: "channel-manager",
+        metadata: {
+          type: channel.type,
+          isDm: channel.type === ChannelType.DM,
+          originalId: participant.agentId,
+          username: runtime.character.name,
+          displayName: runtime.character.name,
+          roles: [],
+          joinedAt: Date.now(),
+        },
       });
-
-      // Ensure room exists (single room per channel)
-      await runtime.ensureRoomExists({
-        id: roomId,
-        type: channel.type,
-        name: channel.name,
-        agentId: runtime.agentId,
-        worldId: worldId,
-        channelId: channel.id,
-        serverId: this.messageServer.id,
-        source: "simplified-channel-manager",
-      });
-
-      // Add this agent as participant in the room
-      await runtime.addParticipant(runtime.agentId, roomId);
-
-      // Create entities for all other participants in this agent's runtime
-      for (const otherParticipant of participants) {
-        if (participant.agentId === otherParticipant.agentId) continue;
-
-        const otherRuntime = this.agentManager.getAgentRuntime(
-          otherParticipant.agentId
-        );
-        if (!otherRuntime) continue;
-
-        const entityId = createUniqueUuid(runtime, otherRuntime.agentId);
-
-        try {
-          await runtime.createEntity({
-            id: entityId,
-            names: [otherRuntime.character.name],
-            agentId: runtime.agentId,
-            metadata: {
-              source: "simplified-channel-manager",
-              originalAgentId: otherRuntime.agentId,
-              channelId: channel.id,
-            },
-          });
-
-          // Add other participant to this agent's room
-          await runtime.ensureParticipantInRoom(entityId, roomId);
-
-          logger.debug(
-            `Created entity for ${otherRuntime.character.name} on ${runtime.character.name}'s runtime`
-          );
-        } catch (error) {
-          logger.warn(
-            `Failed to create entity for ${otherRuntime.character.name} on ${runtime.character.name}'s runtime:`,
-            error
-          );
-        }
-      }
-
-      // Set participant state (FOLLOWED/MUTED)
-      await runtime.setParticipantUserState(
-        roomId,
-        runtime.agentId,
-        participant.state
+      logger.info(
+        `Successfully emitted ENTITY_JOINED for agent ${runtime.character.name}`
       );
 
       // Store participant in channel
       channel.participants.set(participant.agentId, participant);
 
-      // Create simplified association record (no roomId needed)
+      // Create association record
       const association: AgentChannelAssociation = {
         agentId: participant.agentId,
         channelId: channel.id,
         participant: participant,
-        entityId: createUniqueUuid(runtime, participant.agentId),
+        entityId: participant.agentId,
       };
 
       // Add to association manager
       this.associationManager.addAssociation(association);
 
-      logger.debug(
+      logger.info(
         `Created associations for ${runtime.character.name} in channel ${channel.name}`
       );
     }
 
-    logger.info(`Completed setup for channel ${channel.name}`);
+    logger.info(
+      `Completed setup for channel ${channel.name}`
+    );
   }
 
   /**
@@ -271,29 +255,40 @@ export class ChannelManager {
 
     logger.info(`Adding ${runtime.character.name} to channel ${channel.name}`);
 
-    // Create associations for this participant
-    await this.setupChannelAssociations(channel, [participant]);
+    // Add participant to central channel through API
+    await apiClient.addUserToChannel(channelId, participant.agentId);
 
-    // Add this participant to existing participants' rooms
-    const existingParticipantIds = Array.from(channel.participants.keys());
-    for (const existingParticipantId of existingParticipantIds) {
-      if (existingParticipantId === participant.agentId) continue;
+    // Emit ENTITY_JOINED event for proper AgentServer setup
+    await runtime.emitEvent([EventType.ENTITY_JOINED], {
+      runtime,
+      entityId: participant.agentId,
+      worldId: this.messageServer.id,
+      roomId: channelId,
+      source: "channel-manager-add-participant",
+      metadata: {
+        type: channel.type,
+        isDm: channel.type === ChannelType.DM,
+        originalId: participant.agentId,
+        username: runtime.character.name,
+        displayName: runtime.character.name,
+        roles: [],
+        joinedAt: Date.now(),
+      },
+    });
 
-      const existingRuntime = this.agentManager.getAgentRuntime(
-        existingParticipantId
-      );
-      if (!existingRuntime) continue;
+    // Store participant in channel
+    channel.participants.set(participant.agentId, participant);
 
-      // Add new participant to existing participant's room (same roomId = channelId)
-      const participantEntityId = createUniqueUuid(
-        existingRuntime,
-        participant.agentId
-      );
-      await existingRuntime.ensureParticipantInRoom(
-        participantEntityId,
-        channelId
-      );
-    }
+    // Create association record
+    const association: AgentChannelAssociation = {
+      agentId: participant.agentId,
+      channelId: channel.id,
+      participant: participant,
+      entityId: participant.agentId,
+    };
+
+    // Add to association manager
+    this.associationManager.addAssociation(association);
 
     logger.info(
       `Successfully added ${runtime.character.name} to channel ${channel.name}`
@@ -321,27 +316,14 @@ export class ChannelManager {
 
     logger.info(`Removing agent ${agentId} from channel ${channel.name}`);
 
+    // Remove participant from central channel through API
+    await apiClient.removeUserFromChannel(channelId, agentId);
+
     // Remove association
     this.associationManager.removeAssociation(agentId, channelId);
 
     // Remove from channel participants
     channel.participants.delete(agentId);
-
-    // Remove from other participants' rooms (same roomId = channelId)
-    const otherParticipantIds = Array.from(channel.participants.keys());
-    for (const otherParticipantId of otherParticipantIds) {
-      const otherRuntime =
-        this.agentManager.getAgentRuntime(otherParticipantId);
-      if (!otherRuntime) continue;
-
-      // Remove this agent's entity from other participant's room
-      const participantEntityId = createUniqueUuid(otherRuntime, agentId);
-      // Note: This would require a removeParticipantFromRoom method that may not exist
-      // For now, we'll just log this limitation
-      logger.warn(
-        `Cannot remove participant entity from room - this may need manual cleanup`
-      );
-    }
 
     logger.info(
       `Successfully removed agent ${agentId} from channel ${channel.name}`
@@ -379,7 +361,7 @@ export class ChannelManager {
     // Update channel participant
     participant.state = state;
 
-    // Update runtime participant state (roomId = channelId)
+    // Update runtime participant state
     await runtime.setParticipantUserState(channelId, agentId, state);
 
     logger.info(
@@ -449,7 +431,7 @@ export class ChannelManager {
   }
 
   /**
-   * Get messages for a channel
+   * Get messages for a channel using the central messaging API
    */
   async getMessages(channelId: UUID): Promise<ChannelMessage[]> {
     const channel = this.channels.get(channelId);
@@ -457,16 +439,16 @@ export class ChannelManager {
       throw new Error(`Channel ${channelId} not found`);
     }
 
-    // Get messages from the server
-    const messages = await this.server.getMessagesForChannel(channelId);
+    // Get messages from the central messaging API
+    const response = await apiClient.getChannelMessages(channelId);
 
-    // Convert CentralRootMessage to ChannelMessage
-    return messages.map((message) => ({
+    // Convert ServerMessage to ChannelMessage
+    return response.data.messages.map((message) => ({
       id: message.id,
       channelId: message.channelId,
       authorId: message.authorId,
       content: message.content,
-      timestamp: message.createdAt.getTime(),
+      timestamp: message.createdAt,
       metadata: message.metadata,
     }));
   }

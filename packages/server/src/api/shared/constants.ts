@@ -12,22 +12,22 @@ export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 /**
  * Maximum file size in human-readable format
  */
-export const MAX_FILE_SIZE_DISPLAY = '50MB';
+export const MAX_FILE_SIZE_DISPLAY = "50MB";
 
 /**
  * Valid MIME types for audio files
  */
 export const ALLOWED_AUDIO_MIME_TYPES = [
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/wav',
-  'audio/ogg',
-  'audio/webm',
-  'audio/mp4',
-  'audio/aac',
-  'audio/flac',
-  'audio/x-wav',
-  'audio/wave',
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/ogg",
+  "audio/webm",
+  "audio/mp4",
+  "audio/aac",
+  "audio/flac",
+  "audio/x-wav",
+  "audio/wave",
 ] as const;
 
 /**
@@ -35,12 +35,12 @@ export const ALLOWED_AUDIO_MIME_TYPES = [
  */
 export const ALLOWED_MEDIA_MIME_TYPES = [
   ...ALLOWED_AUDIO_MIME_TYPES,
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'video/mp4',
-  'video/webm',
-  'application/pdf',
-  'text/plain',
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "application/pdf",
+  "text/plain",
 ] as const;

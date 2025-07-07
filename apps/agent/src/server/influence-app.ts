@@ -4,6 +4,8 @@ import {
   IAgentRuntime,
   Memory,
   UUID,
+  logger,
+  stringToUuid,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
 import { AppServerConfig, ParticipantMode, RuntimeDecorator } from "./types";
@@ -13,9 +15,24 @@ import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
 import { apiClient } from "../lib/api";
+import { SocketIOManager } from "../lib/socketio-manager";
+import { Subject, Observable, fromEvent } from "rxjs";
+import { filter, map } from "rxjs/operators";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import { MessageServer } from "@elizaos/server";
+
+// Message types for the streaming system
+export interface StreamedMessage {
+  id: UUID;
+  channelId: UUID;
+  authorId: UUID;
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+  source: "agent" | "client" | "system";
+}
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -23,15 +40,22 @@ export class InfluenceApp<
   Runtime extends IAgentRuntime,
 > {
   private server: AgentServer;
+  private messageServer: MessageServer;
   private serverMetadata: AppContext;
   private serverPort: number;
   private bus: EventEmitter;
 
-  // Production-ready managers
+  // Managers
   private associationManager: AssociationManager;
   private agentManager: AgentManager<AgentContext>;
   private channelManager: ChannelManager;
 
+  // Message streaming infrastructure
+  private socketManager: SocketIOManager;
+  private messageStream$ = new Subject<StreamedMessage>();
+  private channelMessageStreams = new Map<UUID, Subject<StreamedMessage>>();
+
+  // Runtime configuration
   private defaultRuntimeDecorators: RuntimeDecorator<Runtime>[] = [];
 
   constructor(private config: AppServerConfig<AppContext, Runtime>) {
@@ -63,25 +87,146 @@ export class InfluenceApp<
     const postgresUrl = `file:${dataDir}`;
     process.env.POSTGRES_URL = postgresUrl;
     this.server = agentServer;
+    this.messageServer = server;
     this.serverMetadata = server.metadata as AppContext;
     this.serverPort = serverPort;
 
-    // Initialize production managers
+    // Initialize managers
+    this.agentManager = new AgentManager(
+      this.server,
+      this.config.runtimeConfig?.runtimeSettings || {},
+      this.config.runtimeConfig?.runtime
+        ? [this.config.runtimeConfig.runtime]
+        : []
+    );
+
     this.associationManager = new AssociationManager();
-    this.agentManager = new AgentManager<AgentContext>(
-      this.server,
-      {
-        PGLITE_DATA_DIR: dataDir,
-        ...this.config.runtimeConfig?.runtimeSettings,
-      },
-      this.defaultRuntimeDecorators
-    );
     this.channelManager = new ChannelManager(
-      this.server,
-      server,
+      this.agentManager,
       this.associationManager,
-      this.agentManager
+      this.server,
+      this.messageServer
     );
+
+    // Initialize SocketIO client for real-time message streaming
+    // "The House" acts as a human-like user that can stimulate agent responses
+    // Generate a proper UUID for The House
+    const houseClientId = stringToUuid("the-house");
+    this.socketManager = SocketIOManager.getInstance();
+    this.socketManager.initialize(houseClientId, this.serverPort);
+
+    // Set up message streaming infrastructure
+    this.setupMessageStreaming();
+  }
+
+  /**
+   * Set up real-time message streaming from SocketIO and internal message bus
+   */
+  private setupMessageStreaming() {
+    // Listen to SocketIO message broadcasts (messages from www client)
+    this.socketManager.on("messageBroadcast", (data) => {
+      logger.info(
+        `[InfluenceApp] 📨 Received SocketIO message: ${data.senderId} -> "${data.text}"`
+      );
+      logger.info(
+        `[InfluenceApp] SocketIO message details: channelId=${data.channelId}, source=${data.source}`
+      );
+      const streamedMessage: StreamedMessage = {
+        id: data.id || stringToUuid(`message-${Date.now()}-${Math.random()}`),
+        channelId: data.channelId,
+        authorId: data.senderId,
+        content: data.text,
+        timestamp: data.createdAt,
+        metadata: {
+          senderName: data.senderName,
+          source: data.source,
+          ...data.metadata,
+        },
+        source: "client",
+      };
+
+      this.broadcastMessage(streamedMessage);
+    });
+
+    // Listen to internal message bus for agent messages
+    this.bus.on("new_message", (message) => {
+      logger.info(
+        `[InfluenceApp] 🔄 Received internal message bus message: ${message.author_id} -> "${message.content}"`
+      );
+      logger.info(
+        `[InfluenceApp] Internal message details: channelId=${message.channel_id}, serverId=${message.server_id}, sourceType=${message.source_type}`
+      );
+      const streamedMessage: StreamedMessage = {
+        id: message.id,
+        channelId: message.channel_id,
+        authorId: message.author_id,
+        content: message.content,
+        timestamp: message.created_at,
+        metadata: {
+          authorDisplayName: message.author_display_name,
+          sourceType: message.source_type,
+          ...message.metadata,
+        },
+        source: "agent",
+      };
+
+      this.broadcastMessage(streamedMessage);
+    });
+
+    logger.info(
+      "[InfluenceApp] ✅ Message streaming infrastructure initialized"
+    );
+  }
+
+  /**
+   * Broadcast a message to all subscribers
+   */
+  private broadcastMessage(message: StreamedMessage) {
+    // Broadcast to global message stream
+    this.messageStream$.next(message);
+
+    // Broadcast to channel-specific stream
+    const channelStream = this.channelMessageStreams.get(message.channelId);
+    if (channelStream) {
+      channelStream.next(message);
+    }
+
+    logger.debug(
+      `Broadcasted message ${message.id} to channel ${message.channelId}`
+    );
+  }
+
+  /**
+   * Get an observable stream of all messages
+   */
+  getMessageStream(): Observable<StreamedMessage> {
+    return this.messageStream$.asObservable();
+  }
+
+  /**
+   * Get an observable stream of messages for a specific channel
+   */
+  getChannelMessageStream(channelId: UUID): Observable<StreamedMessage> {
+    if (!this.channelMessageStreams.has(channelId)) {
+      this.channelMessageStreams.set(channelId, new Subject<StreamedMessage>());
+    }
+    return this.channelMessageStreams.get(channelId)!.asObservable();
+  }
+
+  /**
+   * Join a channel to receive real-time messages
+   */
+  async joinChannel(channelId: UUID): Promise<void> {
+    await this.socketManager.joinChannel(channelId);
+    logger.info(`Joined channel ${channelId} for real-time messaging`);
+  }
+
+  /**
+   * Leave a channel to stop receiving real-time messages
+   */
+  leaveChannel(channelId: UUID): void {
+    this.socketManager.leaveChannel(channelId);
+    logger.info(`Left channel ${channelId}`);
   }
 
   async start() {
@@ -120,7 +265,12 @@ export class InfluenceApp<
   }
 
   async createChannel(config: Parameters<ChannelManager["createChannel"]>[0]) {
-    return this.channelManager.createChannel(config);
+    const channelId = await this.channelManager.createChannel(config);
+
+    // Automatically join "The House" to the channel for real-time messaging
+    await this.joinChannel(channelId);
+
+    return channelId;
   }
 
   getServerPort() {
@@ -133,88 +283,63 @@ export class InfluenceApp<
       agents: this.agentManager.getStats(),
       channels: this.channelManager.getStats(),
       associations: this.associationManager.getStats(),
+      messageStreams: {
+        totalChannels: this.channelMessageStreams.size,
+        globalStreamActive: this.messageStream$.observed,
+      },
     };
   }
 
-  async sendMessage(channelId: UUID, agentId: UUID, content: string) {
-    const fromRuntime = this.agentManager.getAgentRuntime(agentId);
-    if (!fromRuntime) {
-      throw new Error(`Agent ${agentId} not found`);
-    }
-
+  /**
+   * Send a message to a channel as "The House" - acting like a human user to stimulate agent responses
+   * This follows the same pattern as a human user connecting via apps/www
+   */
+  async sendMessage(channelId: UUID, content: string, mentionAgentId?: UUID) {
     const channel = this.channelManager.getChannel(channelId);
     if (!channel) {
       throw new Error(`Channel ${channelId} not found`);
     }
 
-    // Check if sender can send to this channel
-    const senderMode = channel.participants.get(agentId);
-    if (!senderMode) {
-      throw new Error(
-        `Agent ${agentId} is not a participant in channel ${channel.name}`
-      );
+    // Note: "The House" should already be joined to this channel when it was created
+
+    // Optionally mention a specific agent to direct the message
+    let finalContent = content;
+    if (mentionAgentId) {
+      const mentionedRuntime =
+        this.agentManager.getAgentRuntime(mentionAgentId);
+      if (mentionedRuntime) {
+        finalContent = `@${mentionedRuntime.character.name} ${content}`;
+      }
     }
-    if (senderMode.mode === ParticipantMode.OBSERVE_ONLY) {
-      throw new Error(
-        `Agent ${agentId} is observe-only in channel ${channel.name}`
-      );
-    }
 
-    // 1. Create memory for the sender (since they won't get it via HTTP POST)
-    const roomId = createUniqueUuid(fromRuntime, channelId);
-    const authorEntityId = createUniqueUuid(fromRuntime, agentId);
 
-    const senderMemory: Memory = {
-      entityId: authorEntityId,
-      agentId: fromRuntime.agentId,
-      roomId: roomId,
-      content: {
-        text: content,
-        source: "InfluenceApp",
-        channelType: channel.type,
-      },
-      metadata: {
-        entityName: fromRuntime.agentId,
-        fromId: agentId,
-        type: "message",
-      },
-      createdAt: Date.now(),
-    };
-
-    await fromRuntime.createMemory(senderMemory, "messages");
-    // 2. HTTP POST to all participants (except sender)
-    const baseUrl = `http://localhost:${this.config.serverPort}`;
-
-    const payloadToServer = {
-      channel_id: channelId,
-      server_id: this.serverMetadata.serverId,
-      author_id: agentId, // Use the original author's ID
-      content: content,
-      in_reply_to_message_id: undefined,
-      source_type: "agent_response",
-      raw_message: {
-        text: content,
-      },
-      metadata: {
-        agent_id: agentId,
-        agentName: fromRuntime.character.name,
-        entityName: fromRuntime.character.name,
-        attachments: [],
-        channelType: channel.type,
-        isDm: channel.type === ChannelType.DM,
-      },
-    };
+    // Use SocketIOManager to send the message as "The House" user
+    // This follows the same pattern as apps/www for consistent real-time messaging
 
     try {
-      await fetch(`${baseUrl}/api/messaging/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payloadToServer),
-      });
+      // Check if SocketIOManager is connected
+
+      // Send message as "The House" user - this will stimulate agent responses
+      await this.socketManager.sendMessage(
+        finalContent,
+        channelId,
+        channel.messageServerId,
+        channel.type === ChannelType.DM ? "client_chat" : "client_group_chat", // source
+        [], // attachments
+        undefined, // messageId - let it generate one
+        {
+          channelType: channel.type,
+          isDm: channel.type === ChannelType.DM,
+          mentionedAgentId: mentionAgentId,
+        }
+      );
+
+      logger.info(
+        `House message sent to channel ${channel.name}`
+      );
     } catch (error) {
-      console.error(`Failed to post message to ${fromRuntime.agentId}:`, error);
+      logger.error("Failed to send House message:", error);
+      throw error;
     }
   }
 }

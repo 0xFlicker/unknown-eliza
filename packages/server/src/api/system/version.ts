@@ -1,5 +1,5 @@
-import express from 'express';
-import packageJson from '../../../package.json';
+import express from "express";
+import packageJson from "../../../package.json";
 
 interface VersionInfo {
   version: string;
@@ -19,21 +19,21 @@ function getVersionInfo(): VersionInfo {
   try {
     return {
       version: packageJson.version,
-      source: 'server',
+      source: "server",
       timestamp,
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NODE_ENV || "development",
       uptime: process.uptime(),
     };
   } catch (error) {
-    console.error('Error getting version info:', error);
+    console.error("Error getting version info:", error);
 
     return {
-      version: 'unknown',
-      source: 'server',
+      version: "unknown",
+      source: "server",
       timestamp,
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NODE_ENV || "development",
       uptime: process.uptime(),
-      error: 'Failed to retrieve version information',
+      error: "Failed to retrieve version information",
     };
   }
 }
@@ -45,7 +45,7 @@ export function createVersionRouter(): express.Router {
   const router = express.Router();
 
   // GET /api/system/version - Returns version information
-  router.get('/', (_, res) => {
+  router.get("/", (_, res) => {
     const versionInfo = getVersionInfo();
     const statusCode = versionInfo.error ? 500 : 200;
 

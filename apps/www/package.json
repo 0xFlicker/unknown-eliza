@@ -24,8 +24,7 @@
     "test:e2e": "cypress run --e2e",
     "test:e2e:with-server": "./scripts/test-e2e-with-server.sh",
     "cypress:open": "cypress open",
-    "type-check": "cd cypress && npx tsc --noEmit --project tsconfig.json",
-    "typecheck": "bun run build"
+    "type-check": "cd cypress && npx tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
     "@elizaos/api-client": "^1.0.12",

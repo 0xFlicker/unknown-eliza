@@ -15,14 +15,6 @@ export async function messageReceivedHandler({
   message: Memory;
   runtime: IAgentRuntime;
 }): Promise<void> {
-  console.log(
-    `🔍 [${runtime.character?.name}] messageReceivedHandler called with message:`,
-    {
-      content: message.content?.text?.substring(0, 10),
-      source: message.content?.source,
-      agentId: runtime.agentId,
-    }
-  );
 
   // Get the coordination service to check the channel ID
   const coordinationService =
@@ -55,10 +47,6 @@ export async function messageReceivedHandler({
     return;
   }
 
-  // Don't process messages from ourselves
-  // if (message.content.source === runtime.agentId) {
-  //   return;
-  // }
 
   // Must have text content
   if (!message.content.text) {

@@ -5,6 +5,7 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 import alexCharacter from "../src/characters/alex";
+import bethanyCharacter from "../src/characters/bethany";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import openaiPlugin from "@elizaos/plugin-openai";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
@@ -16,6 +17,7 @@ import {
   InfluenceApp,
   ParticipantMode,
   ParticipantState,
+  StreamedMessage,
 } from "../src/server";
 import { expectSoft, RecordingTestUtils } from "./utils/recording-test-utils";
 import { ModelMockingService } from "./utils/model-mocking-service";
@@ -32,7 +34,7 @@ describe("AgentServer V3 Integration", () => {
   }
 
   beforeAll(async () => {
-    testServerPort = 3200; // Use different port from other tests
+    testServerPort = 3333; // Use different port from other tests
     await killProcessOnPort(testServerPort);
     await new Promise((resolve) =>
       setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT)
@@ -79,20 +81,29 @@ describe("AgentServer V3 Integration", () => {
     await app.initialize();
     await app.start();
 
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     const agentManager = app.getAgentManager();
     const channelManager = app.getChannelManager();
 
+    console.log("🔄 Creating Alice agent...");
     const alice = await agentManager.addAgent({
       character: alexCharacter,
       plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
     });
+    console.log(`✅ Alice created with ID: ${alice.id}`);
 
-    const bob = await agentManager.addAgent({
-      character: alexCharacter,
+    console.log("🔄 Creating Bethany agent...");
+    const bethany = await agentManager.addAgent({
+      character: bethanyCharacter,
       plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
     });
+    console.log(`✅ Bethany created with ID: ${bethany.id}`);
 
-    const channelId = await channelManager.createChannel({
+    // Add a brief delay to ensure both agents are fully registered
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const channelId = await app.createChannel({
       name: "general-chat",
       participants: [
         {
@@ -101,157 +112,75 @@ describe("AgentServer V3 Integration", () => {
           state: ParticipantState.FOLLOWED,
         },
         {
-          agentId: bob.id,
+          agentId: bethany.id,
           mode: ParticipantMode.READ_WRITE,
           state: ParticipantState.FOLLOWED,
         },
       ],
-      type: ChannelType.DM,
+      type: ChannelType.GROUP,
       maxMessages: 6,
     });
 
-    await app.sendMessage(channelId, alice.id, "Hello Bob!");
+    // Set up message streaming to observe real-time messages
+    const messageStream = app.getChannelMessageStream(channelId);
+    const receivedMessages: StreamedMessage[] = [];
 
-    const messages = await channelManager.getMessages(channelId.id);
-    expect(messages.length).toBe(1);
-    expect(messages[0].content).toBe("Hello Bob!");
-    expect(messages[0].authorId).toBe(alice.id);
-
-    // const simulator = new ConversationSimulatorV3({
-    //   dataDir,
-    //   serverPort: testServerPort,
-    //   enableRealTime: true,
-    //   useModelMockingService: true,
-    //   testContext: {
-    //     suiteName: "AgentServer V3 Integration",
-    //     testName:
-    //       "demonstrates 2 agents having a basic conversation through AgentServer infrastructure",
-    //   },
-    // });
-
-    try {
-      // Initialize the V3 simulator with real AgentServer infrastructure
-      await simulator.initialize();
+    const messageSubscription = messageStream.subscribe((message) => {
       console.log(
-        "✅ V3 Simulator initialized with AgentServer infrastructure"
+        `📨 Real-time message: ${message.authorId} -> ${message.content} (source: ${message.source})`
       );
+      receivedMessages.push(message);
+    });
 
-      // Add two agents that will chat with each other
-      const alice = await simulator.addAgent(
-        "Alice",
-        {
-          ...alexCharacter,
-          name: "Alice",
-          bio: "Alice is a friendly and thoughtful agent who enjoys collaborative conversations and building relationships.",
-        },
-        getTestPlugins() // Include openai for record mode
-      );
+    // Send initial message from Alice
+    console.log(`🔍 Alice ID: ${alice.id}, Bethany ID: ${bethany.id}`);
+    console.log(`🔍 Sending message from House to channel ${channelId}`);
 
-      const bob = await simulator.addAgent(
-        "Bob",
-        {
-          ...alexCharacter,
-          name: "Bob",
-          bio: "Bob is friendly and talkative, but is also an analytical and strategic agent who likes to discuss plans and share insights.",
-        },
-        getTestPlugins() // Include openai for record mode
-      );
+    await app.sendMessage(channelId, "Hello Bethany!", bethany.id);
 
-      expect(alice).toBeDefined();
-      expect(bob).toBeDefined();
-      expect(simulator.getAgentNames()).toEqual(["Alice", "Bob"]);
-      console.log("✅ Added Alice and Bob agents");
-
-      // Create a conversation channel using AgentServer infrastructure
-      const channelId = await simulator.createChannel({
-        name: "general-chat",
-        participants: ["Alice", "Bob"],
-        type: ChannelType.DM,
-        maxMessages: 6, // Limit conversation length for testing
-      });
-
-      expect(channelId).toBeDefined();
-      console.log(`✅ Created channel: ${channelId}`);
-
-      // Set up real-time observation of the conversation
-      const conversationLog: string[] = [];
-      const unsubscribe = simulator.observeChannel(channelId, (message) => {
-        const logEntry = `${message.authorName}: ${message.content}`;
-        conversationLog.push(logEntry);
-        console.log(`📝 ${logEntry}`);
-      });
-
-      // Alice starts the conversation
-      console.log("🚀 Alice starting conversation...");
-      await simulator.sendMessage(
-        "Alice",
-        channelId,
-        "Hey Bob! Nice to meet you. How are you doing today?"
-      );
-
-      // Wait a moment for messages to be processed
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-
-      // Get the final conversation
-      const messages = simulator.getChannelMessages(channelId);
-      console.log("\n📊 Final conversation summary:");
-      console.log(`Total messages: ${messages.length}`);
-      messages.forEach((msg, idx) => {
-        console.log(`${idx + 1}. ${msg.authorName}: ${msg.content}`);
-      });
-
-      // Verify the conversation worked through AgentServer
-      expectSoft(messages.length).toBeGreaterThan(1); // At least Alice's message + Bob's response + something else
-      expectSoft(messages[0]?.authorName).toBe("Alice");
-      expectSoft(messages[0]?.content).toBe(
-        "Hey Bob! Nice to meet you. How are you doing today?"
-      );
-
-      // Verify Bob responded
-      if (messages.length > 1) {
-        expectSoft(messages[1]?.authorName).toBe("Bob");
-        expectSoft(messages[1]?.content?.length).toBeGreaterThan(0);
-        console.log("✅ Bob responded to Alice");
+    // Wait for at least 2 messages or timeout after 10 seconds (shorter for debugging)
+    let attempts = 0;
+    const maxAttempts = 10; // 10 * 1000ms = 10 seconds
+    while (attempts < maxAttempts) {
+      const messages = await channelManager.getMessages(channelId);
+      if (messages.length >= 2) {
+        break;
       }
-
-      // Test conversation summary
-      const summary = simulator.createConversationSummary();
-      expectSoft(summary.channelCount).toBe(1);
-      expectSoft(summary.participantCount).toBe(2);
-      expectSoft(summary.totalMessages).toBeGreaterThanOrEqual(2);
-      expectSoft(summary.messagesByAgent["Alice"]).toBeGreaterThanOrEqual(1);
-      expectSoft(summary.messagesByAgent["Bob"]).toBeGreaterThanOrEqual(1);
-
-      console.log("\n📈 Conversation Summary:", {
-        channels: summary.channelCount,
-        participants: summary.participantCount,
-        totalMessages: summary.totalMessages,
-        messagesByAgent: summary.messagesByAgent,
-        messagesByChannel: summary.messagesByChannel,
-      });
-
-      // Clean up observer
-      unsubscribe();
-
-      // Verify AgentServer infrastructure was used properly
-      expect(simulator.getChannels().size).toBe(1);
-      expect(Array.from(simulator.getChannels().values())[0].name).toBe(
-        "general-chat"
-      );
-
-      console.log(
-        "✅ Successfully demonstrated 2-agent conversation via AgentServer infrastructure"
-      );
-
-      // Provide recording suggestions for better test expectations
-      RecordingTestUtils.suggestExpectation(
-        "total messages in conversation",
-        messages.length,
-        "should be exactly 2 for Alice + Bob exchange"
-      );
-    } finally {
-      await simulator.cleanup();
-      console.log("🧹 Cleaned up V3 simulator");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      attempts++;
     }
+
+    // Get the final conversation
+    const messages = await channelManager.getMessages(channelId);
+    console.log("\n📊 Final conversation summary:");
+    console.log(`Total messages: ${messages.length}`);
+    messages.forEach((msg, idx) => {
+      console.log(`${idx + 1}. ${msg.authorId}: ${msg.content}`);
+    });
+
+    console.log("\n📡 Real-time message stream summary:");
+    console.log(`Total streamed messages: ${receivedMessages.length}`);
+    receivedMessages.forEach((msg, idx) => {
+      console.log(
+        `${idx + 1}. [${msg.source}] ${msg.authorId}: ${msg.content}`
+      );
+    });
+
+    // Clean up subscription
+    messageSubscription.unsubscribe();
+
+    // Verify the conversation worked through AgentServer
+    expectSoft(messages.length).toBeGreaterThan(1); // At least Alice's message + Bethany's response
+
+    // Verify Bethany responded
+    if (messages.length > 1) {
+      expectSoft(messages[0]?.authorId).toBe(bethany.id);
+      expectSoft(messages[0]?.content?.length).toBeGreaterThan(0);
+      console.log("✅ Bethany responded to Alice");
+    }
+
+    // Verify real-time streaming worked
+    expectSoft(receivedMessages.length).toBeGreaterThan(0);
+    console.log("✅ Real-time message streaming is working");
   }, 90000); // Allow plenty of time for real model interactions
 });

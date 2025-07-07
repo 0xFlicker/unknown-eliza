@@ -1,10 +1,10 @@
-import { validateUuid, logger } from '@elizaos/core';
-import express from 'express';
-import rateLimit from 'express-rate-limit';
-import { ALLOWED_MEDIA_MIME_TYPES, MAX_FILE_SIZE } from '../shared/constants';
-import multer from 'multer';
-import fs from 'fs';
-import path from 'path';
+import { validateUuid, logger } from "@elizaos/core";
+import express from "express";
+import rateLimit from "express-rate-limit";
+import { ALLOWED_MEDIA_MIME_TYPES, MAX_FILE_SIZE } from "../shared/constants";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -18,7 +18,7 @@ const upload = multer({
     if (ALLOWED_MEDIA_MIME_TYPES.includes(file.mimetype as any)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type'), false);
+      cb(new Error("Invalid file type"), false);
     }
   },
 });
@@ -26,9 +26,13 @@ const upload = multer({
 // Helper function to save uploaded file
 async function saveUploadedFile(
   file: Express.Multer.File,
-  channelId: string
+  channelId: string,
 ): Promise<{ filename: string; url: string }> {
-  const uploadDir = path.join(process.cwd(), '.eliza/data/uploads/channels', channelId);
+  const uploadDir = path.join(
+    process.cwd(),
+    ".eliza/data/uploads/channels",
+    channelId,
+  );
 
   // Ensure directory exists
   if (!fs.existsSync(uploadDir)) {
@@ -59,23 +63,30 @@ export function createChannelMediaRouter(): express.Router {
   const uploadMediaRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
-    message: { success: false, error: 'Too many requests, please try again later.' },
+    message: {
+      success: false,
+      error: "Too many requests, please try again later.",
+    },
   });
 
   // Upload media to channel
   router.post(
-    '/:channelId/upload-media',
+    "/:channelId/upload-media",
     uploadMediaRateLimiter, // Apply rate limiter
-    upload.single('file'),
+    upload.single("file"),
     async (req, res) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
-        res.status(400).json({ success: false, error: 'Invalid channelId format' });
+        res
+          .status(400)
+          .json({ success: false, error: "Invalid channelId format" });
         return;
       }
 
       if (!req.file) {
-        res.status(400).json({ success: false, error: 'No media file provided' });
+        res
+          .status(400)
+          .json({ success: false, error: "No media file provided" });
         return;
       }
 
@@ -84,7 +95,7 @@ export function createChannelMediaRouter(): express.Router {
         const result = await saveUploadedFile(req.file, channelId);
 
         logger.info(
-          `[Channel Media Upload] File uploaded for channel ${channelId}: ${result.filename}. URL: ${result.url}`
+          `[Channel Media Upload] File uploaded for channel ${channelId}: ${result.filename}. URL: ${result.url}`,
         );
 
         res.json({
@@ -100,11 +111,13 @@ export function createChannelMediaRouter(): express.Router {
       } catch (error: any) {
         logger.error(
           `[Channel Media Upload] Error processing upload for channel ${channelId}: ${error.message}`,
-          error
+          error,
         );
-        res.status(500).json({ success: false, error: 'Failed to process media upload' });
+        res
+          .status(500)
+          .json({ success: false, error: "Failed to process media upload" });
       }
-    }
+    },
   );
 
   return router;

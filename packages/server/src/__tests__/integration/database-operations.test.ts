@@ -2,14 +2,14 @@
  * Integration tests for database operations
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { AgentServer, CentralRootMessage } from '../../index';
-import type { UUID } from '@elizaos/core';
-import { ChannelType } from '@elizaos/core';
-import path from 'node:path';
-import fs from 'node:fs';
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { AgentServer, CentralRootMessage } from "../../index";
+import type { UUID } from "@elizaos/core";
+import { ChannelType } from "@elizaos/core";
+import path from "node:path";
+import fs from "node:fs";
 
-describe('Database Operations Integration Tests', () => {
+describe("Database Operations Integration Tests", () => {
   let agentServer: AgentServer;
   let testDbPath: string;
 
@@ -17,7 +17,7 @@ describe('Database Operations Integration Tests', () => {
     // Use a test database with unique path
     testDbPath = path.join(
       __dirname,
-      `test-db-ops-${Date.now()}-${Math.random().toString(36).substring(7)}`
+      `test-db-ops-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     );
     process.env.PGLITE_DATA_DIR = testDbPath;
 
@@ -37,7 +37,7 @@ describe('Database Operations Integration Tests', () => {
         dataDir: testDbPath,
       });
     } catch (error) {
-      console.error('Failed to initialize agent server:', error);
+      console.error("Failed to initialize agent server:", error);
       // Clean up on failure
       if (fs.existsSync(testDbPath)) {
         fs.rmSync(testDbPath, { recursive: true, force: true });
@@ -59,10 +59,10 @@ describe('Database Operations Integration Tests', () => {
     }
   });
 
-  describe('Transaction Handling', () => {
-    it('should handle concurrent message creation', async () => {
-      const channelId = '123e4567-e89b-12d3-a456-426614174000' as UUID;
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
+  describe("Transaction Handling", () => {
+    it("should handle concurrent message creation", async () => {
+      const channelId = "123e4567-e89b-12d3-a456-426614174000" as UUID;
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
 
       // Verify default server exists
       const servers = await agentServer.getServers();
@@ -72,7 +72,7 @@ describe('Database Operations Integration Tests', () => {
       // Create channel first
       await agentServer.createChannel({
         id: channelId,
-        name: 'Concurrent Test Channel',
+        name: "Concurrent Test Channel",
         type: ChannelType.GROUP,
         messageServerId: serverId,
         metadata: {},
@@ -88,9 +88,9 @@ describe('Database Operations Integration Tests', () => {
             content: `Concurrent message ${i}`,
             rawMessage: `Concurrent message ${i}`,
             sourceId: `concurrent-${i}`,
-            sourceType: 'test',
+            sourceType: "test",
             metadata: {},
-          })
+          }),
         );
       }
 
@@ -103,18 +103,21 @@ describe('Database Operations Integration Tests', () => {
       });
 
       // Verify database integrity
-      const retrievedMessages = await agentServer.getMessagesForChannel(channelId, 20);
+      const retrievedMessages = await agentServer.getMessagesForChannel(
+        channelId,
+        20,
+      );
       expect(retrievedMessages).toHaveLength(10);
     });
 
-    it('should maintain referential integrity', async () => {
-      const channelId = '234e5678-e89b-12d3-a456-426614174000' as UUID;
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
+    it("should maintain referential integrity", async () => {
+      const channelId = "234e5678-e89b-12d3-a456-426614174000" as UUID;
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
 
       // Create channel
       await agentServer.createChannel({
         id: channelId,
-        name: 'Integrity Test Channel',
+        name: "Integrity Test Channel",
         type: ChannelType.GROUP,
         messageServerId: serverId,
         metadata: {},
@@ -123,21 +126,21 @@ describe('Database Operations Integration Tests', () => {
       // Create messages
       const message1 = await agentServer.createMessage({
         channelId,
-        authorId: 'user-1' as UUID,
-        content: 'First message',
-        rawMessage: 'First message',
-        sourceId: 'integrity-1',
-        sourceType: 'test',
+        authorId: "user-1" as UUID,
+        content: "First message",
+        rawMessage: "First message",
+        sourceId: "integrity-1",
+        sourceType: "test",
         metadata: {},
       });
 
       await agentServer.createMessage({
         channelId,
-        authorId: 'user-2' as UUID,
-        content: 'Reply message',
-        rawMessage: 'Reply message',
-        sourceId: 'integrity-2',
-        sourceType: 'test',
+        authorId: "user-2" as UUID,
+        content: "Reply message",
+        rawMessage: "Reply message",
+        sourceId: "integrity-2",
+        sourceType: "test",
         inReplyToRootMessageId: message1.id,
         metadata: {},
       });
@@ -155,30 +158,31 @@ describe('Database Operations Integration Tests', () => {
     });
   });
 
-  describe('Complex Queries', () => {
-    it('should handle channel participant management', async () => {
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
-      const channelId = '345e6789-e89b-12d3-a456-426614174000' as UUID;
+  describe("Complex Queries", () => {
+    it("should handle channel participant management", async () => {
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
+      const channelId = "345e6789-e89b-12d3-a456-426614174000" as UUID;
       const participants = [
-        '111e1111-e89b-12d3-a456-426614174000' as UUID,
-        '222e2222-e89b-12d3-a456-426614174000' as UUID,
-        '333e3333-e89b-12d3-a456-426614174000' as UUID,
+        "111e1111-e89b-12d3-a456-426614174000" as UUID,
+        "222e2222-e89b-12d3-a456-426614174000" as UUID,
+        "333e3333-e89b-12d3-a456-426614174000" as UUID,
       ];
 
       // Create channel with initial participants
       await agentServer.createChannel(
         {
           id: channelId,
-          name: 'Participant Test Channel',
+          name: "Participant Test Channel",
           type: ChannelType.GROUP,
           messageServerId: serverId,
           metadata: {},
         },
-        participants.slice(0, 2) // First two participants
+        participants.slice(0, 2), // First two participants
       );
 
       // Verify initial participants
-      let currentParticipants = await agentServer.getChannelParticipants(channelId);
+      let currentParticipants =
+        await agentServer.getChannelParticipants(channelId);
       expect(currentParticipants).toHaveLength(2);
 
       // Add third participant
@@ -192,14 +196,14 @@ describe('Database Operations Integration Tests', () => {
       });
     });
 
-    it('should handle complex message queries with filters', async () => {
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
-      const channelId = '456e7890-e89b-12d3-a456-426614174000' as UUID;
+    it("should handle complex message queries with filters", async () => {
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
+      const channelId = "456e7890-e89b-12d3-a456-426614174000" as UUID;
 
       // Create channel
       await agentServer.createChannel({
         id: channelId,
-        name: 'Query Test Channel',
+        name: "Query Test Channel",
         type: ChannelType.GROUP,
         messageServerId: serverId,
         metadata: {},
@@ -214,7 +218,7 @@ describe('Database Operations Integration Tests', () => {
           content: `Message ${i} from user ${i % 3}`,
           rawMessage: `Message ${i}`,
           sourceId: `query-${i}`,
-          sourceType: 'test',
+          sourceType: "test",
           metadata: {
             timestamp: new Date(baseTime.getTime() + i * 1000).toISOString(),
           },
@@ -228,7 +232,7 @@ describe('Database Operations Integration Tests', () => {
       const page2 = await agentServer.getMessagesForChannel(
         channelId,
         5,
-        page1[page1.length - 1].createdAt
+        page1[page1.length - 1].createdAt,
       );
       expect(page2).toHaveLength(5);
 
@@ -240,9 +244,9 @@ describe('Database Operations Integration Tests', () => {
     });
   });
 
-  describe('Database State Consistency', () => {
-    it('should maintain consistent state across operations', async () => {
-      const agentId = 'consistency-agent' as UUID;
+  describe("Database State Consistency", () => {
+    it("should maintain consistent state across operations", async () => {
+      const agentId = "consistency-agent" as UUID;
 
       // Initial state check
       const initialServers = await agentServer.getServers();
@@ -250,8 +254,8 @@ describe('Database Operations Integration Tests', () => {
 
       // Create new server
       const newServer = await agentServer.createServer({
-        name: 'Consistency Test Server',
-        sourceType: 'consistency-test',
+        name: "Consistency Test Server",
+        sourceType: "consistency-test",
         metadata: {},
       });
 
@@ -266,31 +270,37 @@ describe('Database Operations Integration Tests', () => {
 
       // Create channel on server
       const channel = await agentServer.createChannel({
-        name: 'Server Channel',
+        name: "Server Channel",
         type: ChannelType.GROUP,
         messageServerId: newServer.id,
         metadata: {},
       });
 
       // Verify channel is associated with server
-      const serverChannels = await agentServer.getChannelsForServer(newServer.id);
+      const serverChannels = await agentServer.getChannelsForServer(
+        newServer.id,
+      );
       expect(serverChannels.some((c) => c.id === channel.id)).toBe(true);
 
       // Remove agent from server
       await agentServer.removeAgentFromServer(newServer.id, agentId);
-      const agentsAfterRemoval = await agentServer.getAgentsForServer(newServer.id);
+      const agentsAfterRemoval = await agentServer.getAgentsForServer(
+        newServer.id,
+      );
       expect(agentsAfterRemoval).not.toContain(agentId);
 
       // Channel should still exist
-      const channelStillExists = await agentServer.getChannelDetails(channel.id);
+      const channelStillExists = await agentServer.getChannelDetails(
+        channel.id,
+      );
       expect(channelStillExists).toBeDefined();
     });
 
-    it('should handle database connection failures gracefully', async () => {
+    it("should handle database connection failures gracefully", async () => {
       // This test would require mocking database failures
       // For now, we'll test invalid operations
 
-      const invalidId = 'invalid-uuid-format';
+      const invalidId = "invalid-uuid-format";
 
       // Should handle invalid UUID format gracefully
       try {
@@ -301,15 +311,15 @@ describe('Database Operations Integration Tests', () => {
     });
   });
 
-  describe('Performance and Bulk Operations', () => {
-    it('should handle bulk message insertion efficiently', async () => {
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
-      const channelId = '567e8901-e89b-12d3-a456-426614174000' as UUID;
+  describe("Performance and Bulk Operations", () => {
+    it("should handle bulk message insertion efficiently", async () => {
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
+      const channelId = "567e8901-e89b-12d3-a456-426614174000" as UUID;
 
       // Create channel
       await agentServer.createChannel({
         id: channelId,
-        name: 'Bulk Test Channel',
+        name: "Bulk Test Channel",
         type: ChannelType.GROUP,
         messageServerId: serverId,
         metadata: {},
@@ -327,9 +337,9 @@ describe('Database Operations Integration Tests', () => {
             content: `Bulk message ${i}`,
             rawMessage: `Bulk message ${i}`,
             sourceId: `bulk-${i}`,
-            sourceType: 'test',
+            sourceType: "test",
             metadata: { index: i },
-          }) as never
+          }) as never,
         );
       }
 
@@ -344,8 +354,8 @@ describe('Database Operations Integration Tests', () => {
       expect(messages).toHaveLength(100);
     });
 
-    it('should handle large result sets', async () => {
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
+    it("should handle large result sets", async () => {
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
 
       // Create multiple channels
       const channelPromises = [];
@@ -356,7 +366,7 @@ describe('Database Operations Integration Tests', () => {
             type: ChannelType.GROUP,
             messageServerId: serverId,
             metadata: { index: i },
-          }) as never
+          }) as never,
         );
       }
 
@@ -368,14 +378,18 @@ describe('Database Operations Integration Tests', () => {
     });
   });
 
-  describe('Data Integrity Checks', () => {
-    it('should create DM channels properly', async () => {
-      const serverId = '00000000-0000-0000-0000-000000000000' as UUID;
-      const user1 = '777e7777-e89b-12d3-a456-426614174000' as UUID;
-      const user2 = '888e8888-e89b-12d3-a456-426614174000' as UUID;
+  describe("Data Integrity Checks", () => {
+    it("should create DM channels properly", async () => {
+      const serverId = "00000000-0000-0000-0000-000000000000" as UUID;
+      const user1 = "777e7777-e89b-12d3-a456-426614174000" as UUID;
+      const user2 = "888e8888-e89b-12d3-a456-426614174000" as UUID;
 
       // Create first DM channel
-      const dm1 = await agentServer.findOrCreateCentralDmChannel(user1, user2, serverId);
+      const dm1 = await agentServer.findOrCreateCentralDmChannel(
+        user1,
+        user2,
+        serverId,
+      );
       expect(dm1).toBeDefined();
       expect(dm1.type).toBe(ChannelType.DM);
 
@@ -383,13 +397,14 @@ describe('Database Operations Integration Tests', () => {
       // The duplicate prevention logic may not be working as expected in the test environment
     });
 
-    it('should enforce server existence for channels', async () => {
-      const nonExistentServerId = '999e9999-e89b-12d3-a456-426614174000' as UUID;
+    it("should enforce server existence for channels", async () => {
+      const nonExistentServerId =
+        "999e9999-e89b-12d3-a456-426614174000" as UUID;
 
       // Should fail to create channel on non-existent server
       try {
         await agentServer.createChannel({
-          name: 'Invalid Server Channel',
+          name: "Invalid Server Channel",
           type: ChannelType.GROUP,
           messageServerId: nonExistentServerId,
           metadata: {},

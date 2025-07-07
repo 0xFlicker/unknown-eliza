@@ -173,7 +173,7 @@ export async function exampleUsage() {
 /**
  * Example of adding a new participant to an existing channel
  */
-export async function addParticipantExample(app: InfluenceApp<any, any>) {
+export async function addParticipantExample(app: InfluenceApp<any, any, any>) {
   const gammaCharacter: Character = {
     name: "Gamma",
     bio: "A new player joining the game",
@@ -222,7 +222,7 @@ export async function addParticipantExample(app: InfluenceApp<any, any>) {
 /**
  * Cleanup function
  */
-export async function cleanup(app: InfluenceApp<any, any>) {
+export async function cleanup(app: InfluenceApp<any, any, any>) {
   console.log("Cleaning up...");
   await app.stop();
   console.log("Cleanup completed");

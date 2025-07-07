@@ -1,4 +1,4 @@
-import type { UUID, ChannelType } from '@elizaos/core';
+import type { UUID, ChannelType } from "@elizaos/core";
 
 export interface MessageServer {
   id: UUID; // global serverId

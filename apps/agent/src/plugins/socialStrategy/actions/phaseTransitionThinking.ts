@@ -147,11 +147,6 @@ export const phaseTransitionThinkingAction: Action = {
     const isStrategicThinking =
       message.content?.text?.includes("STRATEGIC_THINKING_REQUIRED") === true;
 
-    // console.log(`🧠 [PhaseTransition] Validation check for ${runtime.character?.name}:`, {
-    //   messageText: message.content?.text?.substring(0, 100),
-    //   isStrategicThinking,
-    //   messageId: message.id
-    // });
 
     return isStrategicThinking;
   },
