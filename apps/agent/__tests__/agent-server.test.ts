@@ -21,6 +21,7 @@ import {
 } from "../src/server";
 import { expectSoft, RecordingTestUtils } from "./utils/recording-test-utils";
 import { ModelMockingService } from "./utils/model-mocking-service";
+import { lastValueFrom, take, toArray } from "rxjs";
 
 describe("AgentServer V3 Integration", () => {
   let dataDir: string;
@@ -39,7 +40,7 @@ describe("AgentServer V3 Integration", () => {
     await new Promise((resolve) =>
       setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT)
     );
-    dataDir = path.join(os.tmpdir(), `eliza-test-v3-${Date.now()}`);
+    dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
 
     const testEnv = dotenv.config({
@@ -71,6 +72,7 @@ describe("AgentServer V3 Integration", () => {
           return runtime;
         },
       },
+      dataDir,
       context: {
         testName:
           "demonstrates 2 agents having a basic conversation through AgentServer infrastructure",
@@ -86,12 +88,12 @@ describe("AgentServer V3 Integration", () => {
     const agentManager = app.getAgentManager();
     const channelManager = app.getChannelManager();
 
-    console.log("🔄 Creating Alice agent...");
-    const alice = await agentManager.addAgent({
+    console.log("🔄 Creating Alex agent...");
+    const alex = await agentManager.addAgent({
       character: alexCharacter,
       plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
     });
-    console.log(`✅ Alice created with ID: ${alice.id}`);
+    console.log(`✅ Alex created with ID: ${alex.id}`);
 
     console.log("🔄 Creating Bethany agent...");
     const bethany = await agentManager.addAgent({
@@ -107,7 +109,7 @@ describe("AgentServer V3 Integration", () => {
       name: "general-chat",
       participants: [
         {
-          agentId: alice.id,
+          agentId: alex.id,
           mode: ParticipantMode.READ_WRITE,
           state: ParticipantState.FOLLOWED,
         },
@@ -121,34 +123,29 @@ describe("AgentServer V3 Integration", () => {
       maxMessages: 6,
     });
 
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Set up message streaming to observe real-time messages
     const messageStream = app.getChannelMessageStream(channelId);
-    const receivedMessages: StreamedMessage[] = [];
 
-    const messageSubscription = messageStream.subscribe((message) => {
-      console.log(
-        `📨 Real-time message: ${message.authorId} -> ${message.content} (source: ${message.source})`
-      );
-      receivedMessages.push(message);
-    });
-
-    // Send initial message from Alice
-    console.log(`🔍 Alice ID: ${alice.id}, Bethany ID: ${bethany.id}`);
+    // Send initial message from Alex
+    console.log(`🔍 Alex ID: ${alex.id}, Bethany ID: ${bethany.id}`);
     console.log(`🔍 Sending message from House to channel ${channelId}`);
 
-    await app.sendMessage(channelId, "Hello Bethany!", bethany.id);
+    const threeMessages = messageStream.pipe(
+      // take 3
+      take(3),
+      toArray()
+    );
 
-    // Wait for at least 2 messages or timeout after 10 seconds (shorter for debugging)
-    let attempts = 0;
-    const maxAttempts = 10; // 10 * 1000ms = 10 seconds
-    while (attempts < maxAttempts) {
-      const messages = await channelManager.getMessages(channelId);
-      if (messages.length >= 2) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      attempts++;
-    }
+    await app.sendMessage(
+      channelId,
+      "Greetings players and welcome to the pre-game! I'm the house, and I'll be your host for the night. Let's get started!\n\nFirst things first, let's get to know each other. @Bethany, please introduce yourself to the group and then ask another player to introduce themselves!",
+      bethany.id
+    );
+
+    // Wait for threeMessages to be emitted
+    const receivedMessages = await lastValueFrom(threeMessages);
 
     // Get the final conversation
     const messages = await channelManager.getMessages(channelId);
@@ -166,17 +163,14 @@ describe("AgentServer V3 Integration", () => {
       );
     });
 
-    // Clean up subscription
-    messageSubscription.unsubscribe();
-
     // Verify the conversation worked through AgentServer
-    expectSoft(messages.length).toBeGreaterThan(1); // At least Alice's message + Bethany's response
+    expectSoft(messages.length).toBeGreaterThan(1); // At least Alex's message + Bethany's response
 
     // Verify Bethany responded
     if (messages.length > 1) {
-      expectSoft(messages[0]?.authorId).toBe(bethany.id);
+      expectSoft(messages[0]?.authorId).toBe(alex.id);
       expectSoft(messages[0]?.content?.length).toBeGreaterThan(0);
-      console.log("✅ Bethany responded to Alice");
+      console.log("✅ Alex responded to Bethany");
     }
 
     // Verify real-time streaming worked

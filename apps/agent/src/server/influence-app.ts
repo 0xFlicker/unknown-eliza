@@ -1,38 +1,23 @@
 import {
   ChannelType,
-  createUniqueUuid,
   IAgentRuntime,
-  Memory,
   UUID,
   logger,
   stringToUuid,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
-import { AppServerConfig, ParticipantMode, RuntimeDecorator } from "./types";
+import { AppServerConfig, RuntimeDecorator, StreamedMessage } from "./types";
 import EventEmitter from "node:events";
 import { createAgentServer } from "./factory";
 import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
-import { apiClient } from "../lib/api";
 import { SocketIOManager } from "../lib/socketio-manager";
 import { Subject, Observable, fromEvent } from "rxjs";
-import { filter, map } from "rxjs/operators";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
 import { MessageServer } from "@elizaos/server";
-
-// Message types for the streaming system
-export interface StreamedMessage {
-  id: UUID;
-  channelId: UUID;
-  authorId: UUID;
-  content: string;
-  timestamp: number;
-  metadata?: Record<string, unknown>;
-  source: "agent" | "client" | "system";
-}
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -41,6 +26,7 @@ export class InfluenceApp<
 > {
   private server: AgentServer;
   private messageServer: MessageServer;
+  private houseClientId: UUID;
   private serverMetadata: AppContext;
   private serverPort: number;
   private bus: EventEmitter;
@@ -111,9 +97,9 @@ export class InfluenceApp<
     // Initialize SocketIO client for real-time message streaming
     // "The House" acts as a human-like user that can stimulate agent responses
     // Generate a proper UUID for The House
-    const houseClientId = stringToUuid("the-house");
+    this.houseClientId = stringToUuid("the-house");
     this.socketManager = SocketIOManager.getInstance();
-    this.socketManager.initialize(houseClientId, this.serverPort);
+    this.socketManager.initialize(this.houseClientId, this.serverPort);
 
     // Set up message streaming infrastructure
     this.setupMessageStreaming();
@@ -145,7 +131,8 @@ export class InfluenceApp<
         source: "client",
       };
 
-      this.broadcastMessage(streamedMessage);
+      // Broadcast to global message stream
+      this.messageStream$.next(streamedMessage);
     });
 
     // Listen to internal message bus for agent messages
@@ -182,9 +169,6 @@ export class InfluenceApp<
    * Broadcast a message to all subscribers
    */
   private broadcastMessage(message: StreamedMessage) {
-    // Broadcast to global message stream
-    this.messageStream$.next(message);
-
     // Broadcast to channel-specific stream
     const channelStream = this.channelMessageStreams.get(message.channelId);
     if (channelStream) {
@@ -312,7 +296,6 @@ export class InfluenceApp<
       }
     }
 
-
     // Use SocketIOManager to send the message as "The House" user
     // This follows the same pattern as apps/www for consistent real-time messaging
 
@@ -331,12 +314,12 @@ export class InfluenceApp<
           channelType: channel.type,
           isDm: channel.type === ChannelType.DM,
           mentionedAgentId: mentionAgentId,
+          user_display_name: "The House",
+          username: "The House",
         }
       );
 
-      logger.info(
-        `House message sent to channel ${channel.name}`
-      );
+      logger.info(`House message sent to channel ${channel.name}`);
     } catch (error) {
       logger.error("Failed to send House message:", error);
       throw error;

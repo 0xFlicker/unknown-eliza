@@ -1,6 +1,6 @@
-import { stringToUuid } from './index';
-import { logger } from './logger';
-import { composePrompt, parseJSONObjectFromText } from './utils';
+import { stringToUuid } from "./index";
+import { logger } from "./logger";
+import { composePrompt, parseJSONObjectFromText } from "./utils";
 import {
   type Entity,
   type IAgentRuntime,
@@ -9,7 +9,7 @@ import {
   type Relationship,
   type State,
   type UUID,
-} from './types';
+} from "./types";
 
 /**
  * Template for resolving entity name within a conversation context.
@@ -79,7 +79,7 @@ async function getRecentInteractions(
 
   // Get recent messages from the room - just for context
   const recentMessages = await runtime.getMemories({
-    tableName: 'messages',
+    tableName: "messages",
     roomId,
     count: 20, // Reduced from 100 since we only need context
   });
@@ -91,7 +91,8 @@ async function getRecentInteractions(
     // First get direct replies using inReplyTo
     const directReplies = recentMessages.filter(
       (msg) =>
-        (msg.entityId === sourceEntityId && msg.content.inReplyTo === entity.id) ||
+        (msg.entityId === sourceEntityId &&
+          msg.content.inReplyTo === entity.id) ||
         (msg.entityId === entity.id && msg.content.inReplyTo === sourceEntityId)
     );
 
@@ -100,8 +101,10 @@ async function getRecentInteractions(
     // Get relationship strength from metadata
     const relationship = relationships.find(
       (rel) =>
-        (rel.sourceEntityId === sourceEntityId && rel.targetEntityId === entity.id) ||
-        (rel.targetEntityId === sourceEntityId && rel.sourceEntityId === entity.id)
+        (rel.sourceEntityId === sourceEntityId &&
+          rel.targetEntityId === entity.id) ||
+        (rel.targetEntityId === sourceEntityId &&
+          rel.sourceEntityId === entity.id)
     );
 
     if (relationship?.metadata?.interactions) {
@@ -139,7 +142,7 @@ export async function findEntityByName(
 ): Promise<Entity | null> {
   const room = state.data.room ?? (await runtime.getRoom(message.roomId));
   if (!room) {
-    logger.warn('Room not found for entity search');
+    logger.warn("Room not found for entity search");
     return null;
   }
 
@@ -164,7 +167,7 @@ export async function findEntityByName(
         // 2. Pass if sourceEntityId is an owner/admin of the current world
         if (world && component.sourceEntityId) {
           const sourceRole = worldRoles[component.sourceEntityId];
-          if (sourceRole === 'OWNER' || sourceRole === 'ADMIN') return true;
+          if (sourceRole === "OWNER" || sourceRole === "ADMIN") return true;
         }
 
         // 3. Pass if sourceEntityId is the agentId
@@ -187,7 +190,9 @@ export async function findEntityByName(
   const relationshipEntities = await Promise.all(
     relationships.map(async (rel) => {
       const entityId =
-        rel.sourceEntityId === message.entityId ? rel.targetEntityId : rel.sourceEntityId;
+        rel.sourceEntityId === message.entityId
+          ? rel.targetEntityId
+          : rel.sourceEntityId;
       return runtime.getEntityById(entityId);
     })
   );
@@ -211,7 +216,7 @@ export async function findEntityByName(
   const prompt = composePrompt({
     state: {
       roomName: room.name || room.id,
-      worldName: world?.name || 'Unknown',
+      worldName: world?.name || "Unknown",
       entitiesInRoom: JSON.stringify(filteredEntities, null, 2),
       entityId: message.entityId,
       senderId: message.entityId,
@@ -228,12 +233,12 @@ export async function findEntityByName(
   // Parse LLM response
   const resolution = parseJSONObjectFromText(result);
   if (!resolution) {
-    logger.warn('Failed to parse entity resolution result');
+    logger.warn("Failed to parse entity resolution result");
     return null;
   }
 
   // If we got an exact entity ID match
-  if (resolution.type === 'EXACT_MATCH' && resolution.entityId) {
+  if (resolution.type === "EXACT_MATCH" && resolution.entityId) {
     const entity = await runtime.getEntityById(resolution.entityId as UUID);
     if (entity) {
       // Filter components again for the returned entity
@@ -243,7 +248,7 @@ export async function findEntityByName(
           if (component.sourceEntityId === message.entityId) return true;
           if (world && component.sourceEntityId) {
             const sourceRole = worldRoles[component.sourceEntityId];
-            if (sourceRole === 'OWNER' || sourceRole === 'ADMIN') return true;
+            if (sourceRole === "OWNER" || sourceRole === "ADMIN") return true;
           }
           if (component.sourceEntityId === runtime.agentId) return true;
           return false;
@@ -272,8 +277,10 @@ export async function findEntityByName(
 
     if (matchingEntity) {
       // If this is a relationship match, sort by interaction strength
-      if (resolution.type === 'RELATIONSHIP_MATCH') {
-        const interactionInfo = interactionData.find((d) => d.entity.id === matchingEntity.id);
+      if (resolution.type === "RELATIONSHIP_MATCH") {
+        const interactionInfo = interactionData.find(
+          (d) => d.entity.id === matchingEntity.id
+        );
         if (interactionInfo && interactionInfo.count > 0) {
           return matchingEntity;
         }
@@ -330,7 +337,6 @@ export async function getEntityDetails({
     runtime.getRoom(roomId),
     runtime.getEntitiesForRoom(roomId, true),
   ]);
-
   // Use a Map for uniqueness checking while processing entities
   const uniqueEntities = new Map();
 
@@ -355,7 +361,10 @@ export async function getEntityDetails({
       if (Array.isArray(mergedData[key]) && Array.isArray(value)) {
         // Use Set for deduplication in arrays
         mergedData[key] = [...new Set([...mergedData[key], ...value])];
-      } else if (typeof mergedData[key] === 'object' && typeof value === 'object') {
+      } else if (
+        typeof mergedData[key] === "object" &&
+        typeof value === "object"
+      ) {
         mergedData[key] = { ...mergedData[key], ...value };
       }
     }
@@ -364,7 +373,8 @@ export async function getEntityDetails({
     uniqueEntities.set(entity.id, {
       id: entity.id,
       name: room?.source
-        ? (entity.metadata[room.source] as { name?: string })?.name || entity.names[0]
+        ? (entity.metadata[room.source] as { name?: string })?.name ||
+          entity.names[0]
         : entity.names[0],
       names: entity.names,
       data: JSON.stringify({ ...mergedData, ...entity.metadata }),
@@ -388,8 +398,8 @@ export async function getEntityDetails({
  */
 export function formatEntities({ entities }: { entities: Entity[] }) {
   const entityStrings = entities.map((entity: Entity) => {
-    const header = `"${entity.names.join('" aka "')}"\nID: ${entity.id}${entity.metadata && Object.keys(entity.metadata).length > 0 ? `\nData: ${JSON.stringify(entity.metadata)}\n` : '\n'}`;
+    const header = `"${entity.names.join('" aka "')}"\nID: ${entity.id}${entity.metadata && Object.keys(entity.metadata).length > 0 ? `\nData: ${JSON.stringify(entity.metadata)}\n` : "\n"}`;
     return header;
   });
-  return entityStrings.join('\n');
+  return entityStrings.join("\n");
 }

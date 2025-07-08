@@ -1,13 +1,20 @@
-import handlebars from 'handlebars';
-import { sha1 } from 'js-sha1';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import handlebars from "handlebars";
+import { sha1 } from "js-sha1";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
-import { names, uniqueNamesGenerator } from 'unique-names-generator';
-import { z } from 'zod';
+import { names, uniqueNamesGenerator } from "unique-names-generator";
+import { z } from "zod";
 
-import logger from './logger';
-import type { Content, Entity, IAgentRuntime, Memory, State, TemplateType } from './types';
-import { ModelType, UUID, ContentType } from './types';
+import logger from "./logger";
+import type {
+  Content,
+  Entity,
+  IAgentRuntime,
+  Memory,
+  State,
+  TemplateType,
+} from "./types";
+import { ModelType, UUID, ContentType } from "./types";
 
 // Text Utils
 
@@ -31,7 +38,7 @@ function upgradeDoubleToTriple(tpl) {
     /(?<!{){{(?![{#\/!>])([\s\S]*?)}}/g,
     (_match, inner) => {
       // keep the block keyword {{else}} unchanged
-      if (inner.trim() === 'else') return `{{${inner}}}`;
+      if (inner.trim() === "else") return `{{${inner}}}`;
       return `{{{${inner}}}}`;
     }
   );
@@ -84,8 +91,11 @@ export const composePrompt = ({
   state: { [key: string]: string };
   template: TemplateType;
 }) => {
-  const templateStr = typeof template === 'function' ? template({ state }) : template;
-  const templateFunction = handlebars.compile(upgradeDoubleToTriple(templateStr));
+  const templateStr =
+    typeof template === "function" ? template({ state }) : template;
+  const templateFunction = handlebars.compile(
+    upgradeDoubleToTriple(templateStr)
+  );
   const output = composeRandomUser(templateFunction(state), 10);
   return output;
 };
@@ -105,12 +115,17 @@ export const composePromptFromState = ({
   state: State;
   template: TemplateType;
 }) => {
-  const templateStr = typeof template === 'function' ? template({ state }) : template;
-  const templateFunction = handlebars.compile(upgradeDoubleToTriple(templateStr));
+  const templateStr =
+    typeof template === "function" ? template({ state }) : template;
+  const templateFunction = handlebars.compile(
+    upgradeDoubleToTriple(templateStr)
+  );
 
   // get any keys that are in state but are not named text, values or data
   const stateKeys = Object.keys(state);
-  const filteredKeys = stateKeys.filter((key) => !['text', 'values', 'data'].includes(key));
+  const filteredKeys = stateKeys.filter(
+    (key) => !["text", "values", "data"].includes(key)
+  );
 
   // this flattens out key/values in text/values/data
   const filteredState = filteredKeys.reduce((acc, key) => {
@@ -119,7 +134,10 @@ export const composePromptFromState = ({
   }, {});
 
   // and then we flat state.values again
-  const output = composeRandomUser(templateFunction({ ...filteredState, ...state.values }), 10);
+  const output = composeRandomUser(
+    templateFunction({ ...filteredState, ...state.values }),
+    10
+  );
   return output;
 };
 
@@ -143,7 +161,7 @@ export const composePromptFromState = ({
  * const text = addHeader(header, body);
  */
 export const addHeader = (header: string, body: string) => {
-  return body.length > 0 ? `${header ? `${header}\n` : header}${body}\n` : '';
+  return body.length > 0 ? `${header ? `${header}\n` : header}${body}\n` : "";
 };
 
 /**
@@ -206,34 +224,42 @@ export const formatPosts = ({
   // Sort rooms by the newest message's createdAt
   const sortedRooms = Object.entries(groupedMessages).sort(
     ([, messagesA], [, messagesB]) =>
-      messagesB[messagesB.length - 1].createdAt - messagesA[messagesA.length - 1].createdAt
+      messagesB[messagesB.length - 1].createdAt -
+      messagesA[messagesA.length - 1].createdAt
   );
 
   const formattedPosts = sortedRooms.map(([roomId, roomMessages]) => {
     const messageStrings = roomMessages
       .filter((message: Memory) => message.entityId)
       .map((message: Memory) => {
-        const entity = entities.find((entity: Entity) => entity.id === message.entityId);
+        const entity = entities.find(
+          (entity: Entity) => entity.id === message.entityId
+        );
         if (!entity) {
-          logger.warn('core::prompts:formatPosts - no entity for', message.entityId);
+          logger.warn(
+            "core::prompts:formatPosts - no entity for",
+            message.entityId
+          );
         }
         // TODO: These are okay but not great
-        const userName = entity?.names[0] || 'Unknown User';
-        const displayName = entity?.names[0] || 'unknown';
+        const userName = entity?.names[0] || "Unknown User";
+        const displayName = entity?.names[0] || "unknown";
 
         return `Name: ${userName} (@${displayName} EntityID:${message.entityId})
-MessageID: ${message.id}${message.content.inReplyTo ? `\nIn reply to: ${message.content.inReplyTo}` : ''}
+MessageID: ${message.id}${message.content.inReplyTo ? `\nIn reply to: ${message.content.inReplyTo}` : ""}
 Source: ${message.content.source}
 Date: ${formatTimestamp(message.createdAt)}
 Text:
 ${message.content.text}`;
       });
 
-    const header = conversationHeader ? `Conversation: ${roomId.slice(-5)}\n` : '';
-    return `${header}${messageStrings.join('\n\n')}`;
+    const header = conversationHeader
+      ? `Conversation: ${roomId.slice(-5)}\n`
+      : "";
+    return `${header}${messageStrings.join("\n\n")}`;
   });
 
-  return formattedPosts.join('\n\n');
+  return formattedPosts.join("\n\n");
 };
 
 /**
@@ -258,10 +284,15 @@ export const formatMessages = ({
 
       const messageActions = (message.content as Content).actions;
       const messageThought = (message.content as Content).thought;
-      const formattedName =
-        entities.find((entity: Entity) => entity.id === message.entityId)?.names[0] ||
-        'Unknown User';
 
+      const formattedName =
+        entities
+          .filter((entity: Entity) => entity.id === message.entityId)
+          .slice(-1)
+          .map((entity: Entity) => entity.names?.slice(-1)[0])?.[0] ||
+        // check message
+        (message.metadata as any)?.raw?.senderName ||
+        "Unknown User";
       const attachments = (message.content as Content).attachments;
 
       const attachmentString =
@@ -270,18 +301,21 @@ export const formatMessages = ({
               .map((media) => {
                 const lines = [`[${media.id} - ${media.title} (${media.url})]`];
                 if (media.text) lines.push(`Text: ${media.text}`);
-                if (media.description) lines.push(`Description: ${media.description}`);
-                return lines.join('\n');
+                if (media.description)
+                  lines.push(`Description: ${media.description}`);
+                return lines.join("\n");
               })
               .join(
                 // Use comma separator only if all attachments are single-line (no text/description)
-                attachments.every((media) => !media.text && !media.description) ? ', ' : '\n'
+                attachments.every((media) => !media.text && !media.description)
+                  ? ", "
+                  : "\n"
               )})`
           : null;
 
       const messageTime = new Date(message.createdAt);
-      const hours = messageTime.getHours().toString().padStart(2, '0');
-      const minutes = messageTime.getMinutes().toString().padStart(2, '0');
+      const hours = messageTime.getHours().toString().padStart(2, "0");
+      const minutes = messageTime.getMinutes().toString().padStart(2, "0");
       const timeString = `${hours}:${minutes}`;
 
       const timestamp = formatTimestamp(message.createdAt);
@@ -293,22 +327,29 @@ export const formatMessages = ({
         : null;
 
       const timestampString = `${timeString} (${timestamp}) [${message.entityId}]`;
-      const textString = messageText ? `${timestampString} ${formattedName}: ${messageText}` : null;
+      const textString = messageText
+        ? `${timestampString} ${formattedName}: ${messageText}`
+        : null;
       const actionString =
         messageActions && messageActions.length > 0
           ? `${
-              textString ? '' : timestampString
-            } (${formattedName}'s actions: ${messageActions.join(', ')})`
+              textString ? "" : timestampString
+            } (${formattedName}'s actions: ${messageActions.join(", ")})`
           : null;
 
       // for each thought, action, text or attachment, add a new line, with text first, then thought, then action, then attachment
-      const messageString = [textString, thoughtString, actionString, attachmentString]
+      const messageString = [
+        textString,
+        thoughtString,
+        actionString,
+        attachmentString,
+      ]
         .filter(Boolean)
-        .join('\n');
+        .join("\n");
 
       return messageString;
     })
-    .join('\n');
+    .join("\n");
   return messageStrings;
 };
 
@@ -323,15 +364,15 @@ export const formatTimestamp = (messageDate: number) => {
   const days = Math.floor(hours / 24);
 
   if (absDiff < 60000) {
-    return 'just now';
+    return "just now";
   }
   if (minutes < 60) {
-    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
   }
   if (hours < 24) {
-    return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
   }
-  return `${days} day${days !== 1 ? 's' : ''} ago`;
+  return `${days} day${days !== 1 ? "s" : ""} ago`;
 };
 
 const jsonBlockPattern = /```json\n([\s\S]*?)\n```/;
@@ -357,13 +398,13 @@ export function parseKeyValueXml(text: string): Record<string, any> | null {
 
   if (xmlBlockMatch) {
     xmlContent = xmlBlockMatch[1];
-    logger.debug('Found response XML block');
+    logger.debug("Found response XML block");
   } else {
     // Fall back to finding any XML block (e.g., <response>...</response>)
     const fallbackMatch = text.match(/<(\w+)>([\s\S]*?)<\/\1>/);
     if (!fallbackMatch) {
-      logger.warn('Could not find XML block in text');
-      logger.debug('Text content:', text.substring(0, 200) + '...');
+      logger.warn("Could not find XML block in text");
+      logger.debug("Text content:", text.substring(0, 200) + "...");
       return null;
     }
     xmlContent = fallbackMatch[2];
@@ -382,31 +423,33 @@ export function parseKeyValueXml(text: string): Record<string, any> | null {
       const key = match[1];
       // Basic unescaping for common XML entities (add more as needed)
       const value = match[2]
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
         .replace(/&apos;/g, "'")
         .trim();
 
       // Handle potential comma-separated lists for specific keys
-      if (key === 'actions' || key === 'providers' || key === 'evaluators') {
-        result[key] = value ? value.split(',').map((s) => s.trim()) : [];
-      } else if (key === 'simple') {
-        result[key] = value.toLowerCase() === 'true';
+      if (key === "actions" || key === "providers" || key === "evaluators") {
+        result[key] = value ? value.split(",").map((s) => s.trim()) : [];
+      } else if (key === "simple") {
+        result[key] = value.toLowerCase() === "true";
       } else {
         result[key] = value;
       }
     } else {
-      logger.warn(`Mismatched XML tags found: <${match[1]}> and </${match[3]}>`);
+      logger.warn(
+        `Mismatched XML tags found: <${match[1]}> and </${match[3]}>`
+      );
       // Potentially skip this mismatched pair or return null depending on strictness needed
     }
   }
 
   // Return null if no key-value pairs were found
   if (Object.keys(result).length === 0) {
-    logger.warn('No key-value pairs extracted from XML content');
-    logger.debug('XML content was:', xmlContent.substring(0, 200) + '...');
+    logger.warn("No key-value pairs extracted from XML content");
+    logger.debug("XML content was:", xmlContent.substring(0, 200) + "...");
     return null;
   }
 
@@ -423,7 +466,9 @@ export function parseKeyValueXml(text: string): Record<string, any> | null {
  * @param text - The input text from which to extract and parse the JSON object.
  * @returns An object parsed from the JSON string if successful; otherwise, null or the result of parsing an array.
  */
-export function parseJSONObjectFromText(text: string): Record<string, any> | null {
+export function parseJSONObjectFromText(
+  text: string
+): Record<string, any> | null {
   let jsonData = null;
   const jsonBlockMatch = text.match(jsonBlockPattern);
 
@@ -441,7 +486,7 @@ export function parseJSONObjectFromText(text: string): Record<string, any> | nul
   }
 
   // Ensure we have a non-null object that's not an array
-  if (jsonData && typeof jsonData === 'object' && !Array.isArray(jsonData)) {
+  if (jsonData && typeof jsonData === "object" && !Array.isArray(jsonData)) {
     return jsonData;
   }
 
@@ -466,13 +511,19 @@ export function parseJSONObjectFromText(text: string): Record<string, any> | nul
 
 export const normalizeJsonString = (str: string) => {
   // Remove extra spaces after '{' and before '}'
-  str = str.replace(/\{\s+/, '{').replace(/\s+\}/, '}').trim();
+  str = str.replace(/\{\s+/, "{").replace(/\s+\}/, "}").trim();
 
   // "key": unquotedValue → "key": "unquotedValue"
-  str = str.replace(/("[\w\d_-]+")\s*: \s*(?!"|\[)([\s\S]+?)(?=(,\s*"|\}$))/g, '$1: "$2"');
+  str = str.replace(
+    /("[\w\d_-]+")\s*: \s*(?!"|\[)([\s\S]+?)(?=(,\s*"|\}$))/g,
+    '$1: "$2"'
+  );
 
   // "key": 'value' → "key": "value"
-  str = str.replace(/"([^"]+)"\s*:\s*'([^']*)'/g, (_, key, value) => `"${key}": "${value}"`);
+  str = str.replace(
+    /"([^"]+)"\s*:\s*'([^']*)'/g,
+    (_, key, value) => `"${key}": "${value}"`
+  );
 
   // "key": someWord → "key": "someWord"
   str = str.replace(/("[\w\d_-]+")\s*:\s*([A-Za-z_]+)(?!["\w])/g, '$1: "$2"');
@@ -494,13 +545,16 @@ export type ActionResponse = {
 /**
  * Truncate text to fit within the character limit, ensuring it ends at a complete sentence.
  */
-export function truncateToCompleteSentence(text: string, maxLength: number): string {
+export function truncateToCompleteSentence(
+  text: string,
+  maxLength: number
+): string {
   if (text.length <= maxLength) {
     return text;
   }
 
   // Attempt to truncate at the last period within the limit
-  const lastPeriodIndex = text.lastIndexOf('.', maxLength - 1);
+  const lastPeriodIndex = text.lastIndexOf(".", maxLength - 1);
   if (lastPeriodIndex !== -1) {
     const truncatedAtPeriod = text.slice(0, lastPeriodIndex + 1).trim();
     if (truncatedAtPeriod.length > 0) {
@@ -509,7 +563,7 @@ export function truncateToCompleteSentence(text: string, maxLength: number): str
   }
 
   // If no period, truncate to the nearest whitespace within the limit
-  const lastSpaceIndex = text.lastIndexOf(' ', maxLength - 1);
+  const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 1);
   if (lastSpaceIndex !== -1) {
     const truncatedAtSpace = text.slice(0, lastSpaceIndex).trim();
     if (truncatedAtSpace.length > 0) {
@@ -522,8 +576,12 @@ export function truncateToCompleteSentence(text: string, maxLength: number): str
   return `${hardTruncated}...`;
 }
 
-export async function splitChunks(content: string, chunkSize = 512, bleed = 20): Promise<string[]> {
-  logger.debug('[splitChunks] Starting text split');
+export async function splitChunks(
+  content: string,
+  chunkSize = 512,
+  bleed = 20
+): Promise<string[]> {
+  logger.debug("[splitChunks] Starting text split");
 
   const characterstoTokens = 3.5;
 
@@ -533,9 +591,10 @@ export async function splitChunks(content: string, chunkSize = 512, bleed = 20):
   });
 
   const chunks = await textSplitter.splitText(content);
-  logger.debug('[splitChunks] Split complete:', {
+  logger.debug("[splitChunks] Split complete:", {
     numberOfChunks: chunks.length,
-    averageChunkSize: chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length,
+    averageChunkSize:
+      chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length,
   });
 
   return chunks;
@@ -544,13 +603,17 @@ export async function splitChunks(content: string, chunkSize = 512, bleed = 20):
 /**
  * Trims the provided text prompt to a specified token limit using a tokenizer model and type.
  */
-export async function trimTokens(prompt: string, maxTokens: number, runtime: IAgentRuntime) {
-  if (!prompt) throw new Error('Trim tokens received a null prompt');
+export async function trimTokens(
+  prompt: string,
+  maxTokens: number,
+  runtime: IAgentRuntime
+) {
+  if (!prompt) throw new Error("Trim tokens received a null prompt");
 
   // if prompt is less than of maxtokens / 5, skip
   if (prompt.length < maxTokens / 5) return prompt;
 
-  if (maxTokens <= 0) throw new Error('maxTokens must be positive');
+  if (maxTokens <= 0) throw new Error("maxTokens must be positive");
 
   const tokens = await runtime.useModel(ModelType.TEXT_TOKENIZER_ENCODE, {
     prompt,
@@ -573,9 +636,9 @@ export async function trimTokens(prompt: string, maxTokens: number, runtime: IAg
 export function safeReplacer() {
   const seen = new WeakSet();
   return function (_key: string, value: any) {
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       if (seen.has(value)) {
-        return '[Circular]';
+        return "[Circular]";
       }
       seen.add(value);
     }
@@ -592,11 +655,13 @@ export function safeReplacer() {
  * @param {string | undefined | null} value - The input text to parse
  * @returns {boolean} - Returns `true` for affirmative inputs, `false` for negative or unrecognized inputs
  */
-export function parseBooleanFromText(value: string | undefined | null): boolean {
+export function parseBooleanFromText(
+  value: string | undefined | null
+): boolean {
   if (!value) return false;
 
-  const affirmative = ['YES', 'Y', 'TRUE', 'T', '1', 'ON', 'ENABLE'];
-  const negative = ['NO', 'N', 'FALSE', 'F', '0', 'OFF', 'DISABLE'];
+  const affirmative = ["YES", "Y", "TRUE", "T", "1", "ON", "ENABLE"];
+  const negative = ["NO", "N", "FALSE", "F", "0", "OFF", "DISABLE"];
 
   const normalizedText = value.trim().toUpperCase();
 
@@ -634,23 +699,23 @@ export function validateUuid(value: unknown): UUID | null {
  * @throws {TypeError} Throws an error if the input target is not a string.
  */
 export function stringToUuid(target: string | number): UUID {
-  if (typeof target === 'number') {
+  if (typeof target === "number") {
     target = (target as number).toString();
   }
 
-  if (typeof target !== 'string') {
-    throw TypeError('Value must be string');
+  if (typeof target !== "string") {
+    throw TypeError("Value must be string");
   }
 
   const _uint8ToHex = (ubyte: number): string => {
     const first = ubyte >> 4;
     const second = ubyte - (first << 4);
-    const HEX_DIGITS = '0123456789abcdef'.split('');
+    const HEX_DIGITS = "0123456789abcdef".split("");
     return HEX_DIGITS[first] + HEX_DIGITS[second];
   };
 
   const _uint8ArrayToHex = (buf: Uint8Array): string => {
-    let out = '';
+    let out = "";
     for (let i = 0; i < buf.length; i++) {
       out += _uint8ToHex(buf[i]);
     }
@@ -672,17 +737,23 @@ export function stringToUuid(target: string | number): UUID {
   return `${_uint8ArrayToHex(hashBuffer.slice(0, 4))}-${_uint8ArrayToHex(hashBuffer.slice(4, 6))}-${_uint8ToHex(hashBuffer[6] & 0x0f)}${_uint8ToHex(hashBuffer[7])}-${_uint8ToHex((hashBuffer[8] & 0x3f) | 0x80)}${_uint8ToHex(hashBuffer[9])}-${_uint8ArrayToHex(hashBuffer.slice(10, 16))}` as UUID;
 }
 
-export const getContentTypeFromMimeType = (mimeType: string): ContentType | undefined => {
-  if (mimeType.startsWith('image/')) return ContentType.IMAGE;
-  if (mimeType.startsWith('video/')) return ContentType.VIDEO;
-  if (mimeType.startsWith('audio/')) return ContentType.AUDIO;
-  if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.startsWith('text/')) {
+export const getContentTypeFromMimeType = (
+  mimeType: string
+): ContentType | undefined => {
+  if (mimeType.startsWith("image/")) return ContentType.IMAGE;
+  if (mimeType.startsWith("video/")) return ContentType.VIDEO;
+  if (mimeType.startsWith("audio/")) return ContentType.AUDIO;
+  if (
+    mimeType.includes("pdf") ||
+    mimeType.includes("document") ||
+    mimeType.startsWith("text/")
+  ) {
     return ContentType.DOCUMENT;
   }
   return undefined;
 };
 
 export function getLocalServerUrl(path: string): string {
-  const port = process.env.SERVER_PORT || '3000';
+  const port = process.env.SERVER_PORT || "3000";
   return `http://localhost:${port}${path}`;
 }

@@ -494,6 +494,10 @@ export class SocketIOManager extends EventAdapter {
         channelId: channelId,
         roomId: channelId, // Keep for backward compatibility
         entityId: this.clientEntityId,
+        metadata: {
+          username: "The House",
+          displayName: "The House",
+        },
       },
     };
 

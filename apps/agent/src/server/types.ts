@@ -174,3 +174,14 @@ export type AgentContext = {
   role: "house" | "player" | "host";
   entityName: string;
 };
+
+// Message types for the streaming system
+export interface StreamedMessage {
+  id: UUID;
+  channelId: UUID;
+  authorId: UUID;
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+  source: "agent" | "client" | "system";
+}
