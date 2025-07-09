@@ -18,11 +18,24 @@ import { influencerPlugin } from "../../src/plugins/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import { StrategyService } from "../../src/plugins/socialStrategy/service/addPlayer";
 import { Phase } from "../../src/plugins/house/types";
-import { createUniqueUuid, UUID, ChannelType } from "@elizaos/core";
+import {
+  createUniqueUuid,
+  UUID,
+  ChannelType,
+  IAgentRuntime,
+} from "@elizaos/core";
 import { GameEventType } from "../../src/plugins/house/events/types";
 import fs from "fs";
 import os from "os";
 import { CoordinationService } from "../../src/plugins/coordinator/service";
+import { InfluenceApp } from "../../src/server/influence-app";
+import {
+  Agent,
+  AppServerConfig,
+  ParticipantMode,
+  ParticipantState,
+} from "../../src/server/types";
+import { ModelMockingService } from "../utils/model-mocking-service";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -36,60 +49,37 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   it("should demonstrate strategic thinking and diary room functionality with diverse players", async () => {
     RecordingTestUtils.logRecordingStatus("strategy diary room test");
     const simDataDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "strategy-diary-test-data")
+      path.join(`.elizaos/strategy-diary-test-${Date.now()}`)
     );
-    const sim = new ConversationSimulatorV3({
-      dataDir: simDataDir,
-      useModelMockingService: true,
-      enableRealTime: true,
-      serverPort: 3001,
-      testContext: {
-        suiteName: "Strategy",
-        testName: "diary room and strategic intelligence",
-      },
-      allowReplyToMessages(message, messageCount) {
-        return messageCount < 6;
-      },
+    const modelMockingService = new ModelMockingService({
+      mode: "record",
+      recordingsDir: path.join(__dirname, "../../recordings"),
     });
 
-    // Track game events for coordination
-    const gameEvents: Array<{ type: string; payload: any; timestamp: number }> =
-      [];
-    const phaseTransitions: Array<{
-      from: Phase;
-      to: Phase;
-      timestamp: number;
-    }> = [];
+    const app = new InfluenceApp({
+      dataDir: simDataDir,
+      serverPort: 2455,
+      runtimeConfig: {
+        runtime: (runtime) => {
+          modelMockingService.patchRuntime(runtime);
+          return runtime;
+        },
+      },
+      context: { suiteName: "Strategy", testName: "diary room" },
+    });
 
     try {
-      await sim.initialize();
-
-      // Set up event observation for game coordination
-      const eventObserver: GameEventObserver = (
-        eventType: string,
-        payload: any
-      ) => {
-        const timestamp = Date.now();
-        gameEvents.push({ type: eventType, payload, timestamp });
-        console.log(`🎯 Game Event: ${eventType}`, payload);
-
-        // Track phase transitions specifically
-        if (eventType === GameEventType.PHASE_STARTED) {
-          phaseTransitions.push({
-            from: payload.previousPhase || Phase.INIT,
-            to: payload.phase,
-            timestamp,
-          });
-        }
-      };
-
-      sim.observeGameEvents(eventObserver);
+      await app.initialize();
+      await app.start();
 
       // Add House agent (game master)
-      const house = await sim.addAgent("House", houseCharacter, [
-        ...getHousePlugins(),
-        housePlugin,
-      ]);
+      const house = await app.addAgent({
+        character: houseCharacter,
+        plugins: [...getHousePlugins(), housePlugin],
+        metadata: {
+          name: "House",
+        },
+      });
 
       // Add 5 influencer agents with distinct personalities for strategic diversity
       const playerConfigs = [
@@ -120,11 +110,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         },
       ];
 
-      const players = [];
+      const players: Agent<Record<string, unknown>>[] = [];
       for (const config of playerConfigs) {
-        const player = await sim.addAgent(
-          config.name,
-          {
+        const player = await app.addAgent({
+          character: {
             ...alexCharacter,
             name: config.name,
             bio: [
@@ -136,12 +125,11 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
             ],
             adjectives: [config.personality],
           },
-          [...getTestPlugins(), influencerPlugin]
-        );
+        });
         players.push(player);
       }
 
-      await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
+      // await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
 
       expectSoft(house).toBeDefined();
       expectSoft(players.length).toBe(5);
@@ -155,24 +143,35 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       let messagesSinceLastEvent: Array<ConversationMessageV3> = [];
 
       // Create main game channel with all participants and pre-loaded LOBBY game state
-      const mainChannelId = await sim.createChannel({
+      const mainChannelId = await app.createChannel({
         name: "main-game-channel",
-        participants: ["House", ...playerNames],
-        type: ChannelType.GROUP,
-        gameState: {
-          phase: Phase.LOBBY,
-          round: 1,
-          settings: {
-            minPlayers: 3,
+        participants: [
+          {
+            agentId: house.id,
+            mode: ParticipantMode.BROADCAST_ONLY,
+            state: ParticipantState.FOLLOWED,
           },
-          agentRoles: [
-            { agentName: "House", role: "house" },
-            { agentName: playerNames[0], role: "host" },
-            ...playerNames
-              .slice(1)
-              .map((name) => ({ agentName: name, role: "player" as const })),
-          ],
-        },
+          ...players.map((player) => ({
+            agentId: player.id,
+            mode: ParticipantMode.BROADCAST_ONLY,
+            state: ParticipantState.FOLLOWED,
+          })),
+        ],
+        type: ChannelType.GROUP,
+        // gameState: {
+        //   phase: Phase.LOBBY,
+        //   round: 1,
+        //   settings: {
+        //     minPlayers: 3,
+        //   },
+        //   agentRoles: [
+        //     { agentName: "House", role: "house" },
+        //     { agentName: playerNames[0], role: "host" },
+        //     ...playerNames
+        //       .slice(1)
+        //       .map((name) => ({ agentName: name, role: "player" as const })),
+        //   ],
+        // },
         room: {
           name: "main-game-room",
           type: ChannelType.GROUP,
@@ -310,9 +309,13 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         tableName: "messages",
       });
       // Get entities to resolve names properly
-      const alphaEntities = await alpha.getEntitiesForRoom(createUniqueUuid(alpha, mainChannelId));
-      const entityMap = new Map(alphaEntities.map(e => [e.id, e.names[0] || "Unknown"]));
-      
+      const alphaEntities = await alpha.getEntitiesForRoom(
+        createUniqueUuid(alpha, mainChannelId)
+      );
+      const entityMap = new Map(
+        alphaEntities.map((e) => [e.id, e.names[0] || "Unknown"])
+      );
+
       console.log(
         "🔍 Alpha memories:",
         memories.map(
@@ -636,7 +639,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         "\n✅ Event-driven strategic intelligence and diary room coordination test complete!"
       );
     } finally {
-      await sim.cleanup();
+      await app.stop();
     }
   }, 720000); // 12 minute timeout for comprehensive testing
 });
