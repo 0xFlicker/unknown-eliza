@@ -54,6 +54,10 @@ export interface ChannelConfig {
   name: string;
   type: ChannelType;
   participants: ChannelParticipant[];
+  runtimeDecorators?: ((
+    runtime: IAgentRuntime,
+    channelId: UUID
+  ) => IAgentRuntime | Promise<IAgentRuntime>)[];
   metadata?: Record<string, unknown>;
   maxMessages?: number;
   timeoutMs?: number;
@@ -80,6 +84,8 @@ export interface Channel {
 export interface AgentConfig<Context extends Record<string, unknown>> {
   character: Character;
   plugins?: Plugin[];
+  /** Called once per runtime at startup to initialize state or preload memory */
+  init?: (runtime: IAgentRuntime) => Promise<void>;
   metadata?: Context;
 }
 

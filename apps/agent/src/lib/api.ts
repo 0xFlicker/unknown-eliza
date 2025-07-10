@@ -66,7 +66,7 @@ type AgentLog = {
   [key: string]: any;
 };
 
-const API_PREFIX = "http://localhost:3333/api";
+let API_PREFIX = "http://localhost:3333/api";
 
 const fetcher = async <ResponseType = unknown>({
   url,
@@ -209,6 +209,9 @@ const fetcher = async <ResponseType = unknown>({
 };
 
 export const apiClient = {
+  setEndpoint: (endpoint: string) => {
+    API_PREFIX = endpoint;
+  },
   // Agent specific
   getAgents: (): Promise<{ data: { agents: Partial<AgentWithStatus>[] } }> =>
     fetcher({ url: "/agents" }),

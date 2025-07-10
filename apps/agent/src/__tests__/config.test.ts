@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { socialStrategyPlugin as plugin } from "../src/plugins/socialStrategy/index";
+import { socialStrategyPlugin as plugin } from "../plugins/socialStrategy/index";
 import { z } from "zod";
 import { createMockRuntime } from "./utils/core-test-utils";
 

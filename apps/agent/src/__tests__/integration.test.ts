@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { logger, IAgentRuntime, Plugin } from "@elizaos/core";
-import { socialStrategyPlugin as plugin } from "../src/plugins/socialStrategy/index";
+import { socialStrategyPlugin as plugin } from "../plugins/socialStrategy/index";
 import { createMockRuntime } from "./test-utils";
 import * as os from "os";
 

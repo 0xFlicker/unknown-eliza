@@ -7,17 +7,17 @@ import openaiPlugin from "@elizaos/plugin-openai";
 import {
   coordinatorPlugin,
   CoordinationService,
-} from "../../src/plugins/coordinator";
-import alexCharacter from "../../src/characters/alex";
-import houseCharacter from "../../src/characters/house";
+} from "../../plugins/coordinator";
+import alexCharacter from "../../characters/alex";
+import houseCharacter from "../../characters/house";
 import { createUniqueUuid, ChannelType, Plugin } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
-import { Phase } from "../../src/plugins/house/types";
+import { Phase } from "../../plugins/house/types";
 import {
   GameEventHandlers,
   GameEventType,
-} from "../../src/plugins/house/events/types";
+} from "../../plugins/house/events/types";
 
 describe("Coordinator Plugin - Basic Functionality", () => {
   function getBasePlugins() {

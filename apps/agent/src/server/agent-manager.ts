@@ -70,6 +70,12 @@ export class AgentManager<Context extends Record<string, unknown>> {
     // Register with AgentServer
     await this.server.registerAgent(decoratedRuntime);
 
+    // Run agent-specific initialization hook
+    if (config.init) {
+      await config.init(decoratedRuntime);
+      logger.debug(`Ran init hook for agent ${config.character.name}`);
+    }
+
     // Create agent record
     const agent: Agent<Context> = {
       id: decoratedRuntime.agentId,
@@ -155,6 +161,13 @@ export class AgentManager<Context extends Record<string, unknown>> {
    */
   getAgentCount(): number {
     return this.agents.size;
+  }
+
+  /**
+   * Get map of agentId => Agent
+   */
+  getAgentMap(): Map<UUID, Agent<Context>> {
+    return this.agents;
   }
 
   /**

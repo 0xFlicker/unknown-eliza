@@ -6,6 +6,7 @@ import {
   EventType,
   EntityPayload,
   createUniqueUuid,
+  stringToUuid,
 } from "@elizaos/core";
 import { AgentServer, MessageChannel, MessageServer } from "@elizaos/server";
 import {
@@ -16,6 +17,7 @@ import {
   ParticipantMode,
   AgentChannelAssociation,
   ChannelMessage,
+  RuntimeDecorator,
 } from "./types";
 import { AssociationManager } from "./association-manager";
 import { apiClient } from "../lib/api";
@@ -31,17 +33,20 @@ export class ChannelManager {
   private associationManager: AssociationManager;
   private server: AgentServer;
   private messageServer: MessageServer;
+  private houseAgent: IAgentRuntime;
 
   constructor(
     agentManager: AgentManager<any>,
     associationManager: AssociationManager,
     server: AgentServer,
-    messageServer: MessageServer
+    messageServer: MessageServer,
+    houseAgent: IAgentRuntime
   ) {
     this.agentManager = agentManager;
     this.associationManager = associationManager;
     this.server = server;
     this.messageServer = messageServer;
+    this.houseAgent = houseAgent;
   }
 
   /**
@@ -85,7 +90,12 @@ export class ChannelManager {
     };
 
     // Set up agent associations using proper AgentServer flow
-    await this.setupChannelAssociations(channelRecord, config.participants);
+    await this.setupChannelAssociations({
+      channel: channelRecord,
+      participants: config.participants,
+      runtimeDecorators: config.runtimeDecorators,
+      houseClientId: this.houseAgent.agentId,
+    });
 
     // Store channel
     this.channels.set(channelRecord.id, channelRecord);
@@ -101,11 +111,17 @@ export class ChannelManager {
    * Set up agent associations using proper AgentServer infrastructure
    * This triggers the ENTITY_JOINED events that the bootstrap plugin handles
    */
-  private async setupChannelAssociations(
-    channel: Channel,
-    participants: ChannelParticipant[],
-    houseClientId?: UUID
-  ): Promise<void> {
+  private async setupChannelAssociations({
+    channel,
+    participants,
+    runtimeDecorators,
+    houseClientId,
+  }: {
+    channel: Channel;
+    participants: ChannelParticipant[];
+    runtimeDecorators?: RuntimeDecorator<IAgentRuntime>[];
+    houseClientId?: UUID;
+  }): Promise<void> {
     const participantIds = participants.map((p) => p.agentId);
 
     logger.info(
@@ -122,7 +138,7 @@ export class ChannelManager {
 
     // Set up each participant using proper AgentServer flow
     for (const participant of participants) {
-      const runtime = this.agentManager.getAgentRuntime(participant.agentId);
+      let runtime = this.agentManager.getAgentRuntime(participant.agentId);
       if (!runtime) continue;
 
       logger.info(
@@ -148,6 +164,12 @@ export class ChannelManager {
 
         const entityId = createUniqueUuid(runtime, otherParticipant.agentId);
         const worldId = createUniqueUuid(runtime, channel.messageServerId);
+
+        if (runtimeDecorators) {
+          for (const decorator of runtimeDecorators) {
+            runtime = await decorator(runtime);
+          }
+        }
 
         await runtime.emitEvent(EventType.ENTITY_JOINED, {
           runtime,

@@ -381,7 +381,7 @@ bun run typecheck        # Typecheck w/ tsc
 
 ### Testing
 
-Check package.json for details, but most packages use vitest and not native bun for testing. Vitest tests must be run using the `run test` script, not the `test` command.
+Check package.json for details as packages may be using vitest or native bun for testing. Vitest tests must be run using the `run test` script where as bun tests can use `bun test` command. Using `bun run test` (any package but apps/agent) or `bun run test:record` (apps/agent) is the safest choice.
 
 ```bash
 bun run test

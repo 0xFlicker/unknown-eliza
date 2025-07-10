@@ -19,7 +19,7 @@ import {
   type AgentResponseResult,
 } from "./model-mocking-service";
 import { GameStatePreloader } from "./game-state-preloader";
-import { Phase, GameSettings } from "../../src/plugins/house/types";
+import { Phase, GameSettings } from "../../plugins/house/types";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import {
@@ -34,11 +34,11 @@ import {
   StrategicThinkingPayload,
   DiaryRoomPayload,
   GameStateChangePayload,
-} from "../../src/plugins/house/events/types";
+} from "../../plugins/house/events/types";
 import {
   AnyCoordinationMessage,
   MessageServiceMessage,
-} from "../../src/plugins/coordinator/types";
+} from "../../plugins/coordinator/types";
 import { CoordinationService } from "src/plugins/coordinator/service";
 
 /**

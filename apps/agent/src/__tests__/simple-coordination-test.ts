@@ -1,17 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { ConversationSimulatorV3 } from "./utils/conversation-simulator-v3";
-import {
-  coordinatorPlugin,
-  CoordinationService,
-} from "../src/plugins/coordinator";
-import alexCharacter from "../src/characters/alex";
-import houseCharacter from "../src/characters/house";
+import { coordinatorPlugin, CoordinationService } from "../plugins/coordinator";
+import alexCharacter from "../characters/alex";
+import houseCharacter from "../characters/house";
 import { createUniqueUuid, UUID, stringToUuid, EventType } from "@elizaos/core";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { GameEventType } from "../src/plugins/house/events/types";
-import { Phase } from "../src/plugins/house/types";
+import { GameEventType } from "../plugins/house/events/types";
+import { Phase } from "../plugins/house/types";
 
 describe("Simple Coordination Test", () => {
   it("should test coordination", async () => {

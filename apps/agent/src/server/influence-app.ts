@@ -1,4 +1,5 @@
 import {
+  AgentRuntime,
   ChannelType,
   IAgentRuntime,
   UUID,
@@ -6,18 +7,40 @@ import {
   stringToUuid,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
-import { AppServerConfig, RuntimeDecorator, StreamedMessage } from "./types";
+import {
+  Agent,
+  AppServerConfig,
+  RuntimeDecorator,
+  StreamedMessage,
+} from "./types";
 import EventEmitter from "node:events";
+import { housePlugin } from "../../src/plugins/house";
+import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
+import openaiPlugin from "@elizaos/plugin-openai";
 import { createAgentServer } from "./factory";
 import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
 import { SocketIOManager } from "../lib/socketio-manager";
-import { Subject, Observable, fromEvent } from "rxjs";
+import { Subject, Observable, fromEvent, Subscription } from "rxjs";
+import { map } from "rxjs/operators";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
 import { MessageServer } from "@elizaos/server";
+import houseCharacter from "@/characters/house";
+import { apiClient } from "@/lib/api";
+
+/**
+ * Unified game-event payload emitted from runtimes and internal bus
+ */
+export interface GameEvent<T = any> {
+  type: string;
+  payload: T;
+  sourceAgent: UUID;
+  channelId?: UUID;
+  timestamp: number;
+}
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -36,10 +59,16 @@ export class InfluenceApp<
   private agentManager: AgentManager<AgentContext>;
   private channelManager: ChannelManager;
 
+  // The house agent
+  private houseAgent: IAgentRuntime | null = null;
+
   // Message streaming infrastructure
   private socketManager: SocketIOManager;
   private messageStream$ = new Subject<StreamedMessage>();
   private channelMessageStreams = new Map<UUID, Subject<StreamedMessage>>();
+
+  // Game-event streaming infrastructure
+  private gameEvent$ = new Subject<GameEvent<any>>();
 
   // Runtime configuration
   private defaultRuntimeDecorators: RuntimeDecorator<Runtime>[] = [];
@@ -55,6 +84,27 @@ export class InfluenceApp<
         return runtime as Runtime;
       });
     }
+    // Hook direct runtime emits into our game-event stream
+    const hookEvents: RuntimeDecorator<Runtime> = (runtime) => {
+      const originalEmit = runtime.emitEvent.bind(runtime);
+      runtime.emitEvent = async (eventType, payload) => {
+        const p: any = payload;
+        const rawRoom = p.roomId ?? p.channelId;
+        const typeString = (
+          Array.isArray(eventType) ? eventType[0] : eventType
+        ) as string;
+        this.gameEvent$.next({
+          type: typeString,
+          payload,
+          sourceAgent: runtime.agentId,
+          channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
+          timestamp: Date.now(),
+        });
+        return originalEmit(eventType, payload);
+      };
+      return runtime;
+    };
+    this.defaultRuntimeDecorators.push(hookEvents);
   }
 
   async initialize() {
@@ -62,6 +112,7 @@ export class InfluenceApp<
       this.config
     );
     process.env.SERVER_PORT = serverPort.toString();
+    apiClient.setEndpoint(`http://localhost:${serverPort}/api`);
     const dataDir =
       this.config.dataDir ??
       (() => {
@@ -86,23 +137,32 @@ export class InfluenceApp<
         : []
     );
 
+    // Initialize SocketIO client for real-time message streaming
+    // "The House" acts as a human-like user that can stimulate agent responses
+    // Generate a proper UUID for The House
+    this.houseAgent = new AgentRuntime({
+      character: houseCharacter,
+      plugins: [sqlPlugin, openaiPlugin, housePlugin],
+    });
+
     this.associationManager = new AssociationManager();
     this.channelManager = new ChannelManager(
       this.agentManager,
       this.associationManager,
       this.server,
-      this.messageServer
+      this.messageServer,
+      this.houseAgent
     );
 
-    // Initialize SocketIO client for real-time message streaming
-    // "The House" acts as a human-like user that can stimulate agent responses
-    // Generate a proper UUID for The House
-    this.houseClientId = stringToUuid("the-house");
+    await this.houseAgent.initialize();
+    await this.server.registerAgent(this.houseAgent);
+
     this.socketManager = SocketIOManager.getInstance();
-    this.socketManager.initialize(this.houseClientId, this.serverPort);
+    this.socketManager.initialize(this.houseAgent.agentId, this.serverPort);
 
     // Set up message streaming infrastructure
     this.setupMessageStreaming();
+    this.setupGameEventStreaming();
   }
 
   /**
@@ -166,6 +226,32 @@ export class InfluenceApp<
   }
 
   /**
+   * Set up unified game-event stream from internal bus and runtime emits
+   */
+  private setupGameEventStreaming() {
+    // Internal coordination events
+    fromEvent(internalMessageBus, "game_event", (type, payload) => ({
+      type,
+      payload,
+    }))
+      .pipe(
+        map(({ type, payload }) => {
+          const p: any = payload;
+          const rawRoom = p.roomId ?? p.channelId;
+          const typeString = (Array.isArray(type) ? type[0] : type) as string;
+          return {
+            type: typeString,
+            payload,
+            sourceAgent: p.source,
+            channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
+            timestamp: Date.now(),
+          };
+        })
+      )
+      .subscribe(this.gameEvent$);
+  }
+
+  /**
    * Broadcast a message to all subscribers
    */
   private broadcastMessage(message: StreamedMessage) {
@@ -178,6 +264,13 @@ export class InfluenceApp<
     logger.debug(
       `Broadcasted message ${message.id} to channel ${message.channelId}`
     );
+  }
+
+  getHouseAgent(): IAgentRuntime {
+    if (!this.houseAgent) {
+      throw new Error("House agent is not initialized");
+    }
+    return this.houseAgent;
   }
 
   /**
@@ -195,6 +288,22 @@ export class InfluenceApp<
       this.channelMessageStreams.set(channelId, new Subject<StreamedMessage>());
     }
     return this.channelMessageStreams.get(channelId)!.asObservable();
+  }
+
+  /**
+   * Get a cold observable of all game events
+   */
+  getGameEventStream(): Observable<GameEvent<any>> {
+    return this.gameEvent$.asObservable();
+  }
+
+  /**
+   * Subscribe to game events with a callback; returns a Subscription
+   */
+  observeGameEvents<T = any>(
+    observer: (event: GameEvent<T>) => void
+  ): Subscription {
+    return this.gameEvent$.subscribe(observer as any);
   }
 
   /**

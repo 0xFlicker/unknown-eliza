@@ -1,5 +1,5 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
-import { saveGameState } from "../../src/plugins/house/runtime/memory";
+import { saveGameState } from "../../plugins/house/runtime/memory";
 import {
   GameState,
   Player,
@@ -7,30 +7,31 @@ import {
   Phase,
   DEFAULT_GAME_SETTINGS,
   GameSettings,
-} from "../../src/plugins/house/types";
+} from "../../plugins/house/types";
+import { Agent } from "../../server/types";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases
  * and jump directly to testing specific game phases.
  */
-export class GameStatePreloader {
+export class GameStatePreloader<Context extends Record<string, unknown>> {
   /**
    * Creates a pre-populated game state with specified players
    */
-  static createGameState(options: {
-    playerNames: string[];
-    hostPlayerName: string;
+  static createGameState<Context extends Record<string, unknown>>(options: {
+    playerAgents: Agent<Context>[];
+    houseRuntime: IAgentRuntime; // Optional runtime for saving state
     phase: Phase;
     round?: number;
-    playerAgentIds?: Map<string, UUID>; // Map from player name to actual agent ID
-    settings?: Partial<GameSettings>; // Override default game settings
+    settings?: Omit<Partial<GameSettings>, "timers"> & {
+      timers?: Partial<GameSettings["timers"]>;
+    }; // Override default game settings
   }): GameState {
     const {
-      playerNames,
-      hostPlayerName,
-      phase,
+      playerAgents,
+      houseRuntime,
+      phase = Phase.INIT,
       round = 0,
-      playerAgentIds,
       settings: customSettings,
     } = options;
 
@@ -38,17 +39,14 @@ export class GameStatePreloader {
     const gameId = stringToUuid(`test-game-${Date.now()}`);
 
     // Create players with real agent IDs if provided
-    playerNames.forEach((name, index) => {
-      const playerId =
-        playerAgentIds?.get(name) ||
-        stringToUuid(`test-player-${name}-${Date.now()}`);
+    playerAgents.forEach((agent, index) => {
+      const playerId = agent.id;
       const player: Player = {
         id: playerId,
         agentId: playerId,
-        name,
+        name: agent.character.name,
         status: PlayerStatus.ALIVE,
-        isHost: name === hostPlayerName,
-        joinedAt: Date.now() - (playerNames.length - index) * 1000, // Stagger join times
+        joinedAt: Date.now() - index * 1000, // Stagger join times
       };
       players.set(playerId, player);
     });
@@ -61,27 +59,31 @@ export class GameStatePreloader {
       votes: [],
       privateRooms: new Map(),
       exposedPlayers: new Set(),
-      settings: { ...DEFAULT_GAME_SETTINGS, ...customSettings },
+      settings: {
+        ...DEFAULT_GAME_SETTINGS,
+        ...customSettings,
+        timers: {
+          ...DEFAULT_GAME_SETTINGS.timers,
+          ...customSettings?.timers,
+        },
+      },
       history: [],
       isActive: phase !== Phase.INIT,
-      hostId: Array.from(players.values()).find((p) => p.isHost)?.id,
+      hostId: houseRuntime.agentId,
     };
 
     // Add join events to history
-    playerNames.forEach((name, index) => {
-      const player = Array.from(players.values()).find((p) => p.name === name);
-      if (player) {
-        gameState.history.push({
-          id: stringToUuid(`join-event-${name}-${Date.now()}`),
-          type: "PLAYER_JOINED",
-          playerId: player.id,
-          phase: Phase.INIT,
-          round: 0,
-          timestamp: Date.now() - (playerNames.length - index) * 1000,
-          details: { playerName: name },
-        });
-      }
-    });
+    for (const [index, player] of Array.from(players.values()).entries()) {
+      gameState.history.push({
+        id: stringToUuid(`join-event-${player.name}-${Date.now()}`),
+        type: "PLAYER_JOINED",
+        playerId: player.id,
+        phase: Phase.INIT,
+        round: 0,
+        timestamp: Date.now() - (playerAgents.length - index) * 1000,
+        details: { playerName: player.name },
+      });
+    }
 
     return gameState;
   }
@@ -101,35 +103,27 @@ export class GameStatePreloader {
   /**
    * Convenience method to pre-load a standard 5-player game ready to start
    */
-  static async preloadInfluenceGame(
+  static async preloadInfluenceGame<Context extends Record<string, unknown>>(
     houseRuntime: IAgentRuntime,
     roomId: UUID,
     options: {
-      playerNames?: string[];
-      hostPlayerName?: string;
+      playerAgents: Agent<Context>[];
       phase?: Phase;
-      playerAgentIds?: Map<string, UUID>;
-    } = {}
+    }
   ): Promise<GameState> {
-    const {
-      playerNames = ["P1", "P2", "P3", "P4", "P5"],
-      hostPlayerName = "P1",
-      phase = Phase.INIT,
-      playerAgentIds,
-    } = options;
+    const { playerAgents = [], phase = Phase.INIT } = options;
 
     const gameState = this.createGameState({
-      playerNames,
-      hostPlayerName,
+      houseRuntime,
+      playerAgents,
       phase,
       round: phase === Phase.LOBBY ? 0 : 1,
-      playerAgentIds,
     });
 
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded game state: ${playerNames.length} players, phase ${phase}, host: ${hostPlayerName}`
+      `🎮 Pre-loaded game state: ${playerAgents.length} players, phase ${phase}, host: ${houseRuntime.character.name}`
     );
 
     return gameState;
@@ -138,18 +132,20 @@ export class GameStatePreloader {
   /**
    * Pre-load game state with players already in LOBBY phase
    */
-  static async preloadLobbyPhase(
-    houseRuntime: IAgentRuntime,
-    roomId: UUID,
-    playerNames: string[] = ["P1", "P2", "P3", "P4", "P5"],
-    playerAgentIds?: Map<string, UUID>
-  ): Promise<GameState> {
+  static async preloadLobbyPhase<Context extends Record<string, unknown>>({
+    roomId,
+    houseRuntime,
+    playerAgents,
+  }: {
+    roomId: UUID;
+    houseRuntime: IAgentRuntime;
+    playerAgents: Agent<Context>[];
+  }): Promise<GameState> {
     const gameState = this.createGameState({
-      playerNames,
-      hostPlayerName: playerNames[0],
+      playerAgents,
       phase: Phase.LOBBY,
       round: 0,
-      playerAgentIds,
+      houseRuntime,
     });
 
     // Add game start event to history
@@ -168,7 +164,7 @@ export class GameStatePreloader {
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded LOBBY phase: ${playerNames.length} players ready for conversation`
+      `🎮 Pre-loaded LOBBY phase: ${playerAgents.length} players ready for conversation`
     );
 
     return gameState;
@@ -177,29 +173,26 @@ export class GameStatePreloader {
   /**
    * Pre-load game state for testing specific phases
    */
-  static async preloadGamePhase(
-    houseRuntime: IAgentRuntime,
-    roomId: UUID,
-    phase: Phase,
-    options: {
-      playerNames?: string[];
-      hostPlayerName?: string;
-      round?: number;
-      empoweredPlayer?: string;
-      exposedPlayers?: string[];
-    } = {}
-  ): Promise<GameState> {
-    const {
-      playerNames = ["P1", "P2", "P3", "P4", "P5"],
-      hostPlayerName = "P1",
-      round = 1,
-      empoweredPlayer,
-      exposedPlayers = [],
-    } = options;
-
+  static async preloadGamePhase<Context extends Record<string, unknown>>({
+    houseRuntime,
+    roomId,
+    phase,
+    playerAgents,
+    round = 1,
+    empoweredPlayer,
+    exposedPlayers = [],
+  }: {
+    houseRuntime: IAgentRuntime;
+    roomId: UUID;
+    phase: Phase;
+    playerAgents: Agent<Context>[];
+    round?: number;
+    empoweredPlayer?: string;
+    exposedPlayers?: string[];
+  }): Promise<GameState> {
     const gameState = this.createGameState({
-      playerNames,
-      hostPlayerName,
+      playerAgents,
+      houseRuntime,
       phase,
       round,
     });
@@ -234,7 +227,7 @@ export class GameStatePreloader {
     await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded ${phase} phase: ${playerNames.length} players, round ${round}`
+      `🎮 Pre-loaded ${phase} phase: ${playerAgents.length} players, round ${round}`
     );
 
     return gameState;

@@ -1,0 +1,7 @@
+[test]
+# Test timeout in milliseconds
+timeout = 180000
+
+# Coverage configuration
+coverage = false
+coverageSkipTestFiles = true  

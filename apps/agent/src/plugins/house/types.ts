@@ -49,7 +49,6 @@ export interface Player {
   name: string;
   status: PlayerStatus;
   empoweredRound?: number; // Round when this player was empowered
-  isHost: boolean;
   joinedAt: number;
 }
 
