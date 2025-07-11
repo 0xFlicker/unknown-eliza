@@ -128,14 +128,6 @@ export class ChannelManager {
       `Setting up associations for channel ${channel.name} (${channel.id}) with ${participantIds.length} participants`
     );
 
-    // Get the first available runtime to emit events
-    const firstRuntime = this.agentManager.getAgentRuntime(
-      participants[0].agentId
-    );
-    if (!firstRuntime) {
-      throw new Error(`No runtime available for channel setup`);
-    }
-
     // Set up each participant using proper AgentServer flow
     for (const participant of participants) {
       let runtime = this.agentManager.getAgentRuntime(participant.agentId);
@@ -165,9 +157,18 @@ export class ChannelManager {
         const entityId = createUniqueUuid(runtime, otherParticipant.agentId);
         const worldId = createUniqueUuid(runtime, channel.messageServerId);
 
+        runtime.ensureRoomExists({
+          id: channel.id,
+          name: channel.name,
+          source: "channel-manager",
+          agentId: runtime.agentId,
+          type: ChannelType.GROUP,
+          worldId,
+        });
+
         if (runtimeDecorators) {
           for (const decorator of runtimeDecorators) {
-            runtime = await decorator(runtime);
+            runtime = await decorator(runtime, { channelId: channel.id });
           }
         }
 

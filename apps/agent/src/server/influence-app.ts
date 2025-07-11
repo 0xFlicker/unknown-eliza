@@ -327,12 +327,18 @@ export class InfluenceApp<
   }
 
   async stop() {
-    // Clean up managers
-    await this.channelManager.cleanup();
-    await this.agentManager.cleanup();
+    // Clean up managers (check if they exist first)
+    if (this.channelManager) {
+      await this.channelManager.cleanup();
+    }
+    if (this.agentManager) {
+      await this.agentManager.cleanup();
+    }
 
     // Stop server
-    await this.server.stop();
+    if (this.server) {
+      await this.server.stop();
+    }
   }
 
   // Agent management methods

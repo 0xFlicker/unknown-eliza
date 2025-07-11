@@ -50,7 +50,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
     let decoratedRuntime: IAgentRuntime = runtime;
     for (const decorator of this.runtimeDecorators) {
       try {
-        const result = await decorator(decoratedRuntime);
+        const result = await decorator(decoratedRuntime, {});
         decoratedRuntime = result as IAgentRuntime;
         logger.debug(
           `Applied runtime decorator to agent ${config.character.name}`

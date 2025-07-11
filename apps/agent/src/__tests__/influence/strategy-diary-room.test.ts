@@ -152,19 +152,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         players.push(player);
       }
 
-      const gameStatePreloader = GameStatePreloader.createGameState({
-        houseRuntime: app.getHouseAgent(),
-        playerAgents: players,
-        phase: Phase.INIT,
-        round: 1,
-        settings: {
-          minPlayers: 3,
-          timers: {
-            lobby: 300, // 5 minutes for LOBBY phase
-          },
-        },
-      });
-
       // await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
 
       expectSoft(house).toBeDefined();
@@ -193,24 +180,19 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
           })),
         ],
         type: ChannelType.GROUP,
-        // gameState: {
-        //   phase: Phase.LOBBY,
-        //   round: 1,
-        //   settings: {
-        //     minPlayers: 3,
-        //   },
-        //   agentRoles: [
-        //     { agentName: "House", role: "house" },
-        //     { agentName: playerNames[0], role: "host" },
-        //     ...playerNames
-        //       .slice(1)
-        //       .map((name) => ({ agentName: name, role: "player" as const })),
-        //   ],
-        // },
         runtimeDecorators: [
-          async (runtime, channelId) => {
+          async (runtime, { channelId }) => {
+            // // Create the room manually if it doesn't exist (fix for race condition)
+            // await houseRuntime.ensureRoomExists({
+            //   id: channelId,
+            //   name: "main-game-channel",
+            //   source: "influence-app",
+            //   type: ChannelType.GROUP,
+            //   worldId: houseRuntime.agentId, // Use house agent ID as world ID
+            // });
+
             await GameStatePreloader.preloadGamePhase({
-              houseRuntime: app.getHouseAgent(),
+              runtime,
               roomId: channelId,
               phase: Phase.LOBBY,
               playerAgents: players,

@@ -54,10 +54,7 @@ export interface ChannelConfig {
   name: string;
   type: ChannelType;
   participants: ChannelParticipant[];
-  runtimeDecorators?: ((
-    runtime: IAgentRuntime,
-    channelId: UUID
-  ) => IAgentRuntime | Promise<IAgentRuntime>)[];
+  runtimeDecorators?: RuntimeDecorator<IAgentRuntime, { channelId: UUID }>[];
   metadata?: Record<string, unknown>;
   maxMessages?: number;
   timeoutMs?: number;
@@ -103,8 +100,12 @@ export interface Agent<Context extends Record<string, unknown>> {
 /**
  * Runtime decorator function for customizing agent behavior
  */
-export type RuntimeDecorator<Runtime extends IAgentRuntime> = (
-  runtime: Runtime
+export type RuntimeDecorator<
+  Runtime extends IAgentRuntime,
+  Context extends Record<string, unknown> = Record<string, unknown>
+> = (
+  runtime: Runtime,
+  context?: Context
 ) => Runtime | Promise<Runtime>;
 
 /**
