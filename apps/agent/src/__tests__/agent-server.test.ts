@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, jest } from "bun:test";
 import dotenv from "dotenv";
-import { ChannelType, IAgentRuntime } from "@elizaos/core";
+import { ChannelType, IAgentRuntime, logger } from "@elizaos/core";
 import path from "path";
 import os from "os";
 import fs from "fs";
@@ -22,6 +22,8 @@ import {
 import { expectSoft, RecordingTestUtils } from "./utils/recording-test-utils";
 import { ModelMockingService } from "./utils/model-mocking-service";
 import { lastValueFrom, take, toArray } from "rxjs";
+
+logger.success = jest.fn();
 
 describe("AgentServer V3 Integration", () => {
   let dataDir: string;

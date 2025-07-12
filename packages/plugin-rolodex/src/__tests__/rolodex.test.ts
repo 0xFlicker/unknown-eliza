@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "bun:test";
 import { RolodexService } from "../services/RolodexService";
 import { FollowUpService } from "../services/FollowUpService";
 import { calculateRelationshipStrength } from "../utils/relationshipStrength";
@@ -67,7 +67,7 @@ describe("RolodexService", () => {
       const contact = await rolodexService.addContact(
         entityId,
         categories,
-        preferences,
+        preferences
       );
 
       expect(contact).toBeDefined();
@@ -186,7 +186,7 @@ describe("RolodexService", () => {
 
       const analysis = await rolodexService.analyzeRelationship(
         mockRuntime.agentId,
-        entityId,
+        entityId
       );
 
       expect(analysis).toBeDefined();
@@ -261,7 +261,7 @@ describe("RolodexService", () => {
         .mockResolvedValueOnce([]); // For entityId2 analysis
 
       const insights = await rolodexService.getRelationshipInsights(
-        mockRuntime.agentId,
+        mockRuntime.agentId
       );
 
       expect(insights.strongestRelationships).toBeDefined();
@@ -316,7 +316,7 @@ describe("FollowUpService", () => {
         entityId,
         scheduledAt,
         "Weekly check-in",
-        "medium",
+        "medium"
       );
 
       expect(task).toBeDefined();
@@ -427,7 +427,7 @@ describe("FollowUpService", () => {
             },
           ],
           recentInteractions: [],
-        },
+        }
       );
 
       // Mock analyzeRelationship

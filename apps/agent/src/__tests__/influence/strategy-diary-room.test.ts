@@ -1,12 +1,5 @@
 import path from "path";
-import { describe, it, expect } from "vitest";
-import {
-  ConversationSimulatorV3,
-  ChannelParticipantV3,
-  ParticipantModeV3,
-  GameEventObserver,
-  ConversationMessageV3,
-} from "../utils/conversation-simulator-v3";
+import { describe, it, expect } from "bun:test";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
@@ -16,7 +9,6 @@ import houseCharacter from "../../characters/house";
 import { housePlugin } from "../../plugins/house";
 import { influencerPlugin } from "../../plugins/influencer";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
-import { StrategyService } from "../../plugins/socialStrategy/service/addPlayer";
 import { Phase } from "../../plugins/house/types";
 import {
   createUniqueUuid,
@@ -25,9 +17,6 @@ import {
   IAgentRuntime,
 } from "@elizaos/core";
 import { GameEventType } from "../../plugins/house/events/types";
-import fs from "fs";
-import os from "os";
-import { CoordinationService } from "../../plugins/coordinator/service";
 import { InfluenceApp } from "../../server/influence-app";
 import type { GameEvent } from "../../server/influence-app";
 import {

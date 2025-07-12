@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "bun:test";
 import { stringToUuid } from "@elizaos/core";
 import {
   createMockRuntime,
@@ -42,9 +42,9 @@ describe("Rolodex Actions", () => {
         const contactName = state?.extractedContactName || "John Doe";
         return createMockEntity(
           contactName,
-          stringToUuid(contactName.toLowerCase().replace(/\s+/g, "-")),
+          stringToUuid(contactName.toLowerCase().replace(/\s+/g, "-"))
         );
-      },
+      }
     );
 
     mockRolodexService = {
@@ -93,7 +93,7 @@ describe("Rolodex Actions", () => {
       useModel: vi
         .fn()
         .mockResolvedValue(
-          "<response><contactName>John Doe</contactName></response>",
+          "<response><contactName>John Doe</contactName></response>"
         ),
     });
 
@@ -159,19 +159,19 @@ describe("Rolodex Actions", () => {
         message,
         state,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockRolodexService.addContact).toHaveBeenCalledWith(
         stringToUuid("john-doe"),
         ["friend"],
-        expect.objectContaining({ timezone: "UTC" }),
+        expect.objectContaining({ timezone: "UTC" })
       );
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("I've added John Doe"),
           action: "ADD_CONTACT",
-        }),
+        })
       );
     });
 
@@ -200,8 +200,8 @@ describe("Rolodex Actions", () => {
           message,
           undefined,
           undefined,
-          mockCallback,
-        ),
+          mockCallback
+        )
       ).rejects.toThrow("RolodexService not available");
 
       // In this failure case, the final callback should not be invoked.
@@ -225,13 +225,13 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("couldn't add the contact"),
-        }),
+        })
       );
     });
   });
@@ -280,7 +280,7 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockRolodexService.searchContacts).toHaveBeenCalledWith({
@@ -288,13 +288,13 @@ describe("Rolodex Actions", () => {
       });
       expect(mockRolodexService.updateContact).toHaveBeenCalledWith(
         stringToUuid("sarah"),
-        expect.objectContaining({ categories: ["vip"] }),
+        expect.objectContaining({ categories: ["vip"] })
       );
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("updated Sarah's contact information"),
           action: "UPDATE_CONTACT",
-        }),
+        })
       );
     });
 
@@ -330,12 +330,12 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockRolodexService.updateContact).toHaveBeenCalledWith(
         stringToUuid("john"),
-        expect.objectContaining({ tags: ["developer", "tech"] }),
+        expect.objectContaining({ tags: ["developer", "tech"] })
       );
     });
   });
@@ -371,14 +371,14 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockRolodexService.removeContact).not.toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("please confirm"),
-        }),
+        })
       );
     });
 
@@ -413,17 +413,17 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockRolodexService.removeContact).toHaveBeenCalledWith(
-        stringToUuid("john-doe"),
+        stringToUuid("john-doe")
       );
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("removed John Doe"),
           action: "REMOVE_CONTACT",
-        }),
+        })
       );
     });
   });
@@ -438,7 +438,7 @@ describe("Rolodex Actions", () => {
 
       const isValid = await scheduleFollowUpAction.validate(
         mockRuntime,
-        message,
+        message
       );
       expect(isValid).toBe(true);
     });
@@ -499,7 +499,7 @@ describe("Rolodex Actions", () => {
         message,
         state,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       expect(mockFollowUpService.scheduleFollowUp).toHaveBeenCalledWith(
@@ -507,13 +507,13 @@ describe("Rolodex Actions", () => {
         expect.any(Date),
         "project discussion",
         "medium",
-        undefined, // No message provided
+        undefined // No message provided
       );
       expect(mockCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           text: expect.stringContaining("scheduled a follow-up with Sarah"),
           action: "SCHEDULE_FOLLOW_UP",
-        }),
+        })
       );
     });
   });
@@ -582,7 +582,7 @@ describe("Rolodex Actions", () => {
         message,
         undefined,
         undefined,
-        mockCallback,
+        mockCallback
       );
 
       // The action only sends categories, not tags
@@ -593,7 +593,7 @@ describe("Rolodex Actions", () => {
         expect.objectContaining({
           text: expect.stringContaining("Your friends"),
           action: "SEARCH_CONTACTS",
-        }),
+        })
       );
     });
   });

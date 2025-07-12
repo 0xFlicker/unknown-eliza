@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { jest } from "bun:test";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { createHash } from "crypto";
@@ -136,7 +136,7 @@ export class ModelMockingService {
   patchRuntime(runtime: IAgentRuntime): () => void {
     const originalUseModel = runtime.useModel.bind(runtime);
 
-    runtime.useModel = vi
+    runtime.useModel = jest
       .fn()
       .mockImplementation(async (modelType: string, options: any) => {
         const callId = this.generateCallId(runtime.agentId, modelType);

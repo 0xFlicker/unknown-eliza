@@ -1,4 +1,4 @@
-import { expect } from "vitest";
+import { expect } from "bun:test";
 
 /**
  * Test utilities for recording mode that allow soft failures
