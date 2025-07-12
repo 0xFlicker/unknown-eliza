@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import dotenv from "dotenv";
-import { ChannelType } from "@elizaos/core";
+import { ChannelType, IAgentRuntime } from "@elizaos/core";
 import path from "path";
 import os from "os";
 import fs from "fs";
@@ -34,6 +34,16 @@ describe("AgentServer V3 Integration", () => {
     return basePlugins;
   }
 
+  let modelMockingService: ModelMockingService;
+  let app: InfluenceApp<
+    {},
+    {
+      testName: string;
+      suiteName: string;
+    },
+    IAgentRuntime
+  >;
+
   beforeAll(async () => {
     testServerPort = 3333; // Use different port from other tests
     await killProcessOnPort(testServerPort);
@@ -43,28 +53,16 @@ describe("AgentServer V3 Integration", () => {
     dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
 
-    const testEnv = dotenv.config({
+    dotenv.config({
       path: path.join(__dirname, "../../.env.test"),
     });
-  });
 
-  afterAll(async () => {
-    if (fs.existsSync(dataDir)) {
-      fs.rmSync(dataDir, { recursive: true, force: true });
-    }
-  });
-
-  it("demonstrates 2 agents having a basic conversation through AgentServer infrastructure", async () => {
-    RecordingTestUtils.logRecordingStatus(
-      "2 agents conversation via AgentServer"
-    );
-
-    const modelMockingService = new ModelMockingService({
+    modelMockingService = new ModelMockingService({
       mode: "record",
       recordingsDir: path.join(__dirname, "../recordings"),
     });
 
-    const app = new InfluenceApp({
+    app = new InfluenceApp({
       serverPort: testServerPort,
       runtimeConfig: {
         runtime: (runtime) => {
@@ -82,6 +80,20 @@ describe("AgentServer V3 Integration", () => {
 
     await app.initialize();
     await app.start();
+  });
+
+  afterAll(async () => {
+    if (fs.existsSync(dataDir)) {
+      fs.rmSync(dataDir, { recursive: true, force: true });
+    }
+    await app.stop();
+    await modelMockingService.saveRecordings();
+  });
+
+  it("demonstrates 2 agents having a basic conversation through AgentServer infrastructure", async () => {
+    RecordingTestUtils.logRecordingStatus(
+      "2 agents conversation via AgentServer"
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -149,29 +161,24 @@ describe("AgentServer V3 Integration", () => {
 
     // Get the final conversation
     const messages = await channelManager.getMessages(channelId);
-    console.log("\n📊 Final conversation summary:");
-    console.log(`Total messages: ${messages.length}`);
-    messages.forEach((msg, idx) => {
-      console.log(`${idx + 1}. ${msg.authorId}: ${msg.content}`);
-    });
-
     console.log("\n📡 Real-time message stream summary:");
     console.log(`Total streamed messages: ${receivedMessages.length}`);
     receivedMessages.forEach((msg, idx) => {
       console.log(
-        `${idx + 1}. [${msg.source}] ${msg.authorId}: ${msg.content}`
+        `${idx + 1}. [${agentManager.getAgent(msg.authorId)?.character.name}]: ${msg.content}`
       );
     });
 
     // Verify the conversation worked through AgentServer
     expectSoft(messages.length).toBeGreaterThan(1); // At least Alex's message + Bethany's response
 
-    // Verify Bethany responded
-    if (messages.length > 1) {
-      expectSoft(messages[0]?.authorId).toBe(alex.id);
-      expectSoft(messages[0]?.content?.length).toBeGreaterThan(0);
-      console.log("✅ Alex responded to Bethany");
-    }
+    // Verify Bethany responded somewhere in the conversation
+    expectSoft(messages.some((msg) => msg.authorId === bethany.id)).toBe(true);
+    console.log("✅ Bethany responded somewhere in the conversation");
+
+    // Verify Alex responded somewhere in the conversation
+    expectSoft(messages.some((msg) => msg.authorId === alex.id)).toBe(true);
+    console.log("✅ Alex responded somewhere in the conversation");
 
     // Verify real-time streaming worked
     expectSoft(receivedMessages.length).toBeGreaterThan(0);

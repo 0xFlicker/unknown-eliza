@@ -20,7 +20,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    */
   static createGameState<Context extends Record<string, unknown>>(options: {
     playerAgents: Agent<Context>[];
-    houseRuntime: IAgentRuntime; // Optional runtime for saving state
+    runtime: IAgentRuntime; // Optional runtime for saving state
     phase: Phase;
     round?: number;
     settings?: Omit<Partial<GameSettings>, "timers"> & {
@@ -29,7 +29,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
   }): GameState {
     const {
       playerAgents,
-      houseRuntime,
+      runtime,
       phase = Phase.INIT,
       round = 0,
       settings: customSettings,
@@ -69,7 +69,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       },
       history: [],
       isActive: phase !== Phase.INIT,
-      hostId: houseRuntime.agentId,
+      hostId: runtime.agentId,
     };
 
     // Add join events to history
@@ -92,19 +92,19 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    * Saves game state to the House agent's memory using the new memory DAO format
    */
   static async saveGameStateToRuntime(
-    houseRuntime: IAgentRuntime,
+    runtime: IAgentRuntime,
     roomId: UUID,
     gameState: GameState
   ): Promise<void> {
     // Use the memory DAO to save the game state properly
-    await saveGameState(houseRuntime, roomId, gameState);
+    await saveGameState(runtime, roomId, gameState);
   }
 
   /**
    * Convenience method to pre-load a standard 5-player game ready to start
    */
   static async preloadInfluenceGame<Context extends Record<string, unknown>>(
-    houseRuntime: IAgentRuntime,
+    runtime: IAgentRuntime,
     roomId: UUID,
     options: {
       playerAgents: Agent<Context>[];
@@ -114,16 +114,16 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     const { playerAgents = [], phase = Phase.INIT } = options;
 
     const gameState = this.createGameState({
-      houseRuntime,
+      runtime,
       playerAgents,
       phase,
       round: phase === Phase.LOBBY ? 0 : 1,
     });
 
-    await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
+    await this.saveGameStateToRuntime(runtime, roomId, gameState);
 
     console.log(
-      `🎮 Pre-loaded game state: ${playerAgents.length} players, phase ${phase}, host: ${houseRuntime.character.name}`
+      `🎮 Pre-loaded game state: ${playerAgents.length} players, phase ${phase}, host: ${runtime.character.name}`
     );
 
     return gameState;
@@ -134,18 +134,18 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    */
   static async preloadLobbyPhase<Context extends Record<string, unknown>>({
     roomId,
-    houseRuntime,
+    runtime,
     playerAgents,
   }: {
     roomId: UUID;
-    houseRuntime: IAgentRuntime;
+    runtime: IAgentRuntime;
     playerAgents: Agent<Context>[];
   }): Promise<GameState> {
     const gameState = this.createGameState({
       playerAgents,
       phase: Phase.LOBBY,
       round: 0,
-      houseRuntime,
+      runtime,
     });
 
     // Add game start event to history
@@ -161,7 +161,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
 
     gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
 
-    await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
+    await this.saveGameStateToRuntime(runtime, roomId, gameState);
 
     console.log(
       `🎮 Pre-loaded LOBBY phase: ${playerAgents.length} players ready for conversation`
@@ -174,7 +174,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    * Pre-load game state for testing specific phases
    */
   static async preloadGamePhase<Context extends Record<string, unknown>>({
-    houseRuntime,
+    runtime,
     roomId,
     phase,
     playerAgents,
@@ -182,7 +182,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     empoweredPlayer,
     exposedPlayers = [],
   }: {
-    houseRuntime: IAgentRuntime;
+    runtime: IAgentRuntime;
     roomId: UUID;
     phase: Phase;
     playerAgents: Agent<Context>[];
@@ -192,7 +192,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
   }): Promise<GameState> {
     const gameState = this.createGameState({
       playerAgents,
-      houseRuntime,
+      runtime,
       phase,
       round,
     });
@@ -224,7 +224,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       ];
     gameState.timerEndsAt = Date.now() + phaseTimer;
 
-    await this.saveGameStateToRuntime(houseRuntime, roomId, gameState);
+    await this.saveGameStateToRuntime(runtime, roomId, gameState);
 
     console.log(
       `🎮 Pre-loaded ${phase} phase: ${playerAgents.length} players, round ${round}`

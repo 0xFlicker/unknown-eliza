@@ -16,26 +16,6 @@ import {
 import { logger } from "@elizaos/core";
 import type { IAgentRuntime, UUID } from "@elizaos/core";
 
-// Mock dependencies
-mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
-  return {
-    ...actual,
-    logger: {
-      warn: jest.fn(),
-      info: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn(),
-    },
-    validateUuid: jest.fn((id: string) => {
-      // Simple UUID validation mock
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      return uuidRegex.test(id) ? id : null;
-    }),
-  };
-});
-
 mock.module("../src/api/shared/response-utils", () => ({
   sendError: jest.fn((res, status, code, message) => {
     res.status(status).json({ success: false, error: { code, message } });
@@ -137,7 +117,7 @@ describe("Middleware Functions", () => {
       middleware(req as express.Request, res as express.Response, next);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        "[SECURITY] Invalid testId from 192.168.1.100: invalid-uuid",
+        "[SECURITY] Invalid testId from 192.168.1.100: invalid-uuid"
       );
       expect(res.status).toHaveBeenCalledWith(400);
       expect(next).not.toHaveBeenCalled();
@@ -191,7 +171,7 @@ describe("Middleware Functions", () => {
       middleware(req as express.Request, res as express.Response, next);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        "[SECURITY] Failed channel ID validation from 192.168.1.100: invalid-channel-id",
+        "[SECURITY] Failed channel ID validation from 192.168.1.100: invalid-channel-id"
       );
       expect(res.status).toHaveBeenCalledWith(400);
       expect(next).not.toHaveBeenCalled();
@@ -205,19 +185,19 @@ describe("Middleware Functions", () => {
 
       expect(res.setHeader).toHaveBeenCalledWith(
         "X-Content-Type-Options",
-        "nosniff",
+        "nosniff"
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "X-Frame-Options",
-        "SAMEORIGIN",
+        "SAMEORIGIN"
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "X-XSS-Protection",
-        "1; mode=block",
+        "1; mode=block"
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "Referrer-Policy",
-        "no-referrer",
+        "no-referrer"
       );
       expect(res.removeHeader).toHaveBeenCalledWith("X-Powered-By");
       expect(res.removeHeader).toHaveBeenCalledWith("Server");
@@ -235,7 +215,7 @@ describe("Middleware Functions", () => {
       middleware(req as express.Request, res as express.Response, next);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        "[SECURITY] Suspicious User-Agent from 192.168.1.100: Mozilla/5.0 <script>alert(1)</script>",
+        "[SECURITY] Suspicious User-Agent from 192.168.1.100: Mozilla/5.0 <script>alert(1)</script>"
       );
       expect(next).toHaveBeenCalled();
     });
@@ -247,7 +227,7 @@ describe("Middleware Functions", () => {
       middleware(req as express.Request, res as express.Response, next);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        "[SECURITY] Path traversal detected from 192.168.1.100: /api/test/../../../etc/passwd",
+        "[SECURITY] Path traversal detected from 192.168.1.100: /api/test/../../../etc/passwd"
       );
       expect(next).toHaveBeenCalled();
     });
@@ -260,8 +240,8 @@ describe("Middleware Functions", () => {
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          "[SECURITY] XSS attempt detected from 192.168.1.100",
-        ),
+          "[SECURITY] XSS attempt detected from 192.168.1.100"
+        )
       );
       expect(next).toHaveBeenCalled();
     });
@@ -273,7 +253,7 @@ describe("Middleware Functions", () => {
       middleware(req as express.Request, res as express.Response, next);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        "[SECURITY] SQL injection pattern detected from 192.168.1.100: /api/test?id=1 UNION SELECT * FROM users",
+        "[SECURITY] SQL injection pattern detected from 192.168.1.100: /api/test?id=1 UNION SELECT * FROM users"
       );
       expect(next).toHaveBeenCalled();
     });

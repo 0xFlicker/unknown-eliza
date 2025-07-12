@@ -14,7 +14,7 @@ import {
 
 // Mock logger
 mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
+  const actual = require("@elizaos/core");
   return {
     ...actual,
     logger: {
@@ -83,7 +83,7 @@ describe("UI Disable Feature Integration", () => {
           expect(uiEnabled).toBe(expected);
           // Also verify the description makes sense
           expect(typeof description).toBe("string");
-        },
+        }
       );
     });
   });
@@ -106,7 +106,7 @@ describe("UI Disable Feature Integration", () => {
       // Test UI enabled
       configureStaticFiles(mockApp, true);
       expect(mockExpressUse).toHaveBeenCalledWith(
-        "express.static(clientPath, staticOptions)",
+        "express.static(clientPath, staticOptions)"
       );
 
       // Reset and test UI disabled
@@ -159,7 +159,7 @@ describe("UI Disable Feature Integration", () => {
       mockExpressUse.mockClear();
       configureSPAFallback(mockApp, false);
       expect(mockExpressUse).toHaveBeenCalledWith(
-        "403-forbidden-for-non-api-routes",
+        "403-forbidden-for-non-api-routes"
       );
     });
   });
@@ -169,7 +169,7 @@ describe("UI Disable Feature Integration", () => {
       const generateStartupMessage = (
         uiEnabled: boolean,
         port: number,
-        nodeEnv: string,
+        nodeEnv: string
       ) => {
         if (uiEnabled && nodeEnv !== "development") {
           return {
@@ -242,7 +242,7 @@ describe("UI Disable Feature Integration", () => {
 
       const registerAPIRoutes = (
         router: typeof mockRouter,
-        uiEnabled: boolean,
+        uiEnabled: boolean
       ) => {
         // API routes are always registered regardless of UI state
         router.get("/api/agents");
@@ -282,7 +282,7 @@ describe("UI Disable Feature Integration", () => {
       };
 
       expect(envExamplePattern.comment).toContain(
-        "enabled in development, disabled in production",
+        "enabled in development, disabled in production"
       );
       expect(envExamplePattern.usage).toContain('true" to force enable');
       expect(envExamplePattern.usage).toContain('false" to force disable');

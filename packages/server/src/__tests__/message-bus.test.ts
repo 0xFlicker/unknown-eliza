@@ -10,6 +10,7 @@ import {
   mock,
   afterEach,
   jest,
+  beforeAll,
 } from "bun:test";
 import { MessageBusService } from "../services/message";
 import { createMockAgentRuntime } from "./test-utils/mocks";
@@ -26,20 +27,6 @@ mock.module("../bus", () => ({
   },
 }));
 
-// Mock logger
-mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
-  return {
-    ...actual,
-    logger: {
-      info: jest.fn(),
-      debug: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    },
-  };
-});
-
 // Mock fetch
 const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
@@ -47,6 +34,14 @@ global.fetch = mockFetch;
 describe("MessageBusService", () => {
   let service: MessageBusService;
   let mockRuntime: IAgentRuntime;
+
+  beforeAll(() => {
+    // Mock logger methods
+    logger.info = jest.fn();
+    logger.debug = jest.fn();
+    logger.warn = jest.fn();
+    logger.error = jest.fn();
+  });
 
   beforeEach(async () => {
     mockRuntime = createMockAgentRuntime();
@@ -74,12 +69,12 @@ describe("MessageBusService", () => {
       Promise.resolve({
         channelId: "456e7890-e89b-12d3-a456-426614174000",
         serverId: "789e1234-e89b-12d3-a456-426614174000",
-      }),
+      })
     );
     mockRuntime.getWorld = jest
       .fn()
       .mockReturnValue(
-        Promise.resolve({ serverId: "789e1234-e89b-12d3-a456-426614174000" }),
+        Promise.resolve({ serverId: "789e1234-e89b-12d3-a456-426614174000" })
       );
     mockRuntime.getMemoriesByRoomIds = jest
       .fn()
@@ -172,27 +167,27 @@ describe("MessageBusService", () => {
       expect(service).toBeInstanceOf(MessageBusService);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          "MessageBusService: Subscribing to internal message bus",
-        ),
+          "MessageBusService: Subscribing to internal message bus"
+        )
       );
     });
 
     it("should register message handlers on start", async () => {
       expect(internalMessageBus.on).toHaveBeenCalledWith(
         "new_message",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(internalMessageBus.on).toHaveBeenCalledWith(
         "server_agent_update",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(internalMessageBus.on).toHaveBeenCalledWith(
         "message_deleted",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(internalMessageBus.on).toHaveBeenCalledWith(
         "channel_cleared",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -200,12 +195,12 @@ describe("MessageBusService", () => {
       // Check that the first fetch call was to the agent servers endpoint
       const firstCall = (global.fetch as any).mock.calls[0];
       expect(firstCall[0]).toContain(
-        `/api/messaging/agents/${mockRuntime.agentId}/servers`,
+        `/api/messaging/agents/${mockRuntime.agentId}/servers`
       );
       expect(firstCall[1]).toEqual(
         expect.objectContaining({
           headers: expect.any(Object),
-        }),
+        })
       );
     });
   });
@@ -214,7 +209,7 @@ describe("MessageBusService", () => {
     it("should handle new messages from the bus", async () => {
       // Get the handler that was registered
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "new_message",
+        (call) => call[0] === "new_message"
       )[1];
 
       const testMessage = {
@@ -237,20 +232,20 @@ describe("MessageBusService", () => {
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          "MessageBusService: Received message from central bus",
+          "MessageBusService: Received message from central bus"
         ),
-        expect.any(Object),
+        expect.any(Object)
       );
 
       expect(mockRuntime.emitEvent).toHaveBeenCalledWith(
         EventType.MESSAGE_RECEIVED,
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
     it("should skip messages from self", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "new_message",
+        (call) => call[0] === "new_message"
       )[1];
 
       const testMessage = {
@@ -272,8 +267,8 @@ describe("MessageBusService", () => {
 
       expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining(
-          "MessageBusService: Agent is the author of the message, ignoring message",
-        ),
+          "MessageBusService: Agent is the author of the message, ignoring message"
+        )
       );
 
       expect(mockRuntime.emitEvent).not.toHaveBeenCalled();
@@ -281,7 +276,7 @@ describe("MessageBusService", () => {
 
     it("should skip messages if agent not in channel", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "new_message",
+        (call) => call[0] === "new_message"
       )[1];
 
       const testMessage = {
@@ -336,7 +331,7 @@ describe("MessageBusService", () => {
       await handler(testMessage);
 
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Agent not a participant in channel"),
+        expect.stringContaining("Agent not a participant in channel")
       );
 
       expect(mockRuntime.emitEvent).not.toHaveBeenCalled();
@@ -344,7 +339,7 @@ describe("MessageBusService", () => {
 
     it("should handle message processing errors gracefully", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "new_message",
+        (call) => call[0] === "new_message"
       )[1];
 
       const testMessage = {
@@ -379,9 +374,9 @@ describe("MessageBusService", () => {
 
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining(
-          "MessageBusService: Error fetching participants for channel",
+          "MessageBusService: Error fetching participants for channel"
         ),
-        expect.any(Error),
+        expect.any(Error)
       );
     });
   });
@@ -389,7 +384,7 @@ describe("MessageBusService", () => {
   describe("message deletion handling", () => {
     it("should handle message deletion events", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "message_deleted",
+        (call) => call[0] === "message_deleted"
       )[1];
 
       const deleteData = {
@@ -405,20 +400,20 @@ describe("MessageBusService", () => {
       await handler(deleteData);
 
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Received message_deleted event"),
+        expect.stringContaining("Received message_deleted event")
       );
 
       expect(mockRuntime.emitEvent).toHaveBeenCalledWith(
         EventType.MESSAGE_DELETED,
         expect.objectContaining({
           source: "message-bus-service",
-        }),
+        })
       );
     });
 
     it("should handle deletion when message not found", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "message_deleted",
+        (call) => call[0] === "message_deleted"
       )[1];
 
       const deleteData = {
@@ -431,7 +426,7 @@ describe("MessageBusService", () => {
       await handler(deleteData);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining("No memory found for deleted message"),
+        expect.stringContaining("No memory found for deleted message")
       );
     });
   });
@@ -439,7 +434,7 @@ describe("MessageBusService", () => {
   describe("channel clearing", () => {
     it("should handle channel clear events", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "channel_cleared",
+        (call) => call[0] === "channel_cleared"
       )[1];
 
       const clearData = {
@@ -455,7 +450,7 @@ describe("MessageBusService", () => {
       await handler(clearData);
 
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Received channel_cleared event"),
+        expect.stringContaining("Received channel_cleared event")
       );
 
       expect(mockRuntime.emitEvent).toHaveBeenCalledWith(
@@ -463,7 +458,7 @@ describe("MessageBusService", () => {
         expect.objectContaining({
           source: "message-bus-service",
           memoryCount: 2,
-        }),
+        })
       );
     });
   });
@@ -471,7 +466,7 @@ describe("MessageBusService", () => {
   describe("server agent updates", () => {
     it("should handle agent added to server", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "server_agent_update",
+        (call) => call[0] === "server_agent_update"
       )[1];
 
       const updateData = {
@@ -484,14 +479,14 @@ describe("MessageBusService", () => {
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Agent added to server 890e1234-e89b-12d3-a456-426614174000",
-        ),
+          "Agent added to server 890e1234-e89b-12d3-a456-426614174000"
+        )
       );
     });
 
     it("should handle agent removed from server", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "server_agent_update",
+        (call) => call[0] === "server_agent_update"
       )[1];
 
       const updateData = {
@@ -504,14 +499,14 @@ describe("MessageBusService", () => {
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Agent removed from server 890e1234-e89b-12d3-a456-426614174000",
-        ),
+          "Agent removed from server 890e1234-e89b-12d3-a456-426614174000"
+        )
       );
     });
 
     it("should ignore updates for other agents", async () => {
       const handler = (internalMessageBus.on as any).mock.calls.find(
-        (call) => call[0] === "server_agent_update",
+        (call) => call[0] === "server_agent_update"
       )[1];
 
       const updateData = {
@@ -523,7 +518,7 @@ describe("MessageBusService", () => {
       await handler(updateData);
 
       expect(logger.info).not.toHaveBeenCalledWith(
-        expect.stringContaining("Agent added to server"),
+        expect.stringContaining("Agent added to server")
       );
     });
   });
@@ -533,7 +528,7 @@ describe("MessageBusService", () => {
       await MessageBusService.stop(mockRuntime);
 
       expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("MessageBusService stopping..."),
+        expect.stringContaining("MessageBusService stopping...")
       );
     });
   });

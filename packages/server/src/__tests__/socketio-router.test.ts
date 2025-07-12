@@ -18,7 +18,7 @@ import { EventType, SOCKET_MESSAGE_TYPE, ChannelType } from "@elizaos/core";
 
 // Mock dependencies
 mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
+  const actual = require("@elizaos/core");
   return {
     ...actual,
     logger: {
@@ -66,7 +66,7 @@ describe("SocketIORouter", () => {
       getServers: jest
         .fn()
         .mockReturnValue(
-          Promise.resolve([{ id: "00000000-0000-0000-0000-000000000000" }]),
+          Promise.resolve([{ id: "00000000-0000-0000-0000-000000000000" }])
         ),
     };
 
@@ -102,7 +102,7 @@ describe("SocketIORouter", () => {
 
       expect(mockIO.on).toHaveBeenCalledWith(
         "connection",
-        expect.any(Function),
+        expect.any(Function)
       );
     });
 
@@ -114,23 +114,23 @@ describe("SocketIORouter", () => {
 
       expect(mockSocket.on).toHaveBeenCalledWith(
         String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSocket.on).toHaveBeenCalledWith(
         String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE),
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSocket.on).toHaveBeenCalledWith(
         "message",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSocket.on).toHaveBeenCalledWith(
         "subscribe_logs",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSocket.on).toHaveBeenCalledWith(
         "disconnect",
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSocket.emit).toHaveBeenCalledWith("connection_established", {
         message: "Connected to Eliza Socket.IO server",
@@ -146,7 +146,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const joinHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING)
       )?.[1];
 
       const payload = {
@@ -164,7 +164,7 @@ describe("SocketIORouter", () => {
         expect.objectContaining({
           channelId: payload.channelId,
           message: expect.stringContaining("successfully joined"),
-        }),
+        })
       );
     });
 
@@ -174,7 +174,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const joinHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING)
       )?.[1];
 
       const payload = {
@@ -189,7 +189,7 @@ describe("SocketIORouter", () => {
         "room_joined",
         expect.objectContaining({
           roomId: payload.roomId,
-        }),
+        })
       );
     });
 
@@ -199,7 +199,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const joinHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING)
       )?.[1];
 
       const payload = {
@@ -217,7 +217,7 @@ describe("SocketIORouter", () => {
           entityId: payload.entityId,
           worldId: payload.serverId,
           roomId: payload.channelId,
-        }),
+        })
       );
     });
 
@@ -227,7 +227,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const joinHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING)
       )?.[1];
 
       joinHandler({}); // No channelId
@@ -248,7 +248,7 @@ describe("SocketIORouter", () => {
 
     it("should handle valid message submission", async () => {
       const messageHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE)
       )?.[1];
 
       expect(messageHandler).toBeDefined();
@@ -262,13 +262,13 @@ describe("SocketIORouter", () => {
       };
 
       mockServerInstance.getChannelDetails.mockReturnValue(
-        Promise.resolve({ id: payload.channelId }),
+        Promise.resolve({ id: payload.channelId })
       );
       mockServerInstance.createMessage.mockReturnValue(
         Promise.resolve({
           id: "msg-123",
           createdAt: new Date().toISOString(),
-        }),
+        })
       );
 
       await messageHandler(payload);
@@ -281,22 +281,22 @@ describe("SocketIORouter", () => {
           channelId: payload.channelId,
           authorId: payload.senderId,
           content: payload.message,
-        }),
+        })
       );
 
       expect(mockSocket.emit).toHaveBeenCalledWith(
         "messageBroadcast",
-        expect.any(Object),
+        expect.any(Object)
       );
       expect(mockSocket.emit).toHaveBeenCalledWith(
         "messageAck",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
     it("should auto-create channel if it does not exist", async () => {
       const messageHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE)
       )?.[1];
 
       expect(messageHandler).toBeDefined();
@@ -310,13 +310,13 @@ describe("SocketIORouter", () => {
       };
 
       mockServerInstance.getChannelDetails.mockRejectedValue(
-        new Error("Channel not found"),
+        new Error("Channel not found")
       );
       mockServerInstance.createMessage.mockReturnValue(
         Promise.resolve({
           id: "msg-123",
           createdAt: new Date().toISOString(),
-        }),
+        })
       );
 
       await messageHandler(payload);
@@ -329,13 +329,13 @@ describe("SocketIORouter", () => {
           id: payload.channelId,
           messageServerId: payload.serverId,
         }),
-        [payload.senderId],
+        [payload.senderId]
       );
     });
 
     it("should handle DM channel creation", async () => {
       const messageHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE)
       )?.[1];
 
       expect(messageHandler).toBeDefined();
@@ -351,13 +351,13 @@ describe("SocketIORouter", () => {
       };
 
       mockServerInstance.getChannelDetails.mockRejectedValue(
-        new Error("Channel not found"),
+        new Error("Channel not found")
       );
       mockServerInstance.createMessage.mockReturnValue(
         Promise.resolve({
           id: "msg-123",
           createdAt: new Date().toISOString(),
-        }),
+        })
       );
 
       await messageHandler(payload);
@@ -369,13 +369,13 @@ describe("SocketIORouter", () => {
         expect.objectContaining({
           type: ChannelType.DM,
         }),
-        [payload.senderId, payload.targetUserId],
+        [payload.senderId, payload.targetUserId]
       );
     });
 
     it("should reject message without required fields", async () => {
       const messageHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.SEND_MESSAGE)
       )?.[1];
 
       const payload = {
@@ -401,7 +401,7 @@ describe("SocketIORouter", () => {
 
     it("should handle log subscription", () => {
       const subscribeHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "subscribe_logs",
+        (call) => call[0] === "subscribe_logs"
       )?.[1];
 
       subscribeHandler();
@@ -411,13 +411,13 @@ describe("SocketIORouter", () => {
         {
           subscribed: true,
           message: "Successfully subscribed to log stream",
-        },
+        }
       );
     });
 
     it("should handle log unsubscription", () => {
       const unsubscribeHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "unsubscribe_logs",
+        (call) => call[0] === "unsubscribe_logs"
       )?.[1];
 
       unsubscribeHandler();
@@ -427,20 +427,20 @@ describe("SocketIORouter", () => {
         {
           subscribed: false,
           message: "Successfully unsubscribed from log stream",
-        },
+        }
       );
     });
 
     it("should handle log filter updates", () => {
       // First subscribe
       const subscribeHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "subscribe_logs",
+        (call) => call[0] === "subscribe_logs"
       )?.[1];
       subscribeHandler();
 
       // Then update filters
       const updateHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "update_log_filters",
+        (call) => call[0] === "update_log_filters"
       )?.[1];
 
       const filters = { agentName: "TestAgent", level: "debug" };
@@ -455,12 +455,12 @@ describe("SocketIORouter", () => {
     it("should broadcast logs based on filters", () => {
       // Subscribe and set filters
       const subscribeHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "subscribe_logs",
+        (call) => call[0] === "subscribe_logs"
       )?.[1];
       subscribeHandler();
 
       const updateHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "update_log_filters",
+        (call) => call[0] === "update_log_filters"
       )?.[1];
       updateHandler({ agentName: "TestAgent", level: "info" });
 
@@ -485,12 +485,12 @@ describe("SocketIORouter", () => {
     it("should not broadcast logs that do not match filters", () => {
       // Subscribe and set filters
       const subscribeHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "subscribe_logs",
+        (call) => call[0] === "subscribe_logs"
       )?.[1];
       subscribeHandler();
 
       const updateHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "update_log_filters",
+        (call) => call[0] === "update_log_filters"
       )?.[1];
       updateHandler({ agentName: "TestAgent", level: "error" });
 
@@ -506,7 +506,7 @@ describe("SocketIORouter", () => {
 
       expect(mockSocket.emit).not.toHaveBeenCalledWith(
         "log_stream",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
@@ -519,7 +519,7 @@ describe("SocketIORouter", () => {
 
       // First join with agent ID
       const joinHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING),
+        (call) => call[0] === String(SOCKET_MESSAGE_TYPE.ROOM_JOINING)
       )?.[1];
 
       joinHandler({
@@ -529,7 +529,7 @@ describe("SocketIORouter", () => {
 
       // Then disconnect
       const disconnectHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "disconnect",
+        (call) => call[0] === "disconnect"
       )?.[1];
 
       disconnectHandler();
@@ -547,7 +547,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const errorHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "error",
+        (call) => call[0] === "error"
       )?.[1];
 
       const testError = new Error("Test socket error");
@@ -563,7 +563,7 @@ describe("SocketIORouter", () => {
       connectionHandler(mockSocket);
 
       const messageHandler = mockSocket.on.mock.calls.find(
-        (call) => call[0] === "message",
+        (call) => call[0] === "message"
       )?.[1];
 
       // Send malformed data

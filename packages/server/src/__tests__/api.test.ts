@@ -17,7 +17,7 @@ import { AgentServer } from "../index";
 
 // Mock dependencies
 mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
+  const actual = require("@elizaos/core");
   return {
     ...actual,
     logger: {
@@ -56,18 +56,16 @@ mock.module("@elizaos/plugin-sql", () => ({
     getDatabase: jest.fn(() => ({
       execute: jest.fn(() => Promise.resolve([])),
     })),
-    getMessageServers: jest
-      .fn()
-      .mockReturnValue(
-        Promise.resolve([
-          {
-            id: "00000000-0000-0000-0000-000000000000",
-            name: "Default Server",
-          },
-        ]),
-      ),
+    getMessageServers: jest.fn().mockReturnValue(
+      Promise.resolve([
+        {
+          id: "00000000-0000-0000-0000-000000000000",
+          name: "Default Server",
+        },
+      ])
+    ),
     createMessageServer: jest.fn(() =>
-      Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" }),
+      Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" })
     ),
     getAgentsForServer: jest.fn(() => Promise.resolve([])),
     addAgentToServer: jest.fn(() => Promise.resolve(undefined)),
@@ -197,7 +195,7 @@ describe("API Server Functionality", () => {
       expect(server.database).toBeDefined();
       expect(typeof server.database.init).toBe("function");
       expect(typeof (server.database as any).getMessageServers).toBe(
-        "function",
+        "function"
       );
     });
   });

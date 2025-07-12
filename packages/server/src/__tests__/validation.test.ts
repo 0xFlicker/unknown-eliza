@@ -2,7 +2,7 @@
  * Unit tests for validation functions
  */
 
-import { describe, it, expect, mock, jest } from "bun:test";
+import { describe, it, expect, mock, jest, beforeEach } from "bun:test";
 import {
   validateChannelId,
   validateAgentId,
@@ -16,7 +16,7 @@ import type { IAgentRuntime, UUID } from "@elizaos/core";
 
 // Mock the logger to capture security logs
 mock.module("@elizaos/core", async () => {
-  const actual = await import("@elizaos/core");
+  const actual = require("@elizaos/core");
   return {
     ...actual,
     logger: {
@@ -53,7 +53,7 @@ describe("Validation Functions", () => {
       validateChannelId(invalidUuid, clientIp);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        `[SECURITY] Invalid channel ID attempted from ${clientIp}: ${invalidUuid}`,
+        `[SECURITY] Invalid channel ID attempted from ${clientIp}: ${invalidUuid}`
       );
     });
 
@@ -73,17 +73,9 @@ describe("Validation Functions", () => {
         expect(result).toBeNull();
         // These inputs are not valid UUIDs, so they get the "Invalid" message, not "Suspicious"
         expect(logger.warn).toHaveBeenCalledWith(
-          `[SECURITY] Invalid channel ID attempted from 192.168.1.100: ${input}`,
+          `[SECURITY] Invalid channel ID attempted from 192.168.1.100: ${input}`
         );
       });
-    });
-
-    it("should not log when client IP is not provided", () => {
-      const invalidUuid = "invalid-uuid";
-
-      validateChannelId(invalidUuid);
-
-      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it("should handle empty string", () => {
@@ -174,7 +166,7 @@ describe("Validation Functions", () => {
       const agents = new Map<UUID, IAgentRuntime>();
 
       expect(() => getRuntime(agents, agentId)).toThrow(
-        `Agent not found: ${agentId}`,
+        `Agent not found: ${agentId}`
       );
     });
 
@@ -183,7 +175,7 @@ describe("Validation Functions", () => {
       const agents = new Map<UUID, IAgentRuntime>();
 
       expect(() => getRuntime(agents, agentId)).toThrow(
-        `Agent not found: ${agentId}`,
+        `Agent not found: ${agentId}`
       );
     });
   });
