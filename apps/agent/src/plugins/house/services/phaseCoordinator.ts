@@ -100,8 +100,9 @@ export class PhaseCoordinator extends Service {
     if (coordinationService) {
       await coordinationService.sendGameEvent(eventType, payload);
     } else {
-      // Fallback to local events
-      await this.runtime.emitEvent(eventType, payload);
+      throw new Error(
+        `CoordinationService not available for event ${eventType}`
+      );
     }
   }
 
@@ -300,7 +301,6 @@ export class PhaseCoordinator extends Service {
     );
 
     for (const player of alivePlayers) {
-
       // Emit the event via coordination service
       const coordinationService = this.getCoordinationService();
       const payload = {
@@ -335,7 +335,6 @@ export class PhaseCoordinator extends Service {
           payload
         );
       }
-
     }
 
     // Wait for all players to complete strategic thinking

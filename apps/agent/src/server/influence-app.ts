@@ -2,7 +2,9 @@ import {
   AgentRuntime,
   ChannelType,
   IAgentRuntime,
+  Role,
   UUID,
+  createUniqueUuid,
   logger,
   stringToUuid,
 } from "@elizaos/core";
@@ -132,6 +134,7 @@ export class InfluenceApp<
     this.agentManager = new AgentManager(
       this.server,
       this.config.runtimeConfig?.runtimeSettings || {},
+      this.messageServer,
       this.config.runtimeConfig?.runtime
         ? [this.config.runtimeConfig.runtime]
         : []
@@ -156,6 +159,24 @@ export class InfluenceApp<
 
     await this.houseAgent.initialize();
     await this.server.registerAgent(this.houseAgent);
+    const worldId = createUniqueUuid(this.houseAgent, this.messageServer.id);
+    let world = await this.houseAgent.getWorld(worldId);
+    if (!world) {
+      await this.houseAgent.createWorld({
+        id: worldId,
+        name: "Influence",
+        agentId: this.houseAgent.agentId,
+        serverId: this.messageServer.id,
+        metadata: {
+          ownership: {
+            ownerId: this.houseAgent.agentId,
+          },
+          roles: {
+            [this.houseAgent.agentId]: Role.OWNER,
+          },
+        },
+      });
+    }
 
     this.socketManager = SocketIOManager.getInstance();
     this.socketManager.initialize(this.houseAgent.agentId, this.serverPort);

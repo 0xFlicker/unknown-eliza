@@ -6,6 +6,7 @@ import {
   Memory,
   stringToUuid,
   EventType,
+  SendHandlerFunction,
 } from "@elizaos/core";
 import {
   createGameEventMessage,
@@ -27,60 +28,15 @@ export class CoordinationService extends Service {
   static serviceType = "coordination";
   capabilityDescription = "Cross-agent coordination via message bus";
 
-  private isInitialized = false;
-  private coordinationChannelId?: UUID;
-  private agentServer?: AgentServer; // AgentServer instance for cross-agent messaging
-
   constructor(runtime: IAgentRuntime) {
     super();
     this.runtime = runtime;
-    // Channel ID will be set via setCoordinationChannelId()
   }
-
-  /**
-   * Initialize the service with runtime
-   */
-  async initialize(runtime: IAgentRuntime): Promise<void> {
-    if (this.isInitialized) {
-      logger.warn("CoordinationService already initialized");
-      return;
-    }
-
-    this.runtime = runtime;
-    this.isInitialized = true;
-
-    logger.info(
-      `CoordinationService initialized for ${runtime.character?.name}`
-    );
-  }
-
-  /**
-   * Set the coordination channel ID (must be called after initialization)
-   */
-  setCoordinationChannelId(channelId: UUID): void {
-    this.coordinationChannelId = channelId;
-    logger.info(`Coordination channel ID set to: ${channelId}`);
-  }
-
-  getCoordinationChannelId(): UUID {
-    return this.coordinationChannelId;
-  }
-
-  /**
-   * Set the AgentServer instance for cross-agent messaging
-   */
-  setAgentServer(agentServer: AgentServer): void {
-    this.agentServer = agentServer;
-    logger.info(`AgentServer instance set for coordination service`);
-  }
-
   /**
    * Create and start the service
    */
   static async start(runtime: IAgentRuntime): Promise<CoordinationService> {
     const service = new CoordinationService(runtime);
-    await service.initialize(runtime);
-    runtime.registerService(CoordinationService);
     return service;
   }
 
@@ -88,27 +44,7 @@ export class CoordinationService extends Service {
    * Stop the service (required by Service interface)
    */
   async stop(): Promise<void> {
-    this.isInitialized = false;
     logger.info("CoordinationService stopped");
-  }
-
-  static async registerSendHandlers(
-    runtime: IAgentRuntime,
-    serviceInstance: CoordinationService
-  ) {
-    if (serviceInstance) {
-      runtime.registerSendHandler(
-        "coordination",
-        serviceInstance.handleSendMessage.bind(serviceInstance)
-      );
-      logger.info("[CoordinationService] Registered send handler.");
-    }
-  }
-
-  handleSendMessage(message: AnyCoordinationMessage): void {
-    logger.info("[CoordinationService] Received coordination message", {
-      message,
-    });
   }
 
   /**
@@ -192,44 +128,6 @@ export class CoordinationService extends Service {
   private async sendCoordinationMessage(
     message: AnyCoordinationMessage
   ): Promise<void> {
-    try {
-      if (!this.coordinationChannelId) {
-        throw new Error("Coordination channel ID not set");
-      }
-
-      // Use the configured coordination channel ID
-      const channelId = this.coordinationChannelId;
-
-      logger.debug(`🔗 Sending coordination message to channel ${channelId}`, {
-        messageType: message.type,
-        messageId: message.messageId,
-        targetAgents: message.targetAgents,
-      });
-
-      // Use AgentServer's createMessage for cross-agent communication
-      const serializedMessage = JSON.stringify(message);
-
-      // Send via the coordination channel
-      await this.runtime.sendMessageToTarget(
-        {
-          roomId: this.coordinationChannelId,
-          channelId: this.coordinationChannelId,
-          source: "coordination",
-        },
-        {
-          text: serializedMessage,
-          source: this.runtime.agentId,
-          action: "coordination",
-        }
-      );
-      logger.info("🔗 Coordination message sent via AgentServer message bus", {
-        messageId: message.messageId,
-        channelId: channelId,
-        messageType: message.type,
-      });
-    } catch (error) {
-      logger.error("Failed to send coordination message:", error);
-      throw error;
-    }
+    internalMessageBus.emit(message.type, message);
   }
 }

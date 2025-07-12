@@ -1,12 +1,13 @@
 import {
   AgentRuntime,
   IAgentRuntime,
+  Role,
   RuntimeSettings,
   UUID,
   createUniqueUuid,
   logger,
 } from "@elizaos/core";
-import { AgentServer } from "@elizaos/server";
+import { AgentServer, MessageServer } from "@elizaos/server";
 import { Agent, AgentConfig, RuntimeDecorator } from "./types";
 
 /**
@@ -19,6 +20,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
   constructor(
     private server: AgentServer,
     private runtimeSettings: RuntimeSettings,
+    private messageServer: MessageServer,
     defaultDecorators: RuntimeDecorator<IAgentRuntime>[] = []
   ) {
     this.runtimeDecorators = [...defaultDecorators];
@@ -74,6 +76,22 @@ export class AgentManager<Context extends Record<string, unknown>> {
     if (config.init) {
       await config.init(decoratedRuntime);
       logger.debug(`Ran init hook for agent ${config.character.name}`);
+    }
+
+    const worldId = createUniqueUuid(decoratedRuntime, this.messageServer.id);
+    let world = await decoratedRuntime.getWorld(worldId);
+    if (!world) {
+      await decoratedRuntime.createWorld({
+        id: worldId,
+        name: "Influence",
+        agentId: decoratedRuntime.agentId,
+        serverId: this.messageServer.id,
+        metadata: {
+          roles: {
+            [decoratedRuntime.agentId]: Role.NONE,
+          },
+        },
+      });
     }
 
     // Create agent record

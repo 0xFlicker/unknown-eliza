@@ -1,11 +1,13 @@
 "use client";
 
-import type {
-  Agent,
-  Character,
-  UUID,
-  Memory as CoreMemory,
-  Room as CoreRoom,
+import {
+  type Agent,
+  type Character,
+  type UUID,
+  type Memory as CoreMemory,
+  type Room as CoreRoom,
+  getWorldSettings,
+  World,
 } from "@elizaos/core";
 import clientLogger from "./logger";
 import {
@@ -744,4 +746,17 @@ export const apiClient = {
     success: boolean;
     data: { channelId: UUID; participants: UUID[] };
   }> => fetcher({ url: `/messaging/central-channels/${channelId}/agents` }),
+
+  postWorldSettings: (
+    agentId: UUID,
+    worldSettings: World
+  ): Promise<{
+    success: boolean;
+  }> => {
+    return fetcher({
+      url: `/agents/${agentId}/world`,
+      method: "POST",
+      body: worldSettings,
+    });
+  },
 };

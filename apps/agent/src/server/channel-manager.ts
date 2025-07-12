@@ -7,6 +7,7 @@ import {
   EntityPayload,
   createUniqueUuid,
   stringToUuid,
+  World,
 } from "@elizaos/core";
 import { AgentServer, MessageChannel, MessageServer } from "@elizaos/server";
 import {
@@ -28,6 +29,7 @@ import { AgentManager } from "./agent-manager";
  * Leverages the API client and SocketIO events for compatibility with www client
  */
 export class ChannelManager {
+  private world?: World;
   private channels = new Map<UUID, Channel>();
   private agentManager: AgentManager<any>;
   private associationManager: AssociationManager;
@@ -284,47 +286,6 @@ export class ChannelManager {
       throw error;
     }
   }
-
-  // /**
-  //  * Add a participant to an existing channel
-  //  */
-  // async addParticipantToChannel(
-  //   channelId: UUID,
-  //   participant: ChannelParticipant
-  // ): Promise<void> {
-  //   const channel = this.channels.get(channelId);
-  //   if (!channel) {
-  //     throw new Error(`Channel ${channelId} not found`);
-  //   }
-
-  //   const runtime = this.agentManager.getAgentRuntime(participant.agentId);
-  //   if (!runtime) {
-  //     throw new Error(`Agent ${participant.agentId} not found`);
-  //   }
-
-  //   logger.info(`Adding ${runtime.character.name} to channel ${channel.name}`);
-
-  //   // Add participant to central channel through API
-  //   await apiClient.addUserToChannel(channelId, participant.agentId);
-
-  //   // Store participant in channel
-  //   channel.participants.set(participant.agentId, participant);
-
-  //   // Create association record
-  //   const association: AgentChannelAssociation = {
-  //     agentId: participant.agentId,
-  //     channelId: channel.id,
-  //     participant: participant,
-  //     entityId: participant.agentId,
-  //   };
-
-  //   // Add to association manager
-  //   this.associationManager.addAssociation(association);
-
-  //   logger.info(
-  //     `Successfully added ${runtime.character.name} to channel ${channel.name}`
-  //   );
-  // }
 
   /**
    * Remove a participant from a channel

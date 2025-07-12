@@ -14,12 +14,12 @@ export enum AgentRole {
  */
 export function getAgentRole(runtime: IAgentRuntime): AgentRole {
   const name = runtime.character?.name?.toLowerCase() || "";
-  
+
   // Check if this is a house agent
   if (name.includes("house") || name === "house") {
     return AgentRole.HOUSE;
   }
-  
+
   // Default to player role
   return AgentRole.PLAYER;
 }
@@ -33,7 +33,7 @@ export function canSendMessage(
   gameEventType?: string
 ): boolean {
   const role = getAgentRole(runtime);
-  
+
   switch (messageType) {
     case "game_event":
       // Check specific game event permissions
@@ -42,19 +42,19 @@ export function canSendMessage(
       }
       // Only house agents can send game events by default
       return role === AgentRole.HOUSE;
-      
+
     case "agent_ready":
       // All agents can send ready signals
       return true;
-      
+
     case "heartbeat":
       // All agents can send heartbeats
       return true;
-      
+
     case "coordination_ack":
       // All agents can send acknowledgments
       return true;
-      
+
     default:
       return false;
   }
@@ -68,13 +68,13 @@ function canSendGameEvent(role: AgentRole, gameEventType: string): boolean {
     case "GAME:I_AM_READY":
       // Players can send I_AM_READY events
       return role === AgentRole.PLAYER || role === AgentRole.HOUSE;
-      
+
     case "GAME:PHASE_STARTED":
     case "GAME:ALL_PLAYERS_READY":
     case "GAME:TIMER_UPDATE":
       // Only house can send these events
       return role === AgentRole.HOUSE;
-      
+
     default:
       // By default, only house can send game events
       return role === AgentRole.HOUSE;
