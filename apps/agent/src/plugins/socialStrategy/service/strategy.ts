@@ -4,8 +4,6 @@ import {
   elizaLogger,
   stringToUuid,
   type UUID,
-  type Memory,
-  type Entity,
 } from "@elizaos/core";
 import {
   StrategyState,
@@ -15,7 +13,6 @@ import {
   StrategyAnalysis,
   DiaryEntry,
   PlayerPattern,
-  PlayerIntelligence,
   DEFAULT_STRATEGY_PROMPTS,
   StrategyPrompts,
 } from "../types";
@@ -27,8 +24,6 @@ export class StrategyService extends Service {
   static serviceType: string = "social-strategy";
 
   private state: StrategyState;
-  private phaseCheckInterval?: NodeJS.Timeout;
-  private strategyReviewInterval?: NodeJS.Timeout;
 
   constructor(runtime: IAgentRuntime, config?: Partial<StrategyPrompts>) {
     super(runtime);
@@ -54,7 +49,7 @@ export class StrategyService extends Service {
   static async stop(runtime: IAgentRuntime): Promise<unknown> {
     logger.info("*** Stopping StrategyService ***");
     const service = runtime.getService(
-      StrategyService.serviceType
+      StrategyService.serviceType,
     ) as StrategyService;
     if (!service) {
       throw new Error("StrategyService not found");
@@ -65,7 +60,7 @@ export class StrategyService extends Service {
 
   static async start(
     runtime: IAgentRuntime,
-    config?: Partial<StrategyPrompts>
+    config?: Partial<StrategyPrompts>,
   ): Promise<Service> {
     logger.info("*** Starting StrategyService ***");
     const service = new StrategyService(runtime, config);
@@ -77,9 +72,6 @@ export class StrategyService extends Service {
     // Load existing state from memory if available
     await this.loadState();
 
-    // Set up periodic checks for phase changes and strategy reviews
-    this.setupPeriodicChecks();
-
     logger.info("StrategyService initialized", {
       agentId: this.state.agentId,
       currentPhase: this.state.currentPhase,
@@ -89,14 +81,6 @@ export class StrategyService extends Service {
 
   async stop(): Promise<void> {
     logger.info("*** Stopping StrategyService ***");
-
-    if (this.phaseCheckInterval) {
-      clearInterval(this.phaseCheckInterval);
-    }
-
-    if (this.strategyReviewInterval) {
-      clearInterval(this.strategyReviewInterval);
-    }
 
     await this.saveState();
   }
@@ -117,22 +101,10 @@ export class StrategyService extends Service {
     };
   }
 
-  private setupPeriodicChecks(): void {
-    // Check for phase changes every 30 seconds
-    this.phaseCheckInterval = setInterval(() => {
-      this.checkPhaseChange();
-    }, 30000);
-
-    // Trigger strategy reviews every 5 minutes
-    this.strategyReviewInterval = setInterval(() => {
-      this.scheduleStrategyReview();
-    }, 300000);
-  }
-
   private async loadState(): Promise<void> {
     try {
       const stateMemory = await this.runtime.getCache<StrategyState>(
-        `strategy-state-${this.state.agentId}`
+        `strategy-state-${this.state.agentId}`,
       );
       if (stateMemory) {
         // Restore state but keep constructor-provided configuration
@@ -141,10 +113,10 @@ export class StrategyService extends Service {
           ...stateMemory,
           configuration: { ...stateMemory.configuration, ...config },
           relationships: new Map(
-            Object.entries(stateMemory.relationships || {}) as [UUID, any][]
+            Object.entries(stateMemory.relationships || {}) as [UUID, any][],
           ),
           playerPatterns: new Map(
-            Object.entries(stateMemory.playerPatterns || {}) as [UUID, any][]
+            Object.entries(stateMemory.playerPatterns || {}) as [UUID, any][],
           ),
         };
         logger.info("Loaded existing strategy state from memory");
@@ -163,7 +135,7 @@ export class StrategyService extends Service {
       };
       await this.runtime.setCache(
         `strategy-state-${this.state.agentId}`,
-        serializedState
+        serializedState,
       );
       logger.debug("Strategy state saved to memory");
     } catch (error) {
@@ -194,7 +166,7 @@ export class StrategyService extends Service {
   async updateRelationship(
     playerId: UUID,
     playerName: string,
-    updates: Partial<StrategicRelationship>
+    updates: Partial<StrategicRelationship>,
   ): Promise<void> {
     const existing = this.state.relationships.get(playerId) || {
       playerId,
@@ -227,7 +199,7 @@ export class StrategyService extends Service {
   }
 
   async addDiaryEntry(
-    entry: Omit<DiaryEntry, "id" | "timestamp">
+    entry: Omit<DiaryEntry, "id" | "timestamp">,
   ): Promise<DiaryEntry> {
     const diaryEntry: DiaryEntry = {
       ...entry,
@@ -255,7 +227,7 @@ export class StrategyService extends Service {
 
   async updatePlayerPattern(
     playerId: UUID,
-    updates: Partial<PlayerPattern>
+    updates: Partial<PlayerPattern>,
   ): Promise<void> {
     const existing = this.state.playerPatterns.get(playerId) || {
       playerId,
@@ -279,70 +251,6 @@ export class StrategyService extends Service {
 
     logger.debug("Updated player pattern", { playerId, updates });
   }
-
-  async generatePlayerIntelligence(
-    playerId: UUID
-  ): Promise<PlayerIntelligence | null> {
-    const relationship = this.state.relationships.get(playerId);
-    const pattern = this.state.playerPatterns.get(playerId);
-
-    if (!relationship) {
-      return null;
-    }
-
-    // Get all messages involving this player
-    const directObservations = await this.runtime.getMemories({
-      tableName: "messages",
-      entityId: playerId,
-      count: 100,
-    });
-
-    // Get messages mentioning this player
-    const thirdPartyReports = await this.runtime
-      .getMemories({
-        tableName: "messages",
-        count: 200,
-      })
-      .then((memories) =>
-        memories.filter(
-          (m) =>
-            m.content?.text
-              ?.toLowerCase()
-              .includes(relationship.playerName.toLowerCase()) &&
-            m.entityId !== playerId
-        )
-      );
-
-    const intelligence: PlayerIntelligence = {
-      playerId,
-      playerName: relationship.playerName,
-      directObservations,
-      thirdPartyReports,
-      behavioralAnalysis: pattern || {
-        playerId,
-        communicationStyle: "diplomatic",
-        decisionMaking: "calculated",
-        alliancePatterns: "loyal",
-        informationSharing: "selective",
-        riskTolerance: "medium",
-        evidenceStrength: 0.1,
-        observationCount: 0,
-      },
-      strategicAssessment: relationship,
-      trustworthiness: relationship.reliability,
-      predictability: pattern?.evidenceStrength || 0.1,
-      dangerLevel: relationship.threat,
-      alliances: relationship.alliances,
-      vulnerabilities: relationship.weaknesses,
-      motivations: [], // Could be inferred from behavior
-      recentActivity: directObservations
-        .slice(0, 5)
-        .map((m) => m.content?.text || ""),
-    };
-
-    return intelligence;
-  }
-
   getState(): StrategyState {
     return { ...this.state };
   }
@@ -357,26 +265,15 @@ export class StrategyService extends Service {
     logger.info("Strategy configuration updated");
   }
 
-  private async checkPhaseChange(): Promise<void> {
-    // This would be called by game events or polling
-    // For now, it's a placeholder for phase detection logic
-  }
-
-  private async scheduleStrategyReview(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastReview = now - this.state.lastStrategyReview;
-
-    // Only review if it's been at least 4 minutes since last review
-    if (timeSinceLastReview > 240000) {
-      this.state.lastStrategyReview = now;
-      logger.info("Scheduling periodic strategy review");
-      // This would trigger strategy evaluation
-    }
+  async updateAnalysis(updates: Partial<StrategyAnalysis>): Promise<void> {
+    this.state.analysis = { ...this.state.analysis, ...updates };
+    await this.saveState();
+    logger.debug("Strategy analysis updated", { updates });
   }
 
   private async triggerPhaseTransitionReview(
     previousPhase: Phase,
-    newPhase: Phase
+    newPhase: Phase,
   ): Promise<void> {
     logger.info("Triggering phase transition review", {
       previousPhase,
@@ -486,45 +383,4 @@ export class StrategyService extends Service {
     this.state.lastStrategyReview = Date.now();
     await this.saveState();
   }
-
-  // Legacy compatibility method
-  async getOrCreatePlayer({ handle }: { handle: string }): Promise<Entity> {
-    logger.info("*** Adding player to memories (legacy compatibility) ***");
-    const id = stringToUuid(
-      `${this.runtime.agentId}:player:${handle.toLowerCase()}`
-    );
-
-    const entity = await this.runtime.getEntityById(id);
-    if (entity) {
-      return entity;
-    }
-
-    const now = Date.now();
-    const newPlayer: Entity = {
-      id,
-      agentId: this.runtime.agentId,
-      names: [handle],
-      metadata: {
-        trustScore: 50,
-        firstInteraction: now,
-        lastInteraction: now,
-        relationshipType: "neutral",
-        interactionCount: 1,
-      },
-    };
-
-    await this.runtime.createEntity(newPlayer);
-
-    // Also add to strategic relationships
-    await this.updateRelationship(id, handle, {
-      playerId: id,
-      playerName: handle,
-      trustLevel: TrustLevel.NEUTRAL,
-    });
-
-    return newPlayer;
-  }
 }
-
-// Export legacy class for compatibility
-export const AddPlayerService = StrategyService;

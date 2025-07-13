@@ -49,7 +49,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
     const app = new InfluenceApp({
       dataDir: simDataDir,
-      serverPort: 2455,
+      serverPort: 2855,
       runtimeConfig: {
         runtime: (runtime) => {
           modelMockingService.patchRuntime(runtime);
@@ -80,16 +80,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
             timestamp: event.timestamp,
           });
         }
-      });
-
-      // Add House agent (game master)
-      const house = await app.addAgent({
-        character: houseCharacter,
-        plugins: [...getHousePlugins(), housePlugin],
-
-        metadata: {
-          name: "House",
-        },
       });
 
       // Add 5 influencer agents with distinct personalities for strategic diversity
@@ -143,12 +133,11 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
 
-      expectSoft(house).toBeDefined();
       expectSoft(players.length).toBe(5);
 
       // Phase 1: Create main game channel and start in LOBBY phase
       console.log(
-        "=== PHASE 1: Creating Game Channel and Starting in LOBBY ==="
+        "=== PHASE 1: Creating Game Channel and Starting in LOBBY ===",
       );
 
       const playerNames = playerConfigs.map((c) => c.name);
@@ -158,7 +147,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         name: "main-game-channel",
         participants: [
           {
-            agentId: house.id,
+            agentId: app.getHouseAgent().agentId,
             mode: ParticipantMode.BROADCAST_ONLY,
             state: ParticipantState.FOLLOWED,
           },
@@ -185,12 +174,12 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Observe channel messages for debugging and collect them
       app.getChannelMessageStream(mainChannelId).subscribe((message) => {
         console.log(
-          `📩 ${players.find((p) => p.id === message.authorId)?.character.name}: ${message.content}`
+          `📩 ${players.find((p) => p.id === message.authorId)?.character.name}: ${message.content}`,
         );
       });
 
       console.log(
-        "✓ Game state pre-loaded: players joined, now in LOBBY phase"
+        "✓ Game state pre-loaded: players joined, now in LOBBY phase",
       );
 
       // Phase 2: House announces LOBBY phase to all players
@@ -202,13 +191,13 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         toArray(),
         tap((messages) => {
           messageCount = messages.length;
-        })
+        }),
       );
 
       // House broadcasts LOBBY phase announcement
       await app.sendMessage(
         mainChannelId,
-        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!"
+        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!",
       );
 
       // Phase 3: Brief LOBBY interactions to establish personalities

@@ -6,7 +6,7 @@ import {
   elizaLogger,
   type UUID,
 } from "@elizaos/core";
-import { StrategyService } from "../service/addPlayer";
+import { StrategyService } from "../service/strategy";
 import { Phase } from "../../house/types";
 import { StrategyMode, TrustLevel } from "../types";
 

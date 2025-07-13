@@ -1,10 +1,7 @@
 import EventEmitter from "events";
 import { logger } from "@elizaos/core";
 import { ChannelCapacityTracker } from "./capacity-tracker.js";
-import {
-  CapacityAwareMessageBusOptions,
-  ChannelCapacityExceededEvent,
-} from "./capacity-types.js";
+import { ChannelCapacityExceededEvent } from "./capacity-types.js";
 
 /**
  * A capacity-aware message bus that can enforce channel limits while maintaining
@@ -34,7 +31,7 @@ export class CapacityAwareMessageBus extends EventEmitter {
       // Validate message structure
       if (!messageData || typeof messageData !== "object") {
         logger.warn(
-          "[CapacityAwareMessageBus] Invalid message data structure, bypassing capacity check"
+          "[CapacityAwareMessageBus] Invalid message data structure, bypassing capacity check",
         );
         return super.emit(event, ...args);
       }
@@ -44,7 +41,7 @@ export class CapacityAwareMessageBus extends EventEmitter {
 
       if (!channelId) {
         logger.debug(
-          "[CapacityAwareMessageBus] Message missing channel_id, bypassing capacity check"
+          "[CapacityAwareMessageBus] Message missing channel_id, bypassing capacity check",
         );
         return super.emit(event, ...args);
       }
@@ -54,7 +51,7 @@ export class CapacityAwareMessageBus extends EventEmitter {
         const reason = this.capacityTracker.getExhaustionReason(channelId);
 
         logger.info(
-          `[CapacityAwareMessageBus] Dropping message to exhausted channel ${channelId} (reason: ${reason})`
+          `[CapacityAwareMessageBus] Dropping message to exhausted channel ${channelId} (reason: ${reason})`,
         );
 
         // Emit capacity exceeded event instead of the original message
@@ -74,11 +71,11 @@ export class CapacityAwareMessageBus extends EventEmitter {
       if (
         !this.capacityTracker.canParticipantSendMessage(
           channelId,
-          authorToTrack
+          authorToTrack,
         )
       ) {
         logger.info(
-          `[CapacityAwareMessageBus] Dropping message from participant ${authorToTrack} who has reached their limit in channel ${channelId}`
+          `[CapacityAwareMessageBus] Dropping message from participant ${authorToTrack} who has reached their limit in channel ${channelId}`,
         );
 
         // Emit capacity exceeded event for participant limit
@@ -100,7 +97,7 @@ export class CapacityAwareMessageBus extends EventEmitter {
       if (this.capacityTracker.isChannelExhausted(channelId)) {
         const reason = this.capacityTracker.getExhaustionReason(channelId);
         logger.info(
-          `[CapacityAwareMessageBus] Channel ${channelId} exhausted after this message (reason: ${reason})`
+          `[CapacityAwareMessageBus] Channel ${channelId} exhausted after this message (reason: ${reason})`,
         );
 
         // Still allow this message through since it was within limits when sent

@@ -9,7 +9,6 @@ import bethanyCharacter from "../characters/bethany";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import openaiPlugin from "@elizaos/plugin-openai";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
-import { socialStrategyPlugin } from "../plugins/socialStrategy/index";
 import { killProcessOnPort } from "./utils/process-utils";
 import { TEST_TIMEOUTS } from "./utils/test-timeouts";
 import {
@@ -47,10 +46,10 @@ describe("AgentServer V3 Integration", () => {
   >;
 
   beforeAll(async () => {
-    testServerPort = 3333; // Use different port from other tests
+    testServerPort = 6431; // Use different port from other tests
     await killProcessOnPort(testServerPort);
     await new Promise((resolve) =>
-      setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT)
+      setTimeout(resolve, TEST_TIMEOUTS.SHORT_WAIT),
     );
     dataDir = path.join(os.tmpdir(), `eliza-test-${Date.now()}`);
     fs.mkdirSync(dataDir, { recursive: true });
@@ -94,7 +93,7 @@ describe("AgentServer V3 Integration", () => {
 
   it("demonstrates 2 agents having a basic conversation through AgentServer infrastructure", async () => {
     RecordingTestUtils.logRecordingStatus(
-      "2 agents conversation via AgentServer"
+      "2 agents conversation via AgentServer",
     );
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -149,13 +148,13 @@ describe("AgentServer V3 Integration", () => {
     const threeMessages = messageStream.pipe(
       // take 3
       take(3),
-      toArray()
+      toArray(),
     );
 
     await app.sendMessage(
       channelId,
       "Greetings players and welcome to the pre-game! I'm the house, and I'll be your host for the night. Let's get started!\n\nFirst things first, let's get to know each other. @Bethany, please introduce yourself to the group and then ask another player to introduce themselves!",
-      bethany.id
+      bethany.id,
     );
 
     // Wait for threeMessages to be emitted
@@ -167,7 +166,7 @@ describe("AgentServer V3 Integration", () => {
     console.log(`Total streamed messages: ${receivedMessages.length}`);
     receivedMessages.forEach((msg, idx) => {
       console.log(
-        `${idx + 1}. [${agentManager.getAgent(msg.authorId)?.character.name}]: ${msg.content}`
+        `${idx + 1}. [${agentManager.getAgent(msg.authorId)?.character.name}]: ${msg.content}`,
       );
     });
 
@@ -192,7 +191,7 @@ describe("AgentServer V3 Integration", () => {
       const replyMeta = messages[0].metadata;
       expectSoft(replyMeta?.in_reply_to_message_id).toBe(firstMsgId);
       console.log(
-        `✅ Reply-to metadata set: ${replyMeta?.in_reply_to_message_id}`
+        `✅ Reply-to metadata set: ${replyMeta?.in_reply_to_message_id}`,
       );
     }
   }, 90000); // Allow plenty of time for real model interactions

@@ -5,10 +5,12 @@ import type {
   GameEventPayload,
   GameEventPayloadMap,
   GameEventHandler,
-  GameEventEmission
+  GameEventEmission,
 } from "./types";
 
 const logger = elizaLogger.child({ component: "GameEventManager" });
+
+// NOTE: This file is left here as example code, but see ../../coordinator/index.ts for the actual game event manager implementation
 
 /**
  * Manager for game-specific events that wraps the ElizaOS runtime event system
@@ -16,7 +18,10 @@ const logger = elizaLogger.child({ component: "GameEventManager" });
  */
 export class GameEventManager {
   private runtime: IAgentRuntime;
-  private eventHandlers = new Map<string, Array<(payload: any) => Promise<void> | void>>();
+  private eventHandlers = new Map<
+    string,
+    Array<(payload: any) => Promise<void> | void>
+  >();
   private eventEmissionLog = new Map<string, number>();
 
   constructor(runtime: IAgentRuntime) {
@@ -28,7 +33,7 @@ export class GameEventManager {
    */
   async emitGameEvent<T extends keyof GameEventPayloadMap>(
     eventType: T,
-    payload: Omit<GameEventPayloadMap[T], 'runtime' | 'source' | 'onComplete'>
+    payload: Omit<GameEventPayloadMap[T], "runtime" | "source" | "onComplete">,
   ): Promise<void> {
     try {
       // Create full payload with ElizaOS requirements
@@ -36,7 +41,7 @@ export class GameEventManager {
         ...payload,
         runtime: this.runtime,
         source: "game-event-manager",
-        timestamp: Date.now()
+        timestamp: Date.now(),
       } as GameEventPayloadMap[T];
 
       // Log the emission
@@ -47,9 +52,8 @@ export class GameEventManager {
         eventType,
         emissionCount,
         gameId: (payload as any).gameId,
-        roomId: (payload as any).roomId
+        roomId: (payload as any).roomId,
       });
-      
 
       // Emit through ElizaOS runtime (using string-based events)
       await this.runtime.emitEvent(eventType as string, fullPayload);
@@ -57,16 +61,21 @@ export class GameEventManager {
       // Call registered handlers
       const handlers = this.eventHandlers.get(eventType);
       if (handlers && handlers.length > 0) {
-        logger.debug(`[GameEvent] Calling ${handlers.length} handlers for ${eventType}`);
-        
+        logger.debug(
+          `[GameEvent] Calling ${handlers.length} handlers for ${eventType}`,
+        );
+
         await Promise.all(
           handlers.map(async (handler) => {
             try {
               await handler(fullPayload);
             } catch (error) {
-              logger.error(`[GameEvent] Handler error for ${eventType}:`, error);
+              logger.error(
+                `[GameEvent] Handler error for ${eventType}:`,
+                error,
+              );
             }
-          })
+          }),
         );
       }
     } catch (error) {
@@ -80,7 +89,7 @@ export class GameEventManager {
    */
   onGameEvent<T extends keyof GameEventPayloadMap>(
     eventType: T,
-    handler: GameEventHandler<T>
+    handler: GameEventHandler<T>,
   ): void {
     if (!this.eventHandlers.has(eventType)) {
       this.eventHandlers.set(eventType, []);
@@ -89,7 +98,7 @@ export class GameEventManager {
     this.eventHandlers.get(eventType)!.push(handler);
 
     logger.debug(`[GameEvent] Registered handler for ${eventType}`, {
-      handlerCount: this.eventHandlers.get(eventType)!.length
+      handlerCount: this.eventHandlers.get(eventType)!.length,
     });
   }
 
@@ -98,7 +107,7 @@ export class GameEventManager {
    */
   offGameEvent<T extends keyof GameEventPayloadMap>(
     eventType: T,
-    handler: GameEventHandler<T>
+    handler: GameEventHandler<T>,
   ): void {
     const handlers = this.eventHandlers.get(eventType);
     if (handlers) {
@@ -106,7 +115,7 @@ export class GameEventManager {
       if (index > -1) {
         handlers.splice(index, 1);
         logger.debug(`[GameEvent] Removed handler for ${eventType}`, {
-          remainingHandlers: handlers.length
+          remainingHandlers: handlers.length,
         });
       }
     }
@@ -149,11 +158,14 @@ export class GameEventManager {
   /**
    * Helper to create event payloads with common fields
    */
-  createBasePayload(gameId: UUID, roomId: UUID): Pick<GameEventPayload, 'gameId' | 'roomId' | 'timestamp'> {
+  createBasePayload(
+    gameId: UUID,
+    roomId: UUID,
+  ): Pick<GameEventPayload, "gameId" | "roomId" | "timestamp"> {
     return {
       gameId,
       roomId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -165,13 +177,13 @@ export class GameEventManager {
     roomId: UUID,
     phase: import("../types").Phase,
     round: number,
-    timerEndsAt?: number
+    timerEndsAt?: number,
   ): Promise<void> {
     await this.emitGameEvent("GAME:PHASE_STARTED", {
       ...this.createBasePayload(gameId, roomId),
       phase,
       round,
-      timerEndsAt
+      timerEndsAt,
     });
   }
 
@@ -183,13 +195,13 @@ export class GameEventManager {
     roomId: UUID,
     phase: import("../types").Phase,
     round: number,
-    previousPhase?: import("../types").Phase
+    previousPhase?: import("../types").Phase,
   ): Promise<void> {
     await this.emitGameEvent("GAME:PHASE_ENDED", {
       ...this.createBasePayload(gameId, roomId),
       phase,
       round,
-      previousPhase
+      previousPhase,
     });
   }
 
@@ -201,13 +213,13 @@ export class GameEventManager {
     roomId: UUID,
     playerId: UUID,
     playerName: string,
-    readyType: 'strategic_thinking' | 'diary_room' | 'phase_action'
+    readyType: "strategic_thinking" | "diary_room" | "phase_action",
   ): Promise<void> {
     await this.emitGameEvent("GAME:PLAYER_READY", {
       ...this.createBasePayload(gameId, roomId),
       playerId,
       playerName,
-      readyType
+      readyType,
     });
   }
 
@@ -221,7 +233,7 @@ export class GameEventManager {
     playerName: string,
     fromPhase: import("../types").Phase,
     toPhase: import("../types").Phase,
-    contextData?: any
+    contextData?: any,
   ): Promise<void> {
     await this.emitGameEvent("GAME:STRATEGIC_THINKING_REQUIRED", {
       ...this.createBasePayload(gameId, roomId),
@@ -229,7 +241,7 @@ export class GameEventManager {
       playerName,
       fromPhase,
       toPhase,
-      contextData
+      contextData,
     });
   }
 
@@ -239,11 +251,11 @@ export class GameEventManager {
   async emitDiaryRoomOpened(
     gameId: UUID,
     roomId: UUID,
-    diaryRoomId?: UUID
+    diaryRoomId?: UUID,
   ): Promise<void> {
     await this.emitGameEvent("GAME:DIARY_ROOM_OPENED", {
       ...this.createBasePayload(gameId, roomId),
-      diaryRoomId
+      diaryRoomId,
     });
   }
 }

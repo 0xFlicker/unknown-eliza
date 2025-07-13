@@ -148,10 +148,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Phase 1: Create main game channel and start in LOBBY phase
       console.log(
-        "=== PHASE 1: Creating Game Channel and Starting in LOBBY ==="
+        "=== PHASE 1: Creating Game Channel and Starting in LOBBY ===",
       );
-
-      const playerNames = playerConfigs.map((c) => c.name);
 
       // Create main game channel with all participants and pre-loaded LOBBY game state
       const mainChannelId = await app.createChannel({
@@ -185,12 +183,12 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Observe channel messages for debugging and collect them
       app.getChannelMessageStream(mainChannelId).subscribe((message) => {
         console.log(
-          `📩 ${players.find((p) => p.id === message.authorId)?.character.name}: ${message.content}`
+          `📩 ${players.find((p) => p.id === message.authorId)?.character.name}: ${message.content}`,
         );
       });
 
       console.log(
-        "✓ Game state pre-loaded: players joined, now in LOBBY phase"
+        "✓ Game state pre-loaded: players joined, now in LOBBY phase",
       );
 
       // Phase 2: House announces LOBBY phase to all players
@@ -202,13 +200,13 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         toArray(),
         tap((messages) => {
           messageCount = messages.length;
-        })
+        }),
       );
 
       // House broadcasts LOBBY phase announcement
       await app.sendMessage(
         mainChannelId,
-        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!"
+        "🎮 LOBBY PHASE BEGINS! Welcome players. You have 5 minutes to get to know each other before private conversations begin. This is your chance to introduce yourself to the other players!",
       );
 
       // Phase 3: Brief LOBBY interactions to establish personalities

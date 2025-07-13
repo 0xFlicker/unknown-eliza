@@ -111,7 +111,7 @@ export class InfluenceApp<
 
   async initialize() {
     const { server, agentServer, serverPort } = await createAgentServer(
-      this.config
+      this.config,
     );
     process.env.SERVER_PORT = serverPort.toString();
     apiClient.setEndpoint(`http://localhost:${serverPort}/api`);
@@ -119,7 +119,7 @@ export class InfluenceApp<
       this.config.dataDir ??
       (() => {
         const dataDir = fs.mkdtempSync(
-          path.join(os.tmpdir(), "influence-app-data")
+          path.join(os.tmpdir(), "influence-app-data"),
         );
         return dataDir;
       })();
@@ -137,7 +137,7 @@ export class InfluenceApp<
       this.messageServer,
       this.config.runtimeConfig?.runtime
         ? [this.config.runtimeConfig.runtime]
-        : []
+        : [],
     );
 
     // Initialize SocketIO client for real-time message streaming
@@ -154,7 +154,7 @@ export class InfluenceApp<
       this.associationManager,
       this.server,
       this.messageServer,
-      this.houseAgent
+      this.houseAgent,
     );
 
     await this.houseAgent.initialize();
@@ -193,10 +193,10 @@ export class InfluenceApp<
     // Listen to SocketIO message broadcasts (messages from www client)
     this.socketManager.on("messageBroadcast", (data) => {
       logger.info(
-        `[InfluenceApp] 📨 Received SocketIO message: ${data.senderId} -> "${data.text}"`
+        `[InfluenceApp] 📨 Received SocketIO message: ${data.senderId} -> "${data.text}"`,
       );
       logger.info(
-        `[InfluenceApp] SocketIO message details: channelId=${data.channelId}, source=${data.source}`
+        `[InfluenceApp] SocketIO message details: channelId=${data.channelId}, source=${data.source}`,
       );
       const streamedMessage: StreamedMessage = {
         id: data.id || stringToUuid(`message-${Date.now()}-${Math.random()}`),
@@ -219,10 +219,10 @@ export class InfluenceApp<
     // Listen to internal message bus for agent messages
     this.bus.on("new_message", (message) => {
       logger.info(
-        `[InfluenceApp] 🔄 Received internal message bus message: ${message.author_id} -> "${message.content}"`
+        `[InfluenceApp] 🔄 Received internal message bus message: ${message.author_id} -> "${message.content}"`,
       );
       logger.info(
-        `[InfluenceApp] Internal message details: channelId=${message.channel_id}, serverId=${message.server_id}, sourceType=${message.source_type}`
+        `[InfluenceApp] Internal message details: channelId=${message.channel_id}, serverId=${message.server_id}, sourceType=${message.source_type}`,
       );
       const streamedMessage: StreamedMessage = {
         id: message.id,
@@ -242,7 +242,7 @@ export class InfluenceApp<
     });
 
     logger.info(
-      "[InfluenceApp] ✅ Message streaming infrastructure initialized"
+      "[InfluenceApp] ✅ Message streaming infrastructure initialized",
     );
   }
 
@@ -267,7 +267,7 @@ export class InfluenceApp<
             channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
             timestamp: Date.now(),
           };
-        })
+        }),
       )
       .subscribe(this.gameEvent$);
   }
@@ -283,7 +283,7 @@ export class InfluenceApp<
     }
 
     logger.debug(
-      `Broadcasted message ${message.id} to channel ${message.channelId}`
+      `Broadcasted message ${message.id} to channel ${message.channelId}`,
     );
   }
 
@@ -318,11 +318,25 @@ export class InfluenceApp<
     return this.gameEvent$.asObservable();
   }
 
+  emitGameEvent<T = any>(gameEvent: GameEvent<T>): void {
+    const event: GameEvent<T> = {
+      type: gameEvent.type,
+      payload: gameEvent.payload,
+      sourceAgent: gameEvent.sourceAgent,
+      channelId: gameEvent.channelId,
+      timestamp: Date.now(),
+    };
+    this.gameEvent$.next(event);
+    logger.info(
+      `[InfluenceApp] Game event emitted: ${event.type} from ${event.sourceAgent} in channel ${event.channelId}`,
+    );
+  }
+
   /**
    * Subscribe to game events with a callback; returns a Subscription
    */
   observeGameEvents<T = any>(
-    observer: (event: GameEvent<T>) => void
+    observer: (event: GameEvent<T>) => void,
   ): Subscription {
     return this.gameEvent$.subscribe(observer as any);
   }
@@ -379,7 +393,7 @@ export class InfluenceApp<
 
   // Convenience methods for common operations
   async addAgent(
-    config: Parameters<AgentManager<AgentContext>["addAgent"]>[0]
+    config: Parameters<AgentManager<AgentContext>["addAgent"]>[0],
   ) {
     return this.agentManager.addAgent(config);
   }
@@ -452,7 +466,7 @@ export class InfluenceApp<
           mentionedAgentId: mentionAgentId,
           user_display_name: "The House",
           username: "The House",
-        }
+        },
       );
 
       logger.info(`House message sent to channel ${channel.name}`);

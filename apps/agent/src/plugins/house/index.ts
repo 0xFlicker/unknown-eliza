@@ -16,7 +16,6 @@ import {
   playerRelationsProvider,
   gameMasterProvider,
 } from "./providers";
-import { phaseTimerEvaluator } from "./evaluators/phaseTimer";
 import {
   GameEventType,
   GameEventHandler,
@@ -46,15 +45,15 @@ export const housePlugin: Plugin = {
     playerRelationsProvider,
     gameMasterProvider,
   ],
-  evaluators: [phaseTimerEvaluator],
+  evaluators: [],
   init: async (_config, runtime?: IAgentRuntime) => {
     if (runtime) {
       logger.info(
-        "🏠 House plugin initialized - ready to moderate Influence games"
+        "🏠 House plugin initialized - ready to moderate Influence games",
       );
     } else {
       logger.info(
-        "🏠 House plugin initialized - ready to moderate Influence games"
+        "🏠 House plugin initialized - ready to moderate Influence games",
       );
     }
   },

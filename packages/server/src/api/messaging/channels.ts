@@ -35,7 +35,7 @@ const channelUploadMiddleware = multer({
     if (ALLOWED_MEDIA_MIME_TYPES.includes(file.mimetype as any)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type"), false);
+      cb(new Error("Invalid file type"));
     }
   },
 });
@@ -149,12 +149,10 @@ export function createChannelsRouter(
               logger.error(
                 `[Messages Router] Server ${server_id} does not exist, cannot create channel`,
               );
-              return res
-                .status(500)
-                .json({
-                  success: false,
-                  error: `Server ${server_id} does not exist`,
-                });
+              return res.status(500).json({
+                success: false,
+                error: `Server ${server_id} does not exist`,
+              });
             }
 
             // Determine if this is likely a DM based on the context
@@ -216,12 +214,10 @@ export function createChannelsRouter(
               `[Messages Router] Failed to auto-create channel ${channelIdParam}:`,
               createError,
             );
-            return res
-              .status(500)
-              .json({
-                success: false,
-                error: `Failed to create channel: ${errorMessage}`,
-              });
+            return res.status(500).json({
+              success: false,
+              error: `Failed to create channel: ${errorMessage}`,
+            });
           }
         } else {
           logger.info(
@@ -459,21 +455,17 @@ export function createChannelsRouter(
           : validateUuid(req.query.dmServerId as string);
 
       if (!targetUserId || !currentUserId) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            error: "Missing targetUserId or currentUserId",
-          });
+        res.status(400).json({
+          success: false,
+          error: "Missing targetUserId or currentUserId",
+        });
         return;
       }
       if (targetUserId === currentUserId) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            error: "Cannot create DM channel with oneself",
-          });
+        res.status(400).json({
+          success: false,
+          error: "Cannot create DM channel with oneself",
+        });
         return;
       }
 
@@ -512,12 +504,10 @@ export function createChannelsRouter(
             : { message: String(error) };
 
         logger.error("Error finding/creating DM channel:", errorDetails);
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Failed to find or create DM channel",
-          });
+        res.status(500).json({
+          success: false,
+          error: "Failed to find or create DM channel",
+        });
       }
     },
   );
@@ -575,13 +565,11 @@ export function createChannelsRouter(
           "[Messages Router /central-channels] Error creating group channel:",
           errorMessage,
         );
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Failed to create group channel",
-            details: errorMessage,
-          });
+        res.status(500).json({
+          success: false,
+          error: "Failed to create group channel",
+          details: errorMessage,
+        });
       }
     },
   );
@@ -636,12 +624,10 @@ export function createChannelsRouter(
           `[Messages Router] Error fetching participants for channel ${channelId}:`,
           error,
         );
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Failed to fetch channel participants",
-          });
+        res.status(500).json({
+          success: false,
+          error: "Failed to fetch channel participants",
+        });
       }
     },
   );

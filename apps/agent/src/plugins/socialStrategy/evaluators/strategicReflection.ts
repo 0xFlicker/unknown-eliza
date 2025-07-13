@@ -4,433 +4,260 @@ import {
   type Memory,
   type State,
   elizaLogger,
-  stringToUuid,
-  type UUID,
   ModelType,
   composePrompt,
-  parseJSONObjectFromText,
+  type UUID,
 } from "@elizaos/core";
-import { StrategyService } from "../service/addPlayer";
-import { Phase } from "../../house/types";
-import { StrategyMode, TrustLevel } from "../types";
+import { StrategyService } from "../service/strategy";
+import { TrustLevel } from "../types";
 
-const logger = elizaLogger;
+const logger = elizaLogger.child({ component: "StrategicReflectionEvaluator" });
 
-interface StrategicReflectionOutput {
-  thoughts: string;
+// Combined interface from strategicReflection and strategyReview
+interface StrategicReviewOutput {
+  overallAssessment: string;
   emotionalState:
     | "confident"
     | "nervous"
     | "suspicious"
     | "optimistic"
     | "defeated";
-  observations: string[];
-  concerns: string[];
-  opportunities: string[];
+  threatLevel: "low" | "medium" | "high" | "critical";
+  recommendedActions: string[];
+  allianceChanges: {
+    strengthen: string[];
+    abandon: string[];
+    pursue: string[];
+  };
+  priorityTargets: string[];
+  confidenceLevel: number; // 0-1
   strategyShift?: string;
-  threatAssessment: {
-    playerId: UUID;
-    playerName: string;
-    threatLevel: number;
-    reason: string;
-  }[];
-  allianceStatus: {
-    playerId: UUID;
-    playerName: string;
-    trustLevel: string;
-    strength: number;
-    recommendation: string;
-  }[];
-  nextMoves: string[];
 }
 
-const strategicReflectionTemplate = `You are {{agentName}}, an AI agent playing the Influence game. This is your private diary room where you can think strategically without others hearing.
+// Using the more comprehensive template from the old strategyReview action
+const strategicReviewTemplate = `You are {{agentName}}, conducting a comprehensive strategic review for the Influence game. Analyze your current position and adapt your strategy.
 
 # Current Game State
-Phase: {{currentPhase}}
-Round: {{round}}
-Strategic Mode: {{strategicMode}}
-Alive Players: {{alivePlayers}}
+{{gameState}}
 
-# Recent Game Events
-{{recentMessages}}
+# Relationship Analysis
+{{relationships}}
 
-# Your Strategic Relationships
-{{strategicRelationships}}
-
-# Previous Diary Entry
-{{lastDiaryEntry}}
+# Recent Intelligence
+{{recentIntelligence}}
 
 # Your Task
-Reflect deeply on your current strategic position. Consider:
-1. Your honest thoughts about the current situation
-2. Your emotional state and confidence level
-3. Key observations about other players' behavior
-4. Immediate concerns and potential threats
-5. Opportunities you can exploit
-6. Whether you need to shift your strategy
-7. Specific next moves you should make
+Conduct a thorough strategic review considering:
+1.  Overall threat assessment and survival probability.
+2.  Your emotional state and confidence.
+3.  Alliance evaluation - who to strengthen, abandon, or pursue.
+4.  Priority targets for elimination or protection.
+5.  Strategic shifts required based on new information.
+6.  Immediate tactical actions to implement.
 
-Be completely honest - this is private strategic thinking. Focus on survival and victory.
+Be ruthlessly strategic. This is about survival and victory.
 
-Respond with your strategic reflection in this format:
+Respond with your strategic analysis in this JSON format:
 {
-  "thoughts": "Your private strategic thoughts and analysis",
+  "overallAssessment": "Comprehensive analysis of current strategic position.",
   "emotionalState": "confident|nervous|suspicious|optimistic|defeated",
-  "observations": ["key observation 1", "key observation 2"],
-  "concerns": ["immediate concern 1", "threat 2"],
-  "opportunities": ["opportunity 1", "advantage 2"],
-  "strategyShift": "optional description of strategy changes",
-  "threatAssessment": [
-    {
-      "playerId": "player-uuid",
-      "playerName": "PlayerName",
-      "threatLevel": 0.8,
-      "reason": "why they're dangerous"
-    }
-  ],
-  "allianceStatus": [
-    {
-      "playerId": "ally-uuid", 
-      "playerName": "AllyName",
-      "trustLevel": "ally|neutral|threat",
-      "strength": 0.7,
-      "recommendation": "strengthen|maintain|abandon"
-    }
-  ],
-  "nextMoves": ["specific action 1", "tactical move 2"]
+  "threatLevel": "low|medium|high|critical",
+  "recommendedActions": ["Immediate tactical action 1", "Next move 2"],
+  "allianceChanges": {
+    "strengthen": ["ally name 1"],
+    "abandon": ["unreliable ally name"],
+    "pursue": ["potential new ally name"]
+  },
+  "priorityTargets": ["elimination target 1", "protection priority 1"],
+  "confidenceLevel": 0.75,
+  "strategicShift": "Optional description of major strategy changes needed."
 }`;
 
 export const strategicReflectionEvaluator: Evaluator = {
   name: "STRATEGIC_REFLECTION",
   description:
-    "Generates private strategic reflections and diary room entries for game analysis",
-  similes: [
-    "DIARY_ROOM",
-    "STRATEGIC_THINKING",
-    "GAME_ANALYSIS",
-    "TACTICAL_REFLECTION",
-  ],
-  examples: [
-    {
-      prompt: "Agent reflecting after WHISPER phase",
-      messages: [
-        {
-          name: "Alice",
-          content: { text: "I think we should target Bob next round" },
-        },
-        {
-          name: "Agent",
-          content: { text: "That could work, but Charlie might protect him" },
-        },
-      ],
-      outcome:
-        "Generated strategic diary entry analyzing alliance options and threats",
-    },
-  ],
+    "Periodically generates private strategic reviews and diary entries for game analysis.",
+  similes: ["STRATEGIC_REVIEW", "INTERNAL_MONOLOGUE", "GAME_ANALYSIS"],
 
+  examples: [],
+
+  // This should trigger based on game events or after a certain number of messages, not on a specific text match.
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
+    state?: State,
   ): Promise<boolean> => {
-    // Only validate basic requirements - let evaluator logic handle pattern matching
-    const strategyService = runtime.getService("social-strategy");
-    return !!(
-      strategyService &&
-      message.content?.text &&
-      typeof message.content.text === "string"
-    );
+    const strategyService = runtime.getService(
+      "social-strategy",
+    ) as StrategyService;
+    if (!strategyService) return false;
+
+    // Example trigger: run reflection every 10 messages in a room, or on phase change.
+    // This logic would be more robust with a proper event system.
+    const strategyState = strategyService.getState();
+    const now = Date.now();
+    // run reflection if last one was more than 5 minutes ago
+    if (now - strategyState.lastStrategyReview > 1000 * 60 * 5) {
+      return true;
+    }
+
+    return false;
   },
 
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state?: State
-  ): Promise<State | null> => {
+    state?: State,
+  ): Promise<void> => {
     try {
       const strategyService = runtime.getService(
-        "social-strategy"
+        "social-strategy",
       ) as StrategyService;
       if (!strategyService) {
         logger.warn("[StrategicReflection] StrategyService not available");
-        return null;
+        return;
       }
 
       const strategyState = strategyService.getState();
-      const config = strategyService.getConfiguration();
+      const agentEntity = await runtime.getEntityById(runtime.agentId);
+      const agentName = agentEntity?.names[0] || "Agent";
 
-      // Get recent game context
+      const entities = await runtime.getEntitiesForRoom(message.roomId);
       const recentMessages = await runtime.getMemories({
         roomId: message.roomId,
         tableName: "messages",
         count: 20,
-        unique: false,
       });
 
-      // Get entities to resolve names
-      const entities = await runtime.getEntitiesForRoom(message.roomId);
-      const agentEntity = await runtime.getEntityById(runtime.agentId);
-      const agentName = agentEntity?.names[0] || "Agent";
-
-      // Count alive players (assuming all entities except agent are players)
-      const alivePlayers = entities.filter(
-        (e) => e.id !== runtime.agentId
-      ).length;
-
-      // Format strategic relationships
+      // Build context for the review prompt
+      const gameState = `Phase: ${strategyState.currentPhase}, Round: ${strategyState.round}`;
       const relationships = Array.from(strategyState.relationships.values())
-        .map(
-          (rel) =>
-            `${rel.playerName}: Trust=${rel.trustLevel}, Influence=${rel.influence}, Threat=${rel.threat}`
-        )
+        .map((r) => `${r.playerName}: ${r.trustLevel}`)
+        .join(", ");
+      const recentIntelligence = recentMessages
+        .map((m) => m.content.text)
         .join("\n");
 
-      // Get last diary entry for context
-      const lastDiary =
-        strategyState.diaryEntries.length > 0
-          ? strategyState.diaryEntries[strategyState.diaryEntries.length - 1]
-          : null;
-
-      const template = strategicReflectionTemplate;
-
       const prompt = composePrompt({
-        template,
+        template: strategicReviewTemplate,
         state: {
           agentName,
-          currentPhase: strategyState.currentPhase,
-          round: strategyState.round.toString(),
-          strategicMode: strategyState.strategicMode,
-          alivePlayers: alivePlayers.toString(),
-          recentMessages: recentMessages
-            .reverse()
-            .map((m) => {
-              const senderName = getEntityName(entities, m.entityId);
-              return `${senderName}: ${m.content?.text || ""}`;
-            })
-            .join("\n"),
-          strategicRelationships:
-            relationships || "No relationships established yet",
-          lastDiaryEntry: lastDiary
-            ? `${lastDiary.thoughts} (${lastDiary.emotionalState})`
-            : "No previous diary entries",
+          gameState,
+          relationships,
+          recentIntelligence,
         },
       });
 
-      // Generate strategic reflection
-      const reflectionResponse = await runtime.useModel<
-        typeof ModelType.OBJECT_LARGE,
-        StrategicReflectionOutput
-      >(ModelType.OBJECT_LARGE, {
+      // Generate strategic review
+      const review = (await runtime.useModel(ModelType.OBJECT_LARGE, {
         prompt,
-        output: "object",
-        schema: {
-          type: "object",
-          properties: {
-            thoughts: { type: "string" },
-            emotionalState: {
-              type: "string",
-              enum: [
-                "confident",
-                "nervous",
-                "suspicious",
-                "optimistic",
-                "defeated",
-              ],
-            },
-            observations: {
-              type: "array",
-              items: { type: "string" },
-            },
-            concerns: {
-              type: "array",
-              items: { type: "string" },
-            },
-            opportunities: {
-              type: "array",
-              items: { type: "string" },
-            },
-            strategyShift: { type: "string" },
-            threatAssessment: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  playerId: { type: "string" },
-                  playerName: { type: "string" },
-                  threatLevel: { type: "number" },
-                  reason: { type: "string" },
-                },
-                required: ["playerId", "playerName", "threatLevel", "reason"],
-              },
-            },
-            allianceStatus: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  playerId: { type: "string" },
-                  playerName: { type: "string" },
-                  trustLevel: { type: "string" },
-                  strength: { type: "number" },
-                  recommendation: { type: "string" },
-                },
-                required: [
-                  "playerId",
-                  "playerName",
-                  "trustLevel",
-                  "strength",
-                  "recommendation",
-                ],
-              },
-            },
-            nextMoves: {
-              type: "array",
-              items: { type: "string" },
-            },
-          },
-          required: [
-            "thoughts",
-            "emotionalState",
-            "observations",
-            "concerns",
-            "opportunities",
-            "threatAssessment",
-            "allianceStatus",
-            "nextMoves",
-          ],
-        },
+      })) as StrategicReviewOutput;
+
+      if (!review || !review.overallAssessment) {
+        logger.warn("[StrategicReflection] Failed to generate strategy review");
+        return;
+      }
+
+      // Update strategic relationships based on review
+      await updateRelationshipsFromReview(review, strategyService, entities);
+
+      // Update strategic analysis in the service
+      strategyService.updateAnalysis({
+        confidenceLevel: review.confidenceLevel,
+        nextMoves: review.recommendedActions,
+        threats: (await getPlayerIds(
+          review.priorityTargets,
+          entities,
+        )) as UUID[],
+        allies: (await getPlayerIds(
+          review.allianceChanges.strengthen,
+          entities,
+        )) as UUID[],
       });
 
-      if (!reflectionResponse) {
-        logger.warn("Failed to parse entity reflection result");
-        return null;
-      }
-
-      logger.info(
-        `[StrategicReflection] Response: ${JSON.stringify(reflectionResponse)}`
-      );
-
-      const reflection = reflectionResponse as StrategicReflectionOutput;
-
-      if (!reflection || !reflection.thoughts) {
-        logger.warn("[StrategicReflection] Failed to generate reflection");
-        return null;
-      }
-
-      // Create diary entry
-      const diaryEntry = await strategyService.addDiaryEntry({
+      // Create diary entry from review
+      await strategyService.addDiaryEntry({
         round: strategyState.round,
         phase: strategyState.currentPhase,
-        thoughts: reflection.thoughts,
-        observations: reflection.observations || [],
-        strategyShift: reflection.strategyShift,
-        emotionalState: reflection.emotionalState || "optimistic",
-        concerns: reflection.concerns || [],
-        opportunities: reflection.opportunities || [],
+        thoughts: review.overallAssessment,
+        observations: review.recommendedActions,
+        strategyShift: review.strategyShift,
+        emotionalState: review.emotionalState,
+        concerns: review.priorityTargets,
+        opportunities: review.allianceChanges.pursue,
       });
 
-      // Update strategic relationships based on reflection
-      if (reflection.threatAssessment) {
-        for (const threat of reflection.threatAssessment) {
-          if (threat.playerId && threat.threatLevel !== undefined) {
-            await strategyService.updateRelationship(
-              threat.playerId,
-              threat.playerName,
-              {
-                threat: Math.max(0, Math.min(1, threat.threatLevel)),
-                notes: [threat.reason],
-              }
-            );
-          }
-        }
-      }
+      strategyService.getState().lastStrategyReview = Date.now();
 
-      if (reflection.allianceStatus) {
-        for (const alliance of reflection.allianceStatus) {
-          if (alliance.playerId && alliance.trustLevel) {
-            let trustLevel: TrustLevel = TrustLevel.NEUTRAL;
-            const trustLevelStr = alliance.trustLevel.toLowerCase();
-            if (trustLevelStr === "ally") trustLevel = TrustLevel.ALLY;
-            else if (trustLevelStr === "threat") trustLevel = TrustLevel.THREAT;
-            else if (trustLevelStr === "enemy") trustLevel = TrustLevel.ENEMY;
-
-            await strategyService.updateRelationship(
-              alliance.playerId,
-              alliance.playerName,
-              {
-                trustLevel,
-                reliability: alliance.strength || 0.5,
-                notes: [alliance.recommendation],
-              }
-            );
-          }
-        }
-      }
-
-      // Update strategy analysis with new insights
-      const updatedAnalysis = {
-        ...strategyState.analysis,
-        threats: reflection.threatAssessment?.map((t) => t.playerId) || [],
-        allies:
-          reflection.allianceStatus
-            ?.filter((a) => a.trustLevel === "ally")
-            ?.map((a) => a.playerId) || [],
-        nextMoves: reflection.nextMoves || [],
-        confidenceLevel: calculateConfidenceFromEmotion(
-          reflection.emotionalState
-        ),
-      };
-
-      logger.info("[StrategicReflection] Generated strategic reflection", {
-        phase: strategyState.currentPhase,
-        round: strategyState.round,
-        emotionalState: reflection.emotionalState,
-        threatsIdentified: reflection.threatAssessment?.length || 0,
-        alliancesAnalyzed: reflection.allianceStatus?.length || 0,
-        observationsMade: reflection.observations?.length || 0,
+      logger.info("[StrategicReflection] Completed strategic review.", {
+        threatLevel: review.threatLevel,
+        confidence: review.confidenceLevel,
       });
-
-      return {
-        values: {
-          diaryEntryCreated: true,
-          emotionalState: reflection.emotionalState,
-          threatsAssessed: reflection.threatAssessment?.length || 0,
-          alliancesEvaluated: reflection.allianceStatus?.length || 0,
-          strategicInsights: reflection.observations?.length || 0,
-        },
-        data: {
-          diaryEntry,
-          reflection,
-          updatedAnalysis,
-        },
-        text: `Strategic reflection: ${reflection.emotionalState} about current position with ${reflection.observations?.length || 0} key insights`,
-      };
     } catch (error) {
-      logger.error("[StrategicReflection] Error during reflection:", error);
-      return null;
+      logger.error("[StrategicReflection] Error conducting review:", error);
     }
   },
 };
 
-function getEntityName(entities: any[], entityId: UUID): string {
-  const entity = entities.find((e) => e.id === entityId);
-  return entity?.names[0] || entityId.slice(0, 8);
+// --- Helper functions from the old strategyReview action ---
+
+async function getPlayerIds(
+  playerNames: string[],
+  entities: any[],
+): Promise<UUID[]> {
+  return playerNames
+    .map(
+      (name) =>
+        entities.find((e) =>
+          e.names.some(
+            (entityName: string) =>
+              entityName.toLowerCase() === name.toLowerCase(),
+          ),
+        )?.id,
+    )
+    .filter((id): id is UUID => id !== undefined);
 }
 
-function calculateConfidenceFromEmotion(emotion: string): number {
-  switch (emotion) {
-    case "confident":
-      return 0.9;
-    case "optimistic":
-      return 0.7;
-    case "nervous":
-      return 0.4;
-    case "suspicious":
-      return 0.5;
-    case "defeated":
-      return 0.2;
-    default:
-      return 0.5;
+async function updateRelationshipsFromReview(
+  review: StrategicReviewOutput,
+  strategyService: StrategyService,
+  entities: any[],
+): Promise<void> {
+  const findEntity = (name: string) =>
+    entities.find((e) =>
+      e.names.some(
+        (entityName: string) => entityName.toLowerCase() === name.toLowerCase(),
+      ),
+    );
+
+  for (const allyName of review.allianceChanges.strengthen) {
+    const entity = findEntity(allyName);
+    if (entity) {
+      await strategyService.updateRelationship(entity.id, allyName, {
+        trustLevel: TrustLevel.ALLY,
+        notes: ["Relationship strengthened in review."],
+      });
+    }
+  }
+
+  for (const unreliableName of review.allianceChanges.abandon) {
+    const entity = findEntity(unreliableName);
+    if (entity) {
+      await strategyService.updateRelationship(entity.id, unreliableName, {
+        trustLevel: TrustLevel.NEUTRAL,
+        notes: ["Alliance marked for abandonment in review."],
+      });
+    }
+  }
+
+  for (const targetName of review.priorityTargets) {
+    const entity = findEntity(targetName);
+    if (entity) {
+      await strategyService.updateRelationship(entity.id, targetName, {
+        trustLevel: TrustLevel.THREAT,
+        threat: 0.8,
+        notes: ["Identified as priority target in review."],
+      });
+    }
   }
 }
