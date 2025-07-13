@@ -13,6 +13,7 @@ Use Bun workspaces and Lerna to manage packages and dependencies.
 ```bash
 cd social-strategy-agent
 bun install
+bun run prepare
 ```
 
 ## Scripts

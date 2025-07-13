@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-. "$(dirname "$0")/_/h"
+. "$(dirname -- "$0")/_/husky.sh"
 
-# Run lint-staged to auto-format staged files
-npx lint-staged
+npx --no -- lint-staged

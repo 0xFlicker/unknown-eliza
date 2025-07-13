@@ -32,6 +32,7 @@
     "typedoc": "0.27.9"
   },
   "scripts": {
+    "prepare": "husky install",
     "start": "bunx turbo run start --log-prefix=none",
     "start:debug": "cross-env NODE_NO_WARNINGS=1 LOG_LEVEL=debug elizaos start",
     "start:app": "bunx turbo run start --filter=./apps/agent",
