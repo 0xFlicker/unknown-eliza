@@ -13,15 +13,16 @@ export enum AgentRole {
  * Get the role of an agent based on its character name or configuration
  */
 export function getAgentRole(runtime: IAgentRuntime): AgentRole {
-  const name = runtime.character?.name?.toLowerCase() || "";
-
-  // Check if this is a house agent
-  if (name.includes("house") || name === "house") {
-    return AgentRole.HOUSE;
+  // Agent role MUST be explicitly configured via runtime settings to avoid insecure name-based inference
+  const roleSetting = runtime.getSetting("agentRole");
+  if (roleSetting && Object.values(AgentRole).includes(roleSetting)) {
+    return roleSetting as AgentRole;
   }
-
-  // Default to player role
-  return AgentRole.PLAYER;
+  throw new Error(
+    `Agent role not configured. Please set runtime setting 'agentRole' to one of: ${Object.values(
+      AgentRole
+    ).join(", ")}`
+  );
 }
 
 /**

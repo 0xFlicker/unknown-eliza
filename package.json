@@ -8,10 +8,10 @@
     "bun": "^1.2.15",
     "husky": "^9.1.7",
     "lerna": "8.1.4",
+    "lint-staged": "^16.1.2",
     "tsup": "8.5.0",
     "turbo": "^2.5.4",
     "typescript": "5.8.2",
-    "lint-staged": "^13.2.3",
     "vitest": "3.1.4"
   },
   "lint-staged": {

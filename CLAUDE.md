@@ -15,21 +15,21 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 
 ## 2 Round Flow (Finite‑State Machine)
 
-| State                                 | Alias        | Duration (default) | Allowed Commands                                                           | Exit Condition                                     |
-| ------------------------------------- | ------------ | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `INIT`                                | Waiting Room | —                  | `!join`, `!start` (host only)                                              | `!start` with ≥ 4 players                          |
-| `INTRODUCTION`                        | Meet & Greet | 3 min              | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry **or** `!ready` from all players      |
-| `LOBBY`                               | Public Mixer | 5 min              | free chat in **public game‑channel** \*DMs are **disabled\***              | timer expiry **or** coordinated transition         |
-| _Strategic Thinking_                  | _AI Phase_   | auto               | _AI agents process lobby interactions privately_                           | _all agents complete strategic analysis_           |
-| _Diary Room_                          | _AI Phase_   | auto               | _AI agents share strategic thoughts with House_                            | _all agents complete diary entries_                |
-| `WHISPER`                             | Phase 1      | 10 min             | `!dm @p`, free chat inside DMs                                             | timer expiry                                       |
-| `RUMOR`                               | Phase 2      | 5 min              | exactly one \`!public \<msg/img>\` per player                              | every living player has posted **or** timer expiry |
-| _Strategic Thinking_                  | _AI Phase_   | auto               | _AI agents process lobby interactions privately_                           | _all agents complete strategic analysis_           |
-| _Diary Room_                          | _AI Phase_   | auto               | _AI agents share strategic thoughts with House_                            | _all agents complete diary entries_                |
-| `VOTE`                                | Phase 3      | 3 min              | `!empower @p` **and** `!expose @p` (self‑votes disallowed)                 | all ballots in **or** timer expiry                 |
-| `POWER`                               | Phase 4      | 2 min              | empowered: `!eliminate @p` **or** `!protect @p` (target must be _exposed_) | action taken **or** timer expiry                   |
-| `REVEAL`                              | Phase 5      | 30 s               | —                                                                          | system message sent                                |
-| repeat from `LOBBY` → until ≤ 1 alive |              |                    |                                                                            |                                                    |
+| State                                 | Alias        | Duration (default) | Exit Condition                                     |
+| ------------------------------------- | ------------ | ------------------ | -------------------------------------------------- |
+| `INIT`                                | Waiting Room | —                  | `I_AM_READY` from all players with ≥ 12 players    |
+| `INTRODUCTION`                        | Meet & Greet | 3 min              | timer expiry **or** all players have introduced    |
+| `LOBBY`                               | Public Mixer | 5 min              | timer expiry **or** coordinated transition         |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_           |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                |
+| `WHISPER`                             | Phase 1      | 10 min             | timer expiry                                       |
+| `RUMOR`                               | Phase 2      | 5 min              | every living player has posted **or** timer expiry |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_           |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                |
+| `VOTE`                                | Phase 3      | 3 min              | all ballots in **or** timer expiry                 |
+| `POWER`                               | Phase 4      | 2 min              | action taken **or** timer expiry                   |
+| `REVEAL`                              | Phase 5      | 30 s               | system message sent                                |
+| repeat from `LOBBY` → until ≤ 1 alive |              |
 
 > **Timeout rule**: If a required command is missing when a timer ends, **The House** auto‑fills a random legal choice to keep play moving.
 
@@ -58,7 +58,6 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 ### 3.4 Images
 
 - Limit = 1 PNG/JPEG ≤ 1 MB (512 × 512 default) per player in **RUMOR** phase only.
-- Reference with `!public img:<url>`.
 
 ### 3.5 Table Stakes
 
@@ -92,24 +91,6 @@ GameEvent { type, details, ts }
 ```
 
 > Disk → JSON, RAM → plain JS objects; dump on every state change = trivial durability.
-
----
-
-## 5 Bot Command Surface
-
-```text
-!join                // INIT only
-!start               // host begins game (INIT → LOBBY)
-!public <text|img:URL>   // in LOBBY (text‑only) & RUMOR (text or image)
-!dm @alice @bob      // WHISPER only
-!empower @name       // VOTE phase
-!expose  @name       // VOTE phase
-!eliminate @name     // POWER keeper only
-!protect  @name      // POWER keeper only
-!status              // DM current public state (any phase)
-```
-
-Generally, **The House** will attempt to read intent from agents when waiting for an answer
 
 ---
 
