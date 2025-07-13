@@ -48,6 +48,7 @@ export async function createAgentServer<
 
   const agentServer = new AgentServer();
   await agentServer.initialize({ dataDir });
+
   const server = await agentServer.createServer({
     name: "Influence",
     sourceType: "App",
