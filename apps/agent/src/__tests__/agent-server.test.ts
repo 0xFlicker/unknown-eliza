@@ -104,14 +104,14 @@ describe("AgentServer V3 Integration", () => {
     console.log("🔄 Creating Alex agent...");
     const alex = await agentManager.addAgent({
       character: alexCharacter,
-      plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
+      plugins: [sqlPlugin, bootstrapPlugin, openaiPlugin],
     });
     console.log(`✅ Alex created with ID: ${alex.id}`);
 
     console.log("🔄 Creating Bethany agent...");
     const bethany = await agentManager.addAgent({
       character: bethanyCharacter,
-      plugins: [sqlPlugin as any, bootstrapPlugin, openaiPlugin],
+      plugins: [sqlPlugin, bootstrapPlugin, openaiPlugin],
     });
     console.log(`✅ Bethany created with ID: ${bethany.id}`);
 

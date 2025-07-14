@@ -32,6 +32,10 @@ import fs from "node:fs";
 import { MessageServer } from "@elizaos/server";
 import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
+import {
+  coordinatorPlugin,
+  createGameEventMessage,
+} from "../plugins/coordinator";
 
 /**
  * Unified game-event payload emitted from runtimes and internal bus
@@ -135,9 +139,7 @@ export class InfluenceApp<
       this.server,
       this.config.runtimeConfig?.runtimeSettings || {},
       this.messageServer,
-      this.config.runtimeConfig?.runtime
-        ? [this.config.runtimeConfig.runtime]
-        : [],
+      this.defaultRuntimeDecorators, // ← pass decorators collected in ctor
     );
 
     // Initialize SocketIO client for real-time message streaming
@@ -145,7 +147,7 @@ export class InfluenceApp<
     // Generate a proper UUID for The House
     this.houseAgent = new AgentRuntime({
       character: houseCharacter,
-      plugins: [sqlPlugin, openaiPlugin, housePlugin],
+      plugins: [sqlPlugin, openaiPlugin, housePlugin, coordinatorPlugin],
     });
 
     this.associationManager = new AssociationManager();
@@ -250,23 +252,39 @@ export class InfluenceApp<
    * Set up unified game-event stream from internal bus and runtime emits
    */
   private setupGameEventStreaming() {
-    // Internal coordination events
-    fromEvent(internalMessageBus, "game_event", (type, payload) => ({
-      type,
-      payload,
-    }))
+    /*
+     * Coordination messages are emitted onto `internalMessageBus` by the
+     * CoordinatorService.  For `game_event` messages we expect a single
+     * argument – the coordination message object itself.  Previous logic
+     * attempted to de-structure `(type, payload)` but CoordinatorService only
+     * passes one arg which meant `type` became the whole object and `payload`
+     * was undefined.  That broke downstream filtering (e.g. looking for
+     * `GAME:I_AM_READY`).  The new logic treats the first argument as the
+     * message object and extracts the canonical `gameEventType` and `payload`
+     * fields.
+     */
+
+    fromEvent(internalMessageBus, "game_event", (message) => message)
       .pipe(
-        map(({ type, payload }) => {
-          const p: any = payload;
-          const rawRoom = p.roomId ?? p.channelId;
-          const typeString = (Array.isArray(type) ? type[0] : type) as string;
+        map((coordinationMessage: any) => {
+          console.log(
+            "[InfluenceApp] received coordinationMessage",
+            coordinationMessage.gameEventType,
+            "from",
+            coordinationMessage.sourceAgent,
+          );
+          // Shape asserted via Coordinator `createGameEventMessage`
+          const typeString = coordinationMessage.gameEventType as string;
+          const payload = coordinationMessage.payload ?? {};
+          const rawRoom = payload.roomId ?? payload.channelId;
+
           return {
             type: typeString,
             payload,
-            sourceAgent: p.source,
+            sourceAgent: coordinationMessage.sourceAgent ?? payload.source,
             channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
-            timestamp: Date.now(),
-          };
+            timestamp: coordinationMessage.timestamp ?? Date.now(),
+          } as GameEvent<any>;
         }),
       )
       .subscribe(this.gameEvent$);
@@ -330,6 +348,19 @@ export class InfluenceApp<
     logger.info(
       `[InfluenceApp] Game event emitted: ${event.type} from ${event.sourceAgent} in channel ${event.channelId}`,
     );
+    if (event.type === "GAME:I_AM_READY") {
+      console.log("[InfluenceApp] observed I_AM_READY from", event.sourceAgent);
+    }
+
+    // Broadcast to internal coordination bus so that all runtimes (including
+    // those in other agents) can react.
+    const coordinationMessage = createGameEventMessage(
+      event.sourceAgent,
+      event.type as any,
+      event.payload as any,
+      "all",
+    );
+    internalMessageBus.emit("game_event", coordinationMessage);
   }
 
   /**

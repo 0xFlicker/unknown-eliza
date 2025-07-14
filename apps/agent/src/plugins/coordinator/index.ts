@@ -1,12 +1,5 @@
-import {
-  Plugin,
-  type IAgentRuntime,
-  elizaLogger,
-  EventType,
-  type UUID,
-} from "@elizaos/core";
+import { Plugin, type IAgentRuntime, elizaLogger } from "@elizaos/core";
 import { CoordinationService } from "./service";
-import { messageReceivedHandler } from "./handlers";
 
 const logger = elizaLogger.child({ component: "CoordinatorPlugin" });
 
@@ -20,38 +13,31 @@ export const coordinatorPlugin: Plugin = {
   description: "Cross-agent coordination and messaging system",
   actions: [],
   providers: [],
-  events: {
-    [EventType.MESSAGE_RECEIVED]: [messageReceivedHandler],
-  },
+  // No runtime message events – coordination happens exclusively via the
+  // in-process `internalMessageBus`.
   services: [CoordinationService],
-  init: async (config, runtime?: IAgentRuntime) => {
+  init: async (_config, runtime?: IAgentRuntime) => {
     if (runtime) {
-      // Initialize the coordination service
-      await CoordinationService.start(runtime);
-
-      // Configure coordination channel ID if provided in config
-      if (config?.coordinationChannelId) {
-        const coordinationService = runtime.getService<CoordinationService>(
-          CoordinationService.serviceType
-        );
-        if (coordinationService) {
-          coordinationService.setCoordinationChannelId(
-            config.coordinationChannelId as UUID
-          );
-        }
-      }
+      console.log("[CoordinatorPlugin] init for", runtime.character?.name);
+      console.log(
+        "[CoordinatorPlugin] services:",
+        coordinatorPlugin.services?.length,
+      );
+      // Explicitly register the service immediately so that it is available
+      // before the runtime finishes initializing (unit-tests emit game events
+      // almost immediately after creating agents).
+      await runtime.registerService(CoordinationService);
 
       logger.info(
-        `🔗 Coordinator plugin initialized for ${runtime.character?.name}`
+        `🔗 Coordinator plugin registered + service started for ${runtime.character?.name}`,
       );
     } else {
-      logger.info("🔗 Coordinator plugin initialized");
+      logger.info("🔗 Coordinator plugin registered");
     }
   },
 };
 
 // Re-export types and utilities for convenience
-export * from "./handlers";
 export * from "./types";
 export * from "./service";
 export * from "./roles";

@@ -1,20 +1,6 @@
-import { EventEmitter } from "events";
+import { internalMessageBus } from "@elizaos/server";
 import { fromEvent } from "rxjs";
 import { AnyCoordinationMessage } from "./types";
-
-/**
- * A simple in-memory message bus for distributing messages from the server
- * to subscribed MessageBusService instances within the same process.
- *
- * For multi-process or multi-server deployments, this would need to be replaced
- * with a more robust solution like Redis Pub/Sub, Kafka, RabbitMQ, etc.
- */
-class InternalMessageBus extends EventEmitter {}
-
-const internalMessageBus = new InternalMessageBus();
-
-// Increase the default max listeners if many agents might be running in one process
-internalMessageBus.setMaxListeners(50);
 
 export default internalMessageBus;
 
@@ -26,11 +12,11 @@ export const gameEvent$ = fromEvent(
     const event = message as AnyCoordinationMessage;
     if (event.type !== "game_event") {
       throw new Error(
-        `Expected 'game_event' type, but received: ${event.type}`
+        `Expected 'game_event' type, but received: ${event.type}`,
       );
     }
     return event;
-  }
+  },
 );
 
 export const agentReady$ = fromEvent(
@@ -40,11 +26,11 @@ export const agentReady$ = fromEvent(
     const event = message as AnyCoordinationMessage;
     if (event.type !== "agent_ready") {
       throw new Error(
-        `Expected 'agent_ready' type, but received: ${event.type}`
+        `Expected 'agent_ready' type, but received: ${event.type}`,
       );
     }
     return event;
-  }
+  },
 );
 
 export const heartbeat$ = fromEvent(
@@ -56,7 +42,7 @@ export const heartbeat$ = fromEvent(
       throw new Error(`Expected 'heartbeat' type, but received: ${event.type}`);
     }
     return event;
-  }
+  },
 );
 
 export const coordinationAck$ = fromEvent(
@@ -66,9 +52,9 @@ export const coordinationAck$ = fromEvent(
     const event = message as AnyCoordinationMessage;
     if (event.type !== "coordination_ack") {
       throw new Error(
-        `Expected 'coordination_ack' type, but received: ${event.type}`
+        `Expected 'coordination_ack' type, but received: ${event.type}`,
       );
     }
     return event;
-  }
+  },
 );

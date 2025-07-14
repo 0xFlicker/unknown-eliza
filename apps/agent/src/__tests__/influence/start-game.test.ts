@@ -8,6 +8,7 @@ import alexCharacter from "../../characters/alex";
 import houseCharacter from "../../characters/house";
 import { housePlugin } from "../../plugins/house";
 import { influencerPlugin } from "../../plugins/influencer";
+import { coordinatorPlugin } from "../../plugins/coordinator";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import { Phase } from "../../plugins/house/types";
 import {
@@ -32,7 +33,13 @@ import { firstValueFrom, take, takeLast, tap, toArray } from "rxjs";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
-    return [sqlPlugin, bootstrapPlugin, socialStrategyPlugin, openaiPlugin];
+    return [
+      sqlPlugin,
+      bootstrapPlugin,
+      socialStrategyPlugin,
+      openaiPlugin,
+      coordinatorPlugin,
+    ];
   }
 
   function getHousePlugins() {

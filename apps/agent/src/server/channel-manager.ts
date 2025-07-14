@@ -42,7 +42,7 @@ export class ChannelManager {
     associationManager: AssociationManager,
     server: AgentServer,
     messageServer: MessageServer,
-    houseAgent: IAgentRuntime
+    houseAgent: IAgentRuntime,
   ) {
     this.agentManager = agentManager;
     this.associationManager = associationManager;
@@ -56,15 +56,16 @@ export class ChannelManager {
    */
   async createChannel(config: ChannelConfig): Promise<UUID> {
     logger.info(
-      `Creating channel: ${config.name} with ${config.participants.length} participants`
+      `Creating channel: ${config.name} with ${config.participants.length} participants`,
     );
 
     // Validate all participants exist
     for (const participant of config.participants) {
+      console.log("participant", participant);
       const runtime = this.agentManager.getAgentRuntime(participant.agentId);
       if (!runtime) {
         throw new Error(
-          `Agent ${participant.agentId} not found for channel ${config.name}`
+          `Agent ${participant.agentId} not found for channel ${config.name}`,
         );
       }
     }
@@ -103,7 +104,7 @@ export class ChannelManager {
     this.channels.set(channelRecord.id, channelRecord);
 
     logger.info(
-      `Successfully created channel ${config.name} with ID: ${channel.data.id}`
+      `Successfully created channel ${config.name} with ID: ${channel.data.id}`,
     );
 
     return channelRecord.id;
@@ -127,7 +128,7 @@ export class ChannelManager {
     const participantIds = participants.map((p) => p.agentId);
 
     logger.info(
-      `Setting up associations for channel ${channel.name} (${channel.id}) with ${participantIds.length} participants`
+      `Setting up associations for channel ${channel.name} (${channel.id}) with ${participantIds.length} participants`,
     );
 
     // Set up each participant using proper AgentServer flow
@@ -136,23 +137,23 @@ export class ChannelManager {
       if (!runtime) continue;
 
       logger.info(
-        `Setting up agent ${runtime.character.name} (${participant.agentId}) for channel ${channel.name}`
+        `Setting up agent ${runtime.character.name} (${participant.agentId}) for channel ${channel.name}`,
       );
 
       // Ensure the agent is added to the server that this channel belongs to
       // Subscribe agent to messaging server via central API (server_agent_update bus event will follow)
       await apiClient.addAgentToServer(
         channel.messageServerId,
-        participant.agentId
+        participant.agentId,
       );
       logger.info(
-        `Subscribed agent ${runtime.character.name} to messaging server ${channel.messageServerId}`
+        `Subscribed agent ${runtime.character.name} to messaging server ${channel.messageServerId}`,
       );
 
       for (const otherParticipant of participants) {
         if (otherParticipant.agentId === participant.agentId) continue;
         const otherRuntime = this.agentManager.getAgentRuntime(
-          otherParticipant.agentId
+          otherParticipant.agentId,
         );
         if (!otherRuntime) continue;
 
@@ -209,7 +210,7 @@ export class ChannelManager {
       } as EntityPayload);
 
       logger.info(
-        `Successfully emitted ENTITY_JOINED for agent ${runtime.character.name}`
+        `Successfully emitted ENTITY_JOINED for agent ${runtime.character.name}`,
       );
 
       // Store participant in channel
@@ -227,7 +228,7 @@ export class ChannelManager {
       this.associationManager.addAssociation(association);
 
       logger.info(
-        `Created associations for ${runtime.character.name} in channel ${channel.name}`
+        `Created associations for ${runtime.character.name} in channel ${channel.name}`,
       );
     }
 
@@ -273,7 +274,7 @@ export class ChannelManager {
       for (const association of associations) {
         this.associationManager.removeAssociation(
           association.agentId,
-          channelId
+          channelId,
         );
       }
 
@@ -292,7 +293,7 @@ export class ChannelManager {
    */
   async removeParticipantFromChannel(
     channelId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<void> {
     const channel = this.channels.get(channelId);
     if (!channel) {
@@ -302,7 +303,7 @@ export class ChannelManager {
     const participant = channel.participants.get(agentId);
     if (!participant) {
       throw new Error(
-        `Agent ${agentId} is not a participant in channel ${channel.name}`
+        `Agent ${agentId} is not a participant in channel ${channel.name}`,
       );
     }
 
@@ -318,7 +319,7 @@ export class ChannelManager {
     channel.participants.delete(agentId);
 
     logger.info(
-      `Successfully removed agent ${agentId} from channel ${channel.name}`
+      `Successfully removed agent ${agentId} from channel ${channel.name}`,
     );
   }
 
@@ -328,7 +329,7 @@ export class ChannelManager {
   async updateParticipantState(
     channelId: UUID,
     agentId: UUID,
-    state: ParticipantState
+    state: ParticipantState,
   ): Promise<void> {
     const channel = this.channels.get(channelId);
     if (!channel) {
@@ -338,7 +339,7 @@ export class ChannelManager {
     const participant = channel.participants.get(agentId);
     if (!participant) {
       throw new Error(
-        `Agent ${agentId} is not a participant in channel ${channel.name}`
+        `Agent ${agentId} is not a participant in channel ${channel.name}`,
       );
     }
 
@@ -357,7 +358,7 @@ export class ChannelManager {
     await runtime.setParticipantUserState(channelId, agentId, state);
 
     logger.info(
-      `Updated participant state for agent ${agentId} in channel ${channel.name} to ${state}`
+      `Updated participant state for agent ${agentId} in channel ${channel.name} to ${state}`,
     );
   }
 
@@ -413,7 +414,7 @@ export class ChannelManager {
     const cleanupPromises = Array.from(this.channels.keys()).map((channelId) =>
       this.removeChannel(channelId).catch((error) => {
         logger.error(`Failed to cleanup channel ${channelId}:`, error);
-      })
+      }),
     );
 
     await Promise.all(cleanupPromises);
