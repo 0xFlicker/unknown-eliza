@@ -36,7 +36,7 @@ export const joinGameAction: Action = {
     runtime: IAgentRuntime,
     message: Memory,
     _state: State,
-    _options: any
+    _options: any,
   ) => {
     try {
       // Get or create game state
@@ -65,14 +65,10 @@ export const joinGameAction: Action = {
         agentId: playerId,
         name: agentName,
         status: PlayerStatus.ALIVE,
-        isHost: gameState.players.size === 0, // First player is host
         joinedAt: Date.now(),
       };
 
       gameState.players.set(playerId, player);
-      if (player.isHost) {
-        gameState.hostId = playerId;
-      }
 
       // Record the join event
       const event: GameEvent = {
@@ -152,13 +148,13 @@ export const startGameAction: Action = {
     runtime: IAgentRuntime,
     message: Memory,
     _state: State,
-    _options: any
+    _options: any,
   ) => {
     try {
       const gameState = await getGameState(runtime, message.roomId);
       if (!gameState) {
         console.warn(
-          `No game state found for room ${message.roomId} when trying to start game.`
+          `No game state found for room ${message.roomId} when trying to start game.`,
         );
         return; // No game found, don't respond
       }
@@ -166,23 +162,16 @@ export const startGameAction: Action = {
       const playerId = message.entityId;
       const player = gameState.players.get(playerId);
 
-      if (!player?.isHost) {
-        console.warn(
-          `Player ${playerId} attempted to start game but is not host.`
-        );
-        return; // Not host, don't respond
-      }
-
       if (gameState.players.size < gameState.settings.minPlayers) {
         console.warn(
-          `Not enough players to start game: ${gameState.players.size} found, minimum is ${gameState.settings.minPlayers}.`
+          `Not enough players to start game: ${gameState.players.size} found, minimum is ${gameState.settings.minPlayers}.`,
         );
         return; // Not enough players, don't respond
       }
 
       if (gameState.phase !== Phase.INIT) {
         console.warn(
-          `Game already started or in progress: current phase is ${gameState.phase}.`
+          `Game already started or in progress: current phase is ${gameState.phase}.`,
         );
         return; // Game already started, don't respond
       }
@@ -278,7 +267,7 @@ export const requestPrivateRoomAction: Action = {
     message: Memory,
     _state: State,
     _options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ) => {
     try {
       const gameState = await getGameState(runtime, message.roomId);
@@ -324,7 +313,7 @@ export const requestPrivateRoomAction: Action = {
 
       // Find target player
       const targetPlayer = Array.from(gameState.players.values()).find(
-        (p) => p.name.toLowerCase() === targetName.toLowerCase()
+        (p) => p.name.toLowerCase() === targetName.toLowerCase(),
       );
 
       if (!targetPlayer) {
@@ -356,7 +345,7 @@ export const requestPrivateRoomAction: Action = {
         (room) =>
           room.active &&
           room.participants.includes(requesterId) &&
-          room.participants.includes(targetPlayer.id)
+          room.participants.includes(targetPlayer.id),
       );
 
       if (existingRoom) {
@@ -369,7 +358,7 @@ export const requestPrivateRoomAction: Action = {
 
       // Create private room
       const roomId = stringToUuid(
-        `room-${requesterId}-${targetPlayer.id}-${Date.now()}`
+        `room-${requesterId}-${targetPlayer.id}-${Date.now()}`,
       );
       const privateRoom: PrivateRoom = {
         id: roomId,

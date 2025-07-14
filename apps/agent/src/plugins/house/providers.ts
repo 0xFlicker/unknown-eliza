@@ -201,7 +201,6 @@ export const gameMasterProvider: Provider = {
       context += `- Phase: ${gameState.phase}\n`;
       context += `- Round: ${gameState.round}\n`;
       context += `- Players: ${alivePlayers.length} (${alivePlayers.map((p) => p.name).join(", ")})\n`;
-      context += `- Host: ${alivePlayers.find((p) => p.isHost)?.name || "None"}\n\n`;
 
       context += `RECENT MESSAGE: "${messageText}" from ${authorName}\n`;
       context += `PLAYER INFO: The player speaking is "${authorName}"\n\n`;

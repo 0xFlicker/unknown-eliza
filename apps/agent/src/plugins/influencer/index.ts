@@ -57,6 +57,35 @@ export const influencerPlugin: Plugin = {
   },
   events: {
     // Coordination handled via internal bus; no MESSAGE_RECEIVED hook needed.
+    [GameEventType.ARE_YOU_READY]: [
+      async ({ runtime, gameId, roomId, readyType, targetPhase }) => {
+        const coordinationService = runtime.getService(
+          CoordinationService.serviceType,
+        ) as CoordinationService;
+        if (!coordinationService) {
+          logger.warn(
+            "CoordinationService not available for ARE_YOU_READY response",
+          );
+          return;
+        }
+
+        logger.info(
+          `${runtime.character?.name} responding to ARE_YOU_READY for ${readyType}`,
+        );
+
+        await coordinationService.sendGameEvent(GameEventType.I_AM_READY, {
+          gameId,
+          roomId,
+          playerId: runtime.agentId,
+          playerName: runtime.character?.name || "Unknown Player",
+          readyType: readyType,
+          targetPhase: targetPhase,
+          timestamp: Date.now(),
+          runtime,
+          source: "influencer-plugin",
+        });
+      },
+    ],
     [GameEventType.PHASE_STARTED]: [
       async ({ runtime, phase, gameId, roomId }) => {
         if (phase === Phase.INIT) {
@@ -78,6 +107,7 @@ export const influencerPlugin: Plugin = {
             readyType: "phase_action",
             targetPhase: Phase.LOBBY,
             timestamp: Date.now(),
+            runtime,
             source: "influencer-plugin",
           });
         }
@@ -94,5 +124,5 @@ export const influencerPlugin: Plugin = {
         // that should trigger the diary room action
       },
     ],
-  } as GameEventHandlers, // seems to be required as far as I can tell
+  } as GameEventHandlers,
 };

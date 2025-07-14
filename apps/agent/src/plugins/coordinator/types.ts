@@ -1,5 +1,6 @@
 import { UUID } from "@elizaos/core";
-import { GameEventPayloadMap } from "src/plugins/house/events/types";
+import { GameEventPayloadMap } from "../house/events/types";
+import { v4 } from "uuid";
 
 export interface MessageServiceMessage {
   id: UUID; // root_message.id
@@ -27,13 +28,22 @@ export interface BaseCoordinationMessage {
 }
 
 /**
- * Game event coordination message
+ * Type-safe game event coordination message
  */
-export interface GameEventCoordinationMessage extends BaseCoordinationMessage {
+export interface GameEventCoordinationMessage<
+  T extends keyof GameEventPayloadMap = keyof GameEventPayloadMap,
+> extends BaseCoordinationMessage {
   type: "game_event";
-  gameEventType: string;
-  payload: any;
+  gameEventType: T;
+  payload: GameEventPayloadMap[T];
 }
+
+/**
+ * Union type for all possible game event coordination messages
+ */
+export type AnyGameEventCoordinationMessage = {
+  [K in keyof GameEventPayloadMap]: GameEventCoordinationMessage<K>;
+}[keyof GameEventPayloadMap];
 
 /**
  * Agent ready coordination message
@@ -78,7 +88,7 @@ export interface CoordinationAckMessage extends BaseCoordinationMessage {
  * Union type for all coordination messages
  */
 export type AnyCoordinationMessage =
-  | GameEventCoordinationMessage
+  | AnyGameEventCoordinationMessage
   | AgentReadyCoordinationMessage
   | HeartbeatCoordinationMessage
   | CoordinationAckMessage;
@@ -97,26 +107,26 @@ export function isCoordinationMessage(obj: any): obj is AnyCoordinationMessage {
       obj.targetAgents === "others" ||
       Array.isArray(obj.targetAgents)) &&
     ["game_event", "agent_ready", "heartbeat", "coordination_ack"].includes(
-      obj.type
+      obj.type,
     )
   );
 }
 
 /**
- * Create a game event coordination message
+ * Create a type-safe game event coordination message
  */
 export function createGameEventMessage<T extends keyof GameEventPayloadMap>(
   sourceAgent: UUID,
   gameEventType: T,
-  payload: Omit<GameEventPayloadMap[T], "runtime" | "onComplete">,
-  targetAgents: UUID[] | "all" | "others" = "others"
-): GameEventCoordinationMessage {
+  payload: GameEventPayloadMap[T],
+  targetAgents: UUID[] | "all" | "others" = "others",
+): GameEventCoordinationMessage<T> {
   return {
-    messageId: `game-event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    messageId: v4() as UUID,
     timestamp: Date.now(),
     sourceAgent,
     targetAgents,
-    type: "game_event",
+    type: "game_event" as const,
     gameEventType,
     payload,
   };
@@ -127,7 +137,7 @@ export function createGameEventMessage<T extends keyof GameEventPayloadMap>(
  */
 export function createAgentReadyMessage(
   sourceAgent: UUID,
-  payload: AgentReadyCoordinationMessage["payload"]
+  payload: AgentReadyCoordinationMessage["payload"],
 ): AgentReadyCoordinationMessage {
   return {
     messageId: `agent-ready-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

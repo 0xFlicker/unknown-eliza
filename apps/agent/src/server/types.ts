@@ -10,6 +10,7 @@ import {
   RuntimeSettings,
 } from "@elizaos/core";
 import { Phase, GameSettings } from "../plugins/house/types";
+import { HousePluginConfig } from "../plugins/house";
 
 /**
  * Participant state in a channel - controls message flow
@@ -102,11 +103,8 @@ export interface Agent<Context extends Record<string, unknown>> {
  */
 export type RuntimeDecorator<
   Runtime extends IAgentRuntime,
-  Context extends Record<string, unknown> = Record<string, unknown>
-> = (
-  runtime: Runtime,
-  context?: Context
-) => Runtime | Promise<Runtime>;
+  Context extends Record<string, unknown> = Record<string, unknown>,
+> = (runtime: Runtime, context?: Context) => Runtime | Promise<Runtime>;
 
 /**
  * Message observer function
@@ -147,7 +145,7 @@ export type EventMatcher = (events: ChannelMessage[]) => boolean;
  */
 export type GameEventObserver<T = Record<string, unknown>> = (
   eventType: string,
-  payload: T
+  payload: T,
 ) => void | Promise<void>;
 
 /**
@@ -159,6 +157,7 @@ export interface AppServerConfig<
 > {
   dataDir?: string;
   serverPort?: number;
+  houseConfig?: HousePluginConfig;
   runtimeConfig?: {
     runtime?: RuntimeDecorator<Runtime>;
     defaultPlugins?: Plugin[];

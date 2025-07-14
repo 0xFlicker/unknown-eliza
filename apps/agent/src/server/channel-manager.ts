@@ -61,7 +61,6 @@ export class ChannelManager {
 
     // Validate all participants exist
     for (const participant of config.participants) {
-      console.log("participant", participant);
       const runtime = this.agentManager.getAgentRuntime(participant.agentId);
       if (!runtime) {
         throw new Error(

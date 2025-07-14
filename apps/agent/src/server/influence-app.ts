@@ -7,6 +7,7 @@ import {
   createUniqueUuid,
   logger,
   stringToUuid,
+  RuntimeSettings,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
 import {
@@ -145,9 +146,19 @@ export class InfluenceApp<
     // Initialize SocketIO client for real-time message streaming
     // "The House" acts as a human-like user that can stimulate agent responses
     // Generate a proper UUID for The House
+    const houseRuntimeSettings: RuntimeSettings = {
+      ...this.config.runtimeConfig?.runtimeSettings,
+      // Pass house configuration as environment variables for plugin settings
+      HOUSE_MIN_PLAYERS: this.config.houseConfig?.minPlayers?.toString() || "4",
+      HOUSE_MAX_PLAYERS: this.config.houseConfig?.maxPlayers?.toString() || "8",
+      HOUSE_AUTO_START:
+        this.config.houseConfig?.autoStartGame?.toString() || "true",
+    };
+
     this.houseAgent = new AgentRuntime({
       character: houseCharacter,
       plugins: [sqlPlugin, openaiPlugin, housePlugin, coordinatorPlugin],
+      settings: houseRuntimeSettings,
     });
 
     this.associationManager = new AssociationManager();
@@ -161,6 +172,13 @@ export class InfluenceApp<
 
     await this.houseAgent.initialize();
     await this.server.registerAgent(this.houseAgent);
+
+    // Register house agent with AgentManager so ChannelManager can find it
+    await this.agentManager.registerAgent(this.houseAgent, {
+      name: "House",
+      role: "house",
+      entityName: "House",
+    } as any);
     const worldId = createUniqueUuid(this.houseAgent, this.messageServer.id);
     let world = await this.houseAgent.getWorld(worldId);
     if (!world) {

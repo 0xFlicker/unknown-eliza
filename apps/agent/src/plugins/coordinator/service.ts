@@ -8,11 +8,11 @@ import {
   createGameEventMessage,
   createAgentReadyMessage,
   type AnyCoordinationMessage,
-  GameEventCoordinationMessage,
+  type AnyGameEventCoordinationMessage,
 } from "./types";
 import internalMessageBus, { gameEvent$ } from "./bus";
 import { canSendMessage } from "./roles";
-import { GameEventPayloadMap } from "src/plugins/house/events/types";
+import { GameEventPayloadMap } from "../house/events/types";
 import { Subscription } from "rxjs";
 
 const logger = elizaLogger.child({ component: "CoordinationService" });
@@ -54,7 +54,7 @@ export class CoordinationService extends Service {
 
     // Subscribe to incoming coordination game events
     service.subscriptions.push(
-      gameEvent$.subscribe(async (message: GameEventCoordinationMessage) => {
+      gameEvent$.subscribe(async (message: AnyGameEventCoordinationMessage) => {
         console.log(
           `[CoordinationService] ${runtime.character?.name} heard ${message.gameEventType} target=${message.targetAgents}`,
         );
@@ -76,18 +76,9 @@ export class CoordinationService extends Service {
           source: message.sourceAgent,
         });
 
-        // Auto-respond to ARE_YOU_READY prompts
-        if (message.gameEventType === "GAME:ARE_YOU_READY") {
-          await service.sendGameEvent("GAME:I_AM_READY", {
-            ...(message.payload ?? {}),
-            playerId: runtime.agentId,
-            playerName: runtime.character?.name || "Unknown Player",
-            timestamp: Date.now(),
-          });
-          logger.debug(
-            `${runtime.character?.name} auto-responded with GAME:I_AM_READY`,
-          );
-        }
+        logger.debug(
+          `${runtime.character?.name} processed coordination event: ${message.gameEventType}`,
+        );
       }),
     );
 
@@ -123,7 +114,7 @@ export class CoordinationService extends Service {
    */
   async sendGameEvent<T extends keyof GameEventPayloadMap>(
     gameEventType: T,
-    payload: Omit<GameEventPayloadMap[T], "runtime" | "onComplete">,
+    payload: GameEventPayloadMap[T],
     targetAgents: UUID[] | "all" | "others" = "others",
   ): Promise<void> {
     if (!canSendMessage(this.runtime, "game_event", gameEventType)) {
@@ -147,7 +138,9 @@ export class CoordinationService extends Service {
         targetAgents,
       );
 
-      await this.sendCoordinationMessage(coordinationMessage);
+      await this.sendCoordinationMessage(
+        coordinationMessage as AnyCoordinationMessage,
+      );
 
       // Also emit directly into this runtime so that any local listeners
       // (and the InfluenceApp hook that forwards runtime.emitEvent into the

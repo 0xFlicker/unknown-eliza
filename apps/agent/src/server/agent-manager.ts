@@ -14,14 +14,14 @@ import { Agent, AgentConfig, RuntimeDecorator } from "./types";
  * Production-ready agent manager for handling agent lifecycle and runtime decoration
  */
 export class AgentManager<Context extends Record<string, unknown>> {
-  private agents = new Map<UUID, Agent<Context>>();
+  protected agents = new Map<UUID, Agent<Context>>();
   private runtimeDecorators: RuntimeDecorator<IAgentRuntime>[] = [];
 
   constructor(
     private server: AgentServer,
     private runtimeSettings: RuntimeSettings,
     private messageServer: MessageServer,
-    defaultDecorators: RuntimeDecorator<IAgentRuntime>[] = []
+    defaultDecorators: RuntimeDecorator<IAgentRuntime>[] = [],
   ) {
     this.runtimeDecorators = [...defaultDecorators];
   }
@@ -31,6 +31,34 @@ export class AgentManager<Context extends Record<string, unknown>> {
    */
   addRuntimeDecorator(decorator: RuntimeDecorator<IAgentRuntime>): void {
     this.runtimeDecorators.push(decorator);
+  }
+
+  /**
+   * Register an existing agent runtime with the manager
+   */
+  async registerAgent(
+    runtime: IAgentRuntime,
+    metadata?: Context,
+  ): Promise<Agent<Context>> {
+    logger.info(`Registering existing agent: ${runtime.character.name}`);
+
+    // Create agent record
+    const agent: Agent<Context> = {
+      id: runtime.agentId,
+      runtime: runtime,
+      character: runtime.character,
+      metadata: metadata || ({} as Context),
+      createdAt: Date.now(),
+    };
+
+    // Store agent
+    this.agents.set(agent.id, agent);
+
+    logger.info(
+      `Successfully registered existing agent ${runtime.character.name} with ID: ${agent.id}`,
+    );
+
+    return agent;
   }
 
   /**
@@ -55,12 +83,12 @@ export class AgentManager<Context extends Record<string, unknown>> {
         const result = await decorator(decoratedRuntime, {});
         decoratedRuntime = result as IAgentRuntime;
         logger.debug(
-          `Applied runtime decorator to agent ${config.character.name}`
+          `Applied runtime decorator to agent ${config.character.name}`,
         );
       } catch (error) {
         logger.error(
           `Failed to apply runtime decorator to agent ${config.character.name}:`,
-          error
+          error,
         );
         throw error;
       }
@@ -107,7 +135,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
     this.agents.set(agent.id, agent);
 
     logger.info(
-      `Successfully created agent ${config.character.name} with ID: ${agent.id}`
+      `Successfully created agent ${config.character.name} with ID: ${agent.id}`,
     );
 
     return agent;
@@ -193,7 +221,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
    */
   findAgentByName(name: string): Agent<Context> | undefined {
     return Array.from(this.agents.values()).find(
-      (agent) => agent.character.name === name
+      (agent) => agent.character.name === name,
     );
   }
 
@@ -234,7 +262,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
     const cleanupPromises = Array.from(this.agents.keys()).map((agentId) =>
       this.removeAgent(agentId).catch((error) => {
         logger.error(`Failed to cleanup agent ${agentId}:`, error);
-      })
+      }),
     );
 
     await Promise.all(cleanupPromises);

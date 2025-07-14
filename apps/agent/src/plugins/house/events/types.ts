@@ -16,6 +16,7 @@ export enum GameEventType {
   PHASE_ENDED = "GAME:PHASE_ENDED",
 
   // Player coordination events
+  ARE_YOU_READY = "GAME:ARE_YOU_READY",
   PLAYER_READY = "GAME:PLAYER_READY",
   ALL_PLAYERS_READY = "GAME:ALL_PLAYERS_READY",
   I_AM_READY = "GAME:I_AM_READY",
@@ -68,6 +69,15 @@ export interface PhaseTransitionPayload extends GameEventPayload {
   transitionReason: "timer_expired" | "manual" | "all_players_ready";
   requiresStrategicThinking: boolean;
   requiresDiaryRoom: boolean;
+}
+
+/**
+ * Payload for ARE_YOU_READY events - asking players if they're ready
+ */
+export interface AreYouReadyPayload extends GameEventPayload {
+  readyType: "strategic_thinking" | "diary_room" | "phase_action";
+  targetPhase?: Phase; // The phase players should be ready for
+  timeoutMs?: number; // How long to wait for responses
 }
 
 /**
@@ -154,6 +164,7 @@ export interface GameEventPayloadMap {
   "GAME:PHASE_TRANSITION_INITIATED": PhaseTransitionPayload;
   "GAME:PHASE_STARTED": PhaseEventPayload;
   "GAME:PHASE_ENDED": PhaseEventPayload;
+  "GAME:ARE_YOU_READY": AreYouReadyPayload;
   "GAME:PLAYER_READY": PlayerReadyPayload;
   "GAME:ALL_PLAYERS_READY": AllPlayersReadyPayload;
   "GAME:I_AM_READY": PlayerReadyPayload;
@@ -172,7 +183,7 @@ export interface GameEventPayloadMap {
  * Type-safe event handler for game events
  */
 export type GameEventHandler<T extends keyof GameEventPayloadMap> = (
-  payload: GameEventPayloadMap[T]
+  payload: GameEventPayloadMap[T],
 ) => Promise<void>;
 
 /**
