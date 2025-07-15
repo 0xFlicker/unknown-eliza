@@ -1,6 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
-import { coordinatorPlugin } from "../../plugins/coordinator";
+import {
+  CoordinationService,
+  coordinatorPlugin,
+  GameEventType,
+  Phase,
+} from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, take } from "rxjs";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
@@ -8,6 +13,7 @@ import { ChannelType } from "@elizaos/core";
 import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
+import { gameEvent$ } from "@/plugins/coordinator/bus";
 
 /**
  * Coordination Plugin - Ready Coordination Test
@@ -49,10 +55,12 @@ describe("Coordination Plugin - Ready Coordination", () => {
       // Prepare observers for each player's I_AM_READY response
       const readySignals = players.map(({ id }) =>
         firstValueFrom(
-          app.getGameEventStream().pipe(
+          gameEvent$.pipe(
             filter(
               (evt) =>
-                evt.type === "GAME:I_AM_READY" && evt.payload.playerId === id,
+                evt.type === "coordination_message" &&
+                evt.payload.type === GameEventType.I_AM_READY &&
+                evt.payload.playerId === id,
             ),
             take(1),
           ),
@@ -61,7 +69,17 @@ describe("Coordination Plugin - Ready Coordination", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      const channelId = await app.createChannel({
+      // Create a game using the new GameManager approach
+      const gameId = await app.createGame({
+        players: players.map((p) => p.id),
+        settings: {
+          minPlayers: 3,
+          maxPlayers: 5,
+        },
+        initialPhase: Phase.INIT,
+      });
+
+      const channelId = await app.createGameChannel(gameId, {
         name: "coordination-channel",
         participants: players.map((p) => ({
           agentId: p.id,
@@ -71,15 +89,27 @@ describe("Coordination Plugin - Ready Coordination", () => {
         type: ChannelType.GROUP,
       });
 
-      // Emit ARE_YOU_READY event to all players
-      // (Feature: coordination channel emission to be implemented)
-      app.emitGameEvent({
-        type: "GAME:ARE_YOU_READY",
-        payload: {},
-        sourceAgent: app.getHouseAgent().agentId,
-        channelId,
-        timestamp: Date.now(),
-      });
+      // Get the coordination service
+      const coordinationService = app
+        .getHouseAgent()
+        .getService<CoordinationService>(CoordinationService.serviceType);
+
+      expect(coordinationService).toBeDefined();
+      expect(coordinationService).not.toBeNull();
+
+      await coordinationService.sendGameEvent(
+        {
+          type: GameEventType.ARE_YOU_READY,
+          gameId: gameId,
+          roomId: channelId,
+          timestamp: Date.now(),
+          readyType: "strategic_thinking",
+          targetPhase: Phase.INTRODUCTION,
+          runtime: app.getHouseAgent(),
+          source: app.getHouseAgent().agentId,
+        },
+        "others",
+      );
 
       // All players should emit I_AM_READY in response
       const results = await Promise.all(readySignals);

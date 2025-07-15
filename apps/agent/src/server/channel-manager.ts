@@ -78,6 +78,12 @@ export class ChannelManager {
       metadata: config.metadata,
     });
 
+    if (!channel?.data?.id) {
+      throw new Error(
+        `Failed to create channel "${config.name}": API returned null/invalid response`,
+      );
+    }
+
     // Create channel record
     const channelRecord: Channel = {
       id: channel.data.id,

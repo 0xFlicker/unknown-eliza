@@ -23,10 +23,10 @@ export const coordinatorPlugin: Plugin = {
         "[CoordinatorPlugin] services:",
         coordinatorPlugin.services?.length,
       );
-      // Explicitly register the service immediately so that it is available
-      // before the runtime finishes initializing (unit-tests emit game events
-      // almost immediately after creating agents).
-      await runtime.registerService(CoordinationService);
+      // // Explicitly register the service immediately so that it is available
+      // // before the runtime finishes initializing (unit-tests emit game events
+      // // almost immediately after creating agents).
+      // await runtime.registerService(CoordinationService);
 
       logger.info(
         `🔗 Coordinator plugin registered + service started for ${runtime.character?.name}`,

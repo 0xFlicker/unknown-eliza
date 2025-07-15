@@ -10,12 +10,7 @@ import {
   RuntimeSettings,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
-import {
-  Agent,
-  AppServerConfig,
-  RuntimeDecorator,
-  StreamedMessage,
-} from "./types";
+import { AppServerConfig, RuntimeDecorator, StreamedMessage } from "./types";
 import EventEmitter from "node:events";
 import { housePlugin } from "../../src/plugins/house";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
@@ -25,29 +20,17 @@ import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
 import { SocketIOManager } from "../lib/socketio-manager";
-import { Subject, Observable, fromEvent, Subscription } from "rxjs";
-import { map } from "rxjs/operators";
+import { Subject, Observable } from "rxjs";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
 import { MessageServer } from "@elizaos/server";
 import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
-import {
-  coordinatorPlugin,
-  createGameEventMessage,
-} from "../plugins/coordinator";
-
-/**
- * Unified game-event payload emitted from runtimes and internal bus
- */
-export interface GameEvent<T = any> {
-  type: string;
-  payload: T;
-  sourceAgent: UUID;
-  channelId?: UUID;
-  timestamp: number;
-}
+import { coordinatorPlugin, Phase } from "../plugins/coordinator";
+import { HousePluginConfig } from "../plugins/house";
+import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
+import { GameManager, GameConfig } from "./game-manager";
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -65,6 +48,7 @@ export class InfluenceApp<
   private associationManager: AssociationManager;
   private agentManager: AgentManager<AgentContext>;
   private channelManager: ChannelManager;
+  private gameManager: GameManager;
 
   // The house agent
   private houseAgent: IAgentRuntime | null = null;
@@ -73,9 +57,6 @@ export class InfluenceApp<
   private socketManager: SocketIOManager;
   private messageStream$ = new Subject<StreamedMessage>();
   private channelMessageStreams = new Map<UUID, Subject<StreamedMessage>>();
-
-  // Game-event streaming infrastructure
-  private gameEvent$ = new Subject<GameEvent<any>>();
 
   // Runtime configuration
   private defaultRuntimeDecorators: RuntimeDecorator<Runtime>[] = [];
@@ -100,7 +81,7 @@ export class InfluenceApp<
         const typeString = (
           Array.isArray(eventType) ? eventType[0] : eventType
         ) as string;
-        this.gameEvent$.next({
+        internalMessageBus.emit("game_event", {
           type: typeString,
           payload,
           sourceAgent: runtime.agentId,
@@ -157,7 +138,7 @@ export class InfluenceApp<
 
     this.houseAgent = new AgentRuntime({
       character: houseCharacter,
-      plugins: [sqlPlugin, openaiPlugin, housePlugin, coordinatorPlugin],
+      plugins: [sqlPlugin, openaiPlugin, coordinatorPlugin, housePlugin],
       settings: houseRuntimeSettings,
     });
 
@@ -168,6 +149,12 @@ export class InfluenceApp<
       this.server,
       this.messageServer,
       this.houseAgent,
+    );
+    this.gameManager = new GameManager(
+      this.agentManager,
+      this.channelManager,
+      this.houseAgent,
+      this.messageServer.id,
     );
 
     await this.houseAgent.initialize();
@@ -203,7 +190,6 @@ export class InfluenceApp<
 
     // Set up message streaming infrastructure
     this.setupMessageStreaming();
-    this.setupGameEventStreaming();
   }
 
   /**
@@ -267,48 +253,6 @@ export class InfluenceApp<
   }
 
   /**
-   * Set up unified game-event stream from internal bus and runtime emits
-   */
-  private setupGameEventStreaming() {
-    /*
-     * Coordination messages are emitted onto `internalMessageBus` by the
-     * CoordinatorService.  For `game_event` messages we expect a single
-     * argument – the coordination message object itself.  Previous logic
-     * attempted to de-structure `(type, payload)` but CoordinatorService only
-     * passes one arg which meant `type` became the whole object and `payload`
-     * was undefined.  That broke downstream filtering (e.g. looking for
-     * `GAME:I_AM_READY`).  The new logic treats the first argument as the
-     * message object and extracts the canonical `gameEventType` and `payload`
-     * fields.
-     */
-
-    fromEvent(internalMessageBus, "game_event", (message) => message)
-      .pipe(
-        map((coordinationMessage: any) => {
-          console.log(
-            "[InfluenceApp] received coordinationMessage",
-            coordinationMessage.gameEventType,
-            "from",
-            coordinationMessage.sourceAgent,
-          );
-          // Shape asserted via Coordinator `createGameEventMessage`
-          const typeString = coordinationMessage.gameEventType as string;
-          const payload = coordinationMessage.payload ?? {};
-          const rawRoom = payload.roomId ?? payload.channelId;
-
-          return {
-            type: typeString,
-            payload,
-            sourceAgent: coordinationMessage.sourceAgent ?? payload.source,
-            channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
-            timestamp: coordinationMessage.timestamp ?? Date.now(),
-          } as GameEvent<any>;
-        }),
-      )
-      .subscribe(this.gameEvent$);
-  }
-
-  /**
    * Broadcast a message to all subscribers
    */
   private broadcastMessage(message: StreamedMessage) {
@@ -345,49 +289,6 @@ export class InfluenceApp<
       this.channelMessageStreams.set(channelId, new Subject<StreamedMessage>());
     }
     return this.channelMessageStreams.get(channelId)!.asObservable();
-  }
-
-  /**
-   * Get a cold observable of all game events
-   */
-  getGameEventStream(): Observable<GameEvent<any>> {
-    return this.gameEvent$.asObservable();
-  }
-
-  emitGameEvent<T = any>(gameEvent: GameEvent<T>): void {
-    const event: GameEvent<T> = {
-      type: gameEvent.type,
-      payload: gameEvent.payload,
-      sourceAgent: gameEvent.sourceAgent,
-      channelId: gameEvent.channelId,
-      timestamp: Date.now(),
-    };
-    this.gameEvent$.next(event);
-    logger.info(
-      `[InfluenceApp] Game event emitted: ${event.type} from ${event.sourceAgent} in channel ${event.channelId}`,
-    );
-    if (event.type === "GAME:I_AM_READY") {
-      console.log("[InfluenceApp] observed I_AM_READY from", event.sourceAgent);
-    }
-
-    // Broadcast to internal coordination bus so that all runtimes (including
-    // those in other agents) can react.
-    const coordinationMessage = createGameEventMessage(
-      event.sourceAgent,
-      event.type as any,
-      event.payload as any,
-      "all",
-    );
-    internalMessageBus.emit("game_event", coordinationMessage);
-  }
-
-  /**
-   * Subscribe to game events with a callback; returns a Subscription
-   */
-  observeGameEvents<T = any>(
-    observer: (event: GameEvent<T>) => void,
-  ): Subscription {
-    return this.gameEvent$.subscribe(observer as any);
   }
 
   /**
@@ -471,6 +372,57 @@ export class InfluenceApp<
         globalStreamActive: this.messageStream$.observed,
       },
     };
+  }
+
+  /**
+   * Create a new game session
+   */
+  async createGame(config: GameConfig): Promise<UUID> {
+    return this.gameManager.createGame(config);
+  }
+
+  /**
+   * Create a channel for a specific game with game state pre-loaded
+   */
+  async createGameChannel(
+    gameId: UUID,
+    channelConfig: Omit<
+      Parameters<typeof this.channelManager.createChannel>[0],
+      "runtimeDecorators"
+    >,
+  ): Promise<UUID> {
+    return this.gameManager.createGameChannel(gameId, channelConfig);
+  }
+
+  /**
+   * Create a main game channel with all players and House agent
+   */
+  async createMainGameChannel(
+    gameId: UUID,
+    channelName?: string,
+  ): Promise<UUID> {
+    return this.gameManager.createMainGameChannel(gameId, channelName);
+  }
+
+  /**
+   * Get game session by ID
+   */
+  getGame(gameId: UUID) {
+    return this.gameManager.getGame(gameId);
+  }
+
+  /**
+   * Get game ID by channel ID
+   */
+  getGameByChannel(channelId: UUID) {
+    return this.gameManager.getGameByChannel(channelId);
+  }
+
+  /**
+   * Get the game manager instance
+   */
+  getGameManager(): GameManager {
+    return this.gameManager;
   }
 
   /**

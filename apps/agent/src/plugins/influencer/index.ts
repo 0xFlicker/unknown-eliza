@@ -22,14 +22,8 @@ import {
   eliminateAction,
   protectAction,
 } from "./actions";
-import {
-  GameEventType,
-  GameEventHandler,
-  GameEventPayloadMap,
-  GameEventHandlers,
-} from "../house/events/types";
-import { Phase } from "../house/types";
-import { CoordinationService } from "../coordinator";
+import { GameEventType, GameEventHandlers } from "../coordinator/types";
+import { CoordinationService, Phase } from "../coordinator";
 
 const logger = elizaLogger.child({ component: "InfluencerPlugin" });
 
@@ -73,17 +67,21 @@ export const influencerPlugin: Plugin = {
           `${runtime.character?.name} responding to ARE_YOU_READY for ${readyType}`,
         );
 
-        await coordinationService.sendGameEvent(GameEventType.I_AM_READY, {
-          gameId,
-          roomId,
-          playerId: runtime.agentId,
-          playerName: runtime.character?.name || "Unknown Player",
-          readyType: readyType,
-          targetPhase: targetPhase,
-          timestamp: Date.now(),
-          runtime,
-          source: "influencer-plugin",
-        });
+        await coordinationService.sendGameEvent(
+          {
+            gameId,
+            roomId,
+            playerId: runtime.agentId,
+            playerName: runtime.character?.name || "Unknown Player",
+            readyType: readyType,
+            targetPhase: targetPhase,
+            timestamp: Date.now(),
+            runtime,
+            source: "influencer-plugin",
+            type: GameEventType.I_AM_READY,
+          },
+          "others",
+        );
       },
     ],
     [GameEventType.PHASE_STARTED]: [
@@ -99,17 +97,21 @@ export const influencerPlugin: Plugin = {
             return;
           }
 
-          await coordinationService.sendGameEvent(GameEventType.I_AM_READY, {
-            gameId,
-            roomId,
-            playerId: runtime.agentId,
-            playerName: runtime.character?.name || "Unknown Player",
-            readyType: "phase_action",
-            targetPhase: Phase.LOBBY,
-            timestamp: Date.now(),
-            runtime,
-            source: "influencer-plugin",
-          });
+          await coordinationService.sendGameEvent(
+            {
+              gameId,
+              roomId,
+              playerId: runtime.agentId,
+              playerName: runtime.character?.name || "Unknown Player",
+              readyType: "phase_action",
+              targetPhase: Phase.LOBBY,
+              timestamp: Date.now(),
+              runtime,
+              source: "influencer-plugin",
+              type: GameEventType.I_AM_READY,
+            },
+            "others",
+          );
         }
       },
     ],

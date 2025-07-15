@@ -7,12 +7,14 @@ import {
 import {
   createGameEventMessage,
   createAgentReadyMessage,
-  type AnyCoordinationMessage,
-  type AnyGameEventCoordinationMessage,
+  GameEventPayloadMap,
+  GameEventType,
+  Phase,
+  GameEventCoordinationMessage,
+  AnyCoordinationMessage,
 } from "./types";
 import internalMessageBus, { gameEvent$ } from "./bus";
 import { canSendMessage } from "./roles";
-import { GameEventPayloadMap } from "../house/events/types";
 import { Subscription } from "rxjs";
 
 const logger = elizaLogger.child({ component: "CoordinationService" });
@@ -38,26 +40,12 @@ export class CoordinationService extends Service {
     logger.info(
       `Starting CoordinationService for ${runtime.character?.name ?? "unknown"}`,
     );
-    // TEMP: quick debug output to ensure service starts during tests
-    console.log(
-      `[CoordinationService] start for ${runtime.character?.name} (${runtime.agentId})`,
-    );
 
     const service = new CoordinationService(runtime);
 
-    // DEBUG: log all incoming game_event traffic once per runtime
-    internalMessageBus.on("game_event", (m: any) => {
-      console.log(
-        `[Bus] (${runtime.character?.name}) saw game_event ${m.gameEventType} from ${m.sourceAgent} to ${m.targetAgents}`,
-      );
-    });
-
     // Subscribe to incoming coordination game events
     service.subscriptions.push(
-      gameEvent$.subscribe(async (message: AnyGameEventCoordinationMessage) => {
-        console.log(
-          `[CoordinationService] ${runtime.character?.name} heard ${message.gameEventType} target=${message.targetAgents}`,
-        );
+      gameEvent$.subscribe(async (message) => {
         const { targetAgents } = message;
 
         const targeted =
@@ -70,14 +58,13 @@ export class CoordinationService extends Service {
         if (!targeted) return;
 
         // Emit into the local runtime so plugins can react via `events`
-        await runtime.emitEvent(message.gameEventType, {
+        await runtime.emitEvent(message.payload.type, {
           ...message.payload,
           runtime,
-          source: message.sourceAgent,
         });
 
         logger.debug(
-          `${runtime.character?.name} processed coordination event: ${message.gameEventType}`,
+          `${runtime.character?.name} processed coordination event: ${message.type}`,
         );
       }),
     );
@@ -113,75 +100,60 @@ export class CoordinationService extends Service {
    * Send a game event to other agents via coordination channel
    */
   async sendGameEvent<T extends keyof GameEventPayloadMap>(
-    gameEventType: T,
     payload: GameEventPayloadMap[T],
     targetAgents: UUID[] | "all" | "others" = "others",
   ): Promise<void> {
-    if (!canSendMessage(this.runtime, "game_event", gameEventType)) {
+    if (!canSendMessage(this.runtime, "game_event", payload.type)) {
       throw new Error(
-        `Agent ${this.runtime.character?.name} is not authorized to send game event: ${gameEventType}`,
+        `Agent ${this.runtime.character?.name} is not authorized to send game event: ${payload.type}`,
       );
     }
 
-    try {
-      logger.debug(
-        `Sending game event ${gameEventType} from ${this.runtime.character?.name} to ${targetAgents}`,
-      );
-      console.log(
-        `[CoordinationService] ${this.runtime.character?.name} sending ${gameEventType}`,
-      );
+    logger.debug(
+      `Sending game event ${payload.type} from ${this.runtime.character?.name} to ${targetAgents}`,
+    );
 
-      const coordinationMessage = createGameEventMessage(
-        this.runtime.agentId,
-        gameEventType,
-        payload,
-        targetAgents,
-      );
+    const coordinationMessage = createGameEventMessage(
+      this.runtime.agentId,
+      payload,
+      targetAgents,
+    );
 
-      await this.sendCoordinationMessage(
-        coordinationMessage as AnyCoordinationMessage,
-      );
+    await this.sendCoordinationMessage(coordinationMessage);
 
-      // Also emit directly into this runtime so that any local listeners
-      // (and the InfluenceApp hook that forwards runtime.emitEvent into the
-      // global game-event stream) pick it up without relying on the bus.
-      await this.runtime.emitEvent(gameEventType, {
-        ...payload,
-        source: this.runtime.agentId,
-      });
-
-      logger.debug(`Game event ${gameEventType} sent successfully`, {
-        targetAgents,
-        messageId: coordinationMessage.messageId,
-      });
-    } catch (error) {
-      logger.error(`Failed to send game event: ${gameEventType}`, error);
-      throw error;
-    }
+    logger.debug(`Game event ${payload.type} sent successfully`, {
+      targetAgents,
+      messageId: coordinationMessage.messageId,
+    });
   }
 
   /**
    * Send an agent ready signal via coordination channel
    */
-  async sendAgentReady(
-    readyType: string,
-    gameId: UUID,
-    roomId: UUID,
-    additionalData?: Record<string, unknown>,
-  ): Promise<void> {
+  async sendAgentReady({
+    readyType,
+    gameId,
+    roomId,
+    targetPhase,
+  }: {
+    readyType: "strategic_thinking" | "diary_room" | "phase_action";
+    targetPhase?: Phase;
+    gameId: UUID;
+    roomId: UUID;
+  }): Promise<void> {
     try {
-      const readyData = {
-        readyType,
-        gameId,
-        roomId,
-        playerId: this.runtime.agentId,
-        playerName: this.runtime.character?.name || "Unknown Agent",
-        additionalData,
-      };
-
       const coordinationMessage = createAgentReadyMessage(
         this.runtime.agentId,
-        readyData,
+        {
+          readyType,
+          gameId,
+          roomId,
+          targetPhase,
+          runtime: this.runtime,
+          source: this.runtime.agentId,
+          type: GameEventType.ARE_YOU_READY,
+          timestamp: Date.now(),
+        },
       );
 
       await this.sendCoordinationMessage(coordinationMessage);
@@ -203,6 +175,6 @@ export class CoordinationService extends Service {
   private async sendCoordinationMessage(
     message: AnyCoordinationMessage,
   ): Promise<void> {
-    internalMessageBus.emit(message.type, message);
+    internalMessageBus.emit("game_event", message);
   }
 }
