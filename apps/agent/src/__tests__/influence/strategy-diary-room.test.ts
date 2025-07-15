@@ -10,16 +10,18 @@ import { housePlugin } from "../../plugins/house";
 import { influencerPlugin } from "../../plugins/influencer";
 import { coordinatorPlugin } from "../../plugins/coordinator";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
-import { Phase } from "../../plugins/house/types";
+import {
+  Phase,
+  GameEventType,
+  AnyCoordinationMessage,
+} from "../../plugins/coordinator/types";
 import {
   createUniqueUuid,
   UUID,
   ChannelType,
   IAgentRuntime,
 } from "@elizaos/core";
-import { GameEventType } from "../../plugins/house/events/types";
 import { InfluenceApp } from "../../server/influence-app";
-import type { GameEvent } from "../../server/influence-app";
 import {
   Agent,
   AppServerConfig,
@@ -30,6 +32,7 @@ import {
 import { ModelMockingService } from "../utils/model-mocking-service";
 import { GameStatePreloader } from "../utils/game-state-preloader";
 import { firstValueFrom, take, takeLast, tap, toArray } from "rxjs";
+import { gameEvent$ } from "@/plugins/coordinator/bus";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -71,15 +74,18 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       await app.start();
 
       // Subscribe to game events for E2E verification
-      const gameEvents: Array<GameEvent<any>> = [];
+      const gameEvents: Array<AnyCoordinationMessage> = [];
       const phaseTransitions: Array<{
         from: Phase;
         to: Phase;
         timestamp: number;
       }> = [];
-      app.getGameEventStream().subscribe((event) => {
+      gameEvent$.subscribe((event) => {
         gameEvents.push(event);
-        if (event.type === GameEventType.PHASE_STARTED) {
+        if (
+          event.type === "coordination_message" &&
+          event.payload.type === GameEventType.PHASE_STARTED
+        ) {
           const payload: any = event.payload;
           phaseTransitions.push({
             from: payload.previousPhase,

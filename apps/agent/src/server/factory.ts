@@ -1,11 +1,8 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Character, IAgentRuntime, UUID } from "@elizaos/core";
-import dotenv from "dotenv";
-import { AgentServer, internalMessageBus } from "@elizaos/server";
-import { Subject, Observable } from "rxjs";
-import { Phase, GameSettings } from "../plugins/house/types";
+import { IAgentRuntime } from "@elizaos/core";
+import { AgentServer } from "@elizaos/server";
 import { AppServerConfig } from "./types";
 import { isPortOpen } from "../safeUtils";
 

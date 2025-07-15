@@ -18,6 +18,7 @@ packages/**/node_modules
 
 # Ignore Eliza database files
 .eliza
+.elozaos
 .elizadb*
 
 

@@ -17,13 +17,11 @@ import {
   gameMasterProvider,
 } from "./providers";
 import {
+  CoordinationService,
+  Phase,
   GameEventType,
-  GameEventHandler,
-  GameEventPayloadMap,
   GameEventHandlers,
-} from "./events/types";
-import { Phase } from "./types";
-import { CoordinationService } from "../coordinator";
+} from "../coordinator";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 
@@ -150,36 +148,32 @@ export const housePlugin: Plugin = {
             readyType === "phase_action" &&
             targetPhase === Phase.INTRODUCTION
           ) {
-            await coordinationService.sendGameEvent(
-              GameEventType.PHASE_STARTED,
-              {
-                gameId,
-                roomId,
-                phase: Phase.INTRODUCTION,
-                round: 1,
-                previousPhase: Phase.INIT,
-                timestamp: Date.now(),
-                runtime,
-                source: "house-plugin",
-              },
-            );
+            await coordinationService.sendGameEvent({
+              gameId,
+              roomId,
+              phase: Phase.INTRODUCTION,
+              round: 1,
+              previousPhase: Phase.INIT,
+              timestamp: Date.now(),
+              runtime,
+              source: "house-plugin",
+              type: GameEventType.PHASE_STARTED,
+            });
           } else if (
             readyType === "phase_action" &&
             targetPhase === Phase.WHISPER
           ) {
-            await coordinationService.sendGameEvent(
-              GameEventType.PHASE_STARTED,
-              {
-                gameId,
-                roomId,
-                phase: Phase.WHISPER,
-                round: 1,
-                previousPhase: Phase.LOBBY,
-                timestamp: Date.now(),
-                runtime,
-                source: "house-plugin",
-              },
-            );
+            await coordinationService.sendGameEvent({
+              gameId,
+              roomId,
+              phase: Phase.WHISPER,
+              round: 1,
+              previousPhase: Phase.LOBBY,
+              timestamp: Date.now(),
+              runtime,
+              source: "house-plugin",
+              type: GameEventType.PHASE_STARTED,
+            });
           }
         }
       },
@@ -211,7 +205,7 @@ export const housePlugin: Plugin = {
         // Handle phase-specific orchestration
         if (phase === Phase.LOBBY) {
           // Announce LOBBY phase and request readiness for WHISPER
-          await coordinationService.sendGameEvent(GameEventType.ARE_YOU_READY, {
+          await coordinationService.sendGameEvent({
             gameId,
             roomId,
             readyType: "phase_action",
@@ -220,6 +214,7 @@ export const housePlugin: Plugin = {
             timestamp: Date.now(),
             runtime,
             source: "house-plugin",
+            type: GameEventType.ARE_YOU_READY,
           });
         }
       },

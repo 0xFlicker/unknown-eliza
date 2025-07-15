@@ -6,7 +6,6 @@ import {
   addHeader,
   ChannelType,
 } from "@elizaos/core";
-import { Phase, GameState, PlayerStatus } from "../house/types";
 
 /**
  * Replaces the bootstrap plugin's SHOULD_RESPOND provider with phase-aware logic
@@ -77,14 +76,10 @@ export const shouldRespondProvider: Provider = {
           ? "IGNORE House in group"
           : "RESPOND to players ONLY if it advances your strategic position";
 
-    console.log(
-      `📋 SHOULD_RESPOND guidance for ${runtime.character.name}: ${guidance}`
-    );
-
     return {
       text: addHeader(
         "# RESPONSE EXAMPLES FOR INFLUENCE GAME",
-        examples.join("\n\n")
+        examples.join("\n\n"),
       ),
     };
   },
@@ -118,7 +113,7 @@ export const phaseContextProvider: Provider = {
           m.content?.text?.includes("PHASE") &&
           (m.content?.text?.includes("LOBBY") ||
             m.content?.text?.includes("WHISPER") ||
-            m.content?.text?.includes("DIARY_ROOM"))
+            m.content?.text?.includes("DIARY_ROOM")),
       );
 
       if (phaseMemory?.content?.text?.includes("LOBBY")) {
@@ -199,7 +194,7 @@ export const phaseContextProvider: Provider = {
         "Consider: Are you repeating the same thing over and over again? If so, you're probably not advancing your strategic position.",
         "",
         "RESPONSE GUIDANCE: RESPOND ONLY if it advances your strategic position, or stay silent to avoid revealing your hand or appearing too eager.",
-      ].join("\n")
+      ].join("\n"),
     );
 
     // console.log(`🎯 Phase context for ${runtime.character.name}:`, {
@@ -245,7 +240,7 @@ export const gameContextProvider: Provider = {
             m.content?.text?.includes("LOBBY") ||
             m.content?.text?.includes("WHISPER") ||
             m.content?.text?.includes("VOTE") ||
-            m.content?.text?.includes("POWER")
+            m.content?.text?.includes("POWER"),
         )
         .slice(0, 3)
         .map((m) => `- ${m.content?.text?.substring(0, 100)}...`)
@@ -254,7 +249,7 @@ export const gameContextProvider: Provider = {
       return {
         text: addHeader(
           "# CURRENT GAME CONTEXT",
-          gameStateInfo || "No recent game state information available."
+          gameStateInfo || "No recent game state information available.",
         ),
       };
     } catch (error) {

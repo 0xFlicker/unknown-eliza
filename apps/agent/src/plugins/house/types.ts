@@ -1,27 +1,4 @@
-// Re-export memory types - but we need to be careful about circular dependencies
-
-/**
- * Influence game phases
- */
-export enum Phase {
-  INIT = "INIT",
-  INTRODUCTION = "INTRODUCTION",
-  LOBBY = "LOBBY",
-  WHISPER = "WHISPER",
-  RUMOR = "RUMOR",
-  VOTE = "VOTE",
-  POWER = "POWER",
-  REVEAL = "REVEAL",
-}
-
-/**
- * Player status in the game
- */
-export enum PlayerStatus {
-  ALIVE = "alive",
-  ELIMINATED = "eliminated",
-  EXPOSED = "exposed", // Can be targeted for elimination or protection
-}
+import { Phase, PlayerStatus } from "../coordinator";
 
 /**
  * Game settings and configuration

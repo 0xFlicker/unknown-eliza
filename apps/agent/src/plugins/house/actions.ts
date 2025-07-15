@@ -8,7 +8,7 @@ import {
   type HandlerCallback,
   createUniqueUuid,
 } from "@elizaos/core";
-import { GameEvent, Player, Phase, PlayerStatus, PrivateRoom } from "./types";
+import { GameEvent, Player, PrivateRoom } from "./types";
 import {
   getGameState,
   saveGameState,
@@ -17,6 +17,7 @@ import {
 } from "./runtime/memory";
 import { GameStateManager } from "./gameStateManager";
 import { text } from "stream/consumers";
+import { Phase, PlayerStatus } from "../coordinator";
 
 /**
  * Join the game lobby

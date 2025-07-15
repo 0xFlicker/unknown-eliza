@@ -9,7 +9,6 @@ import {
   type Relationship,
   RuntimeSettings,
 } from "@elizaos/core";
-import { Phase, GameSettings } from "../plugins/house/types";
 import { HousePluginConfig } from "../plugins/house";
 
 /**

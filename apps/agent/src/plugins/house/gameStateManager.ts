@@ -1,7 +1,7 @@
 import { IAgentRuntime, UUID, createUniqueUuid } from "@elizaos/core";
-import { GameEventType } from "./events/types";
-import { Phase } from "./types";
 import { getGameState, saveGameState } from "./runtime/memory";
+import { Phase } from "../coordinator";
+import { GameEventType } from "../coordinator/types";
 
 /**
  * High-level abstraction for managing game state changes and triggering

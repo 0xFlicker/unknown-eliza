@@ -5,14 +5,8 @@ import {
   UUID,
   MemoryType,
 } from "@elizaos/core";
-import {
-  GameState,
-  GameEvent,
-  Player,
-  Phase,
-  PlayerStatus,
-  DEFAULT_GAME_SETTINGS,
-} from "../types";
+import { GameState, GameEvent, Player, DEFAULT_GAME_SETTINGS } from "../types";
+import { Phase } from "@/plugins/coordinator";
 
 /**
  * Memory DAO for House game state management.
