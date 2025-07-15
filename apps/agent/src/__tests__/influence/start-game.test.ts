@@ -16,6 +16,7 @@ import {
   UUID,
   ChannelType,
   IAgentRuntime,
+  stringToUuid,
 } from "@elizaos/core";
 import { GameEventType } from "../../plugins/house/events/types";
 import { InfluenceApp } from "../../server/influence-app";
@@ -29,7 +30,7 @@ import {
 } from "../../server/types";
 import { ModelMockingService } from "../utils/model-mocking-service";
 import { GameStatePreloader } from "../utils/game-state-preloader";
-import { firstValueFrom, take, takeLast, tap, toArray } from "rxjs";
+import { firstValueFrom, take, takeLast, tap, toArray, filter } from "rxjs";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
@@ -198,6 +199,30 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         "✓ Game state pre-loaded: players joined, now in LOBBY phase",
       );
 
+      // Manually trigger House to send ARE_YOU_READY for WHISPER phase
+      const houseRuntime = app.getAgentManager().getAgentRuntime(house.id);
+      if (houseRuntime) {
+        const { CoordinationService } = await import(
+          "../../plugins/coordinator"
+        );
+        const coordinationService = houseRuntime.getService(
+          CoordinationService.serviceType,
+        ) as CoordinationService;
+
+        if (coordinationService) {
+          await coordinationService.sendGameEvent(GameEventType.ARE_YOU_READY, {
+            gameId: stringToUuid(`test-game-${Date.now()}`),
+            roomId: mainChannelId,
+            readyType: "phase_action",
+            targetPhase: Phase.WHISPER,
+            timeoutMs: 300000, // 5 minutes
+            timestamp: Date.now(),
+            runtime: houseRuntime,
+            source: "test-setup",
+          });
+        }
+      }
+
       // Phase 2: House announces LOBBY phase to all players
       console.log("=== PHASE 2: House Announces LOBBY Phase ===");
 
@@ -223,6 +248,78 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
       // Phase 4: Event-Driven Phase Transition LOBBY → WHISPER
       console.log("=== PHASE 4: Coordinated LOBBY → WHISPER Transition ===");
+
+      // Wait for the specific sequence: ARE_YOU_READY → 5x I_AM_READY → PHASE_STARTED
+      // Total expected events: 1 + 5 + 1 = 7 events
+      const expectedEventCount = 7;
+
+      const transitionEventStream = app.getGameEventStream().pipe(
+        filter(
+          (e) =>
+            e.type === GameEventType.ARE_YOU_READY ||
+            e.type === GameEventType.I_AM_READY ||
+            (e.type === GameEventType.PHASE_STARTED &&
+              e.payload.phase === Phase.WHISPER),
+        ),
+        take(expectedEventCount),
+        toArray(),
+      );
+
+      // Wait for the complete event sequence
+      const transitionEvents = await firstValueFrom(transitionEventStream);
+
+      // Verify House asked players if they're ready for WHISPER phase
+      const areYouReadyEvents = transitionEvents.filter(
+        (e) => e.type === GameEventType.ARE_YOU_READY,
+      );
+      expectSoft(areYouReadyEvents.length).toBe(1);
+      const whisperReadyEvent = areYouReadyEvents[0];
+      expectSoft(whisperReadyEvent?.payload.targetPhase).toBe(Phase.WHISPER);
+      expectSoft(whisperReadyEvent?.payload.readyType).toBe("phase_action");
+
+      // Verify all 5 players responded with I_AM_READY
+      const readyResponses = transitionEvents.filter(
+        (e) => e.type === GameEventType.I_AM_READY,
+      );
+      expectSoft(readyResponses.length).toBe(5);
+
+      // Verify all responses are for WHISPER phase
+      const whisperReadyResponses = readyResponses.filter(
+        (e) => e.payload.targetPhase === Phase.WHISPER,
+      );
+      expectSoft(whisperReadyResponses.length).toBe(5);
+
+      // Verify House transitioned to WHISPER phase
+      const phaseStartedEvents = transitionEvents.filter(
+        (e) => e.type === GameEventType.PHASE_STARTED,
+      );
+      expectSoft(phaseStartedEvents.length).toBe(1);
+      const whisperPhaseEvent = phaseStartedEvents[0];
+      expectSoft(whisperPhaseEvent?.payload.phase).toBe(Phase.WHISPER);
+      expectSoft(whisperPhaseEvent?.payload.previousPhase).toBe(Phase.LOBBY);
+
+      // Verify chronological order: ARE_YOU_READY → I_AM_READY responses → PHASE_STARTED
+      if (whisperReadyEvent && whisperPhaseEvent) {
+        expectSoft(whisperPhaseEvent.timestamp).toBeGreaterThan(
+          whisperReadyEvent.timestamp,
+        );
+
+        whisperReadyResponses.forEach((response) => {
+          expectSoft(response.timestamp).toBeGreaterThan(
+            whisperReadyEvent.timestamp,
+          );
+          expectSoft(whisperPhaseEvent.timestamp).toBeGreaterThan(
+            response.timestamp,
+          );
+        });
+      }
+
+      console.log(`✓ Event-driven phase transition completed: LOBBY → WHISPER`);
+      console.log(
+        `📊 Captured ${transitionEvents.length}/${expectedEventCount} expected events`,
+      );
+      console.log(`📝 Player ready responses: ${readyResponses.length}`);
+      console.log(`🔄 Phase transitions: ${phaseStartedEvents.length}`);
     } finally {
       await app.stop();
     }

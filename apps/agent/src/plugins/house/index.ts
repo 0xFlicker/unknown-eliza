@@ -163,7 +163,64 @@ export const housePlugin: Plugin = {
                 source: "house-plugin",
               },
             );
+          } else if (
+            readyType === "phase_action" &&
+            targetPhase === Phase.WHISPER
+          ) {
+            await coordinationService.sendGameEvent(
+              GameEventType.PHASE_STARTED,
+              {
+                gameId,
+                roomId,
+                phase: Phase.WHISPER,
+                round: 1,
+                previousPhase: Phase.LOBBY,
+                timestamp: Date.now(),
+                runtime,
+                source: "house-plugin",
+              },
+            );
           }
+        }
+      },
+    ],
+    [GameEventType.PHASE_STARTED]: [
+      async ({ runtime, phase, gameId, roomId, round, previousPhase }) => {
+        logger.info(
+          `House handling PHASE_STARTED: ${previousPhase} → ${phase} (Round ${round})`,
+        );
+
+        const coordinationService = runtime.getService(
+          CoordinationService.serviceType,
+        ) as CoordinationService;
+        if (!coordinationService) {
+          logger.warn(
+            "CoordinationService not available for phase announcements",
+          );
+          return;
+        }
+
+        // Store current phase in cache
+        await runtime.setCache(`game_phase_${gameId}`, {
+          phase,
+          round,
+          previousPhase,
+          startedAt: Date.now(),
+        });
+
+        // Handle phase-specific orchestration
+        if (phase === Phase.LOBBY) {
+          // Announce LOBBY phase and request readiness for WHISPER
+          await coordinationService.sendGameEvent(GameEventType.ARE_YOU_READY, {
+            gameId,
+            roomId,
+            readyType: "phase_action",
+            targetPhase: Phase.WHISPER,
+            timeoutMs: 300000, // 5 minutes
+            timestamp: Date.now(),
+            runtime,
+            source: "house-plugin",
+          });
         }
       },
     ],
