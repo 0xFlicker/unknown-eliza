@@ -66,6 +66,15 @@ export interface GameEvent {
 }
 
 /**
+ * Phase-specific state tracking
+ */
+export interface PhaseState {
+  // INTRODUCTION phase tracking
+  introductionMessages?: Map<string, number>; // playerId -> message count
+  introductionComplete?: Set<string>; // players who have introduced themselves
+}
+
+/**
  * Main game state
  */
 export interface GameState {
@@ -82,6 +91,7 @@ export interface GameState {
   history: GameEvent[];
   isActive: boolean;
   hostId?: string;
+  phaseState: PhaseState; // Phase-specific state tracking
 }
 
 /**

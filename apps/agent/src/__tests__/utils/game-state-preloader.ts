@@ -71,6 +71,10 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       history: [],
       isActive: phase !== Phase.INIT,
       hostId: runtime.agentId,
+      phaseState: {
+        introductionMessages: new Map(),
+        introductionComplete: new Set(),
+      },
     };
 
     // Add join events to history

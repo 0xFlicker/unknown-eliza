@@ -9,6 +9,7 @@ import {
   joinGameAction,
   startGameAction,
   requestPrivateRoomAction,
+  introductionMessageAction,
 } from "./actions";
 import {
   gameStateProvider,
@@ -49,7 +50,12 @@ export const housePlugin: Plugin = {
   name: "influence-house",
   description:
     "Game master (House) plugin for the Influence social strategy game with event-driven phase coordination",
-  actions: [joinGameAction, startGameAction, requestPrivateRoomAction],
+  actions: [
+    joinGameAction,
+    startGameAction,
+    requestPrivateRoomAction,
+    introductionMessageAction,
+  ],
   providers: [
     gameStateProvider,
     phaseActionsProvider,

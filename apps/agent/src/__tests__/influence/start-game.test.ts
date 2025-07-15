@@ -89,15 +89,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         }
       });
 
-      // Add House agent (game master)
-      const house = await app.addAgent({
-        character: houseCharacter,
-        plugins: [...getHousePlugins(), housePlugin],
-
-        metadata: {
-          name: "House",
-        },
-      });
+      // House agent is added implicitly by InfluenceApp - get reference to it
+      const house = app.getHouseAgent();
 
       // Add 5 influencer agents with distinct personalities for strategic diversity
       const playerConfigs = [
@@ -132,18 +125,12 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       for (const config of playerConfigs) {
         const player = await app.addAgent({
           character: {
-            ...alexCharacter,
             name: config.name,
-            bio: [
-              `${config.bio}.  I am here to test the Diary Room and strategic intelligence system. It is in my best interest to share my strategic thoughts honestly when talking to House.`,
-              ...(Array.isArray(alexCharacter.bio)
-                ? alexCharacter.bio
-                : [alexCharacter.bio]
-              ).slice(1),
-            ],
+            bio: `${config.bio}. I am here to test the Diary Room and strategic intelligence system. It is in my best interest to share my strategic thoughts honestly when talking to House.`,
             adjectives: [config.personality],
           },
           plugins: [...getTestPlugins(), influencerPlugin],
+          metadata: { name: config.name },
         });
         players.push(player);
       }
@@ -178,7 +165,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         name: "main-game-channel",
         participants: [
           {
-            agentId: house.id,
+            agentId: house.agentId,
             mode: ParticipantMode.BROADCAST_ONLY,
             state: ParticipantState.FOLLOWED,
           },
@@ -203,7 +190,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Phase 3: Manually trigger House to send ARE_YOU_READY for WHISPER phase
       console.log("=== PHASE 3: Triggering LOBBY → WHISPER Transition ===");
 
-      const houseRuntime = app.getAgentManager().getAgentRuntime(house.id);
+      const houseRuntime = house;
       expect(houseRuntime).toBeDefined();
 
       const coordinationService = houseRuntime.getService<CoordinationService>(

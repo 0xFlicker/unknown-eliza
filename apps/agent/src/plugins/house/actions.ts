@@ -18,6 +18,8 @@ import {
 import { GameStateManager } from "./gameStateManager";
 import { text } from "stream/consumers";
 import { Phase, PlayerStatus } from "../coordinator";
+import { CoordinationService } from "../coordinator/service";
+import { GameEventType } from "../coordinator/types";
 
 /**
  * Join the game lobby
@@ -177,11 +179,11 @@ export const startGameAction: Action = {
         return; // Game already started, don't respond
       }
 
-      // Transition to LOBBY phase
-      gameState.phase = Phase.LOBBY;
-      gameState.round = 0; // Lobby is pre-game
+      // Transition to INTRODUCTION phase
+      gameState.phase = Phase.INTRODUCTION;
+      gameState.round = 0; // Introduction is pre-game
       gameState.isActive = true;
-      gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
+      gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby / 2; // Half lobby time for introductions
 
       const event: GameEvent = {
         id: stringToUuid(`start-${Date.now()}`),
@@ -216,7 +218,7 @@ export const startGameAction: Action = {
       {
         name: "house",
         content: {
-          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nINTRODUCTION PHASE - Meet & Greet\n\nWelcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
         },
       },
     ],
@@ -228,7 +230,7 @@ export const startGameAction: Action = {
       {
         name: "house",
         content: {
-          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nINTRODUCTION PHASE - Meet & Greet\n\nWelcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
         },
       },
     ],
@@ -240,7 +242,7 @@ export const startGameAction: Action = {
       {
         name: "house",
         content: {
-          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nLOBBY PHASE - Public Mixer",
+          text: "🎮 INFLUENCE GAME STARTED! 🎮\n\nINTRODUCTION PHASE - Meet & Greet\n\nWelcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
         },
       },
     ],
@@ -406,6 +408,168 @@ export const requestPrivateRoomAction: Action = {
         content: {
           text: "🔒 Private room created between player1 and player2.",
         },
+      },
+    ],
+  ] as ActionExample[][],
+};
+
+/**
+ * Handle INTRODUCTION phase messages - track message count and auto-transition
+ */
+export const introductionMessageAction: Action = {
+  name: "INTRODUCTION_MESSAGE",
+  description:
+    "Track and manage introduction messages during INTRODUCTION phase",
+  validate: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
+    // Don't respond to own messages
+    if (message.entityId === runtime.agentId) {
+      return false;
+    }
+
+    // Only validate in INTRODUCTION phase
+    const gameState = await getGameState(runtime, message.roomId);
+    if (!gameState?.isActive || gameState.phase !== Phase.INTRODUCTION) {
+      return false;
+    }
+
+    return typeof message.content?.text === "string";
+  },
+  handler: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    _state: State,
+    _options: any,
+  ) => {
+    try {
+      const gameState = await getGameState(runtime, message.roomId);
+      if (!gameState?.isActive || gameState.phase !== Phase.INTRODUCTION) {
+        return;
+      }
+
+      const playerId = message.entityId;
+      const player = gameState.players.get(playerId);
+
+      if (!player || player.status !== PlayerStatus.ALIVE) {
+        return; // Only living players can participate
+      }
+
+      // Initialize phase state if needed
+      if (!gameState.phaseState.introductionMessages) {
+        gameState.phaseState.introductionMessages = new Map();
+      }
+      if (!gameState.phaseState.introductionComplete) {
+        gameState.phaseState.introductionComplete = new Set();
+      }
+
+      // Check if player has already spoken
+      const currentCount =
+        gameState.phaseState.introductionMessages.get(playerId) || 0;
+
+      if (currentCount >= 1) {
+        // Player already spoke their one message, don't respond but track
+        return;
+      }
+
+      // Track this message
+      gameState.phaseState.introductionMessages.set(playerId, currentCount + 1);
+      gameState.phaseState.introductionComplete.add(playerId);
+
+      // Record the introduction event
+      const event: GameEvent = {
+        id: stringToUuid(`introduction-${playerId}-${Date.now()}`),
+        type: "PLAYER_INTRODUCED",
+        playerId,
+        phase: gameState.phase,
+        round: gameState.round,
+        timestamp: Date.now(),
+        details: {
+          playerName: player.name,
+          messageCount: currentCount + 1,
+          completedCount: gameState.phaseState.introductionComplete.size,
+        },
+      };
+      gameState.history.push(event);
+
+      // Save updated game state
+      await saveGameState(runtime, message.roomId, gameState);
+
+      // Check if all players have introduced themselves
+      const totalPlayers = gameState.players.size;
+      const completedIntros = gameState.phaseState.introductionComplete.size;
+
+      console.log(
+        `🎭 Player ${player.name} introduced themselves (${completedIntros}/${totalPlayers})`,
+      );
+
+      if (completedIntros >= totalPlayers) {
+        // All players have introduced themselves - transition to LOBBY
+        console.log(
+          `🎮 All players introduced - transitioning INTRODUCTION → LOBBY`,
+        );
+
+        // Get coordination service and trigger phase transition
+        const coordinationService = runtime.getService<CoordinationService>(
+          CoordinationService.serviceType,
+        );
+
+        if (coordinationService) {
+          // Trigger transition to LOBBY phase
+          await coordinationService.sendGameEvent(
+            {
+              type: GameEventType.PHASE_STARTED,
+              gameId: createUniqueUuid(runtime, message.roomId),
+              roomId: message.roomId,
+              timestamp: Date.now(),
+              phase: Phase.LOBBY,
+              round: gameState.round,
+              previousPhase: Phase.INTRODUCTION,
+              runtime: runtime,
+              source: runtime.agentId,
+            },
+            "all",
+          );
+
+          // Update game state to LOBBY
+          gameState.phase = Phase.LOBBY;
+          gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
+
+          // Clear introduction phase state for next use
+          gameState.phaseState.introductionMessages = new Map();
+          gameState.phaseState.introductionComplete = new Set();
+
+          const transitionEvent: GameEvent = {
+            id: stringToUuid(`phase-transition-${Date.now()}`),
+            type: "PHASE_TRANSITION",
+            phase: Phase.LOBBY,
+            round: gameState.round,
+            timestamp: Date.now(),
+            details: {
+              fromPhase: Phase.INTRODUCTION,
+              toPhase: Phase.LOBBY,
+              reason: "all_players_introduced",
+            },
+          };
+          gameState.history.push(transitionEvent);
+
+          await saveGameState(runtime, message.roomId, gameState);
+        }
+      }
+
+      // Don't generate a response - let introduction messages flow naturally
+    } catch (error) {
+      console.error("Error in introductionMessageAction:", error);
+      return;
+    }
+  },
+  examples: [
+    [
+      {
+        name: "player",
+        content: { text: "Hi everyone! I'm Alice and I love strategy games!" },
+      },
+      {
+        name: "house",
+        content: { text: "" }, // No response needed during introductions
       },
     ],
   ] as ActionExample[][],

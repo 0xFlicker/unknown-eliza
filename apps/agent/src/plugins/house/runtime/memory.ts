@@ -94,6 +94,32 @@ export async function getGameState(
         history: Array.isArray(rawGameState.history)
           ? rawGameState.history
           : [],
+        phaseState: rawGameState.phaseState
+          ? {
+              ...rawGameState.phaseState,
+              introductionMessages:
+                rawGameState.phaseState?.introductionMessages instanceof Map
+                  ? rawGameState.phaseState.introductionMessages
+                  : new Map(
+                      Object.entries(
+                        rawGameState.phaseState?.introductionMessages || {},
+                      ),
+                    ),
+              introductionComplete:
+                rawGameState.phaseState?.introductionComplete instanceof Set
+                  ? rawGameState.phaseState.introductionComplete
+                  : new Set(
+                      Array.isArray(
+                        rawGameState.phaseState?.introductionComplete,
+                      )
+                        ? rawGameState.phaseState.introductionComplete
+                        : [],
+                    ),
+            }
+          : {
+              introductionMessages: new Map(),
+              introductionComplete: new Set(),
+            },
       };
 
       return gameState;
@@ -121,6 +147,15 @@ export async function saveGameState(
       players: Object.fromEntries(gameState.players),
       privateRooms: Object.fromEntries(gameState.privateRooms),
       exposedPlayers: Array.from(gameState.exposedPlayers),
+      phaseState: {
+        ...gameState.phaseState,
+        introductionMessages: gameState.phaseState?.introductionMessages
+          ? Object.fromEntries(gameState.phaseState.introductionMessages)
+          : {},
+        introductionComplete: gameState.phaseState?.introductionComplete
+          ? Array.from(gameState.phaseState.introductionComplete)
+          : [],
+      },
     };
 
     const gameStateMemory: Memory = {
@@ -206,6 +241,10 @@ export function createNewGame(houseAgentId: UUID): GameState {
     history: [],
     isActive: true,
     hostId: undefined,
+    phaseState: {
+      introductionMessages: new Map(),
+      introductionComplete: new Set(),
+    },
   };
 }
 
