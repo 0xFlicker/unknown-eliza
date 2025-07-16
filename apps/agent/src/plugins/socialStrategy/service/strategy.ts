@@ -271,17 +271,6 @@ export class StrategyService extends Service {
     logger.debug("Strategy analysis updated", { updates });
   }
 
-  private async triggerPhaseTransitionReview(
-    previousPhase: Phase,
-    newPhase: Phase,
-  ): Promise<void> {
-    logger.info("Triggering phase transition review", {
-      previousPhase,
-      newPhase,
-    });
-    // This would trigger strategy re-evaluation based on the new phase
-  }
-
   /**
    * Update strategic context based on events or phase transitions
    */
@@ -352,9 +341,6 @@ export class StrategyService extends Service {
     });
 
     await this.saveState();
-
-    // Trigger phase transition review
-    await this.triggerPhaseTransitionReview(previousPhase, phase);
   }
 
   /**

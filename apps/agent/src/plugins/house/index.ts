@@ -1,28 +1,14 @@
-import {
-  Plugin,
-  type IAgentRuntime,
-  elizaLogger,
-  EventPayload,
-  EventType,
-} from "@elizaos/core";
-import {
-  joinGameAction,
-  startGameAction,
-  requestPrivateRoomAction,
-  introductionMessageAction,
-} from "./actions";
+import { Plugin, type IAgentRuntime, elizaLogger } from "@elizaos/core";
+// House plugin is event-driven, not action-based
 import {
   gameStateProvider,
   phaseActionsProvider,
   playerRelationsProvider,
   gameMasterProvider,
 } from "./providers";
-import {
-  CoordinationService,
-  Phase,
-  GameEventType,
-  GameEventHandlers,
-} from "../coordinator";
+import { CoordinationService, Phase, GameEventType } from "../coordinator";
+import internalMessageBus from "../coordinator/bus";
+import { GameState, MemoryGameEvent, PhaseState } from "./types";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 
@@ -50,12 +36,7 @@ export const housePlugin: Plugin = {
   name: "influence-house",
   description:
     "Game master (House) plugin for the Influence social strategy game with event-driven phase coordination",
-  actions: [
-    joinGameAction,
-    startGameAction,
-    requestPrivateRoomAction,
-    introductionMessageAction,
-  ],
+  actions: [], // House is event-driven, not action-based
   providers: [
     gameStateProvider,
     phaseActionsProvider,
@@ -85,151 +66,197 @@ export const housePlugin: Plugin = {
     },
   },
   events: {
-    [GameEventType.I_AM_READY]: [
-      async ({
-        runtime,
-        playerId,
-        playerName,
-        readyType,
-        targetPhase,
-        gameId,
-        roomId,
-      }) => {
-        const coordinationService = runtime.getService(
-          CoordinationService.serviceType,
-        ) as CoordinationService;
-        if (!coordinationService) {
-          logger.warn(
-            "CoordinationService not available for readiness tracking",
-          );
-          return;
-        }
-
-        logger.info(
-          `House received I_AM_READY from ${playerName} for ${readyType} → ${targetPhase}`,
-        );
-
-        // Get plugin settings
-        const minPlayers = parseInt(
-          runtime.getSetting("HOUSE_MIN_PLAYERS") || "4",
-        );
-        const maxPlayers = parseInt(
-          runtime.getSetting("HOUSE_MAX_PLAYERS") || "8",
-        );
-
-        // Track readiness state in cache
-        const readinessCacheKey = `game_readiness_${gameId}_${readyType}`;
-        const existingReadiness =
-          (await runtime.getCache(readinessCacheKey)) || {};
-        existingReadiness[playerId] = {
-          playerName,
-          readyAt: Date.now(),
-          targetPhase,
-        };
-        await runtime.setCache(readinessCacheKey, existingReadiness);
-
-        // Get all participants in the room to check if everyone is ready
-        const participants = await runtime.getParticipantsForRoom(roomId);
-        const playerParticipants = participants.filter(
-          (p) => p !== runtime.agentId,
-        );
-
-        const readyPlayerIds = Object.keys(existingReadiness);
-        const allPlayersReady = playerParticipants.every((p) =>
-          readyPlayerIds.includes(p),
-        );
-
-        logger.info(
-          `Readiness check: ${readyPlayerIds.length}/${playerParticipants.length} players ready for ${readyType}`,
-        );
-
-        // If all players are ready and we have minimum players, transition phase
-        if (allPlayersReady && playerParticipants.length >= minPlayers) {
-          logger.info("All players ready! House initiating phase transition");
-
-          // Clear readiness cache for this readiness type
-          await runtime.setCache(readinessCacheKey, {});
-
-          if (
-            readyType === "phase_action" &&
-            targetPhase === Phase.INTRODUCTION
-          ) {
-            await coordinationService.sendGameEvent({
-              gameId,
-              roomId,
-              phase: Phase.INTRODUCTION,
-              round: 1,
-              previousPhase: Phase.INIT,
-              timestamp: Date.now(),
-              runtime,
-              source: "house-plugin",
-              type: GameEventType.PHASE_STARTED,
-            });
-          } else if (
-            readyType === "phase_action" &&
-            targetPhase === Phase.WHISPER
-          ) {
-            await coordinationService.sendGameEvent({
-              gameId,
-              roomId,
-              phase: Phase.WHISPER,
-              round: 1,
-              previousPhase: Phase.LOBBY,
-              timestamp: Date.now(),
-              runtime,
-              source: "house-plugin",
-              type: GameEventType.PHASE_STARTED,
-            });
-          }
-        }
-      },
-    ],
-    [GameEventType.PHASE_STARTED]: [
-      async ({ runtime, phase, gameId, roomId, round, previousPhase }) => {
-        logger.info(
-          `House handling PHASE_STARTED: ${previousPhase} → ${phase} (Round ${round})`,
-        );
-
-        const coordinationService = runtime.getService(
-          CoordinationService.serviceType,
-        ) as CoordinationService;
-        if (!coordinationService) {
-          logger.warn(
-            "CoordinationService not available for phase announcements",
-          );
-          return;
-        }
-
-        // Store current phase in cache
-        await runtime.setCache(`game_phase_${gameId}`, {
-          phase,
-          round,
-          previousPhase,
-          startedAt: Date.now(),
-        });
-
-        // Handle phase-specific orchestration
-        if (phase === Phase.LOBBY) {
-          // Announce LOBBY phase and request readiness for WHISPER
-          await coordinationService.sendGameEvent({
-            gameId,
-            roomId,
-            readyType: "phase_action",
-            targetPhase: Phase.WHISPER,
-            timeoutMs: 300000, // 5 minutes
-            timestamp: Date.now(),
-            runtime,
-            source: "house-plugin",
-            type: GameEventType.ARE_YOU_READY,
-          });
-        }
-      },
-    ],
-  } as GameEventHandlers,
+    // House plugin uses internal message bus for chat message processing
+    // Event handlers are set up in the init function
+  },
   init: async (_config, runtime?: IAgentRuntime) => {
     if (runtime) {
       const minPlayers = runtime.getSetting("HOUSE_MIN_PLAYERS") || "4";
       const maxPlayers = runtime.getSetting("HOUSE_MAX_PLAYERS") || "8";
+
+      // Set up internal message bus listener for INTRODUCTION phase tracking
+      internalMessageBus.on("new_message", async (message) => {
+        // Only process non-House messages during INTRODUCTION phase
+        if (message.author_id === runtime.agentId) return;
+
+        // Get game state to check current phase
+        const gameState = await runtime.getMemories({
+          roomId: message.channel_id,
+          count: 10,
+          tableName: "memories",
+        });
+
+        // Find most recent game state
+        const gameStateMemory = gameState.find(
+          (m) =>
+            m.metadata?.type === "game" &&
+            m.metadata?.gameEventType === "game_state",
+        );
+
+        if (!gameStateMemory?.content?.gameState) {
+          console.log("🏠 No game state found - returning");
+          return;
+        }
+
+        const currentGameState = {
+          ...(gameStateMemory.content.gameState as MemoryGameEvent),
+          phaseState: {
+            ...(gameStateMemory.content.gameState as MemoryGameEvent)
+              .phaseState,
+            introductionMessages: new Map(
+              Object.entries(
+                (gameStateMemory.content.gameState as MemoryGameEvent)
+                  .phaseState.introductionMessages,
+              ),
+            ),
+            introductionComplete: new Set(
+              (
+                gameStateMemory.content.gameState as MemoryGameEvent
+              ).phaseState.introductionComplete,
+            ),
+          },
+        } as GameState;
+
+        // Only track during INTRODUCTION phase
+        if (
+          currentGameState.phase !== Phase.INTRODUCTION ||
+          !currentGameState.isActive
+        ) {
+          console.log(
+            `🏠 Wrong phase or inactive - phase: ${currentGameState.phase}, isActive: ${currentGameState.isActive}`,
+          );
+          return;
+        }
+
+        const playerId = message.author_id;
+        const currentCount =
+          currentGameState.phaseState.introductionMessages.get(playerId) || 0;
+
+        // Only count first message from each player
+        if (currentCount >= 1) {
+          console.log(
+            `🎭 Player ${playerId} already introduced - ignoring additional message`,
+          );
+          return;
+        }
+
+        // Track this introduction
+        currentGameState.phaseState.introductionMessages.set(
+          playerId,
+          currentCount + 1,
+        );
+        currentGameState.phaseState.introductionComplete.add(playerId);
+
+        await runtime.createMemory(
+          {
+            entityId: runtime.agentId,
+            agentId: runtime.agentId,
+            roomId: message.channel_id,
+            createdAt: Date.now(),
+            content: {
+              text: `Game state updated - Phase: ${currentGameState.phase}, Round: ${currentGameState.round}, Introductions: ${currentGameState.phaseState.introductionComplete.size}/${Object.keys(currentGameState.players).length}`,
+              gameState: {
+                ...currentGameState,
+                phaseState: {
+                  ...currentGameState.phaseState,
+                  introductionMessages: Object.fromEntries(
+                    currentGameState.phaseState.introductionMessages,
+                  ),
+                  introductionComplete: Array.from(
+                    currentGameState.phaseState.introductionComplete,
+                  ),
+                },
+              },
+            },
+            metadata: {
+              type: "game",
+              gameEventType: "game_state",
+              gameId: currentGameState.id,
+              gamePhase: currentGameState.phase,
+              gameRound: currentGameState.round,
+              timestamp: Date.now(),
+            },
+          },
+          "memories",
+        );
+
+        // Check if all players have introduced themselves
+        const totalPlayers = Object.keys(currentGameState.players).length;
+        const completedIntros =
+          currentGameState.phaseState.introductionComplete.size;
+
+        if (completedIntros >= totalPlayers) {
+          console.log(
+            `🎮 All players introduced - House initiating INTRODUCTION → LOBBY transition`,
+          );
+
+          const coordinationService = runtime.getService(
+            CoordinationService.serviceType,
+          ) as CoordinationService;
+          if (coordinationService) {
+            console.log("🎮 Emitting PHASE_TRANSITION_INITIATED event");
+            // Emit PHASE_TRANSITION_INITIATED
+            await coordinationService.sendGameEvent({
+              type: GameEventType.PHASE_TRANSITION_INITIATED,
+              gameId: currentGameState.id,
+              roomId: message.channel_id,
+              timestamp: Date.now(),
+              fromPhase: Phase.INTRODUCTION,
+              toPhase: Phase.LOBBY,
+              round: currentGameState.round,
+              transitionReason: "all_players_ready",
+              requiresStrategicThinking: false,
+              requiresDiaryRoom: false,
+              runtime,
+              source: "house-plugin",
+            });
+
+            // Then emit PHASE_STARTED for LOBBY
+            await coordinationService.sendGameEvent({
+              type: GameEventType.PHASE_STARTED,
+              gameId: currentGameState.id,
+              roomId: message.channel_id,
+              timestamp: Date.now(),
+              phase: Phase.LOBBY,
+              round: currentGameState.round,
+              previousPhase: Phase.INTRODUCTION,
+              runtime,
+              source: "house-plugin",
+            });
+
+            // Update and save game state
+            currentGameState.phase = Phase.LOBBY;
+            currentGameState.timerEndsAt =
+              Date.now() + currentGameState.settings.timers.lobby;
+            currentGameState.phaseState.introductionMessages = new Map();
+            currentGameState.phaseState.introductionComplete = new Set();
+
+            // Save updated game state
+            await runtime.createMemory(
+              {
+                entityId: runtime.agentId,
+                agentId: runtime.agentId,
+                roomId: message.channel_id,
+                createdAt: Date.now(),
+                content: {
+                  text: `Game state updated - Phase: ${currentGameState.phase}, Round: ${currentGameState.round}`,
+                  gameState: currentGameState,
+                },
+                metadata: {
+                  type: "game",
+                  gameEventType: "game_state",
+                  gameId: currentGameState.id,
+                  gamePhase: currentGameState.phase,
+                  gameRound: currentGameState.round,
+                  timestamp: Date.now(),
+                },
+              },
+              "memories",
+            );
+          }
+        }
+      });
+
       logger.info(
         `🏠 House plugin initialized - ready to moderate Influence games (${minPlayers}-${maxPlayers} players)`,
       );

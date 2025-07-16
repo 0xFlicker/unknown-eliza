@@ -1,3 +1,4 @@
+import { UUID } from "@elizaos/core";
 import { Phase, PlayerStatus } from "../coordinator";
 
 /**
@@ -78,7 +79,7 @@ export interface PhaseState {
  * Main game state
  */
 export interface GameState {
-  id: string;
+  id: UUID;
   phase: Phase;
   round: number;
   players: Map<string, Player>; // playerId -> Player
@@ -93,6 +94,10 @@ export interface GameState {
   hostId?: string;
   phaseState: PhaseState; // Phase-specific state tracking
 }
+
+export type MemoryGameEvent = Omit<GameState, "phaseState"> & {
+  phaseState: PhaseState;
+};
 
 /**
  * Default game settings

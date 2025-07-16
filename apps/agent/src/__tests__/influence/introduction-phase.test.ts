@@ -131,6 +131,11 @@ describe("INTRODUCTION Phase", () => {
       const phaseTransition = await phaseTransitionPromise;
 
       expect(phaseTransition).toBeDefined();
+      if (phaseTransition.payload.type !== GameEventType.PHASE_STARTED) {
+        throw new Error(
+          `Expected phase transition event, got ${phaseTransition.payload.type}`,
+        );
+      }
       expect(phaseTransition.payload.phase).toBe(Phase.LOBBY);
       expect(phaseTransition.payload.previousPhase).toBe(Phase.INTRODUCTION);
 
