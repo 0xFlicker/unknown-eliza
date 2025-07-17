@@ -1,5 +1,5 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
-import { saveGameState } from "../../plugins/house/runtime/memory";
+import { saveGameState } from "../../memory/gameState";
 import {
   GameState,
   Player,
@@ -36,7 +36,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       gameId: providedGameId,
     } = options;
 
-    const players = new Map<string, Player>();
+    const players: Record<string, Player> = {};
     const gameId = providedGameId || stringToUuid(`test-game-${Date.now()}`);
 
     // Create players with real agent IDs if provided
@@ -49,7 +49,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
         status: PlayerStatus.ALIVE,
         joinedAt: Date.now() - index * 1000, // Stagger join times
       };
-      players.set(playerId, player);
+      players[playerId] = player;
     });
 
     const gameState: GameState = {
@@ -58,8 +58,8 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       round,
       players,
       votes: [],
-      privateRooms: new Map(),
-      exposedPlayers: new Set(),
+      privateRooms: {},
+      exposedPlayers: [],
       settings: {
         ...DEFAULT_GAME_SETTINGS,
         ...customSettings,
@@ -72,13 +72,13 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       isActive: phase !== Phase.INIT,
       hostId: runtime.agentId,
       phaseState: {
-        introductionMessages: new Map(),
-        introductionComplete: new Set(),
+        introductionMessages: {},
+        introductionComplete: [],
       },
     };
 
     // Add join events to history
-    for (const [index, player] of Array.from(players.values()).entries()) {
+    for (const [index, player] of Object.values(players).entries()) {
       gameState.history.push({
         id: stringToUuid(`join-event-${player.name}-${Date.now()}`),
         type: "PLAYER_JOINED",
@@ -161,7 +161,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       phase: Phase.LOBBY,
       round: 0,
       timestamp: Date.now(),
-      details: { playerCount: gameState.players.size },
+      details: { playerCount: Object.keys(gameState.players).length },
     });
 
     gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
@@ -204,7 +204,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
 
     // Set phase-specific state
     if (empoweredPlayer) {
-      const empoweredPlayerId = Array.from(gameState.players.values()).find(
+      const empoweredPlayerId = Object.values(gameState.players).find(
         (p) => p.name === empoweredPlayer,
       )?.id;
       if (empoweredPlayerId) {
@@ -214,11 +214,11 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
 
     // Set exposed players
     exposedPlayers.forEach((playerName) => {
-      const playerId = Array.from(gameState.players.values()).find(
+      const playerId = Object.values(gameState.players).find(
         (p) => p.name === playerName,
       )?.id;
-      if (playerId) {
-        gameState.exposedPlayers.add(playerId);
+      if (playerId && !gameState.exposedPlayers.includes(playerId)) {
+        gameState.exposedPlayers.push(playerId);
       }
     });
 

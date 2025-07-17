@@ -72,7 +72,10 @@ export class ChannelManager {
     // Create channel through central messaging API
     const channel = await apiClient.createCentralGroupChat({
       name: config.name,
-      participantCentralUserIds: config.participants.map((p) => p.agentId),
+      participantCentralUserIds: [
+        this.houseAgent.agentId,
+        ...config.participants.map((p) => p.agentId),
+      ],
       type: config.type,
       server_id: this.messageServer.id,
       metadata: config.metadata,
@@ -136,6 +139,47 @@ export class ChannelManager {
       `Setting up associations for channel ${channel.name} (${channel.id}) with ${participantIds.length} participants`,
     );
 
+    // Add the house agent to the participants
+    await apiClient.addAgentToChannel(channel.id, this.houseAgent.agentId);
+    // Let the other agents know about the house agent by creating the memory
+    for (const otherParticipant of participants) {
+      const runtime = this.houseAgent;
+      if (otherParticipant.agentId === runtime.agentId) continue;
+      const otherRuntime = this.agentManager.getAgentRuntime(
+        otherParticipant.agentId,
+      );
+      if (!otherRuntime) continue;
+
+      const entityId = createUniqueUuid(runtime, otherParticipant.agentId);
+      const worldId = createUniqueUuid(runtime, channel.messageServerId);
+
+      runtime.ensureRoomExists({
+        id: channel.id,
+        name: channel.name,
+        source: "channel-manager",
+        agentId: runtime.agentId,
+        type: ChannelType.GROUP,
+        worldId,
+      });
+
+      await runtime.emitEvent(EventType.ENTITY_JOINED, {
+        runtime,
+        entityId,
+        worldId,
+        roomId: channel.id,
+        source: "channel-manager",
+        metadata: {
+          originalId: otherParticipant.agentId,
+          type: channel.type,
+          isDm: channel.type === ChannelType.DM,
+          username: otherRuntime.character.name,
+          displayName: otherRuntime.character.name,
+          roles: [],
+          joinedAt: Date.now(),
+        } as any,
+      } as EntityPayload);
+    }
+
     // Set up each participant using proper AgentServer flow
     for (const participant of participants) {
       let runtime = this.agentManager.getAgentRuntime(participant.agentId);
@@ -155,7 +199,20 @@ export class ChannelManager {
         `Subscribed agent ${runtime.character.name} to messaging server ${channel.messageServerId}`,
       );
 
-      for (const otherParticipant of participants) {
+      if (runtimeDecorators) {
+        for (const decorator of runtimeDecorators) {
+          runtime = await decorator(runtime, { channelId: channel.id });
+        }
+      }
+
+      for (const otherParticipant of [
+        ...participants,
+        {
+          agentId: this.houseAgent.agentId,
+          mode: ParticipantMode.BROADCAST_ONLY,
+          state: ParticipantState.FOLLOWED,
+        },
+      ]) {
         if (otherParticipant.agentId === participant.agentId) continue;
         const otherRuntime = this.agentManager.getAgentRuntime(
           otherParticipant.agentId,
@@ -173,12 +230,6 @@ export class ChannelManager {
           type: ChannelType.GROUP,
           worldId,
         });
-
-        if (runtimeDecorators) {
-          for (const decorator of runtimeDecorators) {
-            runtime = await decorator(runtime, { channelId: channel.id });
-          }
-        }
 
         await runtime.emitEvent(EventType.ENTITY_JOINED, {
           runtime,

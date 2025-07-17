@@ -1,10 +1,5 @@
 import { IAgentRuntime, UUID, elizaLogger, Memory } from "@elizaos/core";
-import {
-  GameState,
-  MemoryGameEvent,
-  Player,
-  PhaseState,
-} from "../plugins/house/types";
+import { GameState } from "../plugins/house/types";
 import { Phase } from "../plugins/coordinator";
 
 const logger = elizaLogger.child({ component: "GameStateDAO" });
@@ -20,7 +15,7 @@ export async function getGameState(
     const gameStateMemories = await runtime.getMemories({
       roomId,
       count: 10,
-      tableName: "memories",
+      tableName: "game_state",
     });
 
     // Find most recent game state memory
@@ -35,33 +30,12 @@ export async function getGameState(
       return null;
     }
 
-    const memoryGameState = gameStateMemory.content
-      .gameState as MemoryGameEvent;
-
-    // Convert serialized data back to proper types
-    const gameState: GameState = {
-      ...memoryGameState,
-      players: new Map(Object.entries(memoryGameState.players || {})),
-      votes: Array.isArray(memoryGameState.votes) ? memoryGameState.votes : [],
-      privateRooms: new Map(Object.entries(memoryGameState.privateRooms || {})),
-      exposedPlayers: new Set(memoryGameState.exposedPlayers || []),
-      phaseState: {
-        ...memoryGameState.phaseState,
-        introductionMessages: new Map(
-          Object.entries(
-            memoryGameState.phaseState?.introductionMessages || {},
-          ),
-        ),
-        introductionComplete: new Set(
-          memoryGameState.phaseState?.introductionComplete || [],
-        ),
-      },
-    };
+    const memoryGameState = gameStateMemory.content.gameState as GameState;
 
     logger.debug(
-      `Loaded game state for room ${roomId}: phase=${gameState.phase}, round=${gameState.round}`,
+      `Loaded game state for room ${roomId}: phase=${memoryGameState.phase}, round=${memoryGameState.round}`,
     );
-    return gameState;
+    return memoryGameState;
   } catch (error) {
     logger.error(`Failed to load game state for room ${roomId}:`, error);
     return null;
@@ -77,23 +51,6 @@ export async function saveGameState(
   gameState: GameState,
 ): Promise<void> {
   try {
-    // Convert Maps and Sets to serializable objects
-    const memoryGameState: MemoryGameEvent = {
-      ...gameState,
-      players: Object.fromEntries(gameState.players),
-      privateRooms: Object.fromEntries(gameState.privateRooms),
-      exposedPlayers: Array.from(gameState.exposedPlayers),
-      phaseState: {
-        ...gameState.phaseState,
-        introductionMessages: Object.fromEntries(
-          gameState.phaseState.introductionMessages || new Map(),
-        ),
-        introductionComplete: Array.from(
-          gameState.phaseState.introductionComplete || new Set(),
-        ),
-      },
-    };
-
     await runtime.createMemory(
       {
         entityId: runtime.agentId,
@@ -101,8 +58,8 @@ export async function saveGameState(
         roomId,
         createdAt: Date.now(),
         content: {
-          text: `Game state updated - Phase: ${gameState.phase}, Round: ${gameState.round}, Players: ${gameState.players.size}`,
-          gameState: memoryGameState,
+          text: `Game state updated - Phase: ${gameState.phase}, Round: ${gameState.round}, Players: ${Object.keys(gameState.players).length}`,
+          gameState,
         },
         metadata: {
           type: "game",
@@ -113,7 +70,7 @@ export async function saveGameState(
           timestamp: Date.now(),
         },
       },
-      "memories",
+      "game_state",
     );
 
     logger.debug(
@@ -128,19 +85,17 @@ export async function saveGameState(
 /**
  * Update introduction tracking for a player
  */
-export async function updateIntroduction(
-  runtime: IAgentRuntime,
-  roomId: UUID,
-  playerId: string,
-): Promise<GameState | null> {
-  const gameState = await getGameState(runtime, roomId);
-  if (!gameState) {
-    logger.warn(
-      `Cannot update introduction - no game state found for room ${roomId}`,
-    );
-    return null;
-  }
-
+export async function updateIntroduction({
+  gameState,
+  runtime,
+  roomId,
+  playerId,
+}: {
+  gameState: GameState;
+  runtime: IAgentRuntime;
+  roomId: UUID;
+  playerId: UUID;
+}): Promise<GameState | null> {
   // Only track during INTRODUCTION phase
   if (gameState.phase !== Phase.INTRODUCTION || !gameState.isActive) {
     logger.debug(
@@ -150,7 +105,7 @@ export async function updateIntroduction(
   }
 
   const currentCount =
-    gameState.phaseState.introductionMessages?.get(playerId) || 0;
+    gameState.phaseState.introductionMessages?.[playerId] || 0;
 
   // Only count first message from each player
   if (currentCount >= 1) {
@@ -160,19 +115,13 @@ export async function updateIntroduction(
     return gameState;
   }
 
-  // Update introduction tracking
-  gameState.phaseState.introductionMessages =
-    gameState.phaseState.introductionMessages || new Map();
-  gameState.phaseState.introductionComplete =
-    gameState.phaseState.introductionComplete || new Set();
-
-  gameState.phaseState.introductionMessages.set(playerId, currentCount + 1);
-  gameState.phaseState.introductionComplete.add(playerId);
+  gameState.phaseState.introductionMessages[playerId] = currentCount + 1;
+  gameState.phaseState.introductionComplete.push(playerId);
 
   await saveGameState(runtime, roomId, gameState);
 
   logger.debug(
-    `Updated introduction for player ${playerId} - total introduced: ${gameState.phaseState.introductionComplete.size}/${gameState.players.size}`,
+    `Updated introduction for player ${playerId} - total introduced: ${gameState.phaseState.introductionComplete.length}/${Object.keys(gameState.players).length}`,
   );
   return gameState;
 }
@@ -185,8 +134,9 @@ export function isIntroductionPhaseComplete(gameState: GameState): boolean {
     return false;
   }
 
-  const totalPlayers = gameState.players.size;
-  const completedIntros = gameState.phaseState.introductionComplete?.size || 0;
+  const totalPlayers = Object.keys(gameState.players).length;
+  const completedIntros =
+    gameState.phaseState.introductionComplete?.length || 0;
 
   return completedIntros >= totalPlayers;
 }
@@ -194,26 +144,24 @@ export function isIntroductionPhaseComplete(gameState: GameState): boolean {
 /**
  * Transition game to next phase
  */
-export async function transitionToPhase(
-  runtime: IAgentRuntime,
-  roomId: UUID,
-  toPhase: Phase,
-): Promise<GameState | null> {
-  const gameState = await getGameState(runtime, roomId);
-  if (!gameState) {
-    logger.warn(
-      `Cannot transition phase - no game state found for room ${roomId}`,
-    );
-    return null;
-  }
-
+export async function transitionToPhase({
+  gameState,
+  toPhase,
+  runtime,
+  roomId,
+}: {
+  gameState: GameState;
+  runtime: IAgentRuntime;
+  roomId: UUID;
+  toPhase: Phase;
+}): Promise<GameState | null> {
   const fromPhase = gameState.phase;
   gameState.phase = toPhase;
 
   // Clear phase-specific state when transitioning
   if (fromPhase === Phase.INTRODUCTION && toPhase === Phase.LOBBY) {
-    gameState.phaseState.introductionMessages = new Map();
-    gameState.phaseState.introductionComplete = new Set();
+    gameState.phaseState.introductionMessages = {};
+    gameState.phaseState.introductionComplete = [];
     gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
   }
 
@@ -230,7 +178,7 @@ export async function transitionToPhase(
  */
 export function isGameStateMemory(
   memory: Memory,
-): memory is Memory & { content: { gameState: MemoryGameEvent } } {
+): memory is Memory & { content: { gameState: GameState } } {
   return (
     !!memory?.content?.gameState &&
     typeof memory.content.gameState === "object" &&

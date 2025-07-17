@@ -71,8 +71,8 @@ export interface GameEvent {
  */
 export interface PhaseState {
   // INTRODUCTION phase tracking
-  introductionMessages?: Map<string, number>; // playerId -> message count
-  introductionComplete?: Set<string>; // players who have introduced themselves
+  introductionMessages?: Record<UUID, number>; // playerId -> message count
+  introductionComplete?: UUID[]; // players who have introduced themselves
 }
 
 /**
@@ -82,11 +82,11 @@ export interface GameState {
   id: UUID;
   phase: Phase;
   round: number;
-  players: Map<string, Player>; // playerId -> Player
-  votes: Map<string, Vote>[]; // round -> playerId -> Vote
-  privateRooms: Map<string, PrivateRoom>; // roomId -> PrivateRoom
+  players: Record<UUID, Player>; // playerId -> Player
+  votes: Record<number, Record<UUID, Vote>>[]; // round -> playerId -> Vote
+  privateRooms: Record<UUID, PrivateRoom>; // roomId -> PrivateRoom
   empoweredPlayer?: string; // current empowered player ID
-  exposedPlayers: Set<string>; // currently exposed player IDs
+  exposedPlayers: string[]; // currently exposed player IDs
   settings: GameSettings;
   timerEndsAt?: number; // when current phase timer expires
   history: GameEvent[];
@@ -94,10 +94,6 @@ export interface GameState {
   hostId?: string;
   phaseState: PhaseState; // Phase-specific state tracking
 }
-
-export type MemoryGameEvent = Omit<GameState, "phaseState"> & {
-  phaseState: PhaseState;
-};
 
 /**
  * Default game settings

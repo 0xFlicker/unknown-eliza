@@ -20,7 +20,7 @@ import { AgentManager } from "./agent-manager";
 import { ChannelManager } from "./channel-manager";
 import { AssociationManager } from "./association-manager";
 import { SocketIOManager } from "../lib/socketio-manager";
-import { Subject, Observable } from "rxjs";
+import { Subject, Observable, map, tap } from "rxjs";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
@@ -31,6 +31,7 @@ import { coordinatorPlugin, Phase } from "../plugins/coordinator";
 import { HousePluginConfig } from "../plugins/house";
 import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { GameManager, GameConfig } from "./game-manager";
+import { messages$ } from "@/plugins/coordinator/bus";
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -72,27 +73,6 @@ export class InfluenceApp<
         return runtime as Runtime;
       });
     }
-    // Hook direct runtime emits into our game-event stream
-    const hookEvents: RuntimeDecorator<Runtime> = (runtime) => {
-      const originalEmit = runtime.emitEvent.bind(runtime);
-      runtime.emitEvent = async (eventType, payload) => {
-        const p: any = payload;
-        const rawRoom = p.roomId ?? p.channelId;
-        const typeString = (
-          Array.isArray(eventType) ? eventType[0] : eventType
-        ) as string;
-        internalMessageBus.emit("game_event", {
-          type: typeString,
-          payload,
-          sourceAgent: runtime.agentId,
-          channelId: Array.isArray(rawRoom) ? rawRoom[0] : rawRoom,
-          timestamp: Date.now(),
-        });
-        return originalEmit(eventType, payload);
-      };
-      return runtime;
-    };
-    this.defaultRuntimeDecorators.push(hookEvents);
   }
 
   async initialize() {
@@ -278,7 +258,7 @@ export class InfluenceApp<
    * Get an observable stream of all messages
    */
   getMessageStream(): Observable<StreamedMessage> {
-    return this.messageStream$.asObservable();
+    return this.messageStream$;
   }
 
   /**
@@ -369,7 +349,6 @@ export class InfluenceApp<
       associations: this.associationManager.getStats(),
       messageStreams: {
         totalChannels: this.channelMessageStreams.size,
-        globalStreamActive: this.messageStream$.observed,
       },
     };
   }

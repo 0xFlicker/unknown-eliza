@@ -17,8 +17,8 @@ import {
   updateIntroduction,
   isIntroductionPhaseComplete,
   transitionToPhase,
+  getGameState,
 } from "../../memory/gameState";
-import { GameState, MemoryGameEvent, PhaseState } from "./types";
 import { MessageServiceStructure } from "@elizaos/server";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
@@ -117,11 +117,17 @@ export const housePlugin: Plugin = {
           );
 
           // Update introduction tracking using DAO
-          const updatedGameState = await updateIntroduction(
+          const gameState = await getGameState(runtime, roomId);
+          if (!gameState) {
+            logger.debug(`🏠 No game state for room ${roomId}`);
+            return;
+          }
+          const updatedGameState = await updateIntroduction({
+            gameState,
             runtime,
             roomId,
             playerId,
-          );
+          });
           if (!updatedGameState) {
             logger.debug(`🏠 No game state or wrong phase for room ${roomId}`);
             return;
@@ -168,7 +174,12 @@ export const housePlugin: Plugin = {
               });
 
               // Update game state to LOBBY phase using DAO
-              await transitionToPhase(runtime, roomId, Phase.LOBBY);
+              await transitionToPhase({
+                gameState: updatedGameState,
+                runtime,
+                roomId,
+                toPhase: Phase.LOBBY,
+              });
             }
           }
         },

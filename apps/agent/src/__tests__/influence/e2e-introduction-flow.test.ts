@@ -81,11 +81,6 @@ describe("E2E INTRODUCTION Flow", () => {
       const channelId = await app.createGameChannel(gameId, {
         name: "e2e-test-channel",
         participants: [
-          {
-            agentId: house.agentId,
-            mode: ParticipantMode.BROADCAST_ONLY,
-            state: ParticipantState.FOLLOWED,
-          },
           ...players.map((player) => ({
             agentId: player.id,
             mode: ParticipantMode.READ_WRITE,

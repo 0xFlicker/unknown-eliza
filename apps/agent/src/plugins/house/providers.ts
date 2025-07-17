@@ -7,7 +7,7 @@ import {
   UUID,
 } from "@elizaos/core";
 import { Phase, PlayerStatus } from "../coordinator/types";
-import { getGameState } from "./runtime/memory";
+import { getGameState } from "../../memory/gameState";
 
 /**
  * Provides current game state information to the House agent
@@ -26,12 +26,12 @@ export const gameStateProvider: Provider = {
       };
     }
 
-    const alivePlayers = Array.from(gameState.players.values()).filter(
+    const alivePlayers = Object.values(gameState.players).filter(
       (p) => p.status === PlayerStatus.ALIVE,
     );
 
-    const exposedPlayers = Array.from(gameState.players.values()).filter((p) =>
-      gameState.exposedPlayers.has(p.id),
+    const exposedPlayers = gameState.exposedPlayers.map(
+      (p) => gameState.players[p],
     );
 
     const phaseDescription = getPhaseDescription(gameState.phase);
@@ -50,7 +50,7 @@ export const gameStateProvider: Provider = {
     }
 
     if (gameState.empoweredPlayer) {
-      const empowered = gameState.players.get(gameState.empoweredPlayer);
+      const empowered = gameState.players[gameState.empoweredPlayer];
       stateText += `\nEmpowered: ${empowered?.name}`;
     }
 
@@ -123,11 +123,11 @@ export const playerRelationsProvider: Provider = {
     const relationships: Record<string, string[]> = {};
 
     // Track private room relationships
-    for (const room of gameState.privateRooms.values()) {
+    for (const room of Object.values(gameState.privateRooms)) {
       if (room.active && room.participants.length === 2) {
         const [p1, p2] = room.participants;
-        const player1 = gameState.players.get(p1);
-        const player2 = gameState.players.get(p2);
+        const player1 = gameState.players[p1];
+        const player2 = gameState.players[p2];
 
         if (player1 && player2) {
           if (!relationships[player1.name]) relationships[player1.name] = [];
@@ -174,7 +174,7 @@ export const gameMasterProvider: Provider = {
       (message.metadata as any)?.entityName ??
       (message.metadata as any)?.username ??
       (message.metadata as any)?.raw?.senderName ??
-      gameState?.players.get(message.entityId)?.name ??
+      gameState?.players[message.entityId]?.name ??
       `Player-${message.entityId.slice(0, 8)}`;
 
     // Don't respond to own messages
@@ -194,7 +194,7 @@ export const gameMasterProvider: Provider = {
       context += `- When a player joins, respond: "${authorName} joined the game!"\n`;
       context += `- Once we have 4+ players, the host can start the game\n`;
     } else {
-      const alivePlayers = Array.from(gameState.players.values()).filter(
+      const alivePlayers = Object.values(gameState.players).filter(
         (p) => p.status === PlayerStatus.ALIVE,
       );
       context += `CURRENT GAME STATE:\n`;
@@ -244,7 +244,7 @@ export const gameMasterProvider: Provider = {
           ? {
               phase: gameState.phase,
               round: gameState.round,
-              playerCount: gameState.players.size,
+              playerCount: Object.keys(gameState.players).length,
               isActive: gameState.isActive,
             }
           : null,

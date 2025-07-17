@@ -6,7 +6,6 @@ import openaiPlugin from "@elizaos/plugin-openai";
 import { socialStrategyPlugin } from "../../plugins/socialStrategy";
 import alexCharacter from "../../characters/alex";
 import houseCharacter from "../../characters/house";
-import { housePlugin } from "../../plugins/house";
 import { influencerPlugin } from "../../plugins/influencer";
 import {
   CoordinationService,
@@ -39,22 +38,15 @@ import { gameEvent$ } from "@/plugins/coordinator/bus";
 
 describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
   function getTestPlugins() {
-    return [
-      sqlPlugin,
-      bootstrapPlugin,
-      socialStrategyPlugin,
-      openaiPlugin,
-      coordinatorPlugin,
-    ];
+    return [sqlPlugin, socialStrategyPlugin, openaiPlugin, coordinatorPlugin];
   }
 
-  function getHousePlugins() {
-    return [sqlPlugin, bootstrapPlugin, openaiPlugin];
-  }
-
-  it("should demonstrate strategic thinking and diary room functionality with diverse players", async () => {
-    RecordingTestUtils.logRecordingStatus("strategy diary room test");
-    const simDataDir = path.join(`.elizaos/strategy-diary-test-${Date.now()}`);
+  it("should start an introduction phase with no bootstrap", async () => {
+    RecordingTestUtils.logRecordingStatus("no bootstrap test");
+    const simDataDir = path.join(
+      __dirname,
+      `../../.elizaos/no-bootstrap-test-${Date.now()}`,
+    );
     const modelMockingService = new ModelMockingService({
       mode: "record",
       recordingsDir: path.join(__dirname, "../../recordings"),
@@ -62,14 +54,14 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
 
     const app = new InfluenceApp({
       dataDir: simDataDir,
-      serverPort: 2455,
+      serverPort: 2459,
       runtimeConfig: {
         runtime: (runtime) => {
           modelMockingService.patchRuntime(runtime);
           return runtime;
         },
       },
-      context: { suiteName: "Strategy", testName: "diary room" },
+      context: { suiteName: "No Bootstrap", testName: "no bootstrap" },
     });
 
     try {
@@ -143,8 +135,6 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         });
         players.push(player);
       }
-
-      // await sim.createCoordinationChannel(["House", "Alpha", "Beta"]);
 
       expect(house).toBeDefined();
       expect(players.length).toBe(5);

@@ -1,4 +1,4 @@
-import { internalMessageBus } from "@elizaos/server";
+import { internalMessageBus, MessageServiceStructure } from "@elizaos/server";
 import { fromEvent } from "rxjs";
 import { filter } from "rxjs/operators";
 import { AnyCoordinationMessage } from "./types";
@@ -19,3 +19,12 @@ export const gameEvent$ = fromEvent(
     return null;
   },
 ).pipe(filter((event): event is AnyCoordinationMessage => event !== null));
+
+export const messages$ = fromEvent(
+  internalMessageBus,
+  "new_message",
+  (message) => {
+    const event = message as MessageServiceStructure;
+    return event;
+  },
+);
