@@ -9,10 +9,10 @@ import {
   createAgentReadyMessage,
   GameEventPayloadMap,
   GameEventType,
-  Phase,
   GameEventCoordinationMessage,
   AnyCoordinationMessage,
 } from "./types";
+import { Phase } from "@/memory/types";
 import internalMessageBus, { gameEvent$ } from "./bus";
 import { canSendMessage } from "./roles";
 import { Subscription } from "rxjs";

@@ -1,5 +1,4 @@
 import { UUID } from "@elizaos/core";
-import { Phase, PlayerStatus } from "../coordinator";
 
 /**
  * Game settings and configuration
@@ -53,20 +52,6 @@ export interface PrivateRoom {
 }
 
 /**
- * Game event for history tracking
- */
-export interface GameEvent {
-  id: string;
-  type: string;
-  playerId?: string;
-  targetId?: string;
-  phase: Phase;
-  round: number;
-  timestamp: number;
-  details?: Record<string, any>;
-}
-
-/**
  * Phase-specific state tracking
  */
 export interface PhaseState {
@@ -89,7 +74,8 @@ export interface GameState {
   exposedPlayers: string[]; // currently exposed player IDs
   settings: GameSettings;
   timerEndsAt?: number; // when current phase timer expires
-  history: GameEvent[];
+  // DEPRECATED: use gameEvents instead
+  history: any[];
   isActive: boolean;
   hostId?: string;
   phaseState: PhaseState; // Phase-specific state tracking
@@ -111,3 +97,44 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   },
   maxDMRecipients: 4,
 };
+
+// Event union
+export type AllGameEvents =
+  | { type: "PLAYER_JOINED"; player: Player }
+  | { type: "PLAYER_LEFT"; playerId: UUID }
+  | { type: "ARE_YOU_READY" }
+  | { type: "I_AM_READY"; playerId: UUID }
+  | { type: "ALL_PLAYERS_READY" }
+  | { type: "PLAYER_INTRODUCED"; playerId: UUID }
+  | { type: "LOBBY_MESSAGE_SENT"; playerId: UUID; content: string };
+
+/**
+ * Influence game phases
+ */
+
+export enum Phase {
+  INIT = "INIT",
+  INTRODUCTION = "INTRODUCTION",
+  INTRODUCTION_DIARY_ROOM = "INTRODUCTION_DIARY_ROOM",
+  LOBBY = "LOBBY",
+  LOBBY_DIARY_ROOM = "LOBBY_DIARY_ROOM",
+  WHISPER = "WHISPER",
+  WHISPER_DIARY_ROOM = "WHISPER_DIARY_ROOM",
+  RUMOR = "RUMOR",
+  RUMOR_DIARY_ROOM = "RUMOR_DIARY_ROOM",
+  VOTE = "VOTE",
+  VOTE_DIARY_ROOM = "VOTE_DIARY_ROOM",
+  POWER = "POWER",
+  POWER_DIARY_ROOM = "POWER_DIARY_ROOM",
+  REVEAL = "REVEAL",
+  REVEAL_DIARY_ROOM = "REVEAL_DIARY_ROOM",
+}
+
+/**
+ * Player status in the game
+ */
+export enum PlayerStatus {
+  ALIVE = "alive",
+  ELIMINATED = "eliminated",
+  EXPOSED = "exposed", // Can be targeted for elimination or protection
+}

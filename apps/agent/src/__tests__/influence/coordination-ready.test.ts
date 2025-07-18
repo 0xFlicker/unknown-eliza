@@ -4,7 +4,6 @@ import {
   CoordinationService,
   coordinatorPlugin,
   GameEventType,
-  Phase,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, take } from "rxjs";
@@ -14,6 +13,7 @@ import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
+import { Phase } from "@/memory/types";
 
 /**
  * Coordination Plugin - Ready Coordination Test
@@ -97,7 +97,7 @@ describe("Coordination Plugin - Ready Coordination", () => {
       expect(coordinationService).toBeDefined();
       expect(coordinationService).not.toBeNull();
 
-      await coordinationService.sendGameEvent(
+      await coordinationService?.sendGameEvent(
         {
           type: GameEventType.ARE_YOU_READY,
           gameId: gameId,

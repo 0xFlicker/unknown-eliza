@@ -23,7 +23,8 @@ import {
   protectAction,
 } from "./actions";
 import { GameEventType, GameEventHandlers } from "../coordinator/types";
-import { CoordinationService, Phase } from "../coordinator";
+import { CoordinationService } from "../coordinator";
+import { Phase } from "@/memory/types";
 
 const logger = elizaLogger.child({ component: "InfluencerPlugin" });
 

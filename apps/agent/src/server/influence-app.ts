@@ -27,7 +27,8 @@ import fs from "node:fs";
 import { MessageServer } from "@elizaos/server";
 import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
-import { coordinatorPlugin, Phase } from "../plugins/coordinator";
+import { coordinatorPlugin } from "../plugins/coordinator";
+import { Phase } from "@/memory/types";
 import { HousePluginConfig } from "../plugins/house";
 import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { GameManager, GameConfig } from "./game-manager";
@@ -38,24 +39,22 @@ export class InfluenceApp<
   AppContext extends Record<string, unknown>,
   Runtime extends IAgentRuntime,
 > {
-  private server: AgentServer;
-  private messageServer: MessageServer;
-  private houseClientId: UUID;
-  private serverMetadata: AppContext;
-  private serverPort: number;
+  private server?: AgentServer;
+  private messageServer?: MessageServer & { metadata: AppContext };
+  private serverPort?: number;
   private bus: EventEmitter;
 
   // Managers
-  private associationManager: AssociationManager;
-  private agentManager: AgentManager<AgentContext>;
-  private channelManager: ChannelManager;
-  private gameManager: GameManager;
+  private associationManager?: AssociationManager;
+  private agentManager?: AgentManager<AgentContext, Runtime>;
+  private channelManager?: ChannelManager<AgentContext, Runtime>;
+  private gameManager?: GameManager<AgentContext, Runtime>;
 
   // The house agent
   private houseAgent: IAgentRuntime | null = null;
 
   // Message streaming infrastructure
-  private socketManager: SocketIOManager;
+  private socketManager?: SocketIOManager;
   private messageStream$ = new Subject<StreamedMessage>();
   private channelMessageStreams = new Map<UUID, Subject<StreamedMessage>>();
 
@@ -70,7 +69,7 @@ export class InfluenceApp<
     for (const plugin of config.runtimeConfig?.defaultPlugins || []) {
       this.defaultRuntimeDecorators.push((runtime) => {
         runtime.registerPlugin(plugin);
-        return runtime as Runtime;
+        return runtime;
       });
     }
   }
@@ -92,8 +91,7 @@ export class InfluenceApp<
     const postgresUrl = `file:${dataDir}`;
     process.env.POSTGRES_URL = postgresUrl;
     this.server = agentServer;
-    this.messageServer = server;
-    this.serverMetadata = server.metadata as AppContext;
+    this.messageServer = server as MessageServer & { metadata: AppContext };
     this.serverPort = serverPort;
 
     // Initialize managers
@@ -176,6 +174,9 @@ export class InfluenceApp<
    * Set up real-time message streaming from SocketIO and internal message bus
    */
   private setupMessageStreaming() {
+    if (!this.socketManager) {
+      throw new Error("SocketIOManager not initialized");
+    }
     // Listen to SocketIO message broadcasts (messages from www client)
     this.socketManager.on("messageBroadcast", (data) => {
       logger.info(
@@ -275,6 +276,9 @@ export class InfluenceApp<
    * Join a channel to receive real-time messages
    */
   async joinChannel(channelId: UUID): Promise<void> {
+    if (!this.socketManager) {
+      throw new Error("SocketIOManager not initialized");
+    }
     await this.socketManager.joinChannel(channelId);
     logger.info(`Joined channel ${channelId} for real-time messaging`);
   }
@@ -283,11 +287,20 @@ export class InfluenceApp<
    * Leave a channel to stop receiving real-time messages
    */
   leaveChannel(channelId: UUID): void {
+    if (!this.socketManager) {
+      throw new Error("SocketIOManager not initialized");
+    }
     this.socketManager.leaveChannel(channelId);
     logger.info(`Left channel ${channelId}`);
   }
 
   async start() {
+    if (!this.server) {
+      throw new Error("Server not initialized");
+    }
+    if (!this.serverPort) {
+      throw new Error("Server port not initialized");
+    }
     this.server.start(this.serverPort);
   }
 
@@ -307,28 +320,47 @@ export class InfluenceApp<
   }
 
   // Agent management methods
-  getAgentManager(): AgentManager<AgentContext> {
+  getAgentManager(): AgentManager<AgentContext, Runtime> {
+    if (!this.agentManager) {
+      throw new Error("Agent manager not initialized");
+    }
     return this.agentManager;
   }
 
   // Channel management methods
-  getChannelManager(): ChannelManager {
+  getChannelManager(): ChannelManager<AgentContext, Runtime> {
+    if (!this.channelManager) {
+      throw new Error("Channel manager not initialized");
+    }
     return this.channelManager;
   }
 
   // Association management methods
   getAssociationManager(): AssociationManager {
+    if (!this.associationManager) {
+      throw new Error("Association manager not initialized");
+    }
     return this.associationManager;
   }
 
   // Convenience methods for common operations
   async addAgent(
-    config: Parameters<AgentManager<AgentContext>["addAgent"]>[0],
+    config: Parameters<AgentManager<AgentContext, Runtime>["addAgent"]>[0],
   ) {
+    if (!this.agentManager) {
+      throw new Error("Agent manager not initialized");
+    }
     return this.agentManager.addAgent(config);
   }
 
-  async createChannel(config: Parameters<ChannelManager["createChannel"]>[0]) {
+  async createChannel(
+    config: Parameters<
+      ChannelManager<AgentContext, Runtime>["createChannel"]
+    >[0],
+  ) {
+    if (!this.channelManager) {
+      throw new Error("Channel manager not initialized");
+    }
     const channelId = await this.channelManager.createChannel(config);
 
     // Automatically join "The House" to the channel for real-time messaging
@@ -343,6 +375,15 @@ export class InfluenceApp<
 
   // Get statistics
   getStats() {
+    if (!this.agentManager) {
+      throw new Error("Agent manager not initialized");
+    }
+    if (!this.channelManager) {
+      throw new Error("Channel manager not initialized");
+    }
+    if (!this.associationManager) {
+      throw new Error("Association manager not initialized");
+    }
     return {
       agents: this.agentManager.getStats(),
       channels: this.channelManager.getStats(),
@@ -357,6 +398,9 @@ export class InfluenceApp<
    * Create a new game session
    */
   async createGame(config: GameConfig): Promise<UUID> {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager.createGame(config);
   }
 
@@ -366,10 +410,13 @@ export class InfluenceApp<
   async createGameChannel(
     gameId: UUID,
     channelConfig: Omit<
-      Parameters<typeof this.channelManager.createChannel>[0],
+      Parameters<ChannelManager<AgentContext, Runtime>["createChannel"]>[0],
       "runtimeDecorators"
     >,
   ): Promise<UUID> {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager.createGameChannel(gameId, channelConfig);
   }
 
@@ -380,6 +427,9 @@ export class InfluenceApp<
     gameId: UUID,
     channelName?: string,
   ): Promise<UUID> {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager.createMainGameChannel(gameId, channelName);
   }
 
@@ -387,6 +437,9 @@ export class InfluenceApp<
    * Get game session by ID
    */
   getGame(gameId: UUID) {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager.getGame(gameId);
   }
 
@@ -394,13 +447,19 @@ export class InfluenceApp<
    * Get game ID by channel ID
    */
   getGameByChannel(channelId: UUID) {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager.getGameByChannel(channelId);
   }
 
   /**
    * Get the game manager instance
    */
-  getGameManager(): GameManager {
+  getGameManager(): GameManager<AgentContext, Runtime> {
+    if (!this.gameManager) {
+      throw new Error("Game manager not initialized");
+    }
     return this.gameManager;
   }
 
@@ -409,6 +468,9 @@ export class InfluenceApp<
    * This follows the same pattern as a human user connecting via apps/www
    */
   async sendMessage(channelId: UUID, content: string, mentionAgentId?: UUID) {
+    if (!this.channelManager) {
+      throw new Error("Channel manager not initialized");
+    }
     const channel = this.channelManager.getChannel(channelId);
     if (!channel) {
       throw new Error(`Channel ${channelId} not found`);
@@ -419,6 +481,9 @@ export class InfluenceApp<
     // Optionally mention a specific agent to direct the message
     let finalContent = content;
     if (mentionAgentId) {
+      if (!this.agentManager) {
+        throw new Error("Agent manager not initialized");
+      }
       const mentionedRuntime =
         this.agentManager.getAgentRuntime(mentionAgentId);
       if (mentionedRuntime) {
@@ -430,6 +495,9 @@ export class InfluenceApp<
     // This follows the same pattern as apps/www for consistent real-time messaging
 
     try {
+      if (!this.socketManager) {
+        throw new Error("SocketIOManager not initialized");
+      }
       // Check if SocketIOManager is connected
 
       // Send message as "The House" user - this will stimulate agent responses

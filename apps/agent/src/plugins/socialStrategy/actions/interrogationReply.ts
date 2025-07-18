@@ -81,9 +81,9 @@ export const interrogationReplyAction: Action = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
-    _options: any,
-    callback: HandlerCallback,
+    state?: State,
+    _options?: any,
+    callback?: HandlerCallback,
   ) => {
     logger.info(`Handling interrogation reply for ${runtime.character?.name}`);
     try {
@@ -106,7 +106,7 @@ export const interrogationReplyAction: Action = {
           "Failed to generate a valid interrogation response from LLM.",
         );
         // Fallback response
-        await callback({
+        await callback?.({
           thought:
             "The model failed to generate a response, I need to say something generic.",
           text: "That's a difficult question. I'll need to consider my answer carefully.",
@@ -120,14 +120,14 @@ export const interrogationReplyAction: Action = {
       };
 
       // Use the callback to send the generated message
-      await callback(responseContent);
+      await callback?.(responseContent);
 
       logger.info(`Successfully sent interrogation reply.`);
       return true;
     } catch (error) {
       logger.error("Error in interrogationReplyAction handler:", error);
       // Fallback response on error
-      await callback({
+      await callback?.({
         thought:
           "An error occurred while generating my response. I will give a generic answer.",
         text: "I'm sorry, I'm not able to answer that question at this moment.",

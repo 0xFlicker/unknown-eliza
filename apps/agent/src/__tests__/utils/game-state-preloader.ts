@@ -1,13 +1,13 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
-import { saveGameState } from "../../memory/gameState";
+import { saveGameState } from "../../memory/runtime";
 import {
   GameState,
   Player,
   DEFAULT_GAME_SETTINGS,
   GameSettings,
-} from "../../plugins/house/types";
+} from "../../memory/types";
 import { Agent } from "../../server/types";
-import { Phase, PlayerStatus } from "@/plugins/coordinator";
+import { Phase, PlayerStatus } from "@/memory/types";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases

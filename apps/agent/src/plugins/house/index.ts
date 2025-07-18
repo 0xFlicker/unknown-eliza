@@ -11,15 +11,16 @@ import {
   playerRelationsProvider,
   gameMasterProvider,
 } from "./providers";
-import { CoordinationService, Phase, GameEventType } from "../coordinator";
+import { CoordinationService, GameEventType } from "../coordinator";
 import internalMessageBus from "../coordinator/bus";
 import {
   updateIntroduction,
   isIntroductionPhaseComplete,
   transitionToPhase,
   getGameState,
-} from "../../memory/gameState";
+} from "../../memory/runtime";
 import { MessageServiceStructure } from "@elizaos/server";
+import { Phase } from "@/memory/types";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 

@@ -14,12 +14,12 @@ import {
 } from "../../plugins/coordinator";
 import { RecordingTestUtils } from "../utils/recording-test-utils";
 import {
-  Phase,
   GameEventType,
   AnyCoordinationMessage,
   AreYouReadyPayload,
   PhaseEventPayload,
 } from "../../plugins/coordinator/types";
+import { Phase } from "@/memory/types";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { InfluenceApp } from "../../server/influence-app";
 import { Agent, ParticipantMode, ParticipantState } from "../../server/types";
@@ -223,7 +223,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         ),
       );
 
-      await coordinationService.sendGameEvent({
+      await coordinationService!.sendGameEvent({
         gameId,
         roomId: mainChannelId,
         readyType: "phase_action",

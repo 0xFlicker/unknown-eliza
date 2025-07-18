@@ -4,7 +4,6 @@ import {
   CoordinationService,
   coordinatorPlugin,
   GameEventType,
-  Phase,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, take } from "rxjs";
@@ -14,6 +13,7 @@ import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
+import { Phase } from "@/memory/types";
 
 /**
  * Minimal Game Test
@@ -38,7 +38,7 @@ describe("Minimal Game Test", () => {
       expect(house).toBeDefined();
 
       // Add 2 simple players
-      const players = [];
+      const players: Awaited<ReturnType<typeof app.addAgent>>[] = [];
       for (let i = 0; i < 2; i++) {
         const player = await app.addAgent({
           character: {
@@ -114,7 +114,7 @@ describe("Minimal Game Test", () => {
       );
 
       // Send ARE_YOU_READY event
-      await coordinationService.sendGameEvent(
+      await coordinationService!.sendGameEvent(
         {
           type: GameEventType.ARE_YOU_READY,
           gameId: gameId,

@@ -6,8 +6,8 @@ import {
   ModelType,
   UUID,
 } from "@elizaos/core";
-import { Phase, PlayerStatus } from "../coordinator/types";
-import { getGameState } from "../../memory/gameState";
+import { Phase, PlayerStatus } from "@/memory/types";
+import { getGameState } from "../../memory/runtime";
 
 /**
  * Provides current game state information to the House agent

@@ -7,7 +7,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { StrategyService } from "../service/strategy";
-import { Phase } from "@/plugins/coordinator";
+import { Phase } from "@/memory/types";
 import { StrategyMode, TrustLevel } from "../types";
 
 const logger = elizaLogger;
@@ -63,10 +63,12 @@ export const strategicContextProvider: Provider = {
       const neutrals: string[] = [];
 
       for (const player of otherPlayers) {
-        const relationship = strategyState.relationships.get(player.id);
-        const playerName = player.names[0] || player.id.slice(0, 8);
+        const relationship = player.id
+          ? strategyState.relationships.get(player.id)
+          : undefined;
+        const playerName = player.names[0] || player.id?.slice(0, 8);
 
-        if (relationship) {
+        if (relationship && playerName) {
           switch (relationship.trustLevel) {
             case TrustLevel.ALLY:
               allies.push(playerName);
@@ -78,7 +80,7 @@ export const strategicContextProvider: Provider = {
             default:
               neutrals.push(playerName);
           }
-        } else {
+        } else if (playerName) {
           neutrals.push(playerName);
         }
       }

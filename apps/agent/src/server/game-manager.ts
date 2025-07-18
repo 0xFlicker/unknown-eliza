@@ -7,7 +7,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { HousePluginConfig } from "../plugins/house";
-import { Phase } from "../plugins/coordinator";
+import { Phase } from "@/memory/types";
 import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
@@ -41,13 +41,16 @@ export interface GameSession {
  * GameManager handles game lifecycle and channel creation with proper game context.
  * It owns the GameStatePreloader to inject game state into agents when they enter game channels.
  */
-export class GameManager {
+export class GameManager<
+  Context extends Record<string, unknown>,
+  Runtime extends IAgentRuntime,
+> {
   private games = new Map<UUID, GameSession>();
   private gamesByChannel = new Map<UUID, UUID>(); // channelId -> gameId mapping
 
   constructor(
-    private agentManager: AgentManager<any>,
-    private channelManager: ChannelManager,
+    private agentManager: AgentManager<Context, Runtime>,
+    private channelManager: ChannelManager<Context, Runtime>,
     private houseAgent: IAgentRuntime,
     private messageServerId: string,
   ) {}
@@ -118,9 +121,16 @@ export class GameManager {
     const channelId = await this.channelManager.createChannel({
       ...channelConfig,
       runtimeDecorators: [
-        async (runtime, { channelId }) => {
+        async (runtime, context) => {
+          if (!context?.channelId) {
+            throw new Error("Channel ID is required");
+          }
           // Inject game state into this agent's runtime for this channel
-          await this.injectGameStateIntoAgent(runtime, gameId, channelId!);
+          await this.injectGameStateIntoAgent(
+            runtime,
+            gameId,
+            context.channelId,
+          );
           return runtime;
         },
       ],

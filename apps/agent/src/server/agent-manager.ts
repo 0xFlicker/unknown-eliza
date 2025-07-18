@@ -13,15 +13,18 @@ import { Agent, AgentConfig, RuntimeDecorator } from "./types";
 /**
  * Production-ready agent manager for handling agent lifecycle and runtime decoration
  */
-export class AgentManager<Context extends Record<string, unknown>> {
+export class AgentManager<
+  Context extends Record<string, unknown>,
+  Runtime extends IAgentRuntime,
+> {
   protected agents = new Map<UUID, Agent<Context>>();
-  private runtimeDecorators: RuntimeDecorator<IAgentRuntime>[] = [];
+  private runtimeDecorators: RuntimeDecorator<Runtime>[] = [];
 
   constructor(
     private server: AgentServer,
     private runtimeSettings: RuntimeSettings,
     private messageServer: MessageServer,
-    defaultDecorators: RuntimeDecorator<IAgentRuntime>[] = [],
+    defaultDecorators: RuntimeDecorator<Runtime>[] = [],
   ) {
     this.runtimeDecorators = [...defaultDecorators];
   }
@@ -29,7 +32,7 @@ export class AgentManager<Context extends Record<string, unknown>> {
   /**
    * Add a runtime decorator for customizing agent behavior
    */
-  addRuntimeDecorator(decorator: RuntimeDecorator<IAgentRuntime>): void {
+  addRuntimeDecorator(decorator: RuntimeDecorator<Runtime>): void {
     this.runtimeDecorators.push(decorator);
   }
 
@@ -76,12 +79,12 @@ export class AgentManager<Context extends Record<string, unknown>> {
       },
     });
 
-    // Apply runtime decorators
-    let decoratedRuntime: IAgentRuntime = runtime;
+    // Apply runtime decorators, but we do need to do a little force cast back to the interface
+    let decoratedRuntime: Runtime = runtime as unknown as Runtime;
     for (const decorator of this.runtimeDecorators) {
       try {
         const result = await decorator(decoratedRuntime, {});
-        decoratedRuntime = result as IAgentRuntime;
+        decoratedRuntime = result as Runtime;
         logger.debug(
           `Applied runtime decorator to agent ${config.character.name}`,
         );

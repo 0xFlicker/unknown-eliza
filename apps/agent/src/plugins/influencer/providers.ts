@@ -29,7 +29,7 @@ export const shouldRespondProvider: Provider = {
     const isDMChannel = channelType === ChannelType.DM;
     const isGroupChannel = channelType === ChannelType.GROUP;
 
-    let examples = [];
+    let examples: string[] = [];
 
     if (isHouseMessage && isDMChannel) {
       // House messages in DM channels - RESPOND to diary room prompts

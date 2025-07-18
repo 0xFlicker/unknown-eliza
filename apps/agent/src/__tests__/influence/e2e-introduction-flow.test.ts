@@ -4,7 +4,6 @@ import {
   CoordinationService,
   coordinatorPlugin,
   GameEventType,
-  Phase,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, scan, takeWhile, toArray } from "rxjs";
@@ -15,6 +14,7 @@ import { influencerPlugin } from "@/plugins/influencer";
 import { housePlugin } from "@/plugins/house";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
+import { Phase } from "@/memory/types";
 
 /**
  * End-to-End INTRODUCTION Flow Test
@@ -43,7 +43,7 @@ describe("E2E INTRODUCTION Flow", () => {
       console.log(`🏠 House agent ID: ${house.agentId}`);
 
       // Add 3 test players
-      const players = [];
+      const players: Awaited<ReturnType<typeof app.addAgent>>[] = [];
       for (let i = 0; i < 3; i++) {
         const player = await app.addAgent({
           character: {

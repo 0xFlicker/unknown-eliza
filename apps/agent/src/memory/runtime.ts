@@ -1,6 +1,6 @@
 import { IAgentRuntime, UUID, elizaLogger, Memory } from "@elizaos/core";
-import { GameState } from "../plugins/house/types";
-import { Phase } from "../plugins/coordinator";
+import { GameState } from "./types";
+import { Phase } from "./types";
 
 const logger = elizaLogger.child({ component: "GameStateDAO" });
 
@@ -114,8 +114,11 @@ export async function updateIntroduction({
     );
     return gameState;
   }
-
+  gameState.phaseState.introductionMessages =
+    gameState.phaseState.introductionMessages ?? {};
   gameState.phaseState.introductionMessages[playerId] = currentCount + 1;
+  gameState.phaseState.introductionComplete =
+    gameState.phaseState.introductionComplete ?? [];
   gameState.phaseState.introductionComplete.push(playerId);
 
   await saveGameState(runtime, roomId, gameState);

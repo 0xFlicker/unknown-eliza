@@ -1,6 +1,4 @@
 import { IAgentRuntime, UUID, createUniqueUuid } from "@elizaos/core";
-import { getGameState } from "../../memory/gameState";
-import { Phase } from "../coordinator";
 import { GameEventType } from "../coordinator/types";
 
 /**

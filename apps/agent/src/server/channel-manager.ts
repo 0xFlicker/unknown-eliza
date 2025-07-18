@@ -28,17 +28,20 @@ import { AgentManager } from "./agent-manager";
  * Channel manager that uses the proper AgentServer infrastructure
  * Leverages the API client and SocketIO events for compatibility with www client
  */
-export class ChannelManager {
+export class ChannelManager<
+  Context extends Record<string, unknown>,
+  Runtime extends IAgentRuntime,
+> {
   private world?: World;
   private channels = new Map<UUID, Channel>();
-  private agentManager: AgentManager<any>;
+  private agentManager: AgentManager<Context, Runtime>;
   private associationManager: AssociationManager;
   private server: AgentServer;
   private messageServer: MessageServer;
   private houseAgent: IAgentRuntime;
 
   constructor(
-    agentManager: AgentManager<any>,
+    agentManager: AgentManager<Context, Runtime>,
     associationManager: AssociationManager,
     server: AgentServer,
     messageServer: MessageServer,
@@ -130,7 +133,7 @@ export class ChannelManager {
   }: {
     channel: Channel;
     participants: ChannelParticipant[];
-    runtimeDecorators?: RuntimeDecorator<IAgentRuntime>[];
+    runtimeDecorators?: RuntimeDecorator<IAgentRuntime, { channelId: UUID }>[];
     houseClientId?: UUID;
   }): Promise<void> {
     const participantIds = participants.map((p) => p.agentId);

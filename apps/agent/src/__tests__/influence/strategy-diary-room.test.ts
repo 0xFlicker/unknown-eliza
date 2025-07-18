@@ -11,10 +11,10 @@ import { influencerPlugin } from "../../plugins/influencer";
 import { coordinatorPlugin } from "../../plugins/coordinator";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
 import {
-  Phase,
   GameEventType,
   AnyCoordinationMessage,
 } from "../../plugins/coordinator/types";
+import { Phase } from "@/memory/types";
 import {
   createUniqueUuid,
   UUID,
@@ -172,7 +172,11 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         ],
         type: ChannelType.GROUP,
         runtimeDecorators: [
-          async (runtime, { channelId }) => {
+          async (runtime, context) => {
+            const channelId = context?.channelId;
+            if (!channelId) {
+              throw new Error("Channel ID is required");
+            }
             await GameStatePreloader.preloadGamePhase({
               runtime,
               roomId: channelId,
