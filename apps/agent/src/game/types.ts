@@ -45,4 +45,6 @@ export type GameEvent =
   | { type: "PHASE_CHANGE_INITIATED" }
   | { type: "ALL_PLAYERS_READY" }
   | { type: "DIARY_ROOM_QUESTION"; playerId: string; diaryRoomId: string }
-  | { type: "ARE_YOU_READY"; nextPhase: Phase };
+  | { type: "ARE_YOU_READY"; nextPhase: Phase }
+  | { type: "INTRODUCTION_TIMER_EXPIRED" }
+  | { type: "READY_TIMER_EXPIRED" };
