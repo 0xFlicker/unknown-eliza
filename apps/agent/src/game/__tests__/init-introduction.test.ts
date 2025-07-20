@@ -11,8 +11,13 @@ describe("INIT → INTRODUCTION transition", () => {
     const playerIds = ["p1", "p2", "p3"];
 
     const timers = new ManualTimerService();
-    const machine = createGameMachine(createInitialContext(playerIds), timers);
+    const machine = createGameMachine({
+      initialContext: createInitialContext({ playerIds }),
+      timers,
+      initialPhase: Phase.INIT,
+    });
     const actor = createActor(machine).start();
+    actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.INTRODUCTION });
 
     // First player ready – should still be in INIT
     actor.send({ type: "PLAYER_READY", playerId: "p1" });
@@ -24,6 +29,7 @@ describe("INIT → INTRODUCTION transition", () => {
 
     // Last player ready – should transition
     actor.send({ type: "PLAYER_READY", playerId: "p3" });
+
     expect(actor.getSnapshot().value).toBe(Phase.INTRODUCTION);
   });
 
@@ -31,9 +37,14 @@ describe("INIT → INTRODUCTION transition", () => {
     const playerIds = ["a", "b"];
     const timers = new ManualTimerService();
     const actor = createActor(
-      createGameMachine(createInitialContext(playerIds), timers),
+      createGameMachine({
+        initialContext: createInitialContext({ playerIds }),
+        timers,
+        initialPhase: Phase.INIT,
+      }),
     ).start();
 
+    actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.INTRODUCTION });
     actor.send({ type: "PLAYER_READY", playerId: "a" });
     actor.send({ type: "PLAYER_READY", playerId: "a" }); // duplicate
     expect(actor.getSnapshot().value).toBe(Phase.INIT);

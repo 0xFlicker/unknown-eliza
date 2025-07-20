@@ -1,12 +1,16 @@
 import { GameContext, Phase, Player } from "./types";
+import { TimerService } from "./timers/TimerService";
 
-export function createInitialContext(playerIds: string[]): GameContext {
+export function createInitialContext({
+  playerIds,
+}: {
+  playerIds: string[];
+}): GameContext {
   const players: Record<string, Player> = {};
   for (const id of playerIds) {
     players[id] = { id, name: id, status: "alive" };
   }
   return {
-    phase: Phase.INIT,
     players,
     ready: {},
   };

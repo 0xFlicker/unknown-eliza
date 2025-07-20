@@ -1,26 +1,62 @@
 import { setup, assign, emit } from "xstate";
 // Needed for type inference
 import "xstate/guards";
-import { GameContext, GameEvent, Phase } from "./types";
-import { TimerService } from "./timers/TimerService";
+import { GameContext, GameEvent, Phase } from "../types";
+import { TimerService } from "../timers/TimerService";
+import { UUID } from "@elizaos/core";
 
-export const INTRO_TIMER_MS = 3 * 60 * 1000; // 3 minutes
-export const READY_TIMER_MS = 10 * 1000; // 10 seconds
+export const DEFAULT_INTRO_TIMER_MS = 3 * 60 * 1000; // 3 minutes
+export const DEFAULT_READY_TIMER_MS = 60 * 1000; // 1 minute
+
+export interface IntroductionInput {
+  introTimerMs?: number;
+  readyTimerMs?: number;
+}
+
+export interface IntroductionContext {
+  introTimerId?: string;
+  readyTimerId?: string;
+  playersReady: Record<UUID, boolean>;
+  introductionMessages?: Record<UUID, number>;
+  diaryRooms?: Record<UUID, UUID>;
+}
+
+export interface IntroductionOutput {
+  allPlayersReady: boolean;
+  introductionMessages: Record<UUID, number>;
+  diaryRooms: Record<UUID, UUID>;
+}
+
+export type IntroductionEvent =
+  | {
+      type: "PLAYER_READY";
+      playerId: string;
+    }
+  | {
+      type: "RESET_READY";
+    }
+  | { type: "INTRO_MESSAGE"; playerId: string }
+  | { type: "TIMER_EXPIRED" }
+  | { type: "PHASE_CHANGE_INITIATED" }
+  | { type: "ALL_PLAYERS_READY" }
+  | { type: "DIARY_ROOM_QUESTION"; playerId: string; diaryRoomId: string }
+  | { type: "ARE_YOU_READY"; nextPhase: Phase };
 
 export function createGameMachine({
   initialContext,
   timers,
   initialPhase,
 }: {
-  initialContext: GameContext;
+  initialContext: IntroductionContext;
   timers: TimerService;
   initialPhase: Phase;
 }) {
   return setup({
     types: {
-      context: {} as GameContext,
-      events: {} as GameEvent,
-      output: {} as GameContext,
+      context: {} as IntroductionContext,
+      events: {} as IntroductionEvent,
+      input: {} as IntroductionInput,
+      output: {} as IntroductionOutput,
     },
     actions: {
       cancelIntroTimer: ({ context }) => {
@@ -29,58 +65,46 @@ export function createGameMachine({
       cancelReadyTimer: ({ context }) => {
         if (context.readyTimerId) timers.cancel(context.readyTimerId);
       },
-      sendDiaryQuestions: ({ context, self }) => {
-        if (!context.diaryRooms) {
-          const ids = Object.keys(context.players);
-          return {
-            diaryRooms: ids.reduce<Record<string, string>>((acc, id) => {
-              acc[id] = `diary-${id}`;
-              return acc;
-            }, {}),
-          };
-        }
-        for (const [playerId, diaryRoomId] of Object.entries(
-          context.diaryRooms!,
-        )) {
-          self.send({
-            type: "DIARY_ROOM_QUESTION",
-            playerId,
-            diaryRoomId,
-          });
-        }
-      },
+
       clearIntroData: assign({
         introductionMessages: () => undefined,
         introTimerId: () => undefined,
+        readyTimerId: () => undefined,
         diaryRooms: () => undefined,
       }),
-      resetReady: assign({ ready: () => ({}) }),
+      resetReady: assign({ playersReady: () => ({}) }),
     },
     guards: {
       allPlayersReady: ({ context }) => {
-        const playerIds = Object.keys(context.players);
+        const playerIds = Object.keys(context.playersReady);
         if (playerIds.length === 0) return false;
-        return playerIds.every((id) => context.ready[id]);
+        return playerIds.every((id) => context.playersReady[id]);
       },
       allIntroduced: ({ context }) => {
-        const playerIds = Object.keys(context.players);
+        const playerIds = Object.keys(context.playersReady);
         const intro = context.introductionMessages ?? {};
         return playerIds.every((id) => intro[id] > 0);
       },
     },
   }).createMachine({
-    id: "influence-game",
+    id: "introduction",
     context: initialContext,
     initial: initialPhase,
-    output: (ctx) => ctx.context,
+    output: ({ context }) => ({
+      allPlayersReady: Object.keys(context.playersReady).every(
+        (id) => context.playersReady[id],
+      ),
+      introductionMessages: context.introductionMessages ?? {},
+      diaryRooms: context.diaryRooms ?? {},
+    }),
     states: {
       [Phase.INIT]: {
         on: {
           PLAYER_READY: {
             actions: [
               assign({
-                ready: ({ context, event }) => {
-                  return { ...context.ready, [event.playerId]: true };
+                playersReady: ({ context, event }) => {
+                  return { ...context.playersReady, [event.playerId]: true };
                 },
               }),
             ],
@@ -88,8 +112,8 @@ export function createGameMachine({
         },
         always: {
           guard: ({ context }) => {
-            const playerIds = Object.keys(context.players);
-            return playerIds.every((id) => context.ready[id]);
+            const playerIds = Object.keys(context.playersReady);
+            return playerIds.every((id) => context.playersReady[id]);
           },
           target: Phase.INTRODUCTION,
         },
@@ -98,7 +122,7 @@ export function createGameMachine({
         entry: [
           assign({
             introTimerId: ({ self }) => {
-              return timers.schedule(INTRO_TIMER_MS, () => {
+              return timers.schedule(DEFAULT_INTRO_TIMER_MS, () => {
                 self.send({ type: "TIMER_EXPIRED" });
               });
             },
@@ -119,7 +143,7 @@ export function createGameMachine({
               ({ context, self }) => {
                 if (
                   Object.keys(context.introductionMessages ?? {}).length ===
-                  Object.keys(context.players).length
+                  Object.keys(context.playersReady).length
                 ) {
                   self.send({
                     type: "ARE_YOU_READY",
@@ -133,7 +157,7 @@ export function createGameMachine({
             actions: [
               assign({
                 readyTimerId: ({ self }) => {
-                  return timers.schedule(READY_TIMER_MS, () => {
+                  return timers.schedule(DEFAULT_READY_TIMER_MS, () => {
                     self.send({ type: "TIMER_EXPIRED" });
                   });
                 },
@@ -143,34 +167,42 @@ export function createGameMachine({
           ALL_PLAYERS_READY: Phase.INTRO_DR,
           TIMER_EXPIRED: Phase.INTRO_DR,
         },
+        always: {
+          guard: ({ context }) => {
+            const playerIds = Object.keys(context.playersReady);
+            const intro = context.introductionMessages ?? {};
+            return playerIds.every((id) => intro[id] && intro[id] > 0);
+          },
+          target: Phase.INTRO_DR,
+        },
       },
       [Phase.INTRO_DR]: {
-        // entry: [
-        //   "resetReady",
-        //   ({ context, self }) => {
-        //     if (!context.introTimerId) {
-        //       const id = timers.schedule(READY_TIMER_MS, () => {
-        //         self.send({ type: "TIMER_EXPIRED" });
-        //       });
-        //       return { introTimerId: id };
-        //     }
-        //   },
-        // ],
-        // exit: ["cancelIntroTimer", "clearIntroData"],
+        entry: [
+          "resetReady",
+          ({ context, self }) => {
+            if (!context.introTimerId) {
+              const id = timers.schedule(DEFAULT_READY_TIMER_MS, () => {
+                self.send({ type: "TIMER_EXPIRED" });
+              });
+              return { introTimerId: id };
+            }
+          },
+        ],
+        exit: ["cancelIntroTimer", "clearIntroData"],
         on: {
           // Handshake: when players say ready, move to next phase
           PLAYER_READY: [
             {
               actions: [
                 assign({
-                  ready: ({ context, event }) => {
-                    return { ...context.ready, [event.playerId]: true };
+                  playersReady: ({ context, event }) => {
+                    return { ...context.playersReady, [event.playerId]: true };
                   },
                 }),
                 ({ context, self }) => {
                   if (
-                    Object.keys(context.ready).length ===
-                    Object.keys(context.players).length
+                    Object.keys(context.playersReady).length ===
+                    Object.keys(context.playersReady).length
                   ) {
                     self.send({ type: "ALL_PLAYERS_READY" });
                   }
@@ -182,7 +214,7 @@ export function createGameMachine({
             actions: [
               assign({
                 readyTimerId: ({ self }) => {
-                  return timers.schedule(READY_TIMER_MS, () => {
+                  return timers.schedule(DEFAULT_READY_TIMER_MS, () => {
                     self.send({ type: "TIMER_EXPIRED" });
                   });
                 },
@@ -196,7 +228,7 @@ export function createGameMachine({
       [Phase.LOBBY]: {
         entry: ({ context, self }) => {
           if (!context.introTimerId) {
-            const id = timers.schedule(INTRO_TIMER_MS, () => {
+            const id = timers.schedule(DEFAULT_INTRO_TIMER_MS, () => {
               self.send({ type: "TIMER_EXPIRED" });
             });
             return { introTimerId: id };

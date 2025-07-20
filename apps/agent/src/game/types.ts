@@ -1,8 +1,9 @@
 export enum Phase {
   INIT = "INIT",
   INTRODUCTION = "INTRODUCTION",
-  LOBBY = "LOBBY",
   INTRO_DR = "INTRO_DR",
+  LOBBY = "LOBBY",
+  LOBBY_DR = "LOBBY_DR",
 }
 
 export interface Player {
@@ -12,10 +13,6 @@ export interface Player {
 }
 
 export interface GameContext {
-  /**
-   * Current phase of the game.
-   */
-  phase: Phase;
   /**
    * All players keyed by their unique id.
    */
@@ -29,7 +26,8 @@ export interface GameContext {
   introductionMessages?: Record<string, number>;
   /** timer id for intro phase if scheduled */
   introTimerId?: string;
-  // ready handshake timer id removed in flattened model
+  /** timer id for ready phase if scheduled */
+  readyTimerId?: string;
   /** Map of playerId -> diary room id */
   diaryRooms?: Record<string, string>;
 }
@@ -45,6 +43,6 @@ export type GameEvent =
   | { type: "INTRO_MESSAGE"; playerId: string }
   | { type: "TIMER_EXPIRED" }
   | { type: "PHASE_CHANGE_INITIATED" }
+  | { type: "ALL_PLAYERS_READY" }
   | { type: "DIARY_ROOM_QUESTION"; playerId: string; diaryRoomId: string }
-  | { type: "ARE_YOU_READY"; nextPhase: Phase }
-  | { type: "READY_CHECK" };
+  | { type: "ARE_YOU_READY"; nextPhase: Phase };

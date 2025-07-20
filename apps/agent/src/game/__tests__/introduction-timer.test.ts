@@ -1,5 +1,5 @@
 import { createActor } from "xstate";
-import { createGameMachine, INTRO_TIMER_MS, READY_TIMER_MS } from "../machine";
+import { createGameMachine, INTRO_TIMER_MS } from "../machine";
 import { createInitialContext } from "../helpers";
 import { ManualTimerService } from "../timers/TimerService";
 import { Phase } from "../types";
@@ -10,10 +10,15 @@ describe("INTRODUCTION timer fallback", () => {
     const playerIds = ["p1", "p2"];
     const timers = new ManualTimerService();
     const actor = createActor(
-      createGameMachine(createInitialContext(playerIds), timers),
+      createGameMachine({
+        initialContext: createInitialContext({ playerIds }),
+        timers,
+        initialPhase: Phase.INTRODUCTION,
+      }),
     ).start();
 
     // Players indicate readiness
+    actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.LOBBY });
     actor.send({ type: "PLAYER_READY", playerId: "p1" });
     actor.send({ type: "PLAYER_READY", playerId: "p2" });
 
@@ -29,7 +34,8 @@ describe("INTRODUCTION timer fallback", () => {
 
     // House asks if ready but players never respond -> ready timer expires
     actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.LOBBY });
-    timers.advance(READY_TIMER_MS);
+    expect(actor.getSnapshot().value).toBe(Phase.INTRO_DR);
+    timers.advance(INTRO_TIMER_MS);
     expect(actor.getSnapshot().value).toBe(Phase.LOBBY);
   });
 });
