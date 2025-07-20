@@ -146,18 +146,18 @@ export function createGameMachine({
         },
       },
       [Phase.INTRO_DR]: {
-        // entry: [
-        //   "resetReady",
-        //   ({ context, self }) => {
-        //     if (!context.introTimerId) {
-        //       const id = timers.schedule(READY_TIMER_MS, () => {
-        //         self.send({ type: "TIMER_EXPIRED" });
-        //       });
-        //       return { introTimerId: id };
-        //     }
-        //   },
-        // ],
-        // exit: ["cancelIntroTimer", "clearIntroData"],
+        entry: [
+          "resetReady",
+          ({ context, self }) => {
+            if (!context.introTimerId) {
+              const id = timers.schedule(READY_TIMER_MS, () => {
+                self.send({ type: "TIMER_EXPIRED" });
+              });
+              return { introTimerId: id };
+            }
+          },
+        ],
+        exit: ["cancelIntroTimer", "clearIntroData"],
         on: {
           // Handshake: when players say ready, move to next phase
           PLAYER_READY: [
@@ -184,32 +184,32 @@ export function createGameMachine({
               assign({
                 readyTimerId: ({ self }) => {
                   return timers.schedule(READY_TIMER_MS, () => {
-                    self.send({ type: "READY_TIMER_EXPIRED" });
+                    self.send({ type: "TIMER_EXPIRED" });
                   });
                 },
               }),
             ],
           },
           ALL_PLAYERS_READY: Phase.LOBBY,
-          READY_TIMER_EXPIRED: Phase.LOBBY,
+          TIMER_EXPIRED: Phase.LOBBY,
         },
       },
       [Phase.LOBBY]: {
         entry: ({ context, self }) => {
           if (!context.introTimerId) {
             const id = timers.schedule(INTRO_TIMER_MS, () => {
-              self.send({ type: "INTRODUCTION_TIMER_EXPIRED" });
+              self.send({ type: "TIMER_EXPIRED" });
             });
             return { introTimerId: id };
           }
         },
         exit: ["cancelIntroTimer"],
-        on: { INTRODUCTION_TIMER_EXPIRED: Phase.LOBBY_DR },
+        on: { TIMER_EXPIRED: Phase.LOBBY_DR },
         type: "atomic",
       },
       [Phase.LOBBY_DR]: {
         on: {
-          INTRODUCTION_TIMER_EXPIRED: Phase.LOBBY,
+          TIMER_EXPIRED: Phase.LOBBY,
         },
       },
     },
