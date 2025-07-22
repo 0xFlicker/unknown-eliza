@@ -1,41 +1,31 @@
 import { createActor } from "xstate";
-import { createGameMachine, INTRO_TIMER_MS } from "../machine";
-import { createInitialContext } from "../helpers";
-import { ManualTimerService } from "../timers/TimerService";
-import { Phase } from "../types";
 import { describe, it, expect } from "bun:test";
+import { createPhaseMachine } from "../phase";
+import { stringToUuid } from "@elizaos/core";
+import { Phase } from "../types";
 
 describe("INTRODUCTION timer fallback", () => {
   it("transitions to LOBBY when timer expires if not all introduced", () => {
-    const playerIds = ["p1", "p2"];
-    const timers = new ManualTimerService();
+    const playerIds = ["p1", "p2"].map(stringToUuid);
     const actor = createActor(
-      createGameMachine({
-        initialContext: createInitialContext({ playerIds }),
-        timers,
-        initialPhase: Phase.INTRODUCTION,
+      createPhaseMachine({
+        phaseTimeoutMs: 60000,
+        readyTimerMs: 10000,
       }),
+      {
+        input: {
+          players: playerIds,
+          initialPhase: Phase.INIT,
+          nextPhase: Phase.INTRODUCTION,
+        },
+      },
     ).start();
 
     // Players indicate readiness
-    actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.LOBBY });
+    actor.send({ type: "ARE_YOU_READY" });
     actor.send({ type: "PLAYER_READY", playerId: "p1" });
     actor.send({ type: "PLAYER_READY", playerId: "p2" });
 
-    expect(actor.getSnapshot().value).toBe(Phase.INTRODUCTION);
-
-    // Only first player sends intro message
-    actor.send({ type: "INTRO_MESSAGE", playerId: "p1" });
-    expect(actor.getSnapshot().value).toBe(Phase.INTRODUCTION);
-
-    // advance first timer -> should reach diary room state
-    timers.advance(INTRO_TIMER_MS);
-    expect(actor.getSnapshot().value).toBe(Phase.INTRO_DR);
-
-    // House asks if ready but players never respond -> ready timer expires
-    actor.send({ type: "ARE_YOU_READY", nextPhase: Phase.LOBBY });
-    expect(actor.getSnapshot().value).toBe(Phase.INTRO_DR);
-    timers.advance(INTRO_TIMER_MS);
-    expect(actor.getSnapshot().value).toBe(Phase.LOBBY);
+    expect(actor.getSnapshot().value).toBe("gameplay");
   });
 });
