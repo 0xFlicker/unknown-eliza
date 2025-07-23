@@ -1,5 +1,4 @@
 import { GameContext, Phase, Player } from "./types";
-import { TimerService } from "./timers/TimerService";
 
 export function createInitialContext({
   playerIds,

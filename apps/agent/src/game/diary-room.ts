@@ -1,7 +1,5 @@
 // This file defines a standalone Diary Room state machine for handling diary phases.
 import { setup, assign, emit, sendTo } from "xstate";
-import { TimerService } from "./timers/TimerService";
-import { Phase } from "./types";
 import { UUID } from "@elizaos/core";
 import { createReadyToPlayMachine } from "./ready-to-play";
 

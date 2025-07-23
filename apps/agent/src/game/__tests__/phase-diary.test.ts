@@ -1,5 +1,5 @@
 import { createActor } from "xstate";
-import { createPhaseMachine } from "../phase";
+import { createGameplayMachine } from "../gameplay";
 import { Phase } from "../types";
 import { describe, it, expect } from "bun:test";
 import { stringToUuid } from "@elizaos/core";
@@ -8,7 +8,7 @@ describe("Phase → DiaryRoom integration", () => {
   it("goes through diary phase and ends in LOBBY", () => {
     const p1 = stringToUuid("p1");
     const actor = createActor(
-      createPhaseMachine({ phaseTimeoutMs: 1000, readyTimerMs: 1000 }),
+      createGameplayMachine({ phaseTimeoutMs: 1000, readyTimerMs: 1000 }),
       {
         input: {
           players: [p1],

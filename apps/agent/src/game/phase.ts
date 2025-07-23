@@ -1,37 +1,26 @@
 // Replace Phase state machine with basic setup builder (no diary invoke yet)
 import { emit, sendTo, setup } from "xstate";
 import { Phase } from "./types";
-import { createDiaryMachine } from "./diary-room";
 import { UUID } from "@elizaos/core";
-import { createReadyToPlayMachine } from "./ready-to-play";
+import { createGameplayMachine } from "./gameplay";
 
 export interface PhaseContext {
   players: UUID[];
-  currentPhase: Phase;
-  nextPhase: Phase;
 }
 
 export type PhaseInput = {
   players: UUID[];
-  initialPhase: Phase;
-  nextPhase: Phase;
 };
 
-export type PhaseState = "gameplay" | "diary" | "strategy" | "end";
-
-// PhaseEvent includes both phase triggers and diary events
-export type PhaseEvent =
-  | { type: "ARE_YOU_READY" }
-  | { type: "ALL_PLAYERS_READY" }
-  | { type: "END_ROUND" }
-  | { type: "PLAYER_READY"; playerId: string };
-
+export type PhaseEvent = { type: "NEXT_PHASE" };
 export type PhaseEmitted = { type: "PLAYER_READY_ERROR"; error: Error };
 
 export function createPhaseMachine({
+  roundTimeoutMs,
   phaseTimeoutMs,
   readyTimerMs,
 }: {
+  roundTimeoutMs: number;
   phaseTimeoutMs: number;
   readyTimerMs: number;
 }) {
@@ -43,36 +32,29 @@ export function createPhaseMachine({
       emitted: {} as PhaseEmitted,
     },
     actors: {
-      diary: createDiaryMachine({ readyTimerMs }),
-      readyToPlay: createReadyToPlayMachine(),
+      gameplay: createGameplayMachine({ phaseTimeoutMs, readyTimerMs }),
     },
   }).createMachine({
     id: "phase",
     context: ({ input }) => ({
       players: input.players,
-      currentPhase: input.initialPhase,
-      nextPhase: input.nextPhase,
     }),
-    initial: "gameplay",
+    initial: "init",
     states: {
-      gameplay: {
-        on: { END_ROUND: "diary" },
-        after: {
-          [phaseTimeoutMs]: {
-            target: "diary",
-          },
-        },
+      init: {
+        on: { NEXT_PHASE: "introduction" },
       },
-      diary: {
+      introduction: {
         always: {
-          actions: sendTo("diary", ({ event }) => event),
+          actions: sendTo("gameplay", ({ event }) => event),
         },
-        // Invoke the diary interview flow
         invoke: {
-          id: "diary",
-          src: "diary",
+          id: "gameplay",
+          src: "gameplay",
           input: ({ context }) => ({
             players: context.players,
+            initialPhase: Phase.INIT,
+            nextPhase: Phase.INTRODUCTION,
           }),
           onDone: {
             target: "strategy",
@@ -82,26 +64,28 @@ export function createPhaseMachine({
           },
         },
         after: {
-          [phaseTimeoutMs]: {
-            target: "strategy",
+          [roundTimeoutMs]: {
+            target: "whisper",
           },
         },
       },
-      strategy: {
+      whisper: {
         always: {
-          actions: sendTo("readyToPlay", ({ event }) => event),
+          actions: sendTo("gameplay", ({ event }) => event),
         },
         invoke: {
-          id: "readyToPlay",
-          src: "readyToPlay",
+          id: "gameplay",
+          src: "gameplay",
           input: ({ context }) => ({
             players: context.players,
+            initialPhase: Phase.INTRODUCTION,
+            nextPhase: Phase.WHISPER,
           }),
           onDone: {
-            target: "end",
+            target: "rumor",
           },
           onError: {
-            target: "end",
+            target: "rumor",
             actions: [
               emit(({ event }) => ({
                 type: "PLAYER_READY_ERROR",
@@ -109,6 +93,86 @@ export function createPhaseMachine({
               })),
             ],
           },
+        },
+      },
+      rumor: {
+        always: {
+          actions: sendTo("gameplay", ({ event }) => event),
+        },
+        invoke: {
+          id: "gameplay",
+          src: "gameplay",
+          input: ({ context }) => ({
+            players: context.players,
+            initialPhase: Phase.WHISPER,
+            nextPhase: Phase.RUMOR,
+          }),
+          onDone: {
+            target: "vote",
+          },
+          onError: {
+            target: "vote",
+          },
+        },
+      },
+      vote: {
+        always: {
+          actions: sendTo("gameplay", ({ event }) => event),
+        },
+        invoke: {
+          id: "gameplay",
+          src: "gameplay",
+          input: ({ context }) => ({
+            players: context.players,
+            initialPhase: Phase.RUMOR,
+            nextPhase: Phase.VOTE,
+          }),
+        },
+        onDone: {
+          target: "power",
+        },
+        onError: {
+          target: "power",
+        },
+      },
+      power: {
+        always: {
+          actions: sendTo("gameplay", ({ event }) => event),
+        },
+        invoke: {
+          id: "gameplay",
+          src: "gameplay",
+          input: ({ context }) => ({
+            players: context.players,
+            initialPhase: Phase.VOTE,
+            nextPhase: Phase.POWER,
+          }),
+        },
+        onDone: {
+          target: "reveal",
+        },
+        onError: {
+          target: "reveal",
+        },
+      },
+      reveal: {
+        always: {
+          actions: sendTo("gameplay", ({ event }) => event),
+        },
+        invoke: {
+          id: "gameplay",
+          src: "gameplay",
+          input: ({ context }) => ({
+            players: context.players,
+            initialPhase: Phase.POWER,
+            nextPhase: Phase.REVEAL,
+          }),
+        },
+        onDone: {
+          target: "end",
+        },
+        onError: {
+          target: "end",
         },
       },
       end: { type: "final" },

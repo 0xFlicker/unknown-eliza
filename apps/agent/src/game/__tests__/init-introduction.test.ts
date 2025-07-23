@@ -3,13 +3,13 @@ import { Phase } from "../types";
 
 import { describe, it, expect } from "bun:test";
 import { stringToUuid } from "@elizaos/core";
-import { createPhaseMachine } from "../phase";
+import { createGameplayMachine } from "../gameplay";
 
 describe("INIT → INTRODUCTION transition", () => {
   it("transitions once all players are ready", () => {
     const playerIds = ["p1", "p2", "p3"].map(stringToUuid);
     const actor = createActor(
-      createPhaseMachine({
+      createGameplayMachine({
         phaseTimeoutMs: 60000,
         readyTimerMs: 10000,
       }),
@@ -40,7 +40,7 @@ describe("INIT → INTRODUCTION transition", () => {
   it("ignores duplicate ready messages", () => {
     const playerIds = ["a", "b"].map(stringToUuid);
     const actor = createActor(
-      createPhaseMachine({
+      createGameplayMachine({
         phaseTimeoutMs: 60000,
         readyTimerMs: 10000,
       }),

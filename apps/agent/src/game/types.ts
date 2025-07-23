@@ -1,9 +1,13 @@
 export enum Phase {
   INIT = "INIT",
   INTRODUCTION = "INTRODUCTION",
-  INTRODUCTION_DR = "INTRODUCTION_DR",
   LOBBY = "LOBBY",
-  LOBBY_DR = "LOBBY_DR",
+  WHISPER = "WHISPER",
+  RUMOR = "RUMOR",
+  VOTE = "VOTE",
+  POWER = "POWER",
+  REVEAL = "REVEAL",
+  END = "END",
 }
 
 export interface Player {

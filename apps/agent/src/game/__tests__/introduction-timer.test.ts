@@ -1,6 +1,6 @@
 import { createActor } from "xstate";
 import { describe, it, expect } from "bun:test";
-import { createPhaseMachine } from "../phase";
+import { createGameplayMachine } from "../gameplay";
 import { stringToUuid } from "@elizaos/core";
 import { Phase } from "../types";
 
@@ -8,7 +8,7 @@ describe("INTRODUCTION timer fallback", () => {
   it("transitions to LOBBY when timer expires if not all introduced", () => {
     const playerIds = ["p1", "p2"].map(stringToUuid);
     const actor = createActor(
-      createPhaseMachine({
+      createGameplayMachine({
         phaseTimeoutMs: 60000,
         readyTimerMs: 10000,
       }),
