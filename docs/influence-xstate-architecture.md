@@ -83,75 +83,115 @@ export interface GameContext {
 
 ---
 
-## 4. GameMachine – top-level statechart
+## 4. PhaseMachine – top-level orchestrator
+
+- **Old:** A single `GameMachine` handling all phases in one monolith.
+- **New:** Split into a lightweight `PhaseMachine` (in `src/game/phase.ts`) that invokes per-room logic, and a `RoundFlowMachine` (in `src/game/gameplay.ts`) for end-of-round diary/strategy sync.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> INIT
-    INIT --> INTRODUCTION : ALL_PLAYERS_READY
-    INTRODUCTION --> LOBBY : ALL_PLAYERS_READY
-    INTRODUCTION --> LOBBY : TIMER_EXPIRED
-    LOBBY --> WHISPER : ALL_PLAYERS_READY
+    [*] --> init
+    init --> introduction : NEXT_PHASE
+    introduction --> strategy : done.invoke.gameplay
+    strategy --> end : done.invoke.readyToPlay
 ```
 
-Key design points:
-
-1. **Per-phase entry actions** schedule timers _without_ persisting; saving is handled by a subscribe hook.
-2. **Guards** ensure `players.length >= settings.minPlayers` before leaving `INIT`.
-3. **History** lives in ElizaOS DB – the machine merely emits `GAME_STATE_CHANGED`.
-
-### Skeleton (TypeScript – XState v5)
+PhaseMachine Skeleton (src/game/phase.ts):
 
 ```ts
-export const gameMachine = setup({
-  types: { context: {} as GameContext, events: {} as PhaseEvent },
-})
-  .createMachine({
-    id: "game",
-    context: initialGameContext,
-    initial: Phase.INIT,
-    states: {
-      [Phase.INIT]: {
-        on: {
-          PLAYER_JOINED: { actions: "addPlayer" },
-          ALL_PLAYERS_READY: {
-            guard: "hasMinPlayers",
-            target: Phase.INTRODUCTION,
-          },
-        },
-      },
-      [Phase.INTRODUCTION]: {
-        entry: ["startIntroductionTimer", "notifyHouse"],
-        on: {
-          ALL_PLAYERS_READY: Phase.LOBBY,
-          TIMER_EXPIRED: Phase.LOBBY,
-        },
-        exit: "resetIntroCounters",
-      },
-      // … other phases …
-    },
-  })
-  .with({
-    actions: {
-      addPlayer: assign({
-        players: ({ context }, { playerId }) => ({
-          ...context.players,
-          [playerId]: { joinedAt: Date.now(), status: "alive" },
+export const phaseMachine = setup({
+  types: {
+    context: {} as PhaseContext,
+    events: {} as PhaseEvent,
+    input: {} as PhaseInput,
+    emitted: {} as PhaseEmitted,
+  },
+  actors: {
+    gameplay: createGameplayMachine({ phaseTimeoutMs, readyTimerMs }),
+  },
+}).createMachine({
+  id: "phase",
+  context: ({ input }) => ({ players: input.players }),
+  initial: "init",
+  states: {
+    init: { on: { NEXT_PHASE: "introduction" } },
+    introduction: {
+      invoke: {
+        src: "gameplay",
+        id: "gameplay",
+        input: ({ context }) => ({
+          players: context.players,
+          initialPhase: Phase.INIT,
+          nextPhase: Phase.INTRODUCTION,
         }),
-      }),
-      startIntroductionTimer: ({ context }) => {
-        // schedule side-effect in service layer
-        timerService.schedule("TIMER_EXPIRED", context.timers.intro);
+      },
+      after: { [phaseTimeoutMs]: "strategy" },
+    },
+    strategy: {
+      invoke: {
+        src: "readyToPlay",
+        id: "readyToPlay",
+        input: ({ context }) => ({ players: context.players }),
       },
     },
-    guards: {
-      hasMinPlayers: ({ context }) =>
-        Object.keys(context.players).length >= context.timers.minPlayers,
-    },
-  });
+    end: { type: "final" },
+  },
+});
 ```
 
-> **Persistence** – subscribe to state changes and use `saveGameState(runtime, ctx)`. The machine itself never calls I/O.
+### RoundFlowMachine – end-of-round diary & sync
+
+After a room completes, `RoundFlowMachine` (in `src/game/gameplay.ts`) coordinates:
+
+- `gameplay` state: wait for `END_ROUND` or timeout → transition into `diary`.
+- `diary` state: invoke `createDiaryMachine({ readyTimerMs })`, forward events, then move to `strategy`.
+- `strategy` state: invoke `createReadyToPlayMachine()`, forward events, then complete.
+
+RoundFlowMachine Skeleton (src/game/gameplay.ts):
+
+```ts
+export const roundFlowMachine = setup({
+  types: {
+    context: {} as GameplayContext,
+    events: {} as GameplayEvent,
+    input: {} as GameplayInput,
+    emitted: {} as GameplayEmitted,
+  },
+  actors: {
+    diary: createDiaryMachine({ readyTimerMs }),
+    readyToPlay: createReadyToPlayMachine(),
+  },
+}).createMachine({
+  id: "roundFlow",
+  initial: "gameplay",
+  states: {
+    gameplay: {
+      on: { END_ROUND: "diary" },
+      after: { [phaseTimeoutMs]: "diary" },
+    },
+    diary: {
+      always: { actions: sendTo("diary", ({ event }) => event) },
+      invoke: {
+        id: "diary",
+        src: "diary",
+        input: ({ context }) => ({ players: context.players }),
+        onDone: "strategy",
+      },
+      after: { [phaseTimeoutMs]: "strategy" },
+    },
+    strategy: {
+      always: { actions: sendTo("readyToPlay", ({ event }) => event) },
+      invoke: {
+        id: "readyToPlay",
+        src: "readyToPlay",
+        input: ({ context }) => ({ players: context.players }),
+        onDone: "end",
+      },
+    },
+    end: { type: "final" },
+  },
+});
+```
 
 ---
 

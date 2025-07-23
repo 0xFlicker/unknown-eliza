@@ -28,11 +28,7 @@ import { MessageServer } from "@elizaos/server";
 import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
 import { coordinatorPlugin } from "../plugins/coordinator";
-import { Phase } from "@/memory/types";
-import { HousePluginConfig } from "../plugins/house";
-import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { GameManager, GameConfig } from "./game-manager";
-import { messages$ } from "@/plugins/coordinator/bus";
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
