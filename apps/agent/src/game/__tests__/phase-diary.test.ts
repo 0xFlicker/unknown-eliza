@@ -8,7 +8,10 @@ describe("Phase → DiaryRoom integration", () => {
   it("goes through diary phase and ends in LOBBY", () => {
     const p1 = stringToUuid("p1");
     const actor = createActor(
-      createGameplayMachine({ phaseTimeoutMs: 1000, readyTimerMs: 1000 }),
+      createGameplayMachine({
+        phaseTimeoutMs: 1000,
+        diaryTimeoutMs: 1000,
+      }),
       {
         input: {
           players: [p1],
@@ -32,6 +35,6 @@ describe("Phase → DiaryRoom integration", () => {
     // Respond ready, which should complete diary and go to LOBBY
     actor.send({ type: "ARE_YOU_READY" });
     actor.send({ type: "PLAYER_READY", playerId: p1 });
-    expect(actor.getSnapshot().value).toBe("strategy");
+    expect(actor.getSnapshot().value).toBe("allPlayersReady");
   });
 });

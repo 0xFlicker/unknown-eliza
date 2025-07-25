@@ -247,34 +247,20 @@ Lives inside every participant agent.
 
 ---
 
-## 9. Implementation Roadmap
+---
 
-| Phase | Task                                                                   | Owner    | Notes                                     |
-| ----- | ---------------------------------------------------------------------- | -------- | ----------------------------------------- |
-| 1     | Define shared `events.ts`, `context.ts`™ types                        | Core     | **No casts** – leverage XState type-gen   |
-| 2     | Implement `gameMachine` (happy path INIT → LOBBY)                      | Core     | Unit tests with vitest                    |
-| 3     | Build `StateMachineService` wrapper (start/stop, persistence)          | Core     | Replace legacy helper functions           |
-| 4     | Refactor House plugin to spawn `HouseMachine` & listen to `gameEvent$` | House    | side-effects via runtime API              |
-| 5     | Create `RoomMachine`; integrate with ChannelManager hooks              | Server   | controls DM rules                         |
-| 6     | Migrate player agents to `PlayerMachine`                               | Gameplay | may be iterative – start with INTRO/Lobby |
-| 7     | Extend GameMachine with WHISPER → REVEAL phases & timers               | Core     | ensure guards & parallel diary states     |
-| 8     | Write E2E tests (`bun run test:e2e`) for full round loop               | QA       | use ConversationSimulator                 |
-| 9     | Remove old `transitionToPhase` etc., clean dead code                   | Cleanup  | ensure all tests green                    |
+## 9. Technical Considerations
+
+### Snapshot Management
+
+XState snapshots should be stored separately from high-level game state memories to avoid bloating the memory system while enabling deterministic state recovery.
+
+### Event Coordination
+
+Cross-agent event coordination requires careful design to ensure game state consistency across multiple runtime instances.
 
 ---
 
-## 10. Open Questions / Gaps
+## 10. Conclusion
 
-1. **Timer Service** – central debounce / cancel abstraction needed; can be an ElizaOS Service.
-2. **Distributed Consensus** – if multiple runtime instances of House exist (HA), how to ensure single authority? Out-of-scope for MVP.
-3. **Hot Reload** – XState snapshot API supports; we must store snapshots separately from high-level `game_state` memory to avoid bloat.
-4. **Mermaid visualizer** – integrate into docs pipeline for live diagrams.
-
----
-
-## 11. Conclusion
-
-Adopting XState v5 formalizes Influence’s complex, asynchronous phase logic into maintainable, visual actors.  
-This architecture isolates persistence, improves testability, and aligns with ElizaOS plugin best-practices.
-
-_Next step: implement `events.ts` & a minimal `gameMachine` with INIT ➜ INTRODUCTION ➜ LOBBY transitions._
+This XState v5 architecture provides a formal framework for Influence's complex phase logic through maintainable, visual actors. The design isolates persistence concerns, improves testability, and aligns with ElizaOS plugin patterns for seamless integration.

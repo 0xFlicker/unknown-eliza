@@ -11,7 +11,7 @@ describe("INIT → INTRODUCTION transition", () => {
     const actor = createActor(
       createGameplayMachine({
         phaseTimeoutMs: 60000,
-        readyTimerMs: 10000,
+        diaryTimeoutMs: 10000,
       }),
       {
         input: {
@@ -42,7 +42,7 @@ describe("INIT → INTRODUCTION transition", () => {
     const actor = createActor(
       createGameplayMachine({
         phaseTimeoutMs: 60000,
-        readyTimerMs: 10000,
+        diaryTimeoutMs: 10000,
       }),
       {
         input: {
@@ -63,9 +63,6 @@ describe("INIT → INTRODUCTION transition", () => {
     actor.send({ type: "PLAYER_READY", playerId: stringToUuid("a") });
     actor.send({ type: "PLAYER_READY", playerId: stringToUuid("a") }); // duplicate
     actor.send({ type: "PLAYER_READY", playerId: stringToUuid("b") });
-    expect(actor.getSnapshot().value).toBe("strategy");
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("a") });
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("b") });
-    expect(actor.getSnapshot()?.value).toBe("end");
+    expect(actor.getSnapshot().value).toBe("allPlayersReady");
   });
 });

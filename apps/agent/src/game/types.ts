@@ -1,3 +1,5 @@
+import { UUID } from "@elizaos/core";
+
 export enum Phase {
   INIT = "INIT",
   INTRODUCTION = "INTRODUCTION",
@@ -10,10 +12,36 @@ export enum Phase {
   END = "END",
 }
 
+/**
+ * Game settings and configuration
+ */
+export interface GameSettings {
+  maxPlayers: number;
+  minPlayers: number;
+  timers: {
+    // in milliseconds
+    diary: number;
+    round: number;
+  };
+}
+
+/**
+ * Player status in the game
+ */
+export enum PlayerStatus {
+  ALIVE = "alive",
+  ELIMINATED = "eliminated",
+  EXPOSED = "exposed", // Can be targeted for elimination or protection
+}
+
+/**
+ * Individual player in the game
+ */
 export interface Player {
-  id: string;
+  id: UUID;
   name: string;
-  status: "alive" | "eliminated";
+  status: PlayerStatus;
+  joinedAt: number;
 }
 
 export interface GameContext {
@@ -35,6 +63,18 @@ export interface GameContext {
   /** Map of playerId -> diary room id */
   diaryRooms?: Record<string, string>;
 }
+
+/**
+ * Default game settings
+ */
+export const DEFAULT_GAME_SETTINGS: GameSettings = {
+  maxPlayers: 12,
+  minPlayers: 4,
+  timers: {
+    diary: 10 * 60 * 1000, // 10 minutes
+    round: 10 * 60 * 1000, // 10 minutes
+  },
+};
 
 export type GameEvent =
   | {

@@ -1,33 +1,5 @@
 import { UUID } from "@elizaos/core";
-
-/**
- * Game settings and configuration
- */
-export interface GameSettings {
-  maxPlayers: number;
-  minPlayers: number;
-  timers: {
-    lobby: number; // in milliseconds
-    whisper: number; // in milliseconds
-    rumor: number;
-    vote: number;
-    power: number;
-    reveal: number;
-  };
-  maxDMRecipients: number;
-}
-
-/**
- * Individual player in the game
- */
-export interface Player {
-  id: string;
-  agentId: string;
-  name: string;
-  status: PlayerStatus;
-  empoweredRound?: number; // Round when this player was empowered
-  joinedAt: number;
-}
+import { GameSettings, Player } from "../game/types";
 
 /**
  * Vote cast by a player in the VOTE phase
@@ -88,14 +60,10 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   maxPlayers: 12,
   minPlayers: 4,
   timers: {
-    lobby: 5 * 60 * 1000, // 5 minutes
-    whisper: 10 * 60 * 1000, // 10 minutes
-    rumor: 5 * 60 * 1000, // 5 minutes
-    vote: 3 * 60 * 1000, // 3 minutes
-    power: 2 * 60 * 1000, // 2 minutes
-    reveal: 30 * 1000, // 30 seconds
+    ready: 10 * 1000, // 10 seconds
+    diary: 10 * 60 * 1000, // 10 minutes
+    round: 10 * 60 * 1000, // 10 minutes
   },
-  maxDMRecipients: 4,
 };
 
 // Event union
@@ -128,13 +96,4 @@ export enum Phase {
   POWER_DIARY_ROOM = "POWER_DIARY_ROOM",
   REVEAL = "REVEAL",
   REVEAL_DIARY_ROOM = "REVEAL_DIARY_ROOM",
-}
-
-/**
- * Player status in the game
- */
-export enum PlayerStatus {
-  ALIVE = "alive",
-  ELIMINATED = "eliminated",
-  EXPOSED = "exposed", // Can be targeted for elimination or protection
 }

@@ -1,13 +1,9 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
 import { saveGameState } from "../../memory/runtime";
-import {
-  GameState,
-  Player,
-  DEFAULT_GAME_SETTINGS,
-  GameSettings,
-} from "../../memory/types";
+import { GameState, DEFAULT_GAME_SETTINGS } from "../../memory/types";
 import { Agent } from "../../server/types";
-import { Phase, PlayerStatus } from "@/memory/types";
+import { Phase } from "@/memory/types";
+import { GameSettings, Player, PlayerStatus } from "@/game/types";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases
@@ -44,7 +40,6 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       const playerId = agent.id;
       const player: Player = {
         id: playerId,
-        agentId: playerId,
         name: agent.character.name,
         status: PlayerStatus.ALIVE,
         joinedAt: Date.now() - index * 1000, // Stagger join times
@@ -164,7 +159,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       details: { playerCount: Object.keys(gameState.players).length },
     });
 
-    gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
+    gameState.timerEndsAt = Date.now() + gameState.settings.timers.round;
 
     await this.saveGameStateToRuntime(runtime, roomId, gameState);
 

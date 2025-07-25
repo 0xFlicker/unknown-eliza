@@ -165,7 +165,7 @@ export async function transitionToPhase({
   if (fromPhase === Phase.INTRODUCTION && toPhase === Phase.LOBBY) {
     gameState.phaseState.introductionMessages = {};
     gameState.phaseState.introductionComplete = [];
-    gameState.timerEndsAt = Date.now() + gameState.settings.timers.lobby;
+    gameState.timerEndsAt = Date.now() + gameState.settings.timers.round;
   }
 
   await saveGameState(runtime, roomId, gameState);

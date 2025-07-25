@@ -10,7 +10,7 @@ describe("INTRODUCTION timer fallback", () => {
     const actor = createActor(
       createGameplayMachine({
         phaseTimeoutMs: 60000,
-        readyTimerMs: 10000,
+        diaryTimeoutMs: 10000,
       }),
       {
         input: {

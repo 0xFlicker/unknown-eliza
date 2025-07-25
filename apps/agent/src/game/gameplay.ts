@@ -1,12 +1,11 @@
 // Replace Phase state machine with basic setup builder (no diary invoke yet)
-import { emit, sendTo, setup } from "xstate";
+import { assign, setup } from "xstate";
 import { Phase } from "./types";
-import { createDiaryMachine } from "./diary-room";
 import { UUID } from "@elizaos/core";
-import { createReadyToPlayMachine } from "./ready-to-play";
 
 export interface GameplayContext {
   players: UUID[];
+  playersReady: Record<UUID, boolean>;
   currentPhase: Phase;
   nextPhase: Phase;
 }
@@ -17,7 +16,7 @@ export type GameplayInput = {
   nextPhase: Phase;
 };
 
-export type GameplayState = "gameplay" | "diary" | "strategy" | "end";
+export type GameplayState = "gameplay" | "diary" | "end";
 
 // PhaseEvent includes both phase triggers and diary events
 export type GameplayEvent =
@@ -30,10 +29,10 @@ export type GameplayEmitted = { type: "PLAYER_READY_ERROR"; error: Error };
 
 export function createGameplayMachine({
   phaseTimeoutMs,
-  readyTimerMs,
+  diaryTimeoutMs,
 }: {
   phaseTimeoutMs: number;
-  readyTimerMs: number;
+  diaryTimeoutMs: number;
 }) {
   return setup({
     types: {
@@ -42,9 +41,12 @@ export function createGameplayMachine({
       input: {} as GameplayInput,
       emitted: {} as GameplayEmitted,
     },
-    actors: {
-      diary: createDiaryMachine({ readyTimerMs }),
-      readyToPlay: createReadyToPlayMachine(),
+    guards: {
+      allPlayersReady: ({ context }) => {
+        const playerIds = Object.keys(context.playersReady);
+        if (playerIds.length === 0) return false;
+        return playerIds.every((id) => context.playersReady[id]);
+      },
     },
   }).createMachine({
     id: "phase",
@@ -52,6 +54,13 @@ export function createGameplayMachine({
       players: input.players,
       currentPhase: input.initialPhase,
       nextPhase: input.nextPhase,
+      playersReady: input.players.reduce(
+        (acc, player) => {
+          acc[player] = false;
+          return acc;
+        },
+        {} as Record<UUID, boolean>,
+      ),
     }),
     initial: "gameplay",
     states: {
@@ -64,54 +73,43 @@ export function createGameplayMachine({
         },
       },
       diary: {
-        always: {
-          actions: sendTo("diary", ({ event }) => event),
-        },
-        // Invoke the diary interview flow
-        invoke: {
-          id: "diary",
-          src: "diary",
-          input: ({ context }) => ({
-            players: context.players,
-          }),
-          onDone: {
-            target: "strategy",
-          },
-          onError: {
-            target: "strategy",
-          },
-        },
-        after: {
-          [phaseTimeoutMs]: {
-            target: "strategy",
+        on: {
+          ARE_YOU_READY: {
+            target: "awaitingPlayers",
           },
         },
       },
-      strategy: {
-        always: {
-          actions: sendTo("readyToPlay", ({ event }) => event),
-        },
-        invoke: {
-          id: "readyToPlay",
-          src: "readyToPlay",
-          input: ({ context }) => ({
-            players: context.players,
-          }),
-          onDone: {
-            target: "end",
+      awaitingPlayers: {
+        always: [
+          {
+            guard: ({ context }) => {
+              const playerIds = Object.keys(context.playersReady);
+              if (playerIds.length === 0) return false;
+              return playerIds.every((id) => context.playersReady[id]);
+            },
+            target: "allPlayersReady",
           },
-          onError: {
-            target: "end",
+        ],
+        on: {
+          PLAYER_READY: {
+            target: "awaitingPlayers",
             actions: [
-              emit(({ event }) => ({
-                type: "PLAYER_READY_ERROR",
-                error: event.error as Error,
-              })),
+              assign({
+                playersReady: ({ context, event }) => ({
+                  ...context.playersReady,
+                  [event.playerId]: true,
+                }),
+              }),
             ],
           },
         },
+        after: {
+          [diaryTimeoutMs]: {
+            target: "allPlayersReady",
+          },
+        },
       },
-      end: { type: "final" },
+      allPlayersReady: { type: "final" },
     },
   });
 }
