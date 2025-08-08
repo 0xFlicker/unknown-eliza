@@ -73,6 +73,10 @@ function canSendGameEvent(role: AgentRole, gameEventType: string): boolean {
       // Players can send I_AM_READY events
       return role === AgentRole.PLAYER || role === AgentRole.HOUSE;
 
+    case "GAME:PLAYER_READY":
+      // Players can announce readiness in response to prompts
+      return role === AgentRole.PLAYER || role === AgentRole.HOUSE;
+
     case "GAME:PHASE_STARTED":
     case "GAME:ALL_PLAYERS_READY":
     case "GAME:TIMER_UPDATE":

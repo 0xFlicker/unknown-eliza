@@ -8,7 +8,6 @@ import {
   createGameEventMessage,
   createAgentReadyMessage,
   GameEventPayloadMap,
-  GameEventType,
   GameEventCoordinationMessage,
   AnyCoordinationMessage,
 } from "./types";
@@ -57,8 +56,13 @@ export class CoordinationService extends Service {
 
         if (!targeted) return;
 
-        // Emit into the local runtime so plugins can react via `events`
-        await runtime.emitEvent(message.payload.type, {
+        // Emit into the local runtime so plugins can react via `events`.
+        // Prefix with "GAME:" to match plugin event keys (e.g., "GAME:ARE_YOU_READY").
+        const eventKey = `GAME:${message.payload.action.type}`;
+        console.log(
+          `[CoordinationService] Emitting runtime event ${eventKey} for ${runtime.character?.name}`,
+        );
+        await runtime.emitEvent(eventKey, {
           ...message.payload,
           runtime,
         });
@@ -103,14 +107,15 @@ export class CoordinationService extends Service {
     payload: GameEventPayloadMap[T],
     targetAgents: UUID[] | "all" | "others" = "others",
   ): Promise<void> {
-    if (!canSendMessage(this.runtime, "game_event", payload.type)) {
+    const namespacedType = `GAME:${payload.action.type}`;
+    if (!canSendMessage(this.runtime, "game_event", namespacedType)) {
       throw new Error(
-        `Agent ${this.runtime.character?.name} is not authorized to send game event: ${payload.type}`,
+        `Agent ${this.runtime.character?.name} is not authorized to send game event: ${namespacedType}`,
       );
     }
 
     logger.debug(
-      `Sending game event ${payload.type} from ${this.runtime.character?.name} to ${targetAgents}`,
+      `Sending game event ${namespacedType} from ${this.runtime.character?.name} to ${targetAgents}`,
     );
 
     const coordinationMessage = createGameEventMessage(
@@ -121,52 +126,10 @@ export class CoordinationService extends Service {
 
     await this.sendCoordinationMessage(coordinationMessage);
 
-    logger.debug(`Game event ${payload.type} sent successfully`, {
+    logger.debug(`Game event ${payload.action.type} sent successfully`, {
       targetAgents,
       messageId: coordinationMessage.messageId,
     });
-  }
-
-  /**
-   * Send an agent ready signal via coordination channel
-   */
-  async sendAgentReady({
-    readyType,
-    gameId,
-    roomId,
-    targetPhase,
-  }: {
-    readyType: "strategic_thinking" | "diary_room" | "phase_action";
-    targetPhase?: Phase;
-    gameId: UUID;
-    roomId: UUID;
-  }): Promise<void> {
-    try {
-      const coordinationMessage = createAgentReadyMessage(
-        this.runtime.agentId,
-        {
-          readyType,
-          gameId,
-          roomId,
-          targetPhase,
-          runtime: this.runtime,
-          source: this.runtime.agentId,
-          type: GameEventType.ARE_YOU_READY,
-          timestamp: Date.now(),
-        },
-      );
-
-      await this.sendCoordinationMessage(coordinationMessage);
-
-      logger.debug(`Sent agent ready signal: ${readyType}`, {
-        gameId,
-        roomId,
-        messageId: coordinationMessage.messageId,
-      });
-    } catch (error) {
-      logger.error(`Failed to send agent ready signal: ${readyType}`, error);
-      throw error;
-    }
   }
 
   /**

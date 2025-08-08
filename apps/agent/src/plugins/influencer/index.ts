@@ -22,7 +22,7 @@ import {
   eliminateAction,
   protectAction,
 } from "./actions";
-import { GameEventType, GameEventHandlers } from "../coordinator/types";
+import { GameEventHandlers } from "../coordinator/types";
 import { CoordinationService } from "../coordinator";
 import { Phase } from "@/memory/types";
 
@@ -52,8 +52,11 @@ export const influencerPlugin: Plugin = {
   },
   events: {
     // Coordination handled via internal bus; no MESSAGE_RECEIVED hook needed.
-    [GameEventType.ARE_YOU_READY]: [
-      async ({ runtime, gameId, roomId, readyType, targetPhase }) => {
+    ["GAME:ARE_YOU_READY"]: [
+      async ({ runtime, gameId, roomId, action }) => {
+        console.log(
+          `🎭 Influencer(${runtime.character?.name}) received GAME:ARE_YOU_READY for game ${gameId} room ${roomId}`,
+        );
         const coordinationService = runtime.getService(
           CoordinationService.serviceType,
         ) as CoordinationService;
@@ -63,29 +66,23 @@ export const influencerPlugin: Plugin = {
           );
           return;
         }
-
-        logger.info(
-          `${runtime.character?.name} responding to ARE_YOU_READY for ${readyType}`,
+        console.log(
+          `🎭 Influencer(${runtime.character?.name}) sending PLAYER_READY`,
         );
-
         await coordinationService.sendGameEvent(
           {
             gameId,
             roomId,
-            playerId: runtime.agentId,
-            playerName: runtime.character?.name || "Unknown Player",
-            readyType: readyType,
-            targetPhase: targetPhase,
+            action: { type: "PLAYER_READY", playerId: runtime.agentId },
             timestamp: Date.now(),
             runtime,
             source: "influencer-plugin",
-            type: GameEventType.I_AM_READY,
           },
           "others",
         );
       },
     ],
-    [GameEventType.PHASE_STARTED]: [
+    ["GAME:PHASE_STARTED"]: [
       async ({ runtime, phase, gameId, roomId }) => {
         if (phase === Phase.INIT) {
           const coordinationService = runtime.getService(
@@ -102,29 +99,14 @@ export const influencerPlugin: Plugin = {
             {
               gameId,
               roomId,
-              playerId: runtime.agentId,
-              playerName: runtime.character?.name || "Unknown Player",
-              readyType: "phase_action",
-              targetPhase: Phase.LOBBY,
+              action: { type: "PLAYER_READY", playerId: runtime.agentId },
               timestamp: Date.now(),
               runtime,
               source: "influencer-plugin",
-              type: GameEventType.I_AM_READY,
             },
             "others",
           );
         }
-      },
-    ],
-    [GameEventType.DIARY_ROOM_OPENED]: [
-      async ({ runtime, gameId, roomId }) => {
-        logger.info(`Diary room opened for ${runtime.character?.name}`, {
-          gameId,
-          roomId,
-        });
-
-        // The coordination system will create a synthetic message
-        // that should trigger the diary room action
       },
     ],
   } as GameEventHandlers,
