@@ -12,7 +12,7 @@ import {
   AnyCoordinationMessage,
 } from "./types";
 import { Phase } from "@/memory/types";
-import internalMessageBus, { gameEvent$ } from "./bus";
+import internalMessageBus, { gameEvent$, messages$ } from "./bus";
 import { canSendMessage } from "./roles";
 import { Subscription } from "rxjs";
 
@@ -29,9 +29,11 @@ export class CoordinationService extends Service {
   constructor(runtime: IAgentRuntime) {
     super(runtime);
     this.subscriptions = [];
+    this.announcedIntroReady = new Set();
   }
 
   private subscriptions: Subscription[];
+  private announcedIntroReady: Set<UUID>;
   /**
    * Create and start the service
    */
@@ -74,6 +76,40 @@ export class CoordinationService extends Service {
     );
 
     // Future: subscribe to additional coordination streams as needed
+    service.subscriptions.push(
+      messages$.subscribe(async (message) => {
+        try {
+          // Only the House translates its own prompts into phase coordination
+          if (
+            getAgentRole(runtime) !== AgentRole.HOUSE ||
+            message.author_id !== runtime.agentId
+          ) {
+            return;
+          }
+          const channelId = message.channel_id as UUID;
+          if (service.announcedIntroReady.has(channelId)) return;
+          service.announcedIntroReady.add(channelId);
+          await service.sendGameEvent(
+            {
+              gameId: channelId,
+              roomId: channelId,
+              runtime,
+              source: "house",
+              timestamp: message.created_at,
+              action: {
+                type: "ALL_PLAYERS_READY",
+                fromPhase: Phase.INTRODUCTION,
+                toPhase: Phase.LOBBY,
+                transitionReason: "all_players_ready",
+              } as any,
+            } as any,
+            "others",
+          );
+        } catch (err) {
+          logger.warn("Failed to announce ALL_PLAYERS_READY from message", err);
+        }
+      }),
+    );
     return service;
   }
 
@@ -118,9 +154,21 @@ export class CoordinationService extends Service {
       `Sending game event ${namespacedType} from ${this.runtime.character?.name} to ${targetAgents}`,
     );
 
+    // Enrich payload with the fully-qualified type and hoist common fields
+    const enrichedPayload: any = {
+      ...payload,
+      type: namespacedType,
+    };
+    const actionAny: any = payload.action as any;
+    if (actionAny?.fromPhase) {
+      enrichedPayload.fromPhase = actionAny.fromPhase;
+      enrichedPayload.toPhase = actionAny.toPhase;
+      enrichedPayload.transitionReason = actionAny.transitionReason;
+    }
+
     const coordinationMessage = createGameEventMessage(
       this.runtime.agentId,
-      payload,
+      enrichedPayload,
       targetAgents,
     );
 

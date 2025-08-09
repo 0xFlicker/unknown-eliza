@@ -24,15 +24,15 @@ describe("INIT → INTRODUCTION transition", () => {
     actor.send({ type: "ARE_YOU_READY" });
 
     // First player ready – should still be in INIT
-    actor.send({ type: "PLAYER_READY", playerId: "p1" });
+    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p1") });
     expect(actor.getSnapshot().value).toBe("gameplay");
 
     // Second player ready – still INIT
-    actor.send({ type: "PLAYER_READY", playerId: "p2" });
+    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p2") });
     expect(actor.getSnapshot().value).toBe("gameplay");
 
     // Last player ready – should transition
-    actor.send({ type: "PLAYER_READY", playerId: "p3" });
+    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p3") });
 
     expect(actor.getSnapshot().value).toBe("gameplay");
   });

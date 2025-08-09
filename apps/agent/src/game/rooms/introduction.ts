@@ -59,6 +59,14 @@ export function createIntroductionMachine({
     initial: "waiting",
     states: {
       waiting: {
+        after: {
+          0: {
+            target: "strategy",
+          },
+          [roundTimeoutMs]: {
+            target: "strategy",
+          },
+        },
         on: {
           MESSAGE_SENT: {
             actions: assign(({ context, event }) => ({
@@ -71,10 +79,17 @@ export function createIntroductionMachine({
               },
             })),
           },
-        },
-        after: {
-          [roundTimeoutMs]: {
-            target: "strategy",
+          // Treat readiness as a proxy for introduction (iteration 1)
+          PLAYER_READY: {
+            actions: assign(({ context, event }) => ({
+              introductionMessages: {
+                ...context.introductionMessages,
+                [event.playerId]: [
+                  ...(context.introductionMessages[event.playerId] || []),
+                  "ready" as unknown as UUID,
+                ],
+              },
+            })),
           },
         },
         always: {
@@ -83,8 +98,16 @@ export function createIntroductionMachine({
         },
       },
       strategy: {
-        always: {
-          actions: sendTo("strategy", ({ event }) => event),
+        entry: [
+          // Broadcast and kick off readiness collection for the gameplay child
+          emit(() => ({ type: "ARE_YOU_READY" })),
+          sendTo("strategy", { type: "END_ROUND" }),
+          sendTo("strategy", { type: "ARE_YOU_READY" }),
+        ],
+        on: {
+          "*": {
+            actions: [sendTo("strategy", ({ event }) => event)],
+          },
         },
         invoke: {
           id: "strategy",

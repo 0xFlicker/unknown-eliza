@@ -16,8 +16,7 @@ export enum Phase {
  * Game settings and configuration
  */
 export interface GameSettings {
-  maxPlayers: number;
-  minPlayers: number;
+  id: UUID;
   timers: {
     // in milliseconds
     diary: number;
@@ -63,32 +62,3 @@ export interface GameContext {
   /** Map of playerId -> diary room id */
   diaryRooms?: Record<string, string>;
 }
-
-/**
- * Default game settings
- */
-export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  maxPlayers: 12,
-  minPlayers: 4,
-  timers: {
-    diary: 10 * 60 * 1000, // 10 minutes
-    round: 10 * 60 * 1000, // 10 minutes
-  },
-};
-
-export type GameEvent =
-  | {
-      type: "PLAYER_READY";
-      playerId: string;
-    }
-  | {
-      type: "RESET_READY";
-    }
-  | { type: "INTRO_MESSAGE"; playerId: string }
-  | { type: "TIMER_EXPIRED" }
-  | { type: "PHASE_CHANGE_INITIATED" }
-  | { type: "ALL_PLAYERS_READY" }
-  | { type: "DIARY_ROOM_QUESTION"; playerId: string; diaryRoomId: string }
-  | { type: "ARE_YOU_READY"; nextPhase: Phase }
-  | { type: "INTRODUCTION_TIMER_EXPIRED" }
-  | { type: "READY_TIMER_EXPIRED" };

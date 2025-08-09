@@ -12,6 +12,9 @@ import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
 import { ChannelConfig, ParticipantMode, ParticipantState } from "./types";
+import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
+import { createActor } from "xstate";
+import { GameSettings } from "@/game/types";
 
 /**
  * Game configuration for creating a new game
@@ -31,10 +34,11 @@ export interface GameSession {
   name: string;
   players: UUID[];
   settings: HousePluginConfig;
-  phase: Phase;
   channels: Set<UUID>;
   createdAt: number;
-  houseAgent: IAgentRuntime;
+  phaseInput: PhaseInput;
+  phaseSettings: GameSettings;
+  phase: ReturnType<typeof createPhaseActor>;
 }
 
 /**
@@ -66,17 +70,19 @@ export class GameManager<
       `game-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     );
 
-    // Validate all players exist
-    const playerAgents = players.map((playerId) => {
-      const runtime = this.agentManager.getAgentRuntime(playerId);
-      if (!runtime) {
-        throw new Error(`Player agent ${playerId} not found`);
-      }
-      return {
-        id: playerId,
-        character: runtime.character,
-      };
-    });
+    const phaseInput: PhaseInput = {
+      players,
+      maxPlayers: config.settings?.maxPlayers || 8,
+      minPlayers: config.settings?.minPlayers || 4,
+    };
+
+    const phaseSettings = {
+      id: gameId,
+      timers: {
+        diary: config.settings?.phaseTimeouts?.diary || 10000,
+        round: config.settings?.phaseTimeouts?.round || 10000,
+      },
+    };
 
     // Create game session
     const gameSession: GameSession = {
@@ -84,15 +90,22 @@ export class GameManager<
       name: name || `Game ${gameId.substring(0, 8)}`,
       players,
       settings: {
-        minPlayers: 4,
-        maxPlayers: 8,
+        minPlayers: config.settings?.minPlayers || 4,
+        maxPlayers: config.settings?.maxPlayers || 8,
         autoStartGame: true,
         ...settings,
       },
-      phase: initialPhase,
       channels: new Set(),
       createdAt: Date.now(),
-      houseAgent: this.houseAgent,
+      phaseInput,
+      phaseSettings,
+      phase: createPhaseActor(
+        createPhaseMachine({
+          id: gameId,
+          timers: phaseSettings.timers,
+        }),
+        phaseInput,
+      ),
     };
 
     // Store game session
@@ -207,21 +220,6 @@ export class GameManager<
   }
 
   /**
-   * Update game phase
-   */
-  async updateGamePhase(gameId: UUID, newPhase: Phase): Promise<void> {
-    const gameSession = this.games.get(gameId);
-    if (!gameSession) {
-      throw new Error(`Game ${gameId} not found`);
-    }
-
-    const oldPhase = gameSession.phase;
-    gameSession.phase = newPhase;
-
-    logger.info(`Updated game ${gameId} phase: ${oldPhase} → ${newPhase}`);
-  }
-
-  /**
    * Remove a game and clean up all associated resources
    */
   async removeGame(gameId: UUID): Promise<void> {
@@ -252,7 +250,8 @@ export class GameManager<
       totalGameChannels: this.gamesByChannel.size,
       gamesByPhase: Array.from(this.games.values()).reduce(
         (acc, game) => {
-          acc[game.phase] = (acc[game.phase] || 0) + 1;
+          acc[game.phase.getSnapshot().value] =
+            (acc[game.phase.getSnapshot().value] || 0) + 1;
           return acc;
         },
         {} as Record<Phase, number>,
@@ -288,16 +287,6 @@ export class GameManager<
       };
     });
 
-    // Create game state for this runtime
-    const gameState = GameStatePreloader.createGameState({
-      playerAgents: playerAgents as any,
-      runtime,
-      phase: gameSession.phase,
-      round: gameSession.phase === Phase.LOBBY ? 0 : 1,
-      settings: gameSession.settings,
-      gameId,
-    });
-
     // Ensure the channel room exists in this runtime
     const worldId = createUniqueUuid(runtime, this.messageServerId);
     await runtime.ensureRoomExists({
@@ -310,11 +299,12 @@ export class GameManager<
     });
 
     // Save game state to the channel room
-    await GameStatePreloader.saveGameStateToRuntime(
-      runtime,
-      channelId,
-      gameState,
-    );
+    await GameStatePreloader.saveGameStateToRuntime(runtime, gameId, {
+      id: gameId,
+      gameSettings: gameSession.phaseSettings,
+      phaseInput: gameSession.phaseInput,
+      phaseSnapshot: gameSession.phase.getSnapshot(),
+    });
 
     // Store the gameId in runtime cache for easy access
     await runtime.setCache(`channel_${channelId}_gameId`, gameId);

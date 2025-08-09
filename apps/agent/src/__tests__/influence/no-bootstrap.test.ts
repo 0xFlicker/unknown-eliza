@@ -1,33 +1,23 @@
 import path from "path";
 import { describe, it, expect } from "bun:test";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
-import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { socialStrategyPlugin } from "../../plugins/socialStrategy";
-import alexCharacter from "../../characters/alex";
-import houseCharacter from "../../characters/house";
 import { influencerPlugin } from "../../plugins/influencer";
 import {
   CoordinationService,
   coordinatorPlugin,
 } from "../../plugins/coordinator";
 import { RecordingTestUtils } from "../utils/recording-test-utils";
-import {
-  GameEventType,
-  AnyCoordinationMessage,
-  AreYouReadyPayload,
-  PhaseEventPayload,
-} from "../../plugins/coordinator/types";
+import { AnyCoordinationMessage } from "../../plugins/coordinator/types";
 import { Phase } from "@/memory/types";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { InfluenceApp } from "../../server/influence-app";
 import { Agent, ParticipantMode, ParticipantState } from "../../server/types";
 import { ModelMockingService } from "../utils/model-mocking-service";
-import { GameStatePreloader } from "../utils/game-state-preloader";
 import {
   firstValueFrom,
   take,
-  takeLast,
   tap,
   toArray,
   filter,
@@ -79,7 +69,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         gameEvents.push(event);
         if (
           event.type === "coordination_message" &&
-          event.payload.type === GameEventType.PHASE_STARTED
+          event.payload.action.type === "ALL_PLAYERS_READY"
         ) {
           const payload: any = event.payload;
           phaseTransitions.push({
@@ -204,11 +194,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
           ),
           takeWhile((events) => {
             const lastEvent = events[events.length - 1];
-            // Stop collecting when we see PHASE_TRANSITION_INITIATED
-            return (
-              lastEvent?.payload?.type !==
-              GameEventType.PHASE_TRANSITION_INITIATED
-            );
+            // Stop collecting when we see ALL_PLAYERS_READY
+            return lastEvent?.payload?.action.type !== "ALL_PLAYERS_READY";
           }, true), // Include the final event
         ),
       );
@@ -216,13 +203,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       await coordinationService!.sendGameEvent({
         gameId,
         roomId: mainChannelId,
-        readyType: "phase_action",
-        targetPhase: Phase.WHISPER,
-        timeoutMs: 300000, // 5 minutes
+        action: { type: "ARE_YOU_READY" },
         timestamp: Date.now(),
         runtime: houseRuntime,
         source: "test-setup",
-        type: GameEventType.ARE_YOU_READY,
       });
 
       // Phase 4: House announces LOBBY phase to all players
@@ -256,29 +240,22 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       // Phase 6: Event-Driven Phase Transition LOBBY → WHISPER
       // [Code removed for being confusing]
 
+      expect(allEvents.length).toBeGreaterThan(0);
+      expect(messageCount).toBeGreaterThan(0);
+
       console.log(
         `✓ Event-driven phase transition STILL NEEDS WORK: LOBBY → WHISPER`,
       );
       console.log(`📊 Captured ${allEvents.length} events`);
       console.log(allEvents);
       console.log(
-        allEvents.filter((e) => e.payload.type === GameEventType.ARE_YOU_READY),
+        allEvents.filter((e) => e.payload.action.type === "ALL_PLAYERS_READY"),
       );
       console.log(
-        allEvents.filter((e) => e.payload.type === GameEventType.PHASE_STARTED),
-      );
-      console.log(
-        allEvents.filter(
-          (e) => e.payload.type === GameEventType.PHASE_TRANSITION_INITIATED,
-        ),
-      );
-      console.log(
-        allEvents.filter(
-          (e) => e.payload.type === GameEventType.PHASE_TRANSITION_INITIATED,
-        ),
+        allEvents.filter((e) => e.payload.action.type === "PLAYER_READY"),
       );
     } finally {
       await app.stop();
     }
-  }, 720000); // 12 minute timeout for comprehensive testing
+  }, 60000); // 1 minute timeout for comprehensive testing
 });

@@ -9,8 +9,7 @@ describe("Phase → DiaryRoom integration", () => {
     const p1 = stringToUuid("p1");
     const actor = createActor(
       createPhaseMachine({
-        maxPlayers: 12,
-        minPlayers: 4,
+        id: stringToUuid("game1"),
         timers: {
           diary: 1000,
           round: 1000,
@@ -19,13 +18,15 @@ describe("Phase → DiaryRoom integration", () => {
       {
         input: {
           players: [p1],
+          maxPlayers: 2,
+          minPlayers: 1,
         },
       },
     ).start();
 
     expect(actor.getSnapshot().value).toBe("init");
 
-    actor.send({ type: "NEXT_PHASE" });
+    actor.send({ type: "PLAYER_READY", playerId: p1 });
 
     expect(actor.getSnapshot().value).toBe("introduction");
     actor.send({
@@ -39,7 +40,6 @@ describe("Phase → DiaryRoom integration", () => {
     expect(actor.getSnapshot().value).toBe("lobby");
 
     // Respond ready, which should complete diary and go to LOBBY
-    actor.send({ type: "NEXT_PHASE" });
     actor.send({ type: "END_ROUND" });
     actor.send({ type: "ARE_YOU_READY" });
     actor.send({ type: "PLAYER_READY", playerId: p1 });

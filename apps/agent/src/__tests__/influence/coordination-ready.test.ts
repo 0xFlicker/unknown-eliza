@@ -3,7 +3,6 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import {
   CoordinationService,
   coordinatorPlugin,
-  GameEventType,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, take } from "rxjs";
@@ -43,7 +42,6 @@ describe("Coordination Plugin - Ready Coordination", () => {
           plugins: [
             coordinatorPlugin,
             influencerPlugin,
-            bootstrapPlugin,
             sqlPlugin,
             openaiPlugin,
           ],
@@ -52,15 +50,15 @@ describe("Coordination Plugin - Ready Coordination", () => {
         players.push(player);
       }
 
-      // Prepare observers for each player's I_AM_READY response
+      // Prepare observers for each player's PLAYER_READY response
       const readySignals = players.map(({ id }) =>
         firstValueFrom(
           gameEvent$.pipe(
             filter(
               (evt) =>
                 evt.type === "coordination_message" &&
-                evt.payload.type === GameEventType.I_AM_READY &&
-                evt.payload.playerId === id,
+                evt.payload.action.type === "PLAYER_READY" &&
+                evt.payload.action.playerId === id,
             ),
             take(1),
           ),
@@ -97,14 +95,13 @@ describe("Coordination Plugin - Ready Coordination", () => {
       expect(coordinationService).toBeDefined();
       expect(coordinationService).not.toBeNull();
 
+      console.log("🏠 Sending ARE_YOU_READY event");
       await coordinationService?.sendGameEvent(
         {
-          type: GameEventType.ARE_YOU_READY,
+          action: { type: "ARE_YOU_READY" },
           gameId: gameId,
           roomId: channelId,
           timestamp: Date.now(),
-          readyType: "strategic_thinking",
-          targetPhase: Phase.INTRODUCTION,
           runtime: app.getHouseAgent(),
           source: app.getHouseAgent().agentId,
         },

@@ -3,7 +3,6 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import {
   CoordinationService,
   coordinatorPlugin,
-  GameEventType,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, take } from "rxjs";
@@ -105,8 +104,8 @@ describe("Minimal Game Test", () => {
             filter(
               (evt) =>
                 evt.type === "coordination_message" &&
-                evt.payload.type === GameEventType.I_AM_READY &&
-                evt.payload.playerId === id,
+                evt.payload.action.type === "PLAYER_READY" &&
+                evt.payload.action.playerId === id,
             ),
             take(1),
           ),
@@ -116,12 +115,10 @@ describe("Minimal Game Test", () => {
       // Send ARE_YOU_READY event
       await coordinationService!.sendGameEvent(
         {
-          type: GameEventType.ARE_YOU_READY,
+          action: { type: "ARE_YOU_READY" },
           gameId: gameId,
           roomId: channelId,
           timestamp: Date.now(),
-          readyType: "strategic_thinking",
-          targetPhase: Phase.INTRODUCTION,
           runtime: house,
           source: house.agentId,
         },

@@ -1,5 +1,5 @@
 // Replace Phase state machine with basic setup builder (no diary invoke yet)
-import { assign, setup } from "xstate";
+import { assign, emit, setup } from "xstate";
 import { Phase } from "./types";
 import { UUID } from "@elizaos/core";
 
@@ -23,7 +23,7 @@ export type GameplayEvent =
   | { type: "ARE_YOU_READY" }
   | { type: "ALL_PLAYERS_READY" }
   | { type: "END_ROUND" }
-  | { type: "PLAYER_READY"; playerId: string };
+  | { type: "PLAYER_READY"; playerId: UUID };
 
 export type GameplayEmitted = { type: "PLAYER_READY_ERROR"; error: Error };
 
@@ -35,6 +35,14 @@ export function createGameplayMachine({
   diaryTimeoutMs: number;
 }) {
   return setup({
+    actions: {
+      announceAllPlayersReady: emit(({ context }) => ({
+        type: "ALL_PLAYERS_READY",
+        fromPhase: context.currentPhase,
+        toPhase: context.nextPhase,
+        transitionReason: "all_players_ready",
+      })),
+    },
     types: {
       context: {} as GameplayContext,
       events: {} as GameplayEvent,
@@ -109,7 +117,10 @@ export function createGameplayMachine({
           },
         },
       },
-      allPlayersReady: { type: "final" },
+      allPlayersReady: {
+        entry: ["announceAllPlayersReady"],
+        type: "final",
+      },
     },
   });
 }

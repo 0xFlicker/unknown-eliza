@@ -5,15 +5,10 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { socialStrategyPlugin } from "../../plugins/socialStrategy";
 import alexCharacter from "../../characters/alex";
-import houseCharacter from "../../characters/house";
-import { housePlugin } from "../../plugins/house";
 import { influencerPlugin } from "../../plugins/influencer";
 import { coordinatorPlugin } from "../../plugins/coordinator";
 import { expectSoft, RecordingTestUtils } from "../utils/recording-test-utils";
-import {
-  GameEventType,
-  AnyCoordinationMessage,
-} from "../../plugins/coordinator/types";
+import { AnyCoordinationMessage } from "../../plugins/coordinator/types";
 import { Phase } from "@/memory/types";
 import {
   createUniqueUuid,
@@ -84,7 +79,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         gameEvents.push(event);
         if (
           event.type === "coordination_message" &&
-          event.payload.type === GameEventType.PHASE_STARTED
+          event.payload.action.type === "ALL_PLAYERS_READY"
         ) {
           const payload: any = event.payload;
           phaseTransitions.push({

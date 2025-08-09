@@ -1,9 +1,11 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
 import { saveGameState } from "../../memory/runtime";
-import { GameState, DEFAULT_GAME_SETTINGS } from "../../memory/types";
+import { GameState } from "../../memory/types";
 import { Agent } from "../../server/types";
 import { Phase } from "@/memory/types";
 import { GameSettings, Player, PlayerStatus } from "@/game/types";
+import { GameConfig, GameSession } from "@/server/game-manager";
+import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases
@@ -13,79 +15,54 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
   /**
    * Creates a pre-populated game state with specified players
    */
-  static createGameState<Context extends Record<string, unknown>>(options: {
-    playerAgents: Agent<Context>[];
-    runtime: IAgentRuntime; // Optional runtime for saving state
-    phase: Phase;
-    round?: number;
-    settings?: Omit<Partial<GameSettings>, "timers"> & {
-      timers?: Partial<GameSettings["timers"]>;
-    }; // Override default game settings
+  static createGameSession<Context extends Record<string, unknown>>(options: {
+    runtime: IAgentRuntime;
+    config: GameConfig;
     gameId?: UUID; // Use provided gameId instead of generating one
-  }): GameState {
-    const {
-      playerAgents,
-      runtime,
-      phase = Phase.INIT,
-      round = 0,
-      settings: customSettings,
-      gameId: providedGameId,
-    } = options;
+  }): GameSession {
+    const { runtime, config, gameId: providedGameId } = options;
 
-    const players: Record<string, Player> = {};
     const gameId = providedGameId || stringToUuid(`test-game-${Date.now()}`);
+    const phaseInput: PhaseInput = {
+      players: config.players,
+      maxPlayers: config.settings?.maxPlayers || 8,
+      minPlayers: config.settings?.minPlayers || 4,
+    };
 
-    // Create players with real agent IDs if provided
-    playerAgents.forEach((agent, index) => {
-      const playerId = agent.id;
-      const player: Player = {
-        id: playerId,
-        name: agent.character.name,
-        status: PlayerStatus.ALIVE,
-        joinedAt: Date.now() - index * 1000, // Stagger join times
-      };
-      players[playerId] = player;
-    });
-
-    const gameState: GameState = {
+    const phaseSettings: GameSettings = {
       id: gameId,
-      phase,
-      round,
-      players,
-      votes: [],
-      privateRooms: {},
-      exposedPlayers: [],
-      settings: {
-        ...DEFAULT_GAME_SETTINGS,
-        ...customSettings,
-        timers: {
-          ...DEFAULT_GAME_SETTINGS.timers,
-          ...customSettings?.timers,
-        },
-      },
-      history: [],
-      isActive: phase !== Phase.INIT,
-      hostId: runtime.agentId,
-      phaseState: {
-        introductionMessages: {},
-        introductionComplete: [],
+      timers: {
+        diary: config.settings?.phaseTimeouts?.diary || 10000,
+        round: config.settings?.phaseTimeouts?.round || 10000,
       },
     };
 
-    // Add join events to history
-    for (const [index, player] of Object.values(players).entries()) {
-      gameState.history.push({
-        id: stringToUuid(`join-event-${player.name}-${Date.now()}`),
-        type: "PLAYER_JOINED",
-        playerId: player.id,
-        phase: Phase.INIT,
-        round: 0,
-        timestamp: Date.now() - (playerAgents.length - index) * 1000,
-        details: { playerName: player.name },
-      });
-    }
+    const gameSession: GameSession = {
+      id: gameId,
+      name: config.name || `Game ${gameId.substring(0, 8)}`,
+      settings: {
+        minPlayers: config.settings?.minPlayers || 4,
+        maxPlayers: config.settings?.maxPlayers || 8,
+        autoStartGame: true,
+        ...config.settings,
+      },
+      players: config.players,
+      channels: new Set(),
+      createdAt: Date.now(),
+      phaseInput,
+      phaseSettings,
+      phase: createPhaseActor(
+        createPhaseMachine({
+          id: gameId,
+          timers: phaseSettings.timers,
+        }),
+        phaseInput,
+      ),
+    };
 
-    return gameState;
+    gameSession.phase.start();
+
+    return gameSession;
   }
 
   /**
@@ -93,11 +70,11 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    */
   static async saveGameStateToRuntime(
     runtime: IAgentRuntime,
-    roomId: UUID,
+    gameId: UUID,
     gameState: GameState,
   ): Promise<void> {
     // Use the memory DAO to save the game state properly
-    await saveGameState(runtime, roomId, gameState);
+    await saveGameState(runtime, gameId, gameState);
   }
 
   /**
@@ -105,22 +82,27 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    */
   static async preloadInfluenceGame<Context extends Record<string, unknown>>(
     runtime: IAgentRuntime,
-    roomId: UUID,
     options: {
       playerAgents: Agent<Context>[];
       phase?: Phase;
     },
-  ): Promise<GameState> {
+  ): Promise<GameSession> {
     const { playerAgents = [], phase = Phase.INIT } = options;
 
-    const gameState = this.createGameState({
+    const gameState = this.createGameSession({
       runtime,
-      playerAgents,
-      phase,
-      round: phase === Phase.LOBBY ? 0 : 1,
+      config: {
+        players: playerAgents.map((agent) => agent.id),
+        settings: {},
+      },
     });
 
-    await this.saveGameStateToRuntime(runtime, roomId, gameState);
+    await this.saveGameStateToRuntime(runtime, gameState.id, {
+      id: gameState.id,
+      gameSettings: gameState.phaseSettings,
+      phaseInput: gameState.phaseInput,
+      phaseSnapshot: gameState.phase.getPersistedSnapshot(),
+    });
 
     console.log(
       `🎮 Pre-loaded game state: ${playerAgents.length} players, phase ${phase}, host: ${runtime.character.name}`,
@@ -140,28 +122,23 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     roomId: UUID;
     runtime: IAgentRuntime;
     playerAgents: Agent<Context>[];
-  }): Promise<GameState> {
-    const gameState = this.createGameState({
-      playerAgents,
-      phase: Phase.LOBBY,
-      round: 0,
+  }): Promise<GameSession> {
+    const gameState = this.createGameSession({
       runtime,
+      config: {
+        players: playerAgents.map((agent) => agent.id),
+        settings: {},
+      },
     });
 
-    // Add game start event to history
-    gameState.history.push({
-      id: stringToUuid(`game-start-${Date.now()}`),
-      type: "GAME_STARTED",
-      playerId: gameState.hostId!,
-      phase: Phase.LOBBY,
-      round: 0,
-      timestamp: Date.now(),
-      details: { playerCount: Object.keys(gameState.players).length },
+    const { phase } = gameState;
+
+    await this.saveGameStateToRuntime(runtime, gameState.id, {
+      id: gameState.id,
+      gameSettings: gameState.phaseSettings,
+      phaseInput: gameState.phaseInput,
+      phaseSnapshot: gameState.phase.getPersistedSnapshot(),
     });
-
-    gameState.timerEndsAt = Date.now() + gameState.settings.timers.round;
-
-    await this.saveGameStateToRuntime(runtime, roomId, gameState);
 
     console.log(
       `🎮 Pre-loaded LOBBY phase: ${playerAgents.length} players ready for conversation`,
@@ -175,60 +152,30 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
    */
   static async preloadGamePhase<Context extends Record<string, unknown>>({
     runtime,
-    roomId,
     phase,
     playerAgents,
-    round = 1,
-    empoweredPlayer,
-    exposedPlayers = [],
   }: {
     runtime: IAgentRuntime;
     roomId: UUID;
     phase: Phase;
     playerAgents: Agent<Context>[];
-    round?: number;
-    empoweredPlayer?: string;
-    exposedPlayers?: string[];
-  }): Promise<GameState> {
-    const gameState = this.createGameState({
-      playerAgents,
+  }): Promise<GameSession> {
+    const gameState = this.createGameSession({
       runtime,
-      phase,
-      round,
+      config: {
+        players: playerAgents.map((agent) => agent.id),
+        settings: {},
+      },
     });
 
-    // Set phase-specific state
-    if (empoweredPlayer) {
-      const empoweredPlayerId = Object.values(gameState.players).find(
-        (p) => p.name === empoweredPlayer,
-      )?.id;
-      if (empoweredPlayerId) {
-        gameState.empoweredPlayer = empoweredPlayerId;
-      }
-    }
-
-    // Set exposed players
-    exposedPlayers.forEach((playerName) => {
-      const playerId = Object.values(gameState.players).find(
-        (p) => p.name === playerName,
-      )?.id;
-      if (playerId && !gameState.exposedPlayers.includes(playerId)) {
-        gameState.exposedPlayers.push(playerId);
-      }
+    await this.saveGameStateToRuntime(runtime, gameState.id, {
+      id: gameState.id,
+      gameSettings: gameState.phaseSettings,
+      phaseInput: gameState.phaseInput,
+      phaseSnapshot: gameState.phase.getPersistedSnapshot(),
     });
 
-    // Set appropriate timer
-    const phaseTimer =
-      gameState.settings.timers[
-        phase.toLowerCase() as keyof typeof gameState.settings.timers
-      ];
-    gameState.timerEndsAt = Date.now() + phaseTimer;
-
-    await this.saveGameStateToRuntime(runtime, roomId, gameState);
-
-    console.log(
-      `🎮 Pre-loaded ${phase} phase: ${playerAgents.length} players, round ${round}`,
-    );
+    console.log(`🎮 Pre-loaded ${phase} phase: ${playerAgents.length} players`);
 
     return gameState;
   }

@@ -1,5 +1,7 @@
 import { UUID } from "@elizaos/core";
 import { GameSettings, Player } from "../game/types";
+import { PersistedHistoryValue, Snapshot } from "xstate";
+import { createPhaseMachine, PhaseInput } from "@/game/phase";
 
 /**
  * Vote cast by a player in the VOTE phase
@@ -7,8 +9,8 @@ import { GameSettings, Player } from "../game/types";
 export interface Vote {
   round: number;
   voter: string; // player ID
-  empowerTarget?: string; // player ID to empower
-  exposeTarget?: string; // player ID to expose
+  empowerTarget?: UUID; // player ID to empower
+  exposeTarget?: UUID; // player ID to expose
   timestamp: number;
 }
 
@@ -16,9 +18,9 @@ export interface Vote {
  * Private room for WHISPER phase
  */
 export interface PrivateRoom {
-  id: string;
-  participants: string[]; // player IDs
-  createdBy: string; // player ID who requested
+  id: UUID;
+  participants: UUID[]; // player IDs
+  createdBy: UUID; // player ID who requested
   createdAt: number;
   active: boolean;
 }
@@ -35,46 +37,12 @@ export interface PhaseState {
 /**
  * Main game state
  */
-export interface GameState {
+export interface GameState extends Record<string, unknown> {
   id: UUID;
-  phase: Phase;
-  round: number;
-  players: Record<UUID, Player>; // playerId -> Player
-  votes: Record<number, Record<UUID, Vote>>[]; // round -> playerId -> Vote
-  privateRooms: Record<UUID, PrivateRoom>; // roomId -> PrivateRoom
-  empoweredPlayer?: string; // current empowered player ID
-  exposedPlayers: string[]; // currently exposed player IDs
-  settings: GameSettings;
-  timerEndsAt?: number; // when current phase timer expires
-  // DEPRECATED: use gameEvents instead
-  history: any[];
-  isActive: boolean;
-  hostId?: string;
-  phaseState: PhaseState; // Phase-specific state tracking
+  gameSettings: GameSettings;
+  phaseInput: PhaseInput;
+  phaseSnapshot: Snapshot<unknown>;
 }
-
-/**
- * Default game settings
- */
-export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  maxPlayers: 12,
-  minPlayers: 4,
-  timers: {
-    ready: 10 * 1000, // 10 seconds
-    diary: 10 * 60 * 1000, // 10 minutes
-    round: 10 * 60 * 1000, // 10 minutes
-  },
-};
-
-// Event union
-export type AllGameEvents =
-  | { type: "PLAYER_JOINED"; player: Player }
-  | { type: "PLAYER_LEFT"; playerId: UUID }
-  | { type: "ARE_YOU_READY" }
-  | { type: "I_AM_READY"; playerId: UUID }
-  | { type: "ALL_PLAYERS_READY" }
-  | { type: "PLAYER_INTRODUCED"; playerId: UUID }
-  | { type: "LOBBY_MESSAGE_SENT"; playerId: UUID; content: string };
 
 /**
  * Influence game phases

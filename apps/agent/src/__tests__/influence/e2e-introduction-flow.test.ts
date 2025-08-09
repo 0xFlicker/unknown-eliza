@@ -3,7 +3,6 @@ import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import {
   CoordinationService,
   coordinatorPlugin,
-  GameEventType,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
 import { firstValueFrom, filter, scan, takeWhile, toArray } from "rxjs";
@@ -54,7 +53,6 @@ describe("E2E INTRODUCTION Flow", () => {
           plugins: [
             coordinatorPlugin,
             influencerPlugin,
-            bootstrapPlugin,
             sqlPlugin,
             openaiPlugin,
           ],
@@ -100,10 +98,7 @@ describe("E2E INTRODUCTION Flow", () => {
           takeWhile((events) => {
             const lastEvent = events[events.length - 1];
             // Stop collecting when we see PHASE_TRANSITION_INITIATED
-            return (
-              lastEvent?.payload?.type !==
-              GameEventType.PHASE_TRANSITION_INITIATED
-            );
+            return lastEvent?.payload?.type !== "GAME:ALL_PLAYERS_READY";
           }, true), // Include the final event
           toArray(),
         ),
@@ -125,12 +120,6 @@ describe("E2E INTRODUCTION Flow", () => {
         "🎮 INTRODUCTION PHASE BEGINS! Welcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
       );
 
-      // Wait for introduction prompt to process and players to respond naturally
-      console.log(
-        "🎯 Step 2: Waiting for players to naturally respond with introductions...",
-      );
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
       console.log("⏳ Waiting for PHASE_TRANSITION_INITIATED event...");
 
       // Wait for all events leading up to and including PHASE_TRANSITION_INITIATED
@@ -141,8 +130,7 @@ describe("E2E INTRODUCTION Flow", () => {
 
       // Verify we got the PHASE_TRANSITION_INITIATED event
       const transitionEvent = allEvents.find(
-        (event) =>
-          event.payload.type === GameEventType.PHASE_TRANSITION_INITIATED,
+        (event) => event.payload.type === "GAME:ALL_PLAYERS_READY",
       );
 
       expect(transitionEvent).toBeDefined();
