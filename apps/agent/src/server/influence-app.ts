@@ -29,6 +29,7 @@ import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
 import { coordinatorPlugin } from "../plugins/coordinator";
 import { GameManager, GameConfig } from "./game-manager";
+import { messages$ } from "@/plugins/coordinator/bus";
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -51,7 +52,6 @@ export class InfluenceApp<
 
   // Message streaming infrastructure
   private socketManager?: SocketIOManager;
-  private messageStream$ = new Subject<StreamedMessage>();
   private channelMessageStreams = new Map<UUID, Subject<StreamedMessage>>();
 
   // Runtime configuration
@@ -162,86 +162,22 @@ export class InfluenceApp<
     this.socketManager = SocketIOManager.getInstance();
     this.socketManager.initialize(this.houseAgent.agentId, this.serverPort);
 
-    // Set up message streaming infrastructure
-    this.setupMessageStreaming();
-  }
-
-  /**
-   * Set up real-time message streaming from SocketIO and internal message bus
-   */
-  private setupMessageStreaming() {
-    if (!this.socketManager) {
-      throw new Error("SocketIOManager not initialized");
-    }
-    // Listen to SocketIO message broadcasts (messages from www client)
-    this.socketManager.on("messageBroadcast", (data) => {
-      logger.info(
-        `[InfluenceApp] 📨 Received SocketIO message: ${data.senderId} -> "${data.text}"`,
-      );
-      logger.info(
-        `[InfluenceApp] SocketIO message details: channelId=${data.channelId}, source=${data.source}`,
-      );
-      const streamedMessage: StreamedMessage = {
-        id: data.id || stringToUuid(`message-${Date.now()}-${Math.random()}`),
-        channelId: data.channelId,
-        authorId: data.senderId,
-        content: data.text,
-        timestamp: data.createdAt,
-        metadata: {
-          senderName: data.senderName,
-          source: data.source,
-          ...data.metadata,
-        },
-        source: "client",
-      };
-
-      // Broadcast to global message stream
-      this.messageStream$.next(streamedMessage);
+    messages$.subscribe((message) => {
+      if (this.channelMessageStreams.has(message.channel_id)) {
+        this.channelMessageStreams.get(message.channel_id)?.next({
+          authorId: message.author_id,
+          channelId: message.channel_id,
+          content: message.content,
+          id: message.id,
+          timestamp: message.created_at,
+          metadata: message.metadata,
+          source:
+            message.author_id === this.houseAgent?.agentId
+              ? ("system" as const)
+              : ("agent" as const),
+        });
+      }
     });
-
-    // Listen to internal message bus for agent messages
-    this.bus.on("new_message", (message) => {
-      logger.info(
-        `[InfluenceApp] 🔄 Received internal message bus message: ${message.author_id} -> "${message.content}"`,
-      );
-      logger.info(
-        `[InfluenceApp] Internal message details: channelId=${message.channel_id}, serverId=${message.server_id}, sourceType=${message.source_type}`,
-      );
-      const streamedMessage: StreamedMessage = {
-        id: message.id,
-        channelId: message.channel_id,
-        authorId: message.author_id,
-        content: message.content,
-        timestamp: message.created_at,
-        metadata: {
-          authorDisplayName: message.author_display_name,
-          sourceType: message.source_type,
-          ...message.metadata,
-        },
-        source: "agent",
-      };
-
-      this.broadcastMessage(streamedMessage);
-    });
-
-    logger.info(
-      "[InfluenceApp] ✅ Message streaming infrastructure initialized",
-    );
-  }
-
-  /**
-   * Broadcast a message to all subscribers
-   */
-  private broadcastMessage(message: StreamedMessage) {
-    // Broadcast to channel-specific stream
-    const channelStream = this.channelMessageStreams.get(message.channelId);
-    if (channelStream) {
-      channelStream.next(message);
-    }
-
-    logger.debug(
-      `Broadcasted message ${message.id} to channel ${message.channelId}`,
-    );
   }
 
   getHouseAgent(): IAgentRuntime {
@@ -249,13 +185,6 @@ export class InfluenceApp<
       throw new Error("House agent is not initialized");
     }
     return this.houseAgent;
-  }
-
-  /**
-   * Get an observable stream of all messages
-   */
-  getMessageStream(): Observable<StreamedMessage> {
-    return this.messageStream$;
   }
 
   /**

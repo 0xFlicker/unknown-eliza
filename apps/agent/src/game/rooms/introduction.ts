@@ -20,7 +20,9 @@ export type IntroductionEvent = {
   messageId: UUID;
 };
 
-export type IntroductionEmitted = { type: "PLAYER_READY_ERROR"; error: Error };
+export type IntroductionEmitted =
+  | { type: "PLAYER_READY_ERROR"; error: Error }
+  | { type: "ARE_YOU_READY" };
 
 export function createIntroductionMachine({
   roundTimeoutMs,

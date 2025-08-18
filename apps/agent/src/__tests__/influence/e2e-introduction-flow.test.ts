@@ -5,10 +5,18 @@ import {
   coordinatorPlugin,
 } from "../../plugins/coordinator";
 import { InfluenceApp } from "../../server/influence-app";
-import { firstValueFrom, filter, scan, takeWhile, toArray } from "rxjs";
+import {
+  firstValueFrom,
+  filter,
+  scan,
+  takeWhile,
+  toArray,
+  take,
+  tap,
+} from "rxjs";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import { ChannelType } from "@elizaos/core";
-import { ParticipantMode, ParticipantState } from "@/server";
+import { ParticipantMode, ParticipantState, StreamedMessage } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import { housePlugin } from "@/plugins/house";
 import openaiPlugin from "@elizaos/plugin-openai";
@@ -105,20 +113,13 @@ describe("E2E INTRODUCTION Flow", () => {
       );
 
       // Track channel messages separately
-      const channelMessages: any[] = [];
+      const channelMessages: StreamedMessage[] = [];
       app.getChannelMessageStream(channelId).subscribe((message) => {
         console.log(
           `📩 Channel message: ${message.content} (from: ${message.authorId})`,
         );
         channelMessages.push(message);
       });
-
-      // Step 1: House prompts for introductions (game already in INTRODUCTION phase)
-      console.log("🎯 Step 1: House prompting for introductions");
-      await app.sendMessage(
-        channelId,
-        "🎮 INTRODUCTION PHASE BEGINS! Welcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
-      );
 
       console.log("⏳ Waiting for PHASE_TRANSITION_INITIATED event...");
 
@@ -139,6 +140,24 @@ describe("E2E INTRODUCTION Flow", () => {
       expect(transitionEvent.payload.transitionReason).toBe(
         "all_players_ready",
       );
+
+      // Step 1: House prompts for introductions (game already in INTRODUCTION phase)
+      console.log("🎯 Step 1: House prompting for introductions");
+      await app.sendMessage(
+        channelId,
+        "🎮 INTRODUCTION PHASE BEGINS! Welcome players! Please introduce yourself with ONE message. The game will continue once everyone has introduced themselves.",
+      );
+
+      let messageCount = 0;
+      let messageStream = app.getChannelMessageStream(channelId).pipe(
+        take(10),
+        toArray(),
+        tap((messages) => {
+          messageCount = messages.length;
+        }),
+      );
+
+      await firstValueFrom(messageStream);
 
       console.log("✅ E2E INTRODUCTION flow test PASSED!");
       console.log(`📊 Final stats:`);

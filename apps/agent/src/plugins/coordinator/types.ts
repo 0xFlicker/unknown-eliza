@@ -1,5 +1,5 @@
 import { PhaseEmitted, PhaseEvent } from "@/game/phase";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import {
   EventHandler,
   EventPayload,
@@ -85,6 +85,12 @@ export interface PlayerReadyPayload
 export interface AllPlayersReadyPayload
   extends GameEventPayload<{ type: "ALL_PLAYERS_READY" }> {}
 
+export interface PhaseStartedPayload
+  extends GameEventPayload<{ type: "PHASE_STARTED"; phase: Phase }> {}
+
+export interface DiaryPromptPayload
+  extends GameEventPayload<{ type: "DIARY_PROMPT"; targetAgentName: string }> {}
+
 export interface EndRoundPayload
   extends GameEventPayload<{ type: "END_ROUND" }> {}
 
@@ -112,6 +118,8 @@ export interface GameEventPayloadMap {
   ["GAME:END_ROUND"]: EndRoundPayload;
   ["GAME:MESSAGE_SENT"]: MessageSentPayload;
   ["GAME:PLAYER_READY_ERROR"]: PlayerReadyErrorPayload;
+  ["GAME:PHASE_STARTED"]: PhaseStartedPayload;
+  ["GAME:DIARY_PROMPT"]: DiaryPromptPayload;
 }
 
 /**

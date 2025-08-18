@@ -198,7 +198,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       console.log("=== PHASE 2: House Announces LOBBY Phase ===");
 
       let messageCount = 0;
-      let messageStream = app.getMessageStream().pipe(
+      let messageStream = app.getChannelMessageStream(mainChannelId).pipe(
         take(10),
         toArray(),
         tap((messages) => {

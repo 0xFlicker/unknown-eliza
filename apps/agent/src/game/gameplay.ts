@@ -25,7 +25,14 @@ export type GameplayEvent =
   | { type: "END_ROUND" }
   | { type: "PLAYER_READY"; playerId: UUID };
 
-export type GameplayEmitted = { type: "PLAYER_READY_ERROR"; error: Error };
+export type GameplayEmitted =
+  | { type: "PLAYER_READY_ERROR"; error: Error }
+  | {
+      type: "ALL_PLAYERS_READY";
+      fromPhase: Phase;
+      toPhase: Phase;
+      transitionReason: string;
+    };
 
 export function createGameplayMachine({
   phaseTimeoutMs,
@@ -36,12 +43,15 @@ export function createGameplayMachine({
 }) {
   return setup({
     actions: {
-      announceAllPlayersReady: emit(({ context }) => ({
-        type: "ALL_PLAYERS_READY",
-        fromPhase: context.currentPhase,
-        toPhase: context.nextPhase,
-        transitionReason: "all_players_ready",
-      })),
+      announceAllPlayersReady: emit(
+        ({ context }) =>
+          ({
+            type: "ALL_PLAYERS_READY",
+            fromPhase: context.currentPhase,
+            toPhase: context.nextPhase,
+            transitionReason: "all_players_ready",
+          }) as const,
+      ),
     },
     types: {
       context: {} as GameplayContext,

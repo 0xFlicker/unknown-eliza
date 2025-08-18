@@ -115,16 +115,56 @@ export const housePlugin: Plugin = {
       },
     ],
     [EventType.MESSAGE_SENT]: [
+      async (_payload) => {
+        // No-op for now; House may not receive SENT for others
+      },
+    ],
+    [EventType.MESSAGE_RECEIVED]: [
       async (payload) => {
         try {
           const coordinationService = payload.runtime.getService(
             CoordinationService.serviceType,
           ) as CoordinationService;
-          // If House posts a group prompt during INTRODUCTION, immediately finalize readiness for test scope
-          if (payload.message.entityId === payload.runtime.agentId) {
-            console.log(
-              "🏠 House sending GAME:ALL_PLAYERS_READY for introduction prompt",
-            );
+          const isHouseAuthored =
+            payload.message.entityId === payload.runtime.agentId;
+
+          if (isHouseAuthored) {
+            const text = payload.message.content?.text || "";
+            if (/INTRODUCTION PHASE/i.test(text)) {
+              await coordinationService?.sendGameEvent(
+                {
+                  gameId: payload.message.roomId,
+                  roomId: payload.message.roomId,
+                  runtime: payload.runtime,
+                  source: "house",
+                  timestamp: Date.now(),
+                  action: {
+                    type: "PHASE_STARTED",
+                    phase: Phase.INTRODUCTION,
+                  } as any,
+                } as any,
+                "others",
+              );
+            }
+            if (/Diary Question for/i.test(text)) {
+              const match = text.match(/@([^\s]+)/);
+              const targetAgentName = match?.[1];
+              if (targetAgentName) {
+                await coordinationService?.sendGameEvent(
+                  {
+                    gameId: payload.message.roomId,
+                    roomId: payload.message.roomId,
+                    runtime: payload.runtime,
+                    source: "house",
+                    timestamp: Date.now(),
+                    action: { type: "DIARY_PROMPT", targetAgentName } as any,
+                  } as any,
+                  "others",
+                );
+              }
+            }
+          } else {
+            // Forward player messages as structured game events
             await coordinationService?.sendGameEvent(
               {
                 gameId: payload.message.roomId,
@@ -133,65 +173,16 @@ export const housePlugin: Plugin = {
                 source: "house",
                 timestamp: Date.now(),
                 action: {
-                  type: "ALL_PLAYERS_READY",
-                  fromPhase: Phase.INTRODUCTION,
-                  toPhase: Phase.LOBBY,
-                  transitionReason: "all_players_ready",
-                } as any,
+                  type: "MESSAGE_SENT",
+                  messageId: payload.message.id,
+                  playerId: payload.message.entityId,
+                },
               } as any,
               "others",
             );
-            return;
           }
-          await coordinationService?.sendGameEvent(
-            {
-              gameId: payload.message.roomId,
-              roomId: payload.message.roomId,
-              runtime: payload.runtime,
-              source: "house",
-              timestamp: Date.now(),
-              action: {
-                type: "MESSAGE_SENT",
-                messageId: payload.message.id,
-                playerId: payload.message.entityId,
-              },
-            } as any,
-            "others",
-          );
         } catch (e) {
-          console.log("🏠 Failed to forward MESSAGE_SENT to phase:", e);
-        }
-      },
-    ],
-    [EventType.MESSAGE_RECEIVED]: [
-      async (payload) => {
-        try {
-          // When House posts the INTRODUCTION prompt in the group channel, announce readiness
-          if (payload.message.entityId !== payload.runtime.agentId) return;
-          const coordinationService = payload.runtime.getService(
-            CoordinationService.serviceType,
-          ) as CoordinationService;
-          await coordinationService?.sendGameEvent(
-            {
-              gameId: payload.message.roomId,
-              roomId: payload.message.roomId,
-              runtime: payload.runtime,
-              source: "house",
-              timestamp: Date.now(),
-              action: {
-                type: "ALL_PLAYERS_READY",
-                fromPhase: Phase.INTRODUCTION,
-                toPhase: Phase.LOBBY,
-                transitionReason: "all_players_ready",
-              } as any,
-            } as any,
-            "others",
-          );
-        } catch (e) {
-          console.log(
-            "🏠 Failed to emit ALL_PLAYERS_READY on MESSAGE_RECEIVED",
-            e,
-          );
+          console.log("🏠 MESSAGE_RECEIVED handler error:", e);
         }
       },
     ],

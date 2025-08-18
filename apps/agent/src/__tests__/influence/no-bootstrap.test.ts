@@ -213,7 +213,12 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       console.log("=== PHASE 4: House Announces LOBBY Phase ===");
 
       let messageCount = 0;
-      let messageStream = app.getMessageStream().pipe(
+      let messageStream = app.getChannelMessageStream(mainChannelId).pipe(
+        tap((message) => {
+          console.log(
+            `📩 ${message.source}: ${message.content} (from: ${message.authorId})`,
+          );
+        }),
         take(10),
         toArray(),
         tap((messages) => {

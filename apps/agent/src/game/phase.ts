@@ -26,7 +26,9 @@ export type PhaseEvent =
   | { type: "ADD_PLAYER"; playerId: UUID }
   | { type: "PLAYER_READY"; playerId: UUID }
   | GameplayEvent
-  | IntroductionEvent;
+  | IntroductionEvent
+  | { type: "PHASE_STARTED"; phase: Phase }
+  | { type: "DIARY_PROMPT"; targetAgentName: string };
 
 export type PhaseEmitted =
   | { type: "PLAYER_READY_ERROR"; error: Error }
