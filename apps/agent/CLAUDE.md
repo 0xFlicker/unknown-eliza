@@ -72,6 +72,12 @@ export interface Provider {
 }
 ```
 
+Provider guidance in this app:
+
+- Providers MUST NOT perform text/content matching to drive behavior.
+- They may read persistent flags/services and return guidance text or values for prompts.
+- Example: `SHOULD_RESPOND` reads flags from `PlayerStateService` and never inspects message text.
+
 Example from our implementation:
 
 ```
@@ -119,7 +125,13 @@ Key Notes
 
 # Events - Cross-agent eventing
 
-In ElizaOS, event handlers are defined at the _plugin_ level via the `PluginEvents` plugin value. It is important to remember that events are on a _per-runtime basis_. Events that need to cross agent boundaries should use @src/house/events/manager.ts, which uses a special chat channel to pass messages. Game state events can be used to introduce hard synchronization between agents that for game reasons shouldn't be left to agentic decision.
+In ElizaOS, event handlers are defined at the _plugin_ level via the `PluginEvents` plugin value. It is important to remember that events are on a _per-runtime basis_. For Influence, the House plugin emits **structured** cross-agent events which the Influencer plugin consumes:
+
+- `GAME:PHASE_STARTED` (e.g., when House posts the introduction prompt)
+- `GAME:DIARY_PROMPT` (per-player targeting for diary questions)
+- `GAME:MESSAGE_SENT` (forwarded player messages)
+
+These structured events, combined with per-room flags in services, replace any need for text matching in providers.
 
 Plugin event handler emitting another event example:
 
@@ -158,9 +170,9 @@ Plugin event handler emitting another event example:
 
 Key points:
 
-- `PluginEvents` supported on the plugin interface is a known set of events with everything Strongly typed.
-- `as unknown as PluginEvents & GameEventHandlers` is unfortunately required in order to extend PluginEvents on the plugin interface
-- Events are used
+- `PluginEvents` supported on the plugin interface is a known set of events with everything strongly typed.
+- For custom game events in this app, we extend typings via `src/plugins/coordinator/types.ts` and cast to `PluginEvents & GameEventHandlers` at the plugin site.
+- House emits structured events; Influencer consumes them and updates player state via services (no text matching in providers).
 
 # Services - State Management Layer
 

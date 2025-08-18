@@ -50,3 +50,53 @@ await messageReceivedHandler({ runtime, message, callback, onComplete });
 【F:packages/plugin-bootstrap/src/index.ts†L1180-L1246】【F:packages/plugin-bootstrap/src/index.ts†L1433-L1470】
 
 ---
+
+## 2. Influence – Introduction Phase (Implementation Summary)
+
+This app implements the Introduction phase with structured game events, phase‑coupled player state, and LLM‑generated, one‑message replies that bypass the generic reply action when appropriate. See `INTRODUCTION_PHASE.md` for the full design.
+
+Key pieces:
+
+- House emits structured events when it posts prompts
+
+  - File: `src/plugins/house/index.ts`
+  - Emits `GAME:PHASE_STARTED` when posting the introduction prompt
+  - Emits `GAME:DIARY_PROMPT` when posting per‑player diary questions
+  - Forwards player messages as `GAME:MESSAGE_SENT`
+
+- Coordinator event payloads
+
+  - File: `src/plugins/coordinator/types.ts`
+  - Adds payload types for `PHASE_STARTED` and `DIARY_PROMPT`
+
+- Phase machine accepts new events (for completeness)
+
+  - File: `src/game/phase.ts`
+  - Extends `PhaseEvent` union with `PHASE_STARTED` and `DIARY_PROMPT`
+
+- Influencer plugin (player‑side)
+
+  - File: `src/plugins/influencer/index.ts`
+  - Listens for House events and House group messages; maintains per‑room flags via services; when flags indicate pending intro/diary, generates a one‑liner via LLM and returns early using the provided `callback` (bypassing `REPLY` action)
+
+- Player state flags service (no text matching)
+
+  - File: `src/plugins/influencer/playerStateService.ts`
+  - Tracks `mustIntroduce`, `introduced`, `diaryPending`, `diaryResponded`
+
+- LLM generation service (prompt building only)
+
+  - File: `src/plugins/influencer/services/introductionDiaryService.ts`
+  - `generateIntroduction(roomId)` – 120‑250 word, single paragraph
+  - `generateDiaryResponse(roomId, housePrompt)` – 90‑180 word, single paragraph evaluation of other players
+
+- Provider policy uses flags, not content matching
+
+  - File: `src/plugins/influencer/providers/shouldRespond.ts`
+  - Reads `PlayerStateService` flags to guide behavior; never inspects message text
+
+- E2E coverage
+  - File: `src/__tests__/influence/introduction-diary-room.test.ts`
+  - Drives the full INTRODUCTION → diary prompts flow and prints summaries
+
+See `INTRODUCTION_PHASE.md` for detailed sequence diagrams and references.
