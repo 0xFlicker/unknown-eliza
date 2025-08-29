@@ -29,7 +29,7 @@ import houseCharacter from "@/characters/house";
 import { apiClient } from "@/lib/api";
 import { coordinatorPlugin } from "../plugins/coordinator";
 import { GameManager, GameConfig } from "./game-manager";
-import { messages$ } from "@/plugins/coordinator/bus";
+import { messages$, capacityExceeded$ } from "@/plugins/coordinator/bus";
 
 export class InfluenceApp<
   AgentContext extends Record<string, unknown>,
@@ -177,6 +177,24 @@ export class InfluenceApp<
               : ("agent" as const),
         });
       }
+
+      // Capacity-driven LOBBY phase coordination: check per-participant limits
+      try {
+        const gameId = this.getGameByChannel(message.channel_id);
+        if (gameId) {
+          this.gameManager?.handleChannelMessage(message.channel_id);
+        }
+      } catch {}
+    });
+
+    // Optional: Observe capacity exceeded events for debugging
+    capacityExceeded$.subscribe((evt: any) => {
+      try {
+        const channelId = evt?.channelId;
+        if (channelId && this.getGameByChannel(channelId)) {
+          this.gameManager?.handleChannelMessage(channelId);
+        }
+      } catch {}
     });
   }
 

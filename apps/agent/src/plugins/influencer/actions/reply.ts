@@ -8,6 +8,7 @@ import {
   ModelType,
   type State,
 } from "@elizaos/core";
+import { getCapacityTracker } from "@elizaos/server";
 
 /**
  * Template for generating dialog and actions for a character.
@@ -50,7 +51,7 @@ Your response should include the valid JSON block and nothing else.`;
  */
 export const replyAction = {
   name: "REPLY",
-  similes: ["GREET", "REPLY_TO_MESSAGE", "SEND_REPLY", "RESPOND", "RESPONSE"],
+  similes: ["RESPOND"],
   description:
     "Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.",
   validate: async (_runtime: IAgentRuntime) => {
@@ -64,6 +65,13 @@ export const replyAction = {
     callback: HandlerCallback,
     responses?: Memory[],
   ) => {
+    // Capacity guard: if participant exhausted in this channel, do not respond
+    const tracker = getCapacityTracker();
+    const info = tracker?.getCapacityInfo(message.roomId, runtime.agentId);
+    if (!info || info.responsesRemaining === 0) {
+      console.log("Capacity exhausted, skipping reply");
+      return true;
+    }
     // Check if any responses had providers associated with them
     const allProviders =
       responses?.flatMap((res) => res.content?.providers ?? []) ?? [];

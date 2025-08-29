@@ -29,6 +29,7 @@ import {
   plugin as sqlPlugin,
 } from "@elizaos/plugin-sql";
 import internalMessageBus from "./bus.js";
+export { getCapacityTracker } from "./bus.js";
 import type {
   CentralRootMessage,
   MessageChannel,

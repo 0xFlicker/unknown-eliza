@@ -1,0 +1,6 @@
+---
+globs: apps/agent/src/**/*.ts
+alwaysApply: false
+---
+
+Prefer LLM decision making inside house or influencer plugins when ever text is read or returned. Avoid using text matching in agentic app code. See usage of runtime.useModel in existing files for prompt generation. Prefer using an action, service, or evaluator for `useModel`, as these are implied asynchronous actions

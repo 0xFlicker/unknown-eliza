@@ -8,6 +8,7 @@ import {
   createIntroductionMachine,
   IntroductionEvent,
 } from "./rooms/introduction";
+import { createLobbyMachine } from "./rooms/lobby";
 
 export interface PhaseContext {
   players: UUID[];
@@ -75,6 +76,10 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         diaryTimeoutMs: diary,
       }),
       introduction: createIntroductionMachine({
+        roundTimeoutMs: round,
+        diaryTimeoutMs: diary,
+      }),
+      lobby: createLobbyMachine({
         roundTimeoutMs: round,
         diaryTimeoutMs: diary,
       }),
@@ -176,11 +181,9 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         invoke: {
           id: "lobby",
-          src: "gameplay",
+          src: "lobby",
           input: ({ context }) => ({
             players: context.players,
-            initialPhase: Phase.LOBBY,
-            nextPhase: Phase.WHISPER,
           }),
           onDone: {
             target: "whisper",

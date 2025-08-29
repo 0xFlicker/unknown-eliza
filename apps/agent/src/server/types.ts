@@ -58,6 +58,8 @@ export interface ChannelConfig {
   metadata?: Record<string, unknown>;
   maxMessages?: number;
   timeoutMs?: number;
+  // Capacity: per-participant reply limit for this channel (no global total limit)
+  maxRepliesPerParticipant?: number;
 }
 
 /**

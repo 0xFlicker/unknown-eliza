@@ -23,6 +23,8 @@ import {
 import { AssociationManager } from "./association-manager";
 import { apiClient } from "../lib/api";
 import { AgentManager } from "./agent-manager";
+import { getCapacityTracker } from "@elizaos/server";
+import SocketIOManager from "../lib/socketio-manager";
 
 /**
  * Channel manager that uses the proper AgentServer infrastructure
@@ -114,11 +116,118 @@ export class ChannelManager<
     // Store channel
     this.channels.set(channelRecord.id, channelRecord);
 
+    // Configure per-participant capacity limits if provided (no global limit)
+    try {
+      if (config.maxRepliesPerParticipant) {
+        const tracker = getCapacityTracker?.();
+        tracker?.setChannelConfig(channelRecord.id as any, {
+          maxRepliesPerParticipant: config.maxRepliesPerParticipant,
+        });
+        logger.info(
+          `Configured capacity for channel ${channelRecord.id}: maxRepliesPerParticipant=${config.maxRepliesPerParticipant}`,
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        `Failed to configure capacity for channel ${channelRecord.id}:`,
+        err,
+      );
+    }
+
     logger.info(
       `Successfully created channel ${config.name} with ID: ${channel.data.id}`,
     );
 
     return channelRecord.id;
+  }
+
+  /**
+   * Ensure a DM channel exists between House and a specific player. Returns channel ID.
+   */
+  async ensureDmChannel(playerAgentId: UUID): Promise<UUID> {
+    // Create or fetch DM channel via central server
+    const dm = await this.server.findOrCreateCentralDmChannel(
+      this.houseAgent.agentId,
+      playerAgentId,
+      this.messageServer.id,
+    );
+
+    const channelRecord: Channel = {
+      id: dm.id,
+      messageServerId: dm.messageServerId,
+      name: `DM:${playerAgentId}`,
+      type: ChannelType.DM,
+      participants: new Map(),
+      createdAt: Date.now(),
+      metadata: {},
+    } as any;
+
+    // Set up associations for House and the player
+    await this.setupChannelAssociations({
+      channel: channelRecord,
+      participants: [
+        {
+          agentId: this.houseAgent.agentId,
+          mode: ParticipantMode.BROADCAST_ONLY,
+          state: ParticipantState.FOLLOWED,
+        },
+        {
+          agentId: playerAgentId,
+          mode: ParticipantMode.READ_WRITE,
+          state: ParticipantState.FOLLOWED,
+        },
+      ],
+      runtimeDecorators: [],
+      houseClientId: this.houseAgent.agentId,
+    });
+
+    this.channels.set(channelRecord.id, channelRecord);
+    // Ensure House joins DM channel for real-time messaging
+    try {
+      const socket = SocketIOManager.getInstance();
+      if (!SocketIOManager.isConnected()) {
+        socket.initialize(
+          this.houseAgent.agentId,
+          Number(process.env.SERVER_PORT),
+        );
+      }
+      await socket.joinChannel(channelRecord.id);
+    } catch {}
+    return channelRecord.id;
+  }
+
+  /**
+   * Send a House-authored message into a channel via SocketIO.
+   */
+  async sendHouseMessage(channelId: UUID, content: string): Promise<void> {
+    const channel = this.channels.get(channelId);
+    if (!channel) {
+      throw new Error(`Channel ${channelId} not found`);
+    }
+    const socket = SocketIOManager.getInstance();
+    if (!SocketIOManager.isConnected()) {
+      socket.initialize(
+        this.houseAgent.agentId,
+        Number(process.env.SERVER_PORT),
+      );
+    }
+    if (!socket.isChannelActive(channelId)) {
+      await socket.joinChannel(channelId);
+    }
+    await socket.sendMessage(
+      content,
+      channelId,
+      channel.messageServerId,
+      channel.type === ChannelType.DM ? "client_chat" : "client_group_chat",
+      [],
+      undefined,
+      {
+        channelType: channel.type,
+        isDm: channel.type === ChannelType.DM,
+        user_display_name: "The House",
+        username: "The House",
+      },
+    );
   }
 
   /**

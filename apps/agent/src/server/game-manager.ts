@@ -15,6 +15,7 @@ import { ChannelConfig, ParticipantMode, ParticipantState } from "./types";
 import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
 import { createActor } from "xstate";
 import { GameSettings } from "@/game/types";
+import { getCapacityTracker } from "@elizaos/server";
 
 /**
  * Game configuration for creating a new game
@@ -51,6 +52,7 @@ export class GameManager<
 > {
   private games = new Map<UUID, GameSession>();
   private gamesByChannel = new Map<UUID, UUID>(); // channelId -> gameId mapping
+  private lobbyEndedChannels = new Set<UUID>();
 
   constructor(
     private agentManager: AgentManager<Context, Runtime>,
@@ -158,6 +160,91 @@ export class GameManager<
     );
 
     return channelId;
+  }
+
+  /**
+   * Handle a new message on a channel. If the channel is a LOBBY channel with per-participant
+   * capacity limits, and all players have exhausted their budgets, end the round and open diary DMs.
+   */
+  async handleChannelMessage(channelId: UUID): Promise<void> {
+    const gameId = this.gamesByChannel.get(channelId);
+    if (!gameId) return;
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const state = game.phase.getSnapshot();
+    if (state.value !== "lobby") return;
+    if (this.lobbyEndedChannels.has(channelId)) return;
+
+    const tracker = getCapacityTracker?.();
+    if (!tracker) return;
+
+    // Require a configured channel limit; if not configured, skip
+    const allExhausted = game.players.every((pid) => {
+      const info = tracker.getCapacityInfo(channelId as any, pid as any);
+      return info.responsesRemaining === 0;
+    });
+
+    if (allExhausted) {
+      this.lobbyEndedChannels.add(channelId);
+      // End LOBBY round; the lobby room machine will trigger diary ready sequence
+      game.phase.send({ type: "END_ROUND" });
+
+      // Proactively mute players in lobby channel to prevent further replies
+      for (const pid of game.players) {
+        await this.channelManager.updateParticipantState(
+          channelId,
+          pid,
+          ParticipantState.MUTED,
+        );
+      }
+
+      // Open per-player diary DMs and send prompts
+      await this.openLobbyDiaryRooms(gameId, channelId);
+    }
+  }
+
+  /**
+   * Create DM channels between House and each player and send a diary prompt seeded with
+   * recent lobby messages from other players.
+   */
+  private async openLobbyDiaryRooms(gameId: UUID, lobbyChannelId: UUID) {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const nameById = new Map(
+      game.players.map((pid) => {
+        const rt = this.agentManager.getAgentRuntime(pid);
+        return [pid, rt?.character?.name || pid] as const;
+      }),
+    );
+
+    // Fetch recent lobby messages once
+    const lobbyMessages = await this.channelManager.getMessages(lobbyChannelId);
+
+    for (const pid of game.players) {
+      const dmId = await this.channelManager.ensureDmChannel(pid);
+      // Build recent messages from others
+      const recentByOther = lobbyMessages
+        .filter((m) => m.authorId !== pid)
+        .slice(-6)
+        .map(
+          (m) =>
+            `- ${nameById.get(m.authorId)!}: ${String(m.content).slice(0, 280)}`,
+        )
+        .join("\n");
+
+      const playerName = nameById.get(pid) || "Player";
+      const prompt = [
+        `Diary Question for ${playerName}:`,
+        `Reflect on the LOBBY conversations so far. Who seems aligned or deceptive?`,
+        `Recent messages:`,
+        recentByOther || "(no recent messages)",
+      ].join("\n");
+
+      // Send DM prompt as House
+      await this.channelManager.sendHouseMessage(dmId, prompt);
+    }
   }
 
   /**

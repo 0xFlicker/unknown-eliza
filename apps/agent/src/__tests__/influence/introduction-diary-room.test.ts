@@ -122,8 +122,12 @@ describe("Introduction → Diary Room flow", () => {
           .join("\n");
         console.log(`📒 INTRODUCTION SUMMARIES\n${summaryLines}`);
 
-        // Step 3: House sends diary questions to each player
+        // Step 3: Create per-player DIARY rooms (DMs with The House) and send diary questions
         diariesStart = Date.now();
+
+        // We'll subscribe to each DM channel separately to capture the single response
+        const dmSubs: Array<{ unsubscribe: () => void }> = [];
+
         for (const p of players) {
           const others = players.filter((o) => o.id !== p.id);
           const prompt = [
@@ -133,7 +137,27 @@ describe("Introduction → Diary Room flow", () => {
               (o) => `- ${o.character.name}: ${intros.get(o.id)?.content}`,
             ),
           ].join("\n");
-          await app.sendMessage(channelId, prompt);
+
+          // Ensure a DM channel exists between The House and this player
+          const dmChannelId = await app
+            .getChannelManager()
+            .ensureDmChannel(p.id);
+
+          // Subscribe to the DM's message stream and record the first response from the player
+          const dmSub = app
+            .getChannelMessageStream(dmChannelId)
+            .subscribe((msg) => {
+              if (msg.authorId !== p.id) return;
+              if (msg.timestamp < diariesStart) return;
+              if (!diary.has(msg.authorId)) {
+                diary.set(msg.authorId, msg);
+              }
+              diaryResponses.add(msg.authorId);
+            });
+          dmSubs.push(dmSub);
+
+          // Send the diary prompt into the DM channel as The House
+          await app.sendMessage(dmChannelId, prompt);
         }
 
         // Wait for one diary response from each player

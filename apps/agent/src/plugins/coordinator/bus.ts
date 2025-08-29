@@ -28,3 +28,10 @@ export const messages$ = fromEvent(
     return event;
   },
 );
+
+// Capacity exceeded events (participant_limit or total_limit)
+export const capacityExceeded$ = fromEvent(
+  internalMessageBus,
+  "channel_capacity_exceeded",
+  (event) => event,
+);

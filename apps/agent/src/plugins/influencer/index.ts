@@ -174,30 +174,32 @@ export const influencerPlugin: Plugin = {
             ? await payload.runtime.getEntityById(payload.message.entityId)
             : undefined;
           const room = await payload.runtime.getRoom(payload.message.roomId);
-          if (
-            sender?.names?.[0] === "House" &&
-            room?.type === ChannelType.GROUP
-          ) {
+          if (sender?.names?.[0] === "House" && room) {
             const svc = payload.runtime.getService<PlayerStateService>(
               PlayerStateService.serviceType,
             );
             if (svc) {
               const flags = svc.getFlags(payload.message.roomId);
-              if (!flags.introduced) {
+              if (!flags.introduced && room.type === ChannelType.GROUP) {
                 await svc.markIntroductionRequired(payload.message.roomId);
               }
               // If this House message targets this agent for diary, set diaryPending immediately
               const text = payload.message.content?.text || "";
               const selfMention = `@${payload.runtime.character?.name}`;
+              const isDiaryPrompt =
+                text.includes(selfMention) || /Diary Question for/i.test(text);
               if (
-                (text.includes(selfMention) ||
-                  /Diary Question for/i.test(text)) &&
+                (isDiaryPrompt || room.type === ChannelType.DM) &&
                 !flags.diaryResponded
               ) {
                 await svc.setDiaryPending(payload.message.roomId);
               }
               // Short-circuit introduction via LLM prompt (bypass action chain)
-              if (flags.mustIntroduce && !flags.introduced) {
+              if (
+                flags.mustIntroduce &&
+                !flags.introduced &&
+                room.type === ChannelType.GROUP
+              ) {
                 const introSvc =
                   payload.runtime.getService<IntroductionDiaryService>(
                     IntroductionDiaryService.serviceType,
