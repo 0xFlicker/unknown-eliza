@@ -35,7 +35,7 @@ export interface AgentRoleAssignment {
   /** Agent ID */
   agentId: UUID;
   /** Role in the game */
-  role: "house" | "player" | "host";
+  role: "house" | "player";
 }
 
 /**
@@ -177,8 +177,8 @@ export interface AgentChannelAssociation {
   entityId: UUID; // Entity ID of this agent on the target runtime
 }
 
-export type AgentContext = {
-  role: "house" | "player" | "host";
+export type DefaultAgentContext = {
+  role: "house" | "player";
   entityName: string;
 };
 

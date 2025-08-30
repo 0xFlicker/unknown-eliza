@@ -10,7 +10,7 @@ import {
 } from "../../plugins/coordinator";
 import { RecordingTestUtils } from "../utils/recording-test-utils";
 import { AnyCoordinationMessage } from "../../plugins/coordinator/types";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { InfluenceApp } from "../../server/influence-app";
 import { Agent, ParticipantMode, ParticipantState } from "../../server/types";
@@ -69,7 +69,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
         gameEvents.push(event);
         if (
           event.type === "coordination_message" &&
-          event.payload.action.type === "ALL_PLAYERS_READY"
+          event.payload.type === "GAME:ALL_PLAYERS_READY"
         ) {
           const payload: any = event.payload;
           phaseTransitions.push({
@@ -121,7 +121,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
             adjectives: [config.personality],
           },
           plugins: [...getTestPlugins(), influencerPlugin],
-          metadata: { name: config.name },
+          metadata: { entityName: config.name, role: "player" },
         });
         players.push(player);
       }
@@ -195,7 +195,7 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
           takeWhile((events) => {
             const lastEvent = events[events.length - 1];
             // Stop collecting when we see ALL_PLAYERS_READY
-            return lastEvent?.payload?.action.type !== "ALL_PLAYERS_READY";
+            return lastEvent?.payload?.type !== "GAME:ALL_PLAYERS_READY";
           }, true), // Include the final event
         ),
       );
@@ -203,7 +203,8 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       await coordinationService!.sendGameEvent({
         gameId,
         roomId: mainChannelId,
-        action: { type: "ARE_YOU_READY" },
+        type: "GAME:ARE_YOU_READY",
+        event: { type: "ARE_YOU_READY" },
         timestamp: Date.now(),
         runtime: houseRuntime,
         source: "test-setup",
@@ -254,10 +255,10 @@ describe("Social Strategy Plugin - Diary Room & Strategic Intelligence", () => {
       console.log(`📊 Captured ${allEvents.length} events`);
       console.log(allEvents);
       console.log(
-        allEvents.filter((e) => e.payload.action.type === "ALL_PLAYERS_READY"),
+        allEvents.filter((e) => e.payload.type === "GAME:ALL_PLAYERS_READY"),
       );
       console.log(
-        allEvents.filter((e) => e.payload.action.type === "PLAYER_READY"),
+        allEvents.filter((e) => e.payload.type === "GAME:PLAYER_READY"),
       );
     } finally {
       await app.stop();

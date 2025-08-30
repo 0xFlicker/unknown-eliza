@@ -8,7 +8,7 @@ import {
 import { gameStateProvider } from "./providers";
 import { GameEventHandlers, CoordinationService } from "../coordinator";
 import { getGameState } from "@/memory/runtime";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import { GameStateManager } from "./gameStateManager";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
@@ -26,9 +26,21 @@ export interface HousePluginConfig {
     introduction?: number;
     lobby?: number;
     whisper?: number;
+    whisperRoom?: number;
     rumor?: number;
     vote?: number;
     power?: number;
+  };
+  // Whisper-specific settings for the WHISPER phase
+  whisper?: {
+    // How many whisper requests each player starts with (each request can be used to create a room or invite participants depending on house rules)
+    maxWhisperRequests?: number;
+    // How many messages a single player may send in a whisper room
+    maxMessagesPerPlayerPerRoom?: number;
+    // Per-room timeout in milliseconds
+    whisperRoomTimeoutMs?: number;
+    // Maximum participants allowed in a single whisper room (including owner)
+    perRoomMaxParticipants?: number;
   };
 }
 
@@ -100,8 +112,9 @@ export const housePlugin: Plugin = {
                 runtime: payload.runtime,
                 source: "house",
                 timestamp: Date.now(),
-                action: { type: "ARE_YOU_READY" },
-              } as any,
+                type: "GAME:ARE_YOU_READY",
+                event: { type: "ARE_YOU_READY" },
+              },
               "all",
             );
           } catch (e) {
@@ -121,50 +134,15 @@ export const housePlugin: Plugin = {
     ],
     [EventType.MESSAGE_RECEIVED]: [
       async (payload) => {
-        try {
-          const coordinationService = payload.runtime.getService(
-            CoordinationService.serviceType,
-          ) as CoordinationService;
-          const isHouseAuthored =
-            payload.message.entityId === payload.runtime.agentId;
+        const coordinationService = payload.runtime.getService(
+          CoordinationService.serviceType,
+        ) as CoordinationService;
+        const isHouseAuthored =
+          payload.message.entityId === payload.runtime.agentId;
 
-          if (isHouseAuthored) {
-            const text = payload.message.content?.text || "";
-            if (/INTRODUCTION PHASE/i.test(text)) {
-              await coordinationService?.sendGameEvent(
-                {
-                  gameId: payload.message.roomId,
-                  roomId: payload.message.roomId,
-                  runtime: payload.runtime,
-                  source: "house",
-                  timestamp: Date.now(),
-                  action: {
-                    type: "PHASE_STARTED",
-                    phase: Phase.INTRODUCTION,
-                  } as any,
-                } as any,
-                "others",
-              );
-            }
-            if (/Diary Question for/i.test(text)) {
-              const match = text.match(/@([^\s]+)/);
-              const targetAgentName = match?.[1];
-              if (targetAgentName) {
-                await coordinationService?.sendGameEvent(
-                  {
-                    gameId: payload.message.roomId,
-                    roomId: payload.message.roomId,
-                    runtime: payload.runtime,
-                    source: "house",
-                    timestamp: Date.now(),
-                    action: { type: "DIARY_PROMPT", targetAgentName } as any,
-                  } as any,
-                  "others",
-                );
-              }
-            }
-          } else {
-            // Forward player messages as structured game events
+        if (isHouseAuthored) {
+          const text = payload.message.content?.text || "";
+          if (/INTRODUCTION PHASE/i.test(text)) {
             await coordinationService?.sendGameEvent(
               {
                 gameId: payload.message.roomId,
@@ -172,17 +150,80 @@ export const housePlugin: Plugin = {
                 runtime: payload.runtime,
                 source: "house",
                 timestamp: Date.now(),
-                action: {
-                  type: "MESSAGE_SENT",
-                  messageId: payload.message.id,
-                  playerId: payload.message.entityId,
+                type: "GAME:PHASE_STARTED",
+                event: {
+                  type: "PHASE_STARTED",
+                  phase: Phase.INTRODUCTION,
                 },
-              } as any,
+              },
               "others",
             );
           }
-        } catch (e) {
-          console.log("🏠 MESSAGE_RECEIVED handler error:", e);
+          if (/Diary Question for/i.test(text)) {
+            const match = text.match(/@([^\s]+)/);
+            const targetAgentName = match?.[1];
+            if (targetAgentName) {
+              await coordinationService?.sendGameEvent(
+                {
+                  gameId: payload.message.roomId,
+                  roomId: payload.message.roomId,
+                  runtime: payload.runtime,
+                  source: "house",
+                  timestamp: Date.now(),
+                  type: "GAME:DIARY_PROMPT",
+                  event: { type: "DIARY_PROMPT", targetAgentName },
+                },
+                "others",
+              );
+            }
+          }
+        } else if (payload.message.id) {
+          // Forward player messages as structured game events
+          await coordinationService?.sendGameEvent(
+            {
+              gameId: payload.message.roomId,
+              roomId: payload.message.roomId,
+              runtime: payload.runtime,
+              source: "house",
+              timestamp: Date.now(),
+              type: "GAME:MESSAGE_SENT",
+              event: {
+                type: "MESSAGE_SENT",
+                messageId: payload.message.id,
+                playerId: payload.message.entityId,
+              },
+            },
+            "others",
+          );
+        }
+      },
+    ],
+    // Listen for coordination PHASE_STARTED events and react when the WHISPER phase begins
+    ["GAME:PHASE_STARTED"]: [
+      async (payload) => {
+        const action = payload.event;
+        if (action?.phase === Phase.WHISPER) {
+          const coordinationService = payload.runtime.getService(
+            CoordinationService.serviceType,
+          ) as CoordinationService;
+
+          if (!coordinationService) {
+            throw new Error("CoordinationService not available");
+          }
+
+          // Broadcast a WHISPER_PHASE_STARTED event so players/providers can prepare
+          await coordinationService.sendGameEvent(
+            {
+              gameId: payload.gameId,
+              roomId: payload.roomId ?? payload.gameId,
+              runtime: payload.runtime,
+              source: "house",
+              timestamp: Date.now(),
+              type: "GAME:WHISPER_PHASE_STARTED",
+              event: { type: "WHISPER_PHASE_STARTED" },
+            },
+            "all",
+          );
         }
       },
     ],

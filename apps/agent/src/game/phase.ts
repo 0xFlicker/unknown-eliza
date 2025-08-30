@@ -3,12 +3,18 @@ import { assign, createActor, emit, sendTo, setup } from "xstate";
 import "xstate/guards";
 import { GameSettings, Phase } from "./types";
 import { UUID } from "@elizaos/core";
-import { createGameplayMachine, GameplayEvent } from "./gameplay";
+import {
+  createGameplayMachine,
+  GameplayEmitted,
+  GameplayEvent,
+} from "./gameplay";
 import {
   createIntroductionMachine,
+  IntroductionEmitted,
   IntroductionEvent,
 } from "./rooms/introduction";
-import { createLobbyMachine } from "./rooms/lobby";
+import { createLobbyMachine, LobbyEmitted, LobbyEvent } from "./rooms/lobby";
+import { WhisperEmitted, WhisperEvent } from "./rooms/whisper";
 
 export interface PhaseContext {
   players: UUID[];
@@ -24,16 +30,18 @@ export type PhaseInput = {
 };
 
 export type PhaseEvent =
-  | { type: "ADD_PLAYER"; playerId: UUID }
-  | { type: "PLAYER_READY"; playerId: UUID }
   | GameplayEvent
   | IntroductionEvent
+  | LobbyEvent
+  | WhisperEvent
   | { type: "PHASE_STARTED"; phase: Phase }
   | { type: "DIARY_PROMPT"; targetAgentName: string };
 
 export type PhaseEmitted =
-  | { type: "PLAYER_READY_ERROR"; error: Error }
-  | PhaseEvent;
+  | GameplayEmitted
+  | IntroductionEmitted
+  | LobbyEmitted
+  | WhisperEmitted;
 
 export function createPhaseActor(
   phase: ReturnType<typeof createPhaseMachine>,
@@ -61,9 +69,9 @@ export function createPhaseMachine(gameSettings: GameSettings) {
     timers: { round, diary },
   } = gameSettings;
   return setup({
-    actions: {
-      emitEvent: emit(({ event }) => event),
-    },
+    // actions: {
+    //   emitEvent: emit(({ event }) => event),
+    // },
     types: {
       context: {} as PhaseContext,
       events: {} as PhaseEvent,
@@ -119,9 +127,10 @@ export function createPhaseMachine(gameSettings: GameSettings) {
                     : {}),
                 }),
               }),
-              {
-                type: "emitEvent",
-              },
+              // emit(({ event }) => ({
+              //   type: "PLAYER_READY",
+              //   playerId: event.playerId,
+              // })),
             ],
           },
         },
@@ -172,13 +181,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       lobby: {
         always: {
-          actions: [
-            sendTo("lobby", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("lobby", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.LOBBY,
+          }),
+        ],
         invoke: {
           id: "lobby",
           src: "lobby",
@@ -195,13 +205,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       whisper: {
         always: {
-          actions: [
-            sendTo("whisper", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("whisper", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.WHISPER,
+          }),
+        ],
         invoke: {
           id: "whisper",
           src: "gameplay",
@@ -226,13 +237,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       rumor: {
         always: {
-          actions: [
-            sendTo("rumor", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("rumor", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.RUMOR,
+          }),
+        ],
         invoke: {
           id: "rumor",
           src: "gameplay",
@@ -251,13 +263,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       vote: {
         always: {
-          actions: [
-            sendTo("vote", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("vote", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.VOTE,
+          }),
+        ],
         invoke: {
           id: "vote",
           src: "gameplay",
@@ -276,13 +289,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       power: {
         always: {
-          actions: [
-            sendTo("power", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("power", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.POWER,
+          }),
+        ],
         invoke: {
           id: "power",
           src: "gameplay",
@@ -301,13 +315,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       reveal: {
         always: {
-          actions: [
-            sendTo("reveal", ({ event }) => event),
-            {
-              type: "emitEvent",
-            },
-          ],
+          actions: [sendTo("reveal", ({ event }) => event)],
         },
+        entry: [
+          emit({
+            type: "PHASE_ENTERED",
+            phase: Phase.REVEAL,
+          }),
+        ],
         invoke: {
           id: "reveal",
           src: "gameplay",

@@ -10,7 +10,12 @@ import {
   RuntimeSettings,
 } from "@elizaos/core";
 import { AgentServer, internalMessageBus } from "@elizaos/server";
-import { AppServerConfig, RuntimeDecorator, StreamedMessage } from "./types";
+import {
+  AppServerConfig,
+  DefaultAgentContext,
+  RuntimeDecorator,
+  StreamedMessage,
+} from "./types";
 import EventEmitter from "node:events";
 import { housePlugin } from "../../src/plugins/house";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
@@ -32,7 +37,7 @@ import { GameManager, GameConfig } from "./game-manager";
 import { messages$, capacityExceeded$ } from "@/plugins/coordinator/bus";
 
 export class InfluenceApp<
-  AgentContext extends Record<string, unknown>,
+  AgentContext extends DefaultAgentContext,
   AppContext extends Record<string, unknown>,
   Runtime extends IAgentRuntime,
 > {
@@ -136,10 +141,10 @@ export class InfluenceApp<
 
     // Register house agent with AgentManager so ChannelManager can find it
     await this.agentManager.registerAgent(this.houseAgent, {
-      name: "House",
       role: "house",
       entityName: "House",
-    } as any);
+      // this type error is fair, but we are holding to the base type
+    } as DefaultAgentContext as any);
     const worldId = createUniqueUuid(this.houseAgent, this.messageServer.id);
     let world = await this.houseAgent.getWorld(worldId);
     if (!world) {

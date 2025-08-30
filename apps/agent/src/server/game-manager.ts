@@ -7,7 +7,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { HousePluginConfig } from "../plugins/house";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
@@ -40,6 +40,38 @@ export interface GameSession {
   phaseInput: PhaseInput;
   phaseSettings: GameSettings;
   phase: ReturnType<typeof createPhaseActor>;
+  // Optional whisper phase state (managed by GameManager)
+  whisper?: WhisperState;
+}
+
+/**
+ * Whisper settings used to configure the whisper phase.
+ */
+export interface WhisperSettings {
+  maxWhisperRequests: number;
+  maxMessagesPerPlayerPerRoom: number;
+  whisperRoomTimeoutMs: number;
+  perRoomMaxParticipants?: number;
+}
+
+/** Represents an active whisper room within a game */
+export interface WhisperRoom {
+  id: UUID;
+  owner: UUID;
+  participants: Set<UUID>;
+  perPlayerMessages: Map<UUID, number>;
+  createdAt: number;
+  timeoutId?: ReturnType<typeof setTimeout> | null;
+}
+
+/** Whisper runtime state attached to a GameSession */
+export interface WhisperState {
+  settings: WhisperSettings;
+  remainingRequests: Map<UUID, number>;
+  activeRooms: Map<UUID, WhisperRoom>;
+  turnOrder: UUID[];
+  currentTurnIndex: number;
+  roundCounter?: number;
 }
 
 /**
@@ -60,6 +92,137 @@ export class GameManager<
     private houseAgent: IAgentRuntime,
     private messageServerId: string,
   ) {}
+
+  /**
+   * Start the whisper phase for a game. Initializes per-player request counters and turn order.
+   * Implementation: stub — to be filled in with full phase actor or state logic.
+   */
+  async startWhisperPhase(
+    gameId: UUID,
+    settings: Partial<WhisperSettings> = {},
+  ) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error(`Game ${gameId} not found`);
+    // Initialize whisper-related state on the game session
+    const whisperSettings: WhisperSettings = {
+      maxWhisperRequests: settings.maxWhisperRequests ?? 1,
+      maxMessagesPerPlayerPerRoom: settings.maxMessagesPerPlayerPerRoom ?? 3,
+      whisperRoomTimeoutMs: settings.whisperRoomTimeoutMs ?? 60000,
+      perRoomMaxParticipants: settings.perRoomMaxParticipants ?? 4,
+    };
+
+    const whisperState: WhisperState = {
+      settings: whisperSettings,
+      remainingRequests: new Map<UUID, number>(),
+      activeRooms: new Map<UUID, WhisperRoom>(),
+      turnOrder: [] as UUID[],
+      currentTurnIndex: 0,
+      roundCounter: 0,
+    };
+
+    // Seed remainingRequests for each player
+    for (const p of game.players) {
+      whisperState.remainingRequests.set(p, whisperSettings.maxWhisperRequests);
+    }
+
+    game.whisper = whisperState;
+  }
+
+  /**
+   * Create a whisper room for a game. House will call this to create ephemeral channels.
+   * Implementation: stub — should create a channel, add runtime decorator to inject game state, and register room.
+   */
+  async createWhisperRoom(
+    gameId: UUID,
+    ownerId: UUID,
+    participantIds: UUID[],
+    channelConfig?: Omit<ChannelConfig, "runtimeDecorators">,
+  ): Promise<UUID> {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error(`Game ${gameId} not found`);
+    // TODO: validate remaining requests, participant eligibility, and decrement counters
+    const cfg: ChannelConfig = {
+      name: channelConfig?.name || `whisper-${gameId}-${Date.now()}`,
+      participants: participantIds.map((id) => ({
+        agentId: id,
+        mode: ParticipantMode.READ_WRITE,
+        state: ParticipantState.FOLLOWED,
+      })),
+      type: ChannelType.GROUP,
+      metadata: channelConfig?.metadata,
+      maxMessages: channelConfig?.maxMessages,
+      timeoutMs: channelConfig?.timeoutMs,
+    } as ChannelConfig;
+
+    const channelId = await this.channelManager.createChannel(cfg);
+
+    const room: WhisperRoom = {
+      id: channelId,
+      owner: ownerId,
+      participants: new Set(participantIds),
+      perPlayerMessages: new Map<UUID, number>(),
+      createdAt: Date.now(),
+      timeoutId: null,
+    };
+
+    if (!game.whisper)
+      game.whisper = {
+        settings: {
+          maxWhisperRequests: 1,
+          maxMessagesPerPlayerPerRoom: 3,
+          whisperRoomTimeoutMs: 60000,
+          perRoomMaxParticipants: 4,
+        },
+        remainingRequests: new Map<UUID, number>(),
+        activeRooms: new Map<UUID, WhisperRoom>(),
+        turnOrder: [],
+        currentTurnIndex: 0,
+        roundCounter: 0,
+      };
+
+    game.whisper.activeRooms.set(channelId, room);
+
+    return channelId;
+  }
+
+  /**
+   * End a whisper room and clean up state. Stub implementation: destroy channel and remove from activeRooms.
+   */
+  async endWhisperRoom(gameId: UUID, roomId: UUID, reason?: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error(`Game ${gameId} not found`);
+    // Notify participants via House message and remove from state. Let errors propagate.
+    await this.channelManager.sendHouseMessage(
+      roomId,
+      reason || "Whisper room closed by House",
+    );
+    if (game.whisper) {
+      const room = game.whisper.activeRooms.get(roomId);
+      if (room?.timeoutId) {
+        clearTimeout(room.timeoutId);
+      }
+      game.whisper.activeRooms.delete(roomId);
+    }
+  }
+
+  /**
+   * Query a limited whisper state view for a player (no secret turn order).
+   */
+  getWhisperStateForPlayer(gameId: UUID, playerId: UUID) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error(`Game ${gameId} not found`);
+    const whisper = game.whisper;
+    if (!whisper) return undefined;
+    return {
+      remainingRequests: whisper.remainingRequests.get(playerId) ?? 0,
+      activeRooms: Array.from(whisper.activeRooms.values()).map((r) => ({
+        id: r.id,
+        owner: r.owner,
+        participants: Array.from(r.participants),
+      })),
+      settings: whisper.settings,
+    };
+  }
 
   /**
    * Create a new game session with the specified configuration
@@ -181,7 +344,7 @@ export class GameManager<
 
     // Require a configured channel limit; if not configured, skip
     const allExhausted = game.players.every((pid) => {
-      const info = tracker.getCapacityInfo(channelId as any, pid as any);
+      const info = tracker.getCapacityInfo(channelId, pid);
       return info.responsesRemaining === 0;
     });
 

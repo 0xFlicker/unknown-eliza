@@ -21,11 +21,12 @@ export type GameplayState = "gameplay" | "diary" | "end";
 // PhaseEvent includes both phase triggers and diary events
 export type GameplayEvent =
   | { type: "ARE_YOU_READY" }
-  | { type: "ALL_PLAYERS_READY" }
-  | { type: "END_ROUND" }
-  | { type: "PLAYER_READY"; playerId: UUID };
+  | { type: "ADD_PLAYER"; playerId: UUID }
+  | { type: "PLAYER_READY"; playerId: UUID }
+  | { type: "END_ROUND" };
 
 export type GameplayEmitted =
+  | { type: "PHASE_ENTERED"; phase: Phase }
   | { type: "PLAYER_READY_ERROR"; error: Error }
   | {
       type: "ALL_PLAYERS_READY";

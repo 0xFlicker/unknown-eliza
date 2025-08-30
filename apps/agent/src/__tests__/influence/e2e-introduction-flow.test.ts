@@ -21,7 +21,7 @@ import { influencerPlugin } from "@/plugins/influencer";
 import { housePlugin } from "@/plugins/house";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 
 /**
  * End-to-End INTRODUCTION Flow Test
@@ -64,7 +64,7 @@ describe("E2E INTRODUCTION Flow", () => {
             sqlPlugin,
             openaiPlugin,
           ],
-          metadata: { name: `Player${i}` },
+          metadata: { entityName: `Player${i}`, role: "player" },
         });
         players.push(player);
         console.log(`👤 Added Player${i} with ID: ${player.id}`);

@@ -5,7 +5,7 @@ import {
   type Relationship,
   type State,
 } from "@elizaos/core";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 
 /**
  * Strategy modes for different game phases

@@ -80,4 +80,9 @@ export class PlayerStateService extends Service {
     const svc = new PlayerStateService(runtime);
     return svc;
   }
+
+  async stop(): Promise<void> {
+    // Clean up resources
+    this.flagsByRoom.clear();
+  }
 }

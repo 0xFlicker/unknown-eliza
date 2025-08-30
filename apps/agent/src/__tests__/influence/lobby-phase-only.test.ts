@@ -7,7 +7,7 @@ import { influencerPlugin } from "../../plugins/influencer";
 import { ChannelType } from "@elizaos/core";
 import { ParticipantMode, ParticipantState, StreamedMessage } from "@/server";
 import alexCharacter from "@/characters/alex";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 
 describe("LOBBY-only flow with preloaded context", () => {
   it(
@@ -42,7 +42,7 @@ describe("LOBBY-only flow with preloaded context", () => {
               sqlPlugin,
               openaiPlugin,
             ],
-            metadata: { name },
+            metadata: { entityName: name, role: "player" },
           });
           players.push(player);
         }
@@ -51,8 +51,8 @@ describe("LOBBY-only flow with preloaded context", () => {
         const gameId = await app.createGame({
           players: players.map((p) => p.id),
           settings: { minPlayers: 3, maxPlayers: 5 },
-          initialPhase: Phase.LOBBY as any,
-        } as any);
+          initialPhase: Phase.LOBBY,
+        });
 
         const channelId = await app.createGameChannel(gameId, {
           name: "lobby-only",

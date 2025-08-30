@@ -59,12 +59,22 @@ export interface MessageServiceMessage {
 /**
  * Base payload for all game events
  */
-export interface GameEventPayload<Action extends PhaseEmitted>
+export interface GameEventPayload<Action extends PhaseEvent>
   extends EventPayload {
   gameId: UUID;
   roomId: UUID;
   timestamp: number;
-  action: Action;
+  event: Action;
+  type: `GAME:${Action["type"]}`;
+}
+
+export interface GameEmitPayload<Action extends PhaseEmitted>
+  extends EventPayload {
+  gameId: UUID;
+  roomId: UUID;
+  timestamp: number;
+  emitted: Action;
+  type: `GAME:${Action["type"]}`;
 }
 
 /**
@@ -83,7 +93,12 @@ export interface PlayerReadyPayload
  * Payload for all players ready events
  */
 export interface AllPlayersReadyPayload
-  extends GameEventPayload<{ type: "ALL_PLAYERS_READY" }> {}
+  extends GameEmitPayload<{
+    type: "ALL_PLAYERS_READY";
+    fromPhase: Phase;
+    toPhase: Phase;
+    transitionReason: string;
+  }> {}
 
 export interface PhaseStartedPayload
   extends GameEventPayload<{ type: "PHASE_STARTED"; phase: Phase }> {}
@@ -102,9 +117,20 @@ export interface MessageSentPayload
   }> {}
 
 export interface PlayerReadyErrorPayload
-  extends GameEventPayload<{
+  extends GameEmitPayload<{
     type: "PLAYER_READY_ERROR";
     error: Error;
+  }> {}
+
+export interface WhisperPhaseStartedPayload
+  extends GameEventPayload<{
+    type: "WHISPER_PHASE_STARTED";
+  }> {}
+
+export interface WhisperYourTurnPayload
+  extends GameEmitPayload<{
+    type: "WHISPER_YOUR_TURN";
+    playerId: UUID;
   }> {}
 
 /**
@@ -117,9 +143,11 @@ export interface GameEventPayloadMap {
   ["GAME:I_AM_READY"]: PlayerReadyPayload;
   ["GAME:END_ROUND"]: EndRoundPayload;
   ["GAME:MESSAGE_SENT"]: MessageSentPayload;
-  ["GAME:PLAYER_READY_ERROR"]: PlayerReadyErrorPayload;
   ["GAME:PHASE_STARTED"]: PhaseStartedPayload;
   ["GAME:DIARY_PROMPT"]: DiaryPromptPayload;
+  ["GAME:WHISPER_PHASE_STARTED"]: WhisperPhaseStartedPayload;
+  ["GAME:PLAYER_READY_ERROR"]: PlayerReadyErrorPayload;
+  ["GAME:WHISPER_YOUR_TURN"]: WhisperYourTurnPayload;
 }
 
 /**

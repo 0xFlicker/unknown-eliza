@@ -7,6 +7,7 @@ import { influencerPlugin } from "../../plugins/influencer";
 import { ChannelType } from "@elizaos/core";
 import { ParticipantMode, ParticipantState, StreamedMessage } from "@/server";
 import alexCharacter from "@/characters/alex";
+import { Phase } from "@/game/types";
 
 describe("Introduction → LOBBY → Diary Room flow", () => {
   it(
@@ -41,7 +42,7 @@ describe("Introduction → LOBBY → Diary Room flow", () => {
               sqlPlugin,
               openaiPlugin,
             ],
-            metadata: { name },
+            metadata: { entityName: name, role: "player" },
           });
           players.push(player);
         }
@@ -50,8 +51,8 @@ describe("Introduction → LOBBY → Diary Room flow", () => {
         const gameId = await app.createGame({
           players: players.map((p) => p.id),
           settings: { minPlayers: 3, maxPlayers: 5 },
-          initialPhase: 0 as any, // Phase.INTRODUCTION
-        } as any);
+          initialPhase: Phase.INTRODUCTION,
+        });
 
         const nameById = new Map(
           players.map((p) => [p.id, p.character.name] as const),

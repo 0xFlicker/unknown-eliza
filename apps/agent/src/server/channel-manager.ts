@@ -120,7 +120,7 @@ export class ChannelManager<
     try {
       if (config.maxRepliesPerParticipant) {
         const tracker = getCapacityTracker?.();
-        tracker?.setChannelConfig(channelRecord.id as any, {
+        tracker?.setChannelConfig(channelRecord.id, {
           maxRepliesPerParticipant: config.maxRepliesPerParticipant,
         });
         logger.info(
@@ -160,7 +160,7 @@ export class ChannelManager<
       participants: new Map(),
       createdAt: Date.now(),
       metadata: {},
-    } as any;
+    };
 
     // Set up associations for House and the player
     await this.setupChannelAssociations({
@@ -281,14 +281,14 @@ export class ChannelManager<
         roomId: channel.id,
         source: "channel-manager",
         metadata: {
-          originalId: otherParticipant.agentId,
+          orginalId: otherParticipant.agentId,
           type: channel.type,
           isDm: channel.type === ChannelType.DM,
           username: otherRuntime.character.name,
           displayName: otherRuntime.character.name,
           roles: [],
           joinedAt: Date.now(),
-        } as any,
+        },
       } as EntityPayload);
     }
 
@@ -350,14 +350,14 @@ export class ChannelManager<
           roomId: channel.id,
           source: "channel-manager",
           metadata: {
-            originalId: otherParticipant.agentId,
+            orginalId: otherParticipant.agentId,
             type: channel.type,
             isDm: channel.type === ChannelType.DM,
             username: otherRuntime.character.name,
             displayName: otherRuntime.character.name,
             roles: [],
             joinedAt: Date.now(),
-          } as any,
+          },
         } as EntityPayload);
       }
 
@@ -369,12 +369,12 @@ export class ChannelManager<
         roomId: channel.id,
         source: "channel-manager",
         metadata: {
-          originalId: houseClientId,
+          orginalId: houseClientId,
           type: channel.type,
           isDm: channel.type === ChannelType.DM,
           username: "The House",
           displayName: "The House",
-        } as any,
+        },
       } as EntityPayload);
 
       logger.info(
@@ -605,7 +605,7 @@ export class ChannelManager<
 
     // Convert ServerMessage to ChannelMessage
     return response.data.messages.map((message) => {
-      const replyId = (message as any).in_reply_to_message_id;
+      const replyId = message.inReplyToRootMessageId;
       const meta = { ...message.metadata } as Record<string, unknown>;
       if (replyId) {
         meta.in_reply_to_message_id = replyId;

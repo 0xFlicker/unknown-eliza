@@ -4,7 +4,12 @@ import { getGameState } from "@/memory/runtime";
 import { GameSettings } from "@/game/types";
 import internalMessageBus, { gameEvent$ } from "../coordinator/bus";
 import { CoordinationService } from "../coordinator/service";
+import {
+  WhisperPhaseStartedPayload,
+  WhisperYourTurnPayload,
+} from "../coordinator/types";
 import { Service } from "@elizaos/core";
+import { filter } from "rxjs";
 
 /**
  * High-level abstraction for managing game state changes and triggering
@@ -16,6 +21,21 @@ import { Service } from "@elizaos/core";
 export class GameStateManager extends Service {
   // Map of gameID (worldId externally) to phaseActor
   private phases: Map<UUID, ReturnType<typeof createPhaseActor>>;
+  // Whisper phase state per game
+  private whispers: Map<
+    UUID,
+    {
+      settings: Partial<{
+        maxWhisperRequests: number;
+        maxMessagesPerPlayerPerRoom: number;
+        whisperRoomTimeoutMs: number;
+        perRoomMaxParticipants?: number;
+      }>;
+      remainingRequests: Map<UUID, number>;
+      turnOrder: UUID[];
+      currentTurnIndex: number;
+    }
+  >;
 
   capabilityDescription = "Manages the game state for the house";
   static serviceType = "game-state-manager";
@@ -23,6 +43,7 @@ export class GameStateManager extends Service {
   constructor(runtime: IAgentRuntime) {
     super(runtime);
     this.phases = new Map();
+    this.whispers = new Map();
   }
 
   async initializePhase(
@@ -48,8 +69,13 @@ export class GameStateManager extends Service {
       this.phases.set(gameSettings.id, phaseActor);
 
       gameEvent$.subscribe((event) => {
+        // Only send events to phase actors "emitted" will be events from the phase machine
+        if (!("event" in event.payload)) {
+          return;
+        }
+
         console.log(`🏠 House received game event: ${event.type}`);
-        phaseActor.send(event.payload.action as any);
+        phaseActor.send(event.payload.event);
       });
 
       phaseActor.on("*", (event) => {
@@ -58,7 +84,7 @@ export class GameStateManager extends Service {
           "ALL_PLAYERS_READY",
           "PLAYER_READY_ERROR",
         ]);
-        if (!broadcastable.has((event as any).type)) {
+        if (!broadcastable.has(event.type)) {
           return;
         }
         const svc = this.runtime.getService<CoordinationService>(
@@ -71,17 +97,77 @@ export class GameStateManager extends Service {
           source: "house",
           timestamp: Date.now(),
           action: event,
-        } as any;
+        };
         svc?.sendGameEvent(payload);
-        if ((event as any).type === "ALL_PLAYERS_READY") {
-          setTimeout(() => {
-            svc?.sendGameEvent(payload);
-          }, 5000);
-        }
       });
     }
 
     return gameState;
+  }
+
+  /**
+   * Initialize the whisper phase state for the given room/game and notify the first player.
+   */
+  async startWhisperPhase(
+    gameId: UUID,
+    settings: Partial<{
+      maxWhisperRequests: number;
+      maxMessagesPerPlayerPerRoom: number;
+      whisperRoomTimeoutMs: number;
+      perRoomMaxParticipants?: number;
+    }> = {},
+  ) {
+    // Retrieve canonical game state to get player list
+    const roomId = gameId;
+    const gameState = await getGameState(this.runtime, roomId);
+    const players = (gameState?.phaseInput?.players as UUID[]) || [];
+
+    const whisperSettings = {
+      maxWhisperRequests: settings.maxWhisperRequests ?? 1,
+      maxMessagesPerPlayerPerRoom: settings.maxMessagesPerPlayerPerRoom ?? 3,
+      whisperRoomTimeoutMs: settings.whisperRoomTimeoutMs ?? 60000,
+      perRoomMaxParticipants: settings.perRoomMaxParticipants ?? 4,
+    };
+
+    // Build initial turn order by shuffling player ids
+    const turnOrder = [...players];
+    for (let i = turnOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [turnOrder[i], turnOrder[j]] = [turnOrder[j], turnOrder[i]];
+    }
+
+    const remainingRequests = new Map<UUID, number>();
+    for (const p of players) {
+      remainingRequests.set(p, whisperSettings.maxWhisperRequests);
+    }
+
+    this.whispers.set(gameId, {
+      settings: whisperSettings,
+      remainingRequests,
+      turnOrder,
+      currentTurnIndex: 0,
+    });
+
+    // Notify all that whisper phase started, then notify the first player of their turn
+    const svc = this.runtime.getService<CoordinationService>(
+      CoordinationService.serviceType,
+    );
+    if (!svc) throw new Error("CoordinationService not available");
+
+    // Broadcast phase start to all agents in the game
+    const phaseStartedPayload: WhisperPhaseStartedPayload = {
+      gameId,
+      roomId,
+      runtime: this.runtime,
+      source: "house",
+      timestamp: Date.now(),
+      type: "GAME:WHISPER_PHASE_STARTED",
+      event: { type: "WHISPER_PHASE_STARTED" },
+    };
+
+    await svc.sendGameEvent(phaseStartedPayload, "all");
+
+    // Notify the first player privately that it's their turn once implemented in state machine
   }
 
   async addPlayer(gameId: UUID, playerId: UUID) {

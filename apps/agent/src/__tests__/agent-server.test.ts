@@ -13,6 +13,7 @@ import { killProcessOnPort } from "./utils/process-utils";
 import { TEST_TIMEOUTS } from "./utils/test-timeouts";
 import {
   createAgentServer,
+  DefaultAgentContext,
   InfluenceApp,
   ParticipantMode,
   ParticipantState,
@@ -37,7 +38,7 @@ describe("AgentServer V3 Integration", () => {
 
   let modelMockingService: ModelMockingService;
   let app: InfluenceApp<
-    {},
+    DefaultAgentContext,
     {
       testName: string;
       suiteName: string;

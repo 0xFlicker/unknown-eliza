@@ -6,7 +6,7 @@ import {
   ModelType,
   UUID,
 } from "@elizaos/core";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import { getGameState } from "../../memory/runtime";
 import { createPhaseMachine } from "@/game/phase";
 import { createActor } from "xstate";

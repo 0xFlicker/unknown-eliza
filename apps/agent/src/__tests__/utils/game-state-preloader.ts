@@ -2,7 +2,7 @@ import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
 import { saveGameState } from "../../memory/runtime";
 import { GameState } from "../../memory/types";
 import { Agent } from "../../server/types";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 import { GameSettings, Player, PlayerStatus } from "@/game/types";
 import { GameConfig, GameSession } from "@/server/game-manager";
 import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";

@@ -6,7 +6,7 @@ import {
   ChannelConfig,
   ParticipantState,
   ParticipantMode,
-  AgentContext,
+  DefaultAgentContext,
 } from "./types";
 import { Character, ChannelType, IAgentRuntime } from "@elizaos/core";
 import alexCharacter from "../characters/alex";
@@ -14,7 +14,6 @@ import bethanyCharacter from "../characters/bethany";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
-import { socialStrategyPlugin } from "../../src/plugins/socialStrategy";
 import { housePlugin } from "../../src/plugins/house";
 import { influencerPlugin } from "../../src/plugins/influencer";
 
@@ -25,7 +24,7 @@ import { influencerPlugin } from "../../src/plugins/influencer";
 export async function start() {
   // Create the app with configuration
   const app = new InfluenceApp<
-    AgentContext,
+    DefaultAgentContext,
     {
       environment: string;
       version: string;
@@ -49,7 +48,7 @@ export async function start() {
   const houseAgent = await app.addAgent({
     character: houseCharacter,
     plugins: [bootstrapPlugin, sqlPlugin as any, openaiPlugin, housePlugin],
-    metadata: { role: "host", entityName: "House" },
+    metadata: { role: "house", entityName: "House" },
   });
 
   const alexAgent = await app.addAgent({
@@ -75,7 +74,7 @@ export async function start() {
   });
 
   console.log(
-    `Added agents: ${houseAgent.character.name}, ${alexAgent.character.name}, ${bethanyAgent.character.name}`
+    `Added agents: ${houseAgent.character.name}, ${alexAgent.character.name}, ${bethanyAgent.character.name}`,
   );
 
   // Create a channel with all participants

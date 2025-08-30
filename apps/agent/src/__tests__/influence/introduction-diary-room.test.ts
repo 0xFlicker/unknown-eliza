@@ -41,7 +41,7 @@ describe("Introduction → Diary Room flow", () => {
               sqlPlugin,
               openaiPlugin,
             ],
-            metadata: { name },
+            metadata: { entityName: name, role: "player" },
           });
           players.push(player);
         }

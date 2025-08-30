@@ -12,7 +12,7 @@ import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 
 /**
  * Minimal Game Test
@@ -52,7 +52,7 @@ describe("Minimal Game Test", () => {
             sqlPlugin,
             openaiPlugin,
           ],
-          metadata: { name: `TestPlayer${i}` },
+          metadata: { entityName: `TestPlayer${i}`, role: "player" },
         });
         players.push(player);
       }
@@ -104,8 +104,8 @@ describe("Minimal Game Test", () => {
             filter(
               (evt) =>
                 evt.type === "coordination_message" &&
-                evt.payload.action.type === "PLAYER_READY" &&
-                evt.payload.action.playerId === id,
+                evt.payload.type === "GAME:PLAYER_READY" &&
+                evt.payload.event.playerId === id,
             ),
             take(1),
           ),
@@ -115,7 +115,8 @@ describe("Minimal Game Test", () => {
       // Send ARE_YOU_READY event
       await coordinationService!.sendGameEvent(
         {
-          action: { type: "ARE_YOU_READY" },
+          type: "GAME:ARE_YOU_READY",
+          event: { type: "ARE_YOU_READY" },
           gameId: gameId,
           roomId: channelId,
           timestamp: Date.now(),

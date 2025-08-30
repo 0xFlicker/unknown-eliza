@@ -12,7 +12,7 @@ import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameEvent$ } from "@/plugins/coordinator/bus";
-import { Phase } from "@/memory/types";
+import { Phase } from "@/game/types";
 
 /**
  * Coordination Plugin - Ready Coordination Test
@@ -45,7 +45,7 @@ describe("Coordination Plugin - Ready Coordination", () => {
             sqlPlugin,
             openaiPlugin,
           ],
-          metadata: { name: `Player${i}` },
+          metadata: { entityName: `Player${i}`, role: "player" },
         });
         players.push(player);
       }
@@ -57,8 +57,8 @@ describe("Coordination Plugin - Ready Coordination", () => {
             filter(
               (evt) =>
                 evt.type === "coordination_message" &&
-                evt.payload.action.type === "PLAYER_READY" &&
-                evt.payload.action.playerId === id,
+                evt.payload.type === "GAME:PLAYER_READY" &&
+                evt.payload.event.playerId === id,
             ),
             take(1),
           ),
@@ -98,7 +98,8 @@ describe("Coordination Plugin - Ready Coordination", () => {
       console.log("🏠 Sending ARE_YOU_READY event");
       await coordinationService?.sendGameEvent(
         {
-          action: { type: "ARE_YOU_READY" },
+          type: "GAME:ARE_YOU_READY",
+          event: { type: "ARE_YOU_READY" },
           gameId: gameId,
           roomId: channelId,
           timestamp: Date.now(),
