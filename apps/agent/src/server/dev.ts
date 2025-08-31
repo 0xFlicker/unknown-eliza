@@ -9,13 +9,22 @@ import {
   DefaultAgentContext,
 } from "./types";
 import { Character, ChannelType, IAgentRuntime } from "@elizaos/core";
-import alexCharacter from "../characters/alex";
-import bethanyCharacter from "../characters/bethany";
+import {
+  alexCharacter,
+  bethanyCharacter,
+  chloeCharacter,
+  elenaCharacter,
+  ethanCharacter,
+  marcusCharacter,
+  mayaCharacter,
+  ryanCharacter,
+} from "@/characters/allPlayers";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import bootstrapPlugin from "@elizaos/plugin-bootstrap";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { housePlugin } from "../../src/plugins/house";
 import { influencerPlugin } from "../../src/plugins/influencer";
+import { coordinatorPlugin } from "@/plugins/coordinator";
 
 /**
  * Example usage of the production-ready agent and channel management system
@@ -53,35 +62,61 @@ export async function start() {
 
   const alexAgent = await app.addAgent({
     character: alexCharacter,
-    plugins: [
-      bootstrapPlugin,
-      sqlPlugin as any,
-      openaiPlugin,
-      influencerPlugin,
-    ],
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
     metadata: { role: "player", entityName: "Alex" },
   });
 
   const bethanyAgent = await app.addAgent({
     character: bethanyCharacter,
-    plugins: [
-      bootstrapPlugin,
-      sqlPlugin as any,
-      openaiPlugin,
-      influencerPlugin,
-    ],
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
     metadata: { role: "player", entityName: "Bethany" },
   });
 
+  const chloeAgent = await app.addAgent({
+    character: chloeCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Chloe" },
+  });
+
+  const elenaAgent = await app.addAgent({
+    character: elenaCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Elena" },
+  });
+
+  const ethanAgent = await app.addAgent({
+    character: ethanCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Ethan" },
+  });
+
+  const marcusAgent = await app.addAgent({
+    character: marcusCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Marcus" },
+  });
+
+  const mayaAgent = await app.addAgent({
+    character: mayaCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Maya" },
+  });
+
+  const ryanAgent = await app.addAgent({
+    character: ryanCharacter,
+    plugins: [coordinatorPlugin, influencerPlugin, sqlPlugin, openaiPlugin],
+    metadata: { role: "player", entityName: "Ryan" },
+  });
+
   console.log(
-    `Added agents: ${houseAgent.character.name}, ${alexAgent.character.name}, ${bethanyAgent.character.name}`,
+    `Added agents: ${houseAgent.character.name}, ${alexAgent.character.name}, ${bethanyAgent.character.name}, ${chloeAgent.character.name}, ${elenaAgent.character.name}, ${ethanAgent.character.name}, ${marcusAgent.character.name}, ${mayaAgent.character.name}, ${ryanAgent.character.name}`,
   );
 
   // Create a channel with all participants
   console.log("Creating channel...");
 
   const channelConfig: ChannelConfig = {
-    name: "Game Channel v2",
+    name: "Game Channel",
     type: ChannelType.GROUP,
     participants: [
       {

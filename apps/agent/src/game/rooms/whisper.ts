@@ -7,15 +7,12 @@ import { shuffleArray } from "@/utils/random";
 export type WhisperContext = {
   players: UUID[]; // participants in the overall game
   // roomId -> { participants: UUID[], messagesByPlayer: Record<UUID, number> }
-  rooms: Record<
-    UUID,
-    {
-      participants: UUID[];
-      owner: UUID;
-      messagesByPlayer: Record<UUID, number>;
-      createdAt: number;
-    }
-  >;
+  activeRoom?: {
+    participants: UUID[];
+    owner: UUID;
+    messagesByPlayer: Record<UUID, number>;
+    createdAt: number;
+  };
   // Secret turn order owned by the house (kept here for sequencing)
   turnOrder: UUID[];
   currentTurnIndex: number;
@@ -37,10 +34,10 @@ export type WhisperInput = {
 };
 
 export type WhisperEvent =
-  | { type: "CREATE_ROOM"; roomId: UUID; ownerId: UUID; participantIds: UUID[] }
-  | { type: "LEAVE_ROOM"; roomId: UUID; playerId: UUID }
-  | { type: "MESSAGE_SENT"; roomId: UUID; playerId: UUID }
-  | { type: "END_ROOM"; roomId: UUID }
+  | { type: "CREATE_ROOM"; ownerId: UUID; participantIds: UUID[] }
+  | { type: "LEAVE_ROOM"; playerId: UUID }
+  | { type: "MESSAGE_SENT"; playerId: UUID }
+  | { type: "END_ROOM" }
   | { type: "PASS"; playerId: UUID }
   | GameplayEvent;
 
@@ -50,8 +47,8 @@ export type WhisperEmitted =
   | { type: "WHISPER_YOUR_TURN"; playerId: UUID };
 
 // room lifecycle events emitted by the whisper machine
-export type WhisperRoomOpened = { type: "WHISPER_ROOM_OPENED"; roomId: UUID };
-export type WhisperRoomClosed = { type: "WHISPER_ROOM_CLOSED"; roomId: UUID };
+export type WhisperRoomOpened = { type: "WHISPER_ROOM_OPENED" };
+export type WhisperRoomClosed = { type: "WHISPER_ROOM_CLOSED" };
 
 export type WhisperEmittedFull =
   | WhisperEmitted
@@ -93,34 +90,6 @@ export function createWhisperMachine({
           currentTurnIndex: 0,
         };
       }),
-      emitYourTurn: emit(({ context }) => {
-        const payload: WhisperEmitted = {
-          type: "WHISPER_YOUR_TURN",
-          playerId: context.turnOrder[context.currentTurnIndex],
-        };
-        return payload as WhisperEmittedFull;
-      }),
-      emitRoomOpened: emit(({ event }) => {
-        if (event.type === "CREATE_ROOM") {
-          const payload: WhisperRoomOpened = {
-            type: "WHISPER_ROOM_OPENED",
-            roomId: event.roomId,
-          };
-          return payload;
-        }
-        return { type: "WHISPER_ERROR" } as WhisperEmittedFull;
-      }),
-      emitRoomClosed: emit(({ event }) => {
-        if (event.type === "LEAVE_ROOM" || event.type === "END_ROOM") {
-          const rid = (event as { roomId: UUID }).roomId;
-          const payload: WhisperRoomClosed = {
-            type: "WHISPER_ROOM_CLOSED",
-            roomId: rid,
-          };
-          return payload;
-        }
-        return { type: "WHISPER_ERROR" } as WhisperEmittedFull;
-      }),
     },
     actors: {
       gameplay: createGameplayMachine({
@@ -129,7 +98,7 @@ export function createWhisperMachine({
       }),
     },
     guards: {
-      hasActiveRooms: ({ context }) => Object.keys(context.rooms).length > 0,
+      hasActiveRooms: ({ context }) => context.activeRoom !== undefined,
       hasRemainingRequests: ({ context }) => {
         // console.log("Checking remaining requests", context);
         if (context.turnOrder.length === 0) return false;
@@ -141,7 +110,7 @@ export function createWhisperMachine({
         const currentPlayerId = context.turnOrder[context.currentTurnIndex];
         return (
           (context.remainingRequests[currentPlayerId] ?? 0) > 0 &&
-          Object.keys(context.rooms).length > 0
+          context.activeRoom !== undefined
         );
       },
       hasNextPlayer: ({ context }) => {
@@ -244,7 +213,10 @@ export function createWhisperMachine({
                   };
                 }),
                 "nextPlayer",
-                "emitYourTurn",
+                emit(({ context }) => ({
+                  type: "WHISPER_YOUR_TURN",
+                  playerId: context.turnOrder[context.currentTurnIndex],
+                })),
               ],
             },
           ],
@@ -262,14 +234,11 @@ export function createWhisperMachine({
                 assign(({ context, event }) => {
                   const required = Math.max(0, event.participantIds.length - 1);
                   return {
-                    rooms: {
-                      ...context.rooms,
-                      [event.roomId]: {
-                        participants: event.participantIds,
-                        messagesByPlayer: {},
-                        createdAt: Date.now(),
-                        owner: event.ownerId,
-                      },
+                    activeRoom: {
+                      participants: event.participantIds,
+                      messagesByPlayer: {},
+                      createdAt: Date.now(),
+                      owner: event.ownerId,
                     },
                     remainingRequests: {
                       ...context.remainingRequests,
@@ -281,7 +250,7 @@ export function createWhisperMachine({
                     },
                   } as Partial<typeof context>;
                 }),
-                "emitRoomOpened",
+                emit({ type: "WHISPER_ROOM_OPENED" }),
               ],
               target: "active",
             },
@@ -308,7 +277,7 @@ export function createWhisperMachine({
           MESSAGE_SENT: [
             {
               guard: ({ context, event }) => {
-                const room = context.rooms[event.roomId];
+                const room = context.activeRoom;
                 if (!room) return false;
                 if (!room.participants.includes(event.playerId)) return false;
                 const prev = room.messagesByPlayer[event.playerId] || 0;
@@ -318,18 +287,14 @@ export function createWhisperMachine({
                 return prev < maxPer;
               },
               actions: assign(({ context, event }) => {
-                const room = context.rooms[event.roomId];
+                const room = context.activeRoom!;
                 const prev = room.messagesByPlayer[event.playerId] || 0;
                 return {
-                  rooms: {
-                    ...context.rooms,
-                    [event.roomId]: {
-                      participants: room.participants,
-                      messagesByPlayer: {
-                        ...room.messagesByPlayer,
-                        [event.playerId]: prev + 1,
-                      },
-                      createdAt: room.createdAt,
+                  activeRoom: {
+                    ...room,
+                    messagesByPlayer: {
+                      ...room.messagesByPlayer,
+                      [event.playerId]: prev + 1,
                     },
                   },
                 };
@@ -339,11 +304,9 @@ export function createWhisperMachine({
           ],
           END_ROOM: {
             actions: [
-              assign(({ context, event }) => {
-                const { [event.roomId]: _removed, ...rest } = context.rooms;
-                return { rooms: rest } as Partial<WhisperContext>;
+              assign(() => {
+                return { activeRoom: undefined } as Partial<WhisperContext>;
               }),
-              "emitRoomClosed",
             ],
             target: "next",
           },
@@ -351,28 +314,27 @@ export function createWhisperMachine({
             {
               description:
                 "When the owner of the room leaves, it closes the room immediately",
-              guard: ({ context, event: { playerId, roomId } }) => {
-                const room = context.rooms[roomId];
+              guard: ({ context, event: { playerId } }) => {
+                const room = context.activeRoom;
                 if (!room) return false;
                 return room.owner === playerId;
               },
               actions: [
-                assign(({ context, event: { playerId, roomId } }) => {
-                  const { [roomId]: _removed, ...restRooms } = context.rooms;
+                assign(() => {
                   return {
-                    rooms: {
-                      ...restRooms,
-                    },
+                    activeRoom: undefined,
                   } as Partial<WhisperContext>;
                 }),
-                "emitRoomClosed",
+                emit({
+                  type: "WHISPER_ROOM_CLOSED",
+                }),
               ],
               target: "next",
             },
             {
               description: "When the last participant leaves the room",
-              guard: ({ context, event: { playerId, roomId } }) => {
-                const room = context.rooms[roomId];
+              guard: ({ context, event: { playerId } }) => {
+                const room = context.activeRoom;
                 if (!room) return false;
                 return (
                   room.participants.includes(playerId) &&
@@ -380,23 +342,22 @@ export function createWhisperMachine({
                 );
               },
               actions: [
-                assign(({ context, event: { playerId, roomId } }) => {
-                  const { [roomId]: _removed, ...restRooms } = context.rooms;
+                assign(() => {
                   return {
-                    rooms: {
-                      ...restRooms,
-                    },
+                    activeRoom: undefined,
                   } as Partial<WhisperContext>;
                 }),
-                "emitRoomClosed",
+                emit({
+                  type: "WHISPER_ROOM_CLOSED",
+                }),
               ],
               target: "next",
             },
             {
               description:
                 "When a participant leaves the room but there are still other participants",
-              guard: ({ context, event: { playerId, roomId } }) => {
-                const room = context.rooms[roomId];
+              guard: ({ context, event: { playerId } }) => {
+                const room = context.activeRoom;
                 if (!room) return false;
                 return (
                   room.participants.includes(playerId) &&
@@ -404,20 +365,15 @@ export function createWhisperMachine({
                 );
               },
               actions: [
-                assign(({ context, event: { playerId, roomId } }) => {
-                  const {
-                    [roomId]: { participants, ...restRoom },
-                    ...restRooms
-                  } = context.rooms;
+                assign(({ context, event: { playerId } }) => {
+                  const room = context.activeRoom!;
+                  const { participants, ...restRoom } = room;
                   return {
-                    rooms: {
-                      [roomId]: {
-                        participants: participants.filter(
-                          (id) => id !== playerId,
-                        ),
-                        ...restRoom,
-                      },
-                      ...restRooms,
+                    activeRoom: {
+                      participants: participants.filter(
+                        (id) => id !== playerId,
+                      ),
+                      ...restRoom,
                     },
                   } as Partial<WhisperContext>;
                 }),

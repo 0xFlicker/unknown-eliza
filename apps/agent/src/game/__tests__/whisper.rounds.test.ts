@@ -28,32 +28,26 @@ describe("Whisper rounds and exhaustion", () => {
     ).start();
 
     // create a room so active state is relevant
-    const roomId = stringToUuid("r-rounds");
     actor.send({
       type: "CREATE_ROOM",
-      roomId,
       ownerId: p1,
       participantIds: [p1, p2],
     });
 
-    actor.send({ type: "END_ROOM", roomId: roomId });
-    const room2 = stringToUuid("r-rounds-2");
+    actor.send({ type: "END_ROOM" });
     actor.send({
       type: "CREATE_ROOM",
-      roomId: room2,
       ownerId: p1,
       participantIds: [p1, p2],
     });
-    actor.send({ type: "END_ROOM", roomId: room2 });
-    const room3 = stringToUuid("r-rounds-3");
+    actor.send({ type: "END_ROOM" });
     actor.send({
       type: "CREATE_ROOM",
-      roomId: room3,
       ownerId: p2,
       participantIds: [p2, p1],
     });
 
-    actor.send({ type: "END_ROOM", roomId: room3 });
+    actor.send({ type: "END_ROOM" });
 
     const snap = actor.getSnapshot();
     expect(snap.value).toBe("diary");

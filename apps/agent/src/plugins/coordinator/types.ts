@@ -122,11 +122,6 @@ export interface PlayerReadyErrorPayload
     error: Error;
   }> {}
 
-export interface WhisperPhaseStartedPayload
-  extends GameEventPayload<{
-    type: "WHISPER_PHASE_STARTED";
-  }> {}
-
 export interface WhisperYourTurnPayload
   extends GameEmitPayload<{
     type: "WHISPER_YOUR_TURN";
@@ -145,7 +140,6 @@ export interface GameEventPayloadMap {
   ["GAME:MESSAGE_SENT"]: MessageSentPayload;
   ["GAME:PHASE_STARTED"]: PhaseStartedPayload;
   ["GAME:DIARY_PROMPT"]: DiaryPromptPayload;
-  ["GAME:WHISPER_PHASE_STARTED"]: WhisperPhaseStartedPayload;
   ["GAME:PLAYER_READY_ERROR"]: PlayerReadyErrorPayload;
   ["GAME:WHISPER_YOUR_TURN"]: WhisperYourTurnPayload;
 }

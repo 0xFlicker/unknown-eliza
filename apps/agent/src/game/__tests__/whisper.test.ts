@@ -31,12 +31,10 @@ describe("Whisper machine", () => {
     );
     let round = 1;
     let players: {
-      roomId: UUID;
       ownerId: UUID;
       participantIds: UUID[];
     }[] = [];
     let didCreate = false;
-    let firstRoom: UUID | null = null;
     actor.on("WHISPER_YOUR_TURN", (event) => {
       if (didCreate) return;
       didCreate = true;
@@ -44,16 +42,12 @@ describe("Whisper machine", () => {
 
       // take 1 action
       const otherPlayer = allPlayers.filter((p) => p !== event.playerId)[0];
-      const roomId = stringToUuid(`p${event.playerId}r${round}`);
-      firstRoom = roomId;
       players.push({
         ownerId: event.playerId,
         participantIds: [otherPlayer],
-        roomId,
       });
       actor.send({
         type: "CREATE_ROOM",
-        roomId,
         ownerId: event.playerId,
         participantIds: [otherPlayer],
       });
@@ -69,13 +63,11 @@ describe("Whisper machine", () => {
     players.forEach(({ ownerId, participantIds }) => {
       actor.send({
         type: "MESSAGE_SENT",
-        roomId: stringToUuid(`p${ownerId}r${round}`),
         playerId: ownerId,
       });
       participantIds.forEach((participantId) => {
         actor.send({
           type: "MESSAGE_SENT",
-          roomId: stringToUuid(`p${ownerId}r${round}`),
           playerId: participantId,
         });
       });
@@ -84,22 +76,167 @@ describe("Whisper machine", () => {
     // advance to next turn so the machine returns to picking
     actor.send({
       type: "END_ROOM",
-      roomId: firstRoom!,
     });
     expect(actor.getSnapshot().value).toBe("picking");
     const { context } = actor.getSnapshot();
-    players.forEach(({ ownerId, roomId, participantIds }) => {
-      if (roomId === firstRoom) {
-        expect(context.rooms[roomId]).toBeUndefined();
-        return;
-      }
-      expect(context.rooms[roomId]).toEqual(
-        expect.objectContaining({
-          createdAt: expect.any(Number),
-          messagesByPlayer: expect.any(Object),
-          participants: participantIds,
-        }),
-      );
+    expect(context.activeRoom).toBeUndefined();
+  });
+  it("blocks CREATE_ROOM when owner lacks requests", () => {
+    const p1 = stringToUuid("p1");
+    const p2 = stringToUuid("p2");
+
+    const actor = createActor(
+      createWhisperMachine({
+        roundTimeoutMs: 1000,
+        roomTimeoutMs: 1000,
+        diaryTimeoutMs: 1000,
+        pickTimeoutMs: 1000,
+      }),
+      {
+        input: {
+          players: [
+            { id: p1, maxRequests: 0 }, // no requests
+            { id: p2, maxRequests: 1 },
+          ],
+          settings: {
+            maxMessagesPerPlayerPerRoom: 3,
+            perRoomMaxParticipants: 3,
+          },
+        },
+      },
+    ).start();
+
+    const roomId = stringToUuid("r-block-create");
+
+    actor.send({
+      type: "CREATE_ROOM",
+      ownerId: p1,
+      participantIds: [p1, p2],
     });
+
+    const ctx = actor.getSnapshot().context;
+    expect(ctx.activeRoom).toBeUndefined();
+    expect(ctx.remainingRequests[p1]).toBe(0);
+  });
+
+  it("decrements remainingRequests only on CREATE_ROOM and by correct amount", () => {
+    const p1 = stringToUuid("p1");
+    const p2 = stringToUuid("p2");
+
+    const actor = createActor(
+      createWhisperMachine({
+        roundTimeoutMs: 1000,
+        roomTimeoutMs: 1000,
+        diaryTimeoutMs: 1000,
+        pickTimeoutMs: 1000,
+      }),
+      {
+        input: {
+          players: [
+            { id: p1, maxRequests: 2 },
+            { id: p2, maxRequests: 1 },
+          ],
+          settings: {
+            maxMessagesPerPlayerPerRoom: 5,
+            perRoomMaxParticipants: 3,
+          },
+        },
+      },
+    ).start();
+
+    actor.send({
+      type: "CREATE_ROOM",
+      ownerId: p1,
+      participantIds: [p1, p2],
+    });
+    expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
+
+    // MESSAGE_SENT should not change remainingRequests
+    actor.send({ type: "MESSAGE_SENT", playerId: p1 });
+    expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
+  });
+
+  it("PASS forfeits current player's remainingRequests and emits next player's turn", () => {
+    const p1 = stringToUuid("p1");
+    const p2 = stringToUuid("p2");
+
+    const actor = createActor(
+      createWhisperMachine({
+        roundTimeoutMs: 1000,
+        roomTimeoutMs: 1000,
+        diaryTimeoutMs: 1000,
+        pickTimeoutMs: 1000,
+      }),
+      {
+        input: {
+          players: [
+            { id: p1, maxRequests: 1 },
+            { id: p2, maxRequests: 1 },
+          ],
+          settings: {
+            maxMessagesPerPlayerPerRoom: 3,
+            perRoomMaxParticipants: 2,
+          },
+        },
+      },
+    );
+
+    let sawYourTurnForNext = false;
+    actor.on("WHISPER_YOUR_TURN", (ev) => {
+      // first time will be for p1; let test send PASS
+      if (ev.playerId === p2) sawYourTurnForNext = true;
+    });
+
+    actor.start();
+    // ensure we're in picking and current is p1
+    const current =
+      actor.getSnapshot().context.turnOrder[
+        actor.getSnapshot().context.currentTurnIndex
+      ];
+    expect(current).toBeDefined();
+
+    actor.send({ type: "PASS", playerId: current });
+
+    expect(actor.getSnapshot().context.remainingRequests[current]).toBe(0);
+    // because we emitted next player's turn synchronously via emitYourTurn, we should have seen it already
+    expect(sawYourTurnForNext).toBeTruthy();
+  });
+
+  it("pick-timeout forfeits and advances to next picker/round", async () => {
+    const p1 = stringToUuid("p1");
+    const p2 = stringToUuid("p2");
+
+    const actor = createActor(
+      createWhisperMachine({
+        roundTimeoutMs: 1000,
+        roomTimeoutMs: 1000,
+        diaryTimeoutMs: 1000,
+        pickTimeoutMs: 20,
+      }),
+      {
+        input: {
+          players: [
+            { id: p1, maxRequests: 1 },
+            { id: p2, maxRequests: 1 },
+          ],
+          settings: {
+            maxMessagesPerPlayerPerRoom: 3,
+            perRoomMaxParticipants: 2,
+          },
+        },
+      },
+    ).start();
+
+    const startPlayer =
+      actor.getSnapshot().context.turnOrder[
+        actor.getSnapshot().context.currentTurnIndex
+      ];
+    await new Promise((r) => setTimeout(r, 50));
+
+    const after = actor.getSnapshot();
+    // startPlayer should have remainingRequests 0
+    expect(after.context.remainingRequests[startPlayer]).toBe(0);
+    // machine should have proceeded (either to picking another player or diary)
+    expect(after.value).toBe("pick-timeout");
   });
 });

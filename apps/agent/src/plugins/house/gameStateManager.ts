@@ -1,15 +1,10 @@
-import { IAgentRuntime, UUID, createUniqueUuid } from "@elizaos/core";
+import { IAgentRuntime, UUID } from "@elizaos/core";
 import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
 import { getGameState } from "@/memory/runtime";
-import { GameSettings } from "@/game/types";
-import internalMessageBus, { gameEvent$ } from "../coordinator/bus";
+import { GameSettings, Phase } from "@/game/types";
+import { gameEvent$ } from "../coordinator/bus";
 import { CoordinationService } from "../coordinator/service";
-import {
-  WhisperPhaseStartedPayload,
-  WhisperYourTurnPayload,
-} from "../coordinator/types";
 import { Service } from "@elizaos/core";
-import { filter } from "rxjs";
 
 /**
  * High-level abstraction for managing game state changes and triggering
@@ -155,17 +150,18 @@ export class GameStateManager extends Service {
     if (!svc) throw new Error("CoordinationService not available");
 
     // Broadcast phase start to all agents in the game
-    const phaseStartedPayload: WhisperPhaseStartedPayload = {
-      gameId,
-      roomId,
-      runtime: this.runtime,
-      source: "house",
-      timestamp: Date.now(),
-      type: "GAME:WHISPER_PHASE_STARTED",
-      event: { type: "WHISPER_PHASE_STARTED" },
-    };
-
-    await svc.sendGameEvent(phaseStartedPayload, "all");
+    await svc.sendGameEvent(
+      {
+        gameId,
+        roomId,
+        runtime: this.runtime,
+        source: "house",
+        timestamp: Date.now(),
+        type: "GAME:PHASE_STARTED",
+        event: { type: "PHASE_STARTED", phase: Phase.WHISPER },
+      },
+      "all",
+    );
 
     // Notify the first player privately that it's their turn once implemented in state machine
   }

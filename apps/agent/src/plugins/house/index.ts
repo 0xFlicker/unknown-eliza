@@ -211,7 +211,6 @@ export const housePlugin: Plugin = {
             throw new Error("CoordinationService not available");
           }
 
-          // Broadcast a WHISPER_PHASE_STARTED event so players/providers can prepare
           await coordinationService.sendGameEvent(
             {
               gameId: payload.gameId,
@@ -219,8 +218,8 @@ export const housePlugin: Plugin = {
               runtime: payload.runtime,
               source: "house",
               timestamp: Date.now(),
-              type: "GAME:WHISPER_PHASE_STARTED",
-              event: { type: "WHISPER_PHASE_STARTED" },
+              type: "GAME:PHASE_STARTED",
+              event: { type: "PHASE_STARTED", phase: Phase.WHISPER },
             },
             "all",
           );
