@@ -33,7 +33,7 @@ describe("Whisper rooms lifecycle", () => {
 
     // create room with owner p1 and participant p2
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p1,
       participantIds: [p1, p2],
     });
@@ -43,14 +43,14 @@ describe("Whisper rooms lifecycle", () => {
     expect(ctx.activeRoom).toBeDefined();
 
     // owner leaves -> room should be closed (removed)
-    actor.send({ type: "LEAVE_ROOM", roomId, playerId: p1 });
+    actor.send({ type: "GAME:LEAVE_ROOM", playerId: p1 });
     ctx = actor.getSnapshot().context;
     expect(ctx.activeRoom).toBeUndefined();
 
     // create another room and make the non-owner leave until empty
     const room2 = stringToUuid("r-last-leave");
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p2,
       participantIds: [p2, p1],
     });
@@ -58,12 +58,12 @@ describe("Whisper rooms lifecycle", () => {
     expect(ctx.activeRoom).toBeDefined();
 
     // p1 leaves (participant) -> room should remain because owner p2 is still present
-    actor.send({ type: "LEAVE_ROOM", playerId: p1 });
+    actor.send({ type: "GAME:LEAVE_ROOM", playerId: p1 });
     ctx = actor.getSnapshot().context;
     expect(ctx.activeRoom).toBeDefined();
 
     // p2 (owner) leaves -> room should be removed
-    actor.send({ type: "LEAVE_ROOM", playerId: p2 });
+    actor.send({ type: "GAME:LEAVE_ROOM", playerId: p2 });
     ctx = actor.getSnapshot().context;
     expect(ctx.activeRoom).toBeUndefined();
   });

@@ -45,7 +45,7 @@ export function urlToCharacterName(urlName: string): string {
 
 // crypto.randomUUID only works in https context in firefox
 export function randomUUID(): UUID {
-  return URL.createObjectURL(new Blob()).split("/").pop() as UUID;
+  return URL.createObjectURL(new Blob()).split(":").pop() as UUID;
 }
 
 export function getEntityId(): UUID {
@@ -71,7 +71,7 @@ const AGENT_AVATAR_PLACEHOLDERS = [
 ];
 
 export const getAgentAvatar = (
-  agent: { id?: UUID; settings?: { avatar?: string | null } } | undefined
+  agent: { id?: UUID; settings?: { avatar?: string | null } } | undefined,
 ): string => {
   if (agent?.settings?.avatar) {
     return agent.settings.avatar;
@@ -94,14 +94,14 @@ export const getAgentAvatar = (
 export const generateGroupName = (
   channel: Partial<ClientMessageChannel> | undefined,
   participants: Partial<Agent>[] | undefined,
-  currentUserId: CoreUUID | string | undefined
+  currentUserId: CoreUUID | string | undefined,
 ): string => {
   if (channel?.name && channel.name.trim() !== "") {
     return channel.name;
   }
   if (participants && participants.length > 0) {
     const otherParticipants = participants.filter(
-      (p) => p.id !== currentUserId && p.name
+      (p) => p.id !== currentUserId && p.name,
     ); // Ensure name exists
     if (
       otherParticipants.length === 0 &&
@@ -109,7 +109,7 @@ export const generateGroupName = (
     ) {
       // If only current user is a participant (and has a name), or no other named participants
       const currentUserParticipant = participants.find(
-        (p) => p.id === currentUserId
+        (p) => p.id === currentUserId,
       );
       if (currentUserParticipant)
         return currentUserParticipant.name || "Unnamed Group";

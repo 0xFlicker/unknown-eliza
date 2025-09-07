@@ -35,7 +35,7 @@ describe("Whisper machine", () => {
       participantIds: UUID[];
     }[] = [];
     let didCreate = false;
-    actor.on("WHISPER_YOUR_TURN", (event) => {
+    actor.on("GAME:WHISPER_YOUR_TURN", (event) => {
       if (didCreate) return;
       didCreate = true;
       console.log(`Player ${event.playerId} turn`);
@@ -47,7 +47,7 @@ describe("Whisper machine", () => {
         participantIds: [otherPlayer],
       });
       actor.send({
-        type: "CREATE_ROOM",
+        type: "GAME:CREATE_ROOM",
         ownerId: event.playerId,
         participantIds: [otherPlayer],
       });
@@ -62,12 +62,12 @@ describe("Whisper machine", () => {
     // p1 sends two messages
     players.forEach(({ ownerId, participantIds }) => {
       actor.send({
-        type: "MESSAGE_SENT",
+        type: "GAME:MESSAGE_SENT",
         playerId: ownerId,
       });
       participantIds.forEach((participantId) => {
         actor.send({
-          type: "MESSAGE_SENT",
+          type: "GAME:MESSAGE_SENT",
           playerId: participantId,
         });
       });
@@ -75,7 +75,7 @@ describe("Whisper machine", () => {
 
     // advance to next turn so the machine returns to picking
     actor.send({
-      type: "END_ROOM",
+      type: "GAME:END_ROOM",
     });
     expect(actor.getSnapshot().value).toBe("picking");
     const { context } = actor.getSnapshot();
@@ -109,7 +109,7 @@ describe("Whisper machine", () => {
     const roomId = stringToUuid("r-block-create");
 
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p1,
       participantIds: [p1, p2],
     });
@@ -145,14 +145,14 @@ describe("Whisper machine", () => {
     ).start();
 
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p1,
       participantIds: [p1, p2],
     });
     expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
 
     // MESSAGE_SENT should not change remainingRequests
-    actor.send({ type: "MESSAGE_SENT", playerId: p1 });
+    actor.send({ type: "GAME:MESSAGE_SENT", playerId: p1 });
     expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
   });
 
@@ -182,7 +182,7 @@ describe("Whisper machine", () => {
     );
 
     let sawYourTurnForNext = false;
-    actor.on("WHISPER_YOUR_TURN", (ev) => {
+    actor.on("GAME:WHISPER_YOUR_TURN", (ev) => {
       // first time will be for p1; let test send PASS
       if (ev.playerId === p2) sawYourTurnForNext = true;
     });
@@ -195,7 +195,7 @@ describe("Whisper machine", () => {
       ];
     expect(current).toBeDefined();
 
-    actor.send({ type: "PASS", playerId: current });
+    actor.send({ type: "GAME:PASS", playerId: current });
 
     expect(actor.getSnapshot().context.remainingRequests[current]).toBe(0);
     // because we emitted next player's turn synchronously via emitYourTurn, we should have seen it already

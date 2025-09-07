@@ -29,32 +29,33 @@ describe("Whisper rounds and exhaustion", () => {
 
     // create a room so active state is relevant
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p1,
       participantIds: [p1, p2],
     });
 
-    actor.send({ type: "END_ROOM" });
+    actor.send({ type: "GAME:END_ROOM" });
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p1,
       participantIds: [p1, p2],
     });
-    actor.send({ type: "END_ROOM" });
+    actor.send({ type: "GAME:END_ROOM" });
     actor.send({
-      type: "CREATE_ROOM",
+      type: "GAME:CREATE_ROOM",
       ownerId: p2,
       participantIds: [p2, p1],
     });
 
-    actor.send({ type: "END_ROOM" });
+    actor.send({ type: "GAME:END_ROOM" });
 
     const snap = actor.getSnapshot();
     expect(snap.value).toBe("diary");
 
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
-    actor.send({ type: "PLAYER_READY", playerId: p2 });
+    actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p2 });
+
     expect(actor.getSnapshot().value).toBe("end");
   });
 });

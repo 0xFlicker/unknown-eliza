@@ -20,7 +20,6 @@ describe("Introduction → LOBBY → Diary Room flow", () => {
       });
 
       await app.initialize();
-      await app.start();
 
       try {
         // Add 3 influencer agents
@@ -47,27 +46,18 @@ describe("Introduction → LOBBY → Diary Room flow", () => {
           players.push(player);
         }
 
-        // Create a game in INTRODUCTION phase
-        const gameId = await app.createGame({
-          players: players.map((p) => p.id),
-          settings: { minPlayers: 3, maxPlayers: 5 },
-          initialPhase: Phase.INTRODUCTION,
-        });
-
         const nameById = new Map(
           players.map((p) => [p.id, p.character.name] as const),
         );
 
-        // ------ INTRODUCTION PHASE (separate group room) ------
-        const introChannelId = await app.createGameChannel(gameId, {
-          name: "intro-room",
-          participants: players.map((p) => ({
-            agentId: p.id,
-            mode: ParticipantMode.READ_WRITE,
-            state: ParticipantState.FOLLOWED,
-          })),
-          type: ChannelType.GROUP,
-        });
+        const gameId = await app.start();
+        const introChannelId = app
+          .getGameManager()
+          .getIntroductionRoomId(gameId);
+
+        if (!introChannelId) {
+          throw new Error("Introduction channel not found");
+        }
 
         const introByPlayer = new Map<string, StreamedMessage>();
         const introSub = app

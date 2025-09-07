@@ -2,10 +2,13 @@
 import { assign, emit, setup } from "xstate";
 import { Phase } from "./types";
 import { UUID } from "@elizaos/core";
+import { randomUUID } from "@/lib/utils";
 
 export interface GameplayContext {
   players: UUID[];
   playersReady: Record<UUID, boolean>;
+  // Map of playerId -> diary roomId
+  playerDiaryRoomIds: Record<UUID, UUID>;
   currentPhase: Phase;
   nextPhase: Phase;
 }
@@ -19,21 +22,62 @@ export type GameplayInput = {
 export type GameplayState = "gameplay" | "diary" | "end";
 
 // PhaseEvent includes both phase triggers and diary events
+export type GameplayAreYouReadyEvent = { type: "GAME:ARE_YOU_READY" };
+export type GameplayAddPlayerEvent = {
+  type: "GAME:ADD_PLAYER";
+  playerId: UUID;
+};
+export type GameplayPlayerReadyEvent = {
+  type: "GAME:PLAYER_READY";
+  playerId: UUID;
+};
+export type GameplayCreateDiaryRoomEvent = {
+  type: "GAME:CREATE_DIARY_ROOM";
+  playerId: UUID;
+};
+export type GameplayChannelExhaustedEvent = { type: "GAME:CHANNEL_EXHAUSTED" };
+export type GameplayEndRoundEvent = { type: "GAME:END_ROUND" };
+
 export type GameplayEvent =
-  | { type: "ARE_YOU_READY" }
-  | { type: "ADD_PLAYER"; playerId: UUID }
-  | { type: "PLAYER_READY"; playerId: UUID }
-  | { type: "END_ROUND" };
+  | GameplayAreYouReadyEvent
+  | GameplayAddPlayerEvent
+  | GameplayPlayerReadyEvent
+  | GameplayChannelExhaustedEvent
+  | GameplayEndRoundEvent;
+
+export type GameplayEmittedPhaseEntered = {
+  type: "GAME:PHASE_ENTERED";
+  roomId?: UUID;
+  phase: Phase;
+};
+export type GameplayEmittedDiaryRoomsCreated = {
+  type: "GAME:DIARY_ROOMS_CREATED";
+  playerDiaryRoomIds: Record<UUID, UUID>;
+};
+export type GameplayEmittedPlayerReadyError = {
+  type: "GAME:PLAYER_READY_ERROR";
+  roomId?: UUID;
+  error: Error;
+};
+export type GameplayEmittedAllPlayersReady = {
+  type: "GAME:ALL_PLAYERS_READY";
+  fromPhase: Phase;
+  toPhase: Phase;
+  transitionReason: string;
+  roomId?: UUID;
+};
+export type GameplayEmittedAreYouReady = {
+  type: "GAME:ARE_YOU_READY";
+  roomId?: UUID;
+  playerId: UUID;
+};
 
 export type GameplayEmitted =
-  | { type: "PHASE_ENTERED"; phase: Phase }
-  | { type: "PLAYER_READY_ERROR"; error: Error }
-  | {
-      type: "ALL_PLAYERS_READY";
-      fromPhase: Phase;
-      toPhase: Phase;
-      transitionReason: string;
-    };
+  | GameplayEmittedPhaseEntered
+  | GameplayEmittedDiaryRoomsCreated
+  | GameplayEmittedPlayerReadyError
+  | GameplayEmittedAllPlayersReady
+  | GameplayEmittedAreYouReady;
 
 export function createGameplayMachine({
   phaseTimeoutMs,
@@ -47,7 +91,7 @@ export function createGameplayMachine({
       announceAllPlayersReady: emit(
         ({ context }) =>
           ({
-            type: "ALL_PLAYERS_READY",
+            type: "GAME:ALL_PLAYERS_READY",
             fromPhase: context.currentPhase,
             toPhase: context.nextPhase,
             transitionReason: "all_players_ready",
@@ -80,11 +124,31 @@ export function createGameplayMachine({
         },
         {} as Record<UUID, boolean>,
       ),
+      playerDiaryRoomIds: input.players.reduce(
+        (acc, player) => {
+          acc[player] = randomUUID();
+          return acc;
+        },
+        {} as Record<UUID, UUID>,
+      ),
     }),
     initial: "gameplay",
     states: {
       gameplay: {
-        on: { END_ROUND: "diary" },
+        entry: [
+          emit(({ context }) => ({
+            type: "GAME:PHASE_ENTERED",
+            phase: context.currentPhase,
+          })),
+          emit(({ context }) => ({
+            type: "GAME:DIARY_ROOMS_CREATED",
+            playerDiaryRoomIds: context.playerDiaryRoomIds,
+          })),
+        ],
+        on: {
+          ["GAME:END_ROUND"]: "diary",
+          ["GAME:CHANNEL_EXHAUSTED"]: "diary",
+        },
         after: {
           [phaseTimeoutMs]: {
             target: "diary",
@@ -93,7 +157,7 @@ export function createGameplayMachine({
       },
       diary: {
         on: {
-          ARE_YOU_READY: {
+          ["GAME:ARE_YOU_READY"]: {
             target: "awaitingPlayers",
           },
         },
@@ -110,7 +174,7 @@ export function createGameplayMachine({
           },
         ],
         on: {
-          PLAYER_READY: {
+          ["GAME:PLAYER_READY"]: {
             target: "awaitingPlayers",
             actions: [
               assign({

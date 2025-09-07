@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:stream";
 import { CapacityAwareMessageBus } from "./capacity-aware-bus.js";
 
 /**
@@ -11,15 +12,17 @@ import { CapacityAwareMessageBus } from "./capacity-aware-bus.js";
  * with a more robust solution like Redis Pub/Sub, Kafka, RabbitMQ, etc.
  */
 
-const internalMessageBus = new CapacityAwareMessageBus();
+const internalMessageBus = new EventEmitter();
 
 // Increase the default max listeners if many agents might be running in one process
 internalMessageBus.setMaxListeners(50);
 
 export default internalMessageBus;
 
+const deadBus = new CapacityAwareMessageBus();
+
 // Export the capacity tracker for use by other components
-export const getCapacityTracker = () => internalMessageBus.getCapacityTracker();
+export const getCapacityTracker = () => deadBus.getCapacityTracker();
 
 // Legacy compatibility: also export as simple EventEmitter interface
 export { internalMessageBus as InternalMessageBus };

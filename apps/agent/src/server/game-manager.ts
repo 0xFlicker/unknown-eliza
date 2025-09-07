@@ -12,10 +12,18 @@ import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
 import { ChannelConfig, ParticipantMode, ParticipantState } from "./types";
-import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
-import { createActor } from "xstate";
+import {
+  createPhaseActor,
+  createPhaseMachine,
+  PhaseInput,
+  PhaseEmitted,
+} from "@/game/phase";
 import { GameSettings } from "@/game/types";
 import { getCapacityTracker } from "@elizaos/server";
+import { gameAction$ } from "@/plugins/coordinator/bus";
+import { CoordinationService } from "@/plugins/coordinator";
+import { GameStateManager } from "@/plugins/house/gameStateManager";
+import "@/plugins/coordinator/bus"; // Ensure bus is initialized
 
 /**
  * Game configuration for creating a new game
@@ -40,8 +48,6 @@ export interface GameSession {
   phaseInput: PhaseInput;
   phaseSettings: GameSettings;
   phase: ReturnType<typeof createPhaseActor>;
-  // Optional whisper phase state (managed by GameManager)
-  whisper?: WhisperState;
 }
 
 /**
@@ -52,26 +58,6 @@ export interface WhisperSettings {
   maxMessagesPerPlayerPerRoom: number;
   whisperRoomTimeoutMs: number;
   perRoomMaxParticipants?: number;
-}
-
-/** Represents an active whisper room within a game */
-export interface WhisperRoom {
-  id: UUID;
-  owner: UUID;
-  participants: Set<UUID>;
-  perPlayerMessages: Map<UUID, number>;
-  createdAt: number;
-  timeoutId?: ReturnType<typeof setTimeout> | null;
-}
-
-/** Whisper runtime state attached to a GameSession */
-export interface WhisperState {
-  settings: WhisperSettings;
-  remainingRequests: Map<UUID, number>;
-  activeRooms: Map<UUID, WhisperRoom>;
-  turnOrder: UUID[];
-  currentTurnIndex: number;
-  roundCounter?: number;
 }
 
 /**
@@ -94,41 +80,6 @@ export class GameManager<
   ) {}
 
   /**
-   * Start the whisper phase for a game. Initializes per-player request counters and turn order.
-   * Implementation: stub — to be filled in with full phase actor or state logic.
-   */
-  async startWhisperPhase(
-    gameId: UUID,
-    settings: Partial<WhisperSettings> = {},
-  ) {
-    const game = this.games.get(gameId);
-    if (!game) throw new Error(`Game ${gameId} not found`);
-    // Initialize whisper-related state on the game session
-    const whisperSettings: WhisperSettings = {
-      maxWhisperRequests: settings.maxWhisperRequests ?? 1,
-      maxMessagesPerPlayerPerRoom: settings.maxMessagesPerPlayerPerRoom ?? 3,
-      whisperRoomTimeoutMs: settings.whisperRoomTimeoutMs ?? 60000,
-      perRoomMaxParticipants: settings.perRoomMaxParticipants ?? 4,
-    };
-
-    const whisperState: WhisperState = {
-      settings: whisperSettings,
-      remainingRequests: new Map<UUID, number>(),
-      activeRooms: new Map<UUID, WhisperRoom>(),
-      turnOrder: [] as UUID[],
-      currentTurnIndex: 0,
-      roundCounter: 0,
-    };
-
-    // Seed remainingRequests for each player
-    for (const p of game.players) {
-      whisperState.remainingRequests.set(p, whisperSettings.maxWhisperRequests);
-    }
-
-    game.whisper = whisperState;
-  }
-
-  /**
    * Create a whisper room for a game. House will call this to create ephemeral channels.
    * Implementation: stub — should create a channel, add runtime decorator to inject game state, and register room.
    */
@@ -143,7 +94,7 @@ export class GameManager<
     // TODO: validate remaining requests, participant eligibility, and decrement counters
     const cfg: ChannelConfig = {
       name: channelConfig?.name || `whisper-${gameId}-${Date.now()}`,
-      participants: participantIds.map((id) => ({
+      participants: [ownerId, ...participantIds].map((id) => ({
         agentId: id,
         mode: ParticipantMode.READ_WRITE,
         state: ParticipantState.FOLLOWED,
@@ -156,32 +107,6 @@ export class GameManager<
 
     const channelId = await this.channelManager.createChannel(cfg);
 
-    const room: WhisperRoom = {
-      id: channelId,
-      owner: ownerId,
-      participants: new Set(participantIds),
-      perPlayerMessages: new Map<UUID, number>(),
-      createdAt: Date.now(),
-      timeoutId: null,
-    };
-
-    if (!game.whisper)
-      game.whisper = {
-        settings: {
-          maxWhisperRequests: 1,
-          maxMessagesPerPlayerPerRoom: 3,
-          whisperRoomTimeoutMs: 60000,
-          perRoomMaxParticipants: 4,
-        },
-        remainingRequests: new Map<UUID, number>(),
-        activeRooms: new Map<UUID, WhisperRoom>(),
-        turnOrder: [],
-        currentTurnIndex: 0,
-        roundCounter: 0,
-      };
-
-    game.whisper.activeRooms.set(channelId, room);
-
     return channelId;
   }
 
@@ -191,37 +116,7 @@ export class GameManager<
   async endWhisperRoom(gameId: UUID, roomId: UUID, reason?: string) {
     const game = this.games.get(gameId);
     if (!game) throw new Error(`Game ${gameId} not found`);
-    // Notify participants via House message and remove from state. Let errors propagate.
-    await this.channelManager.sendHouseMessage(
-      roomId,
-      reason || "Whisper room closed by House",
-    );
-    if (game.whisper) {
-      const room = game.whisper.activeRooms.get(roomId);
-      if (room?.timeoutId) {
-        clearTimeout(room.timeoutId);
-      }
-      game.whisper.activeRooms.delete(roomId);
-    }
-  }
-
-  /**
-   * Query a limited whisper state view for a player (no secret turn order).
-   */
-  getWhisperStateForPlayer(gameId: UUID, playerId: UUID) {
-    const game = this.games.get(gameId);
-    if (!game) throw new Error(`Game ${gameId} not found`);
-    const whisper = game.whisper;
-    if (!whisper) return undefined;
-    return {
-      remainingRequests: whisper.remainingRequests.get(playerId) ?? 0,
-      activeRooms: Array.from(whisper.activeRooms.values()).map((r) => ({
-        id: r.id,
-        owner: r.owner,
-        participants: Array.from(r.participants),
-      })),
-      settings: whisper.settings,
-    };
+    await this.channelManager.removeChannel(roomId);
   }
 
   /**
@@ -249,6 +144,14 @@ export class GameManager<
       },
     };
 
+    const phase = createPhaseActor(
+      createPhaseMachine({
+        id: gameId,
+        timers: phaseSettings.timers,
+      }),
+      phaseInput,
+    );
+
     // Create game session
     const gameSession: GameSession = {
       id: gameId,
@@ -264,23 +167,71 @@ export class GameManager<
       createdAt: Date.now(),
       phaseInput,
       phaseSettings,
-      phase: createPhaseActor(
-        createPhaseMachine({
-          id: gameId,
-          timers: phaseSettings.timers,
-        }),
-        phaseInput,
-      ),
+      phase,
     };
 
     // Store game session
     this.games.set(gameId, gameSession);
+    const gameStateManager = this.houseAgent.getService<GameStateManager>(
+      GameStateManager.serviceType,
+    );
+
+    if (!gameStateManager) {
+      throw new Error("GameStateManager service not found in House agent");
+    }
+
+    this.subscribeToGameEvents(gameId, this.houseAgent);
+    gameAction$.subscribe((event) => {
+      console.log(`🏠 House received game event: ${event.type}`);
+      // Only send events to phase actors "emitted" will be events from the phase machine
+      if (!("event" in event.payload)) {
+        console.warn(`🏠 Ignoring non-event payload: ${event.type}`);
+        return;
+      }
+
+      console.log(`🏠 House received game event: ${event.type}`);
+      phase.send(event.payload.event);
+    });
 
     logger.info(
       `Created game ${gameId} with ${players.length} players in phase ${initialPhase}`,
     );
 
     return gameId;
+  }
+
+  async subscribeToGameEvents(gameId: UUID, runtime: IAgentRuntime) {
+    const gameSession = this.games.get(gameId);
+    if (!gameSession) {
+      throw new Error(`Game ${gameId} not found`);
+    }
+
+    const phaseActor = gameSession.phase;
+
+    console.log(`🏠 Subscribing to game events for game ${gameId}`);
+    phaseActor.on("*", (event) => {
+      console.log(`🏠 Received emittable event: ${event.type}`);
+      const coordSvc = runtime.getService<CoordinationService>(
+        CoordinationService.serviceType,
+      );
+
+      if (!coordSvc) {
+        console.warn("CoordinationService not found in runtime");
+        throw new Error("CoordinationService not found in runtime");
+      }
+
+      coordSvc.emitGameEvent<typeof event.type>({
+        emitted: event,
+        type: event.type,
+        gameId,
+        roomId: "roomId" in event ? event.roomId : undefined,
+        runtime: runtime,
+        source: "house",
+        timestamp: Date.now(),
+      } as any); // TODO fix any but idk how
+    });
+
+    return phaseActor;
   }
 
   /**
@@ -351,7 +302,7 @@ export class GameManager<
     if (allExhausted) {
       this.lobbyEndedChannels.add(channelId);
       // End LOBBY round; the lobby room machine will trigger diary ready sequence
-      game.phase.send({ type: "END_ROUND" });
+      game.phase.send({ type: "GAME:CHANNEL_EXHAUSTED" });
 
       // Proactively mute players in lobby channel to prevent further replies
       for (const pid of game.players) {
@@ -361,9 +312,6 @@ export class GameManager<
           ParticipantState.MUTED,
         );
       }
-
-      // Open per-player diary DMs and send prompts
-      await this.openLobbyDiaryRooms(gameId, channelId);
     }
   }
 
@@ -371,7 +319,7 @@ export class GameManager<
    * Create DM channels between House and each player and send a diary prompt seeded with
    * recent lobby messages from other players.
    */
-  private async openLobbyDiaryRooms(gameId: UUID, lobbyChannelId: UUID) {
+  public async openLobbyDiaryRooms(gameId: UUID, lobbyChannelId: UUID) {
     const game = this.games.get(gameId);
     if (!game) return;
 
@@ -563,5 +511,17 @@ export class GameManager<
     logger.info(
       `Injected game state for game ${gameId} into agent ${runtime.character?.name} for channel ${channelId}`,
     );
+  }
+
+  getIntroductionRoomId(gameId: UUID): UUID | undefined {
+    const game = this.games.get(gameId);
+    if (!game) return undefined;
+    const gameStateManager = this.houseAgent.getService<GameStateManager>(
+      GameStateManager.serviceType,
+    );
+    if (!gameStateManager) {
+      throw new Error("GameStateManager service not found in House agent");
+    }
+    return gameStateManager.getIntroductionRoomId();
   }
 }

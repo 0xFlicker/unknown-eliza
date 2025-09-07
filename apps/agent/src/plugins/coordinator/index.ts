@@ -16,25 +16,7 @@ export const coordinatorPlugin: Plugin = {
   // No runtime message events – coordination happens exclusively via the
   // in-process `internalMessageBus`.
   services: [CoordinationService],
-  init: async (_config, runtime?: IAgentRuntime) => {
-    if (runtime) {
-      console.log("[CoordinatorPlugin] init for", runtime.character?.name);
-      console.log(
-        "[CoordinatorPlugin] services:",
-        coordinatorPlugin.services?.length,
-      );
-      // // Explicitly register the service immediately so that it is available
-      // // before the runtime finishes initializing (unit-tests emit game events
-      // // almost immediately after creating agents).
-      // await runtime.registerService(CoordinationService);
-
-      logger.info(
-        `🔗 Coordinator plugin registered + service started for ${runtime.character?.name}`,
-      );
-    } else {
-      logger.info("🔗 Coordinator plugin registered");
-    }
-  },
+  init: async (_config, runtime?: IAgentRuntime) => {},
 };
 
 // Re-export types and utilities for convenience

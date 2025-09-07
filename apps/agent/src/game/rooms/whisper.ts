@@ -8,6 +8,7 @@ export type WhisperContext = {
   players: UUID[]; // participants in the overall game
   // roomId -> { participants: UUID[], messagesByPlayer: Record<UUID, number> }
   activeRoom?: {
+    roomId: UUID;
     participants: UUID[];
     owner: UUID;
     messagesByPlayer: Record<UUID, number>;
@@ -33,25 +34,52 @@ export type WhisperInput = {
   settings?: WhisperSettings;
 };
 
+export type WhisperEventCreateRoom = {
+  type: "GAME:CREATE_ROOM";
+  ownerId: UUID;
+  participantIds: UUID[];
+};
+export type WhisperEventLeaveRoom = { type: "GAME:LEAVE_ROOM"; playerId: UUID };
+export type WhisperEventMessageSent = {
+  type: "GAME:MESSAGE_SENT";
+  playerId: UUID;
+};
+export type WhisperEventChannelExhausted = { type: "GAME:CHANNEL_EXHAUSTED" };
+export type WhisperEventEndRoom = { type: "GAME:END_ROOM" };
+export type WhisperEventPass = { type: "GAME:PASS"; playerId: UUID };
+
 export type WhisperEvent =
-  | { type: "CREATE_ROOM"; ownerId: UUID; participantIds: UUID[] }
-  | { type: "LEAVE_ROOM"; playerId: UUID }
-  | { type: "MESSAGE_SENT"; playerId: UUID }
-  | { type: "END_ROOM" }
-  | { type: "PASS"; playerId: UUID }
+  | WhisperEventCreateRoom
+  | WhisperEventLeaveRoom
+  | WhisperEventMessageSent
+  | WhisperEventChannelExhausted
+  | WhisperEventEndRoom
+  | WhisperEventPass
   | GameplayEvent;
 
+export type WhisperEmittedError = { type: "GAME:WHISPER_ERROR"; roomId?: UUID };
+export type WhisperEmittedComplete = {
+  type: "GAME:WHISPER_COMPLETE";
+  roomId?: UUID;
+};
+export type WhisperEmittedYourTurn = {
+  type: "GAME:WHISPER_YOUR_TURN";
+  playerId: UUID;
+  roomId?: UUID;
+};
+export type WhisperRoomOpened = {
+  type: "GAME:WHISPER_ROOM_OPENED";
+  roomId?: UUID;
+};
+export type WhisperRoomClosed = {
+  type: "GAME:WHISPER_ROOM_CLOSED";
+  roomId?: UUID;
+};
+
 export type WhisperEmitted =
-  | { type: "WHISPER_ERROR" }
-  | { type: "WHISPER_COMPLETE" }
-  | { type: "WHISPER_YOUR_TURN"; playerId: UUID };
-
-// room lifecycle events emitted by the whisper machine
-export type WhisperRoomOpened = { type: "WHISPER_ROOM_OPENED" };
-export type WhisperRoomClosed = { type: "WHISPER_ROOM_CLOSED" };
-
-export type WhisperEmittedFull =
-  | WhisperEmitted
+  | WhisperEmittedError
+  | WhisperEmittedComplete
+  | WhisperEmittedYourTurn
   | WhisperRoomOpened
   | WhisperRoomClosed;
 
@@ -71,7 +99,7 @@ export function createWhisperMachine({
       context: {} as WhisperContext,
       input: {} as WhisperInput,
       events: {} as WhisperEvent,
-      emitted: {} as WhisperEmittedFull,
+      emitted: {} as WhisperEmitted,
     },
     actions: {
       nextPlayer: assign(({ context }) => {
@@ -185,8 +213,9 @@ export function createWhisperMachine({
         entry: [
           // Notify current player that it's their turn
           emit(({ context }) => ({
-            type: "WHISPER_YOUR_TURN",
+            type: "GAME:WHISPER_YOUR_TURN",
             playerId: context.turnOrder[context.currentTurnIndex],
+            roomId: context.activeRoom ? context.activeRoom.roomId : undefined,
           })),
         ],
         after: {
@@ -195,7 +224,7 @@ export function createWhisperMachine({
           },
         },
         on: {
-          PASS: [
+          ["GAME:PASS"]: [
             {
               description:
                 "Pass the turn to the next player and forfeit remaining requests",
@@ -214,13 +243,16 @@ export function createWhisperMachine({
                 }),
                 "nextPlayer",
                 emit(({ context }) => ({
-                  type: "WHISPER_YOUR_TURN",
+                  type: "GAME:WHISPER_YOUR_TURN",
                   playerId: context.turnOrder[context.currentTurnIndex],
+                  roomId: context.activeRoom
+                    ? context.activeRoom.roomId
+                    : undefined,
                 })),
               ],
             },
           ],
-          CREATE_ROOM: [
+          ["GAME:CREATE_ROOM"]: [
             {
               guard: ({ context, event }) => {
                 const cap = context.settings?.perRoomMaxParticipants ?? 4;
@@ -250,7 +282,10 @@ export function createWhisperMachine({
                     },
                   } as Partial<typeof context>;
                 }),
-                emit({ type: "WHISPER_ROOM_OPENED" }),
+                emit(({ context }) => ({
+                  type: "GAME:WHISPER_ROOM_OPENED",
+                  roomId: context.activeRoom?.roomId,
+                })),
               ],
               target: "active",
             },
@@ -274,7 +309,7 @@ export function createWhisperMachine({
       },
       active: {
         on: {
-          MESSAGE_SENT: [
+          ["GAME:MESSAGE_SENT"]: [
             {
               guard: ({ context, event }) => {
                 const room = context.activeRoom;
@@ -302,7 +337,7 @@ export function createWhisperMachine({
               target: "active",
             },
           ],
-          END_ROOM: {
+          ["GAME:END_ROOM"]: {
             actions: [
               assign(() => {
                 return { activeRoom: undefined } as Partial<WhisperContext>;
@@ -310,7 +345,15 @@ export function createWhisperMachine({
             ],
             target: "next",
           },
-          LEAVE_ROOM: [
+          ["GAME:CHANNEL_EXHAUSTED"]: {
+            actions: [
+              assign(() => {
+                return { activeRoom: undefined } as Partial<WhisperContext>;
+              }),
+            ],
+            target: "next",
+          },
+          ["GAME:LEAVE_ROOM"]: [
             {
               description:
                 "When the owner of the room leaves, it closes the room immediately",
@@ -325,9 +368,10 @@ export function createWhisperMachine({
                     activeRoom: undefined,
                   } as Partial<WhisperContext>;
                 }),
-                emit({
-                  type: "WHISPER_ROOM_CLOSED",
-                }),
+                emit(({ context }) => ({
+                  type: "GAME:WHISPER_ROOM_CLOSED",
+                  roomId: context.activeRoom?.roomId,
+                })),
               ],
               target: "next",
             },
@@ -347,9 +391,10 @@ export function createWhisperMachine({
                     activeRoom: undefined,
                   } as Partial<WhisperContext>;
                 }),
-                emit({
-                  type: "WHISPER_ROOM_CLOSED",
-                }),
+                emit(({ context }) => ({
+                  type: "GAME:WHISPER_ROOM_CLOSED",
+                  roomId: context.activeRoom?.roomId,
+                })),
               ],
               target: "next",
             },
@@ -392,8 +437,8 @@ export function createWhisperMachine({
       diary: {
         entry: [
           // Broadcast and kick off readiness collection for the gameplay child
-          sendTo("strategy", { type: "END_ROUND" }),
-          sendTo("strategy", { type: "ARE_YOU_READY" }),
+          sendTo("strategy", { type: "GAME:END_ROUND" }),
+          sendTo("strategy", { type: "GAME:ARE_YOU_READY" }),
         ],
         on: {
           "*": {
@@ -410,11 +455,21 @@ export function createWhisperMachine({
           }),
           onDone: {
             target: "end",
-            actions: [emit({ type: "WHISPER_COMPLETE" })],
+            actions: [
+              emit(({ context }) => ({
+                type: "GAME:WHISPER_COMPLETE",
+                roomId: context.activeRoom?.roomId,
+              })),
+            ],
           },
           onError: {
             target: "end",
-            actions: [emit({ type: "WHISPER_ERROR" })],
+            actions: [
+              emit(({ context }) => ({
+                type: "GAME:WHISPER_ERROR",
+                roomId: context.activeRoom?.roomId,
+              })),
+            ],
           },
         },
       },

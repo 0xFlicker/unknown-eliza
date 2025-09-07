@@ -21,18 +21,18 @@ describe("INIT → INTRODUCTION transition", () => {
         },
       },
     ).start();
-    actor.send({ type: "ARE_YOU_READY" });
+    actor.send({ type: "GAME:ARE_YOU_READY" });
 
     // First player ready – should still be in INIT
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p1") });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("p1") });
     expect(actor.getSnapshot().value).toBe("gameplay");
 
     // Second player ready – still INIT
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p2") });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("p2") });
     expect(actor.getSnapshot().value).toBe("gameplay");
 
     // Last player ready – should transition
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p3") });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("p3") });
 
     expect(actor.getSnapshot().value).toBe("gameplay");
   });
@@ -56,13 +56,13 @@ describe("INIT → INTRODUCTION transition", () => {
     actor.start();
 
     expect(actor.getSnapshot().value).toBe("gameplay");
-    actor.send({ type: "END_ROUND" });
+    actor.send({ type: "GAME:END_ROUND" });
 
     expect(actor.getSnapshot().value).toBe("diary");
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("a") });
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("a") }); // duplicate
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("b") });
+    actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("a") });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("a") }); // duplicate
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("b") });
     expect(actor.getSnapshot().value).toBe("allPlayersReady");
   });
 });

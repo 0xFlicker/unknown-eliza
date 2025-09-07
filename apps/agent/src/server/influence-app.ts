@@ -35,6 +35,7 @@ import { apiClient } from "@/lib/api";
 import { coordinatorPlugin } from "../plugins/coordinator";
 import { GameManager, GameConfig } from "./game-manager";
 import { messages$, capacityExceeded$ } from "@/plugins/coordinator/bus";
+import { GameStateManager } from "@/plugins/house/gameStateManager";
 
 export class InfluenceApp<
   AgentContext extends DefaultAgentContext,
@@ -167,6 +168,13 @@ export class InfluenceApp<
     this.socketManager = SocketIOManager.getInstance();
     this.socketManager.initialize(this.houseAgent.agentId, this.serverPort);
 
+    const houseGameManager = this.houseAgent.getService<GameStateManager>(
+      GameStateManager.serviceType,
+    );
+    if (!houseGameManager) {
+      throw new Error("House agent GameStateManager service not found");
+    }
+
     messages$.subscribe((message) => {
       if (this.channelMessageStreams.has(message.channel_id)) {
         this.channelMessageStreams.get(message.channel_id)?.next({
@@ -184,23 +192,27 @@ export class InfluenceApp<
       }
 
       // Capacity-driven LOBBY phase coordination: check per-participant limits
-      try {
-        const gameId = this.getGameByChannel(message.channel_id);
-        if (gameId) {
-          this.gameManager?.handleChannelMessage(message.channel_id);
-        }
-      } catch {}
+      const gameId = this.getGameByChannel(message.channel_id);
+      if (gameId) {
+        this.gameManager?.handleChannelMessage(message.channel_id);
+      }
     });
 
     // Optional: Observe capacity exceeded events for debugging
     capacityExceeded$.subscribe((evt: any) => {
-      try {
-        const channelId = evt?.channelId;
-        if (channelId && this.getGameByChannel(channelId)) {
-          this.gameManager?.handleChannelMessage(channelId);
-        }
-      } catch {}
+      const channelId = evt?.channelId;
+      if (channelId && this.getGameByChannel(channelId)) {
+        this.gameManager?.handleChannelMessage(channelId);
+      }
     });
+
+    if (!this.server) {
+      throw new Error("Server not initialized");
+    }
+    if (!this.serverPort) {
+      throw new Error("Server port not initialized");
+    }
+    this.server.start(this.serverPort);
   }
 
   getHouseAgent(): IAgentRuntime {
@@ -243,13 +255,46 @@ export class InfluenceApp<
   }
 
   async start() {
-    if (!this.server) {
-      throw new Error("Server not initialized");
+    if (!this.houseAgent) {
+      throw new Error("House agent not initialized");
     }
-    if (!this.serverPort) {
-      throw new Error("Server port not initialized");
+    const houseGameManager = this.houseAgent.getService<GameStateManager>(
+      GameStateManager.serviceType,
+    );
+    if (!houseGameManager) {
+      throw new Error("House agent GameStateManager service not found");
     }
-    this.server.start(this.serverPort);
+    await houseGameManager.initializeGame(
+      this,
+      this.agentManager!.getAllAgentIds(),
+    );
+
+    const gameId = houseGameManager.getGameId();
+    if (!gameId) {
+      throw new Error("House agent GameStateManager has no game ID");
+    }
+
+    const phaseActor = this.getGameManager().getGame(gameId)?.phase!;
+
+    phaseActor.start();
+
+    for (const playerId of this.agentManager?.getAllAgentIds() ?? []) {
+      // this.getChannelManager()
+      //   .getChannel(houseGameManager.getIntroductionRoomId())
+      //   ?.
+      // phaseActor.send({ type: "GAME:ADD_PLAYER", playerId });
+    }
+    // phaseActor.send({ type: "GAME:ARE_YOU_READY" });
+
+    for (const playerId of this.agentManager?.getAllAgentIds() ?? []) {
+      phaseActor.send({ type: "GAME:PLAYER_READY", playerId });
+    }
+
+    // console.log("After init", phaseActor.getSnapshot().context);
+
+    console.log("🏠 House GameStateManager initialized");
+
+    return gameId;
   }
 
   async stop() {
@@ -298,7 +343,8 @@ export class InfluenceApp<
     if (!this.agentManager) {
       throw new Error("Agent manager not initialized");
     }
-    return this.agentManager.addAgent(config);
+    const response = await this.agentManager.addAgent(config);
+    return response;
   }
 
   async createChannel(

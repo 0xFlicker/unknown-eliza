@@ -515,8 +515,8 @@ export const messageReceivedHandler = async ({
 
         let responseMessages: Memory[] = [];
 
-        console.log("shouldRespond is", shouldRespond);
-        console.log("shouldSkipShouldRespond", shouldSkipShouldRespond);
+        // console.log("shouldRespond is", shouldRespond);
+        // console.log("shouldSkipShouldRespond", shouldSkipShouldRespond);
 
         if (shouldRespond) {
           state = await runtime.composeState(message, ["ACTIONS"]);

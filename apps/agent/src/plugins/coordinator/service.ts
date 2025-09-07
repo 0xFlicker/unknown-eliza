@@ -8,11 +8,12 @@ import {
   createGameEventMessage,
   createAgentReadyMessage,
   GameEventPayloadMap,
-  GameEventCoordinationMessage,
-  AnyCoordinationMessage,
+  GameEventPayloadEmittableMap,
+  createGameEmitMessage,
+  EmittableGameEventMessages,
+  GameEventMessages,
 } from "./types";
-import { Phase } from "@/game/types";
-import internalMessageBus, { gameEvent$, messages$ } from "./bus";
+import internalMessageBus, { gameAction$, gameEvent$ } from "./bus";
 import { AgentRole, canSendMessage, getAgentRole } from "./roles";
 import { Subscription } from "rxjs";
 
@@ -44,8 +45,19 @@ export class CoordinationService extends Service {
 
     // Subscribe to incoming coordination game events
     service.subscriptions.push(
-      gameEvent$.subscribe(async (message) => {
+      gameAction$.subscribe(async (message) => {
         const { targetAgents } = message;
+        if (
+          targetAgents === "house" &&
+          getAgentRole(runtime) !== AgentRole.HOUSE
+        ) {
+          // Send to the house only, ignore
+          await runtime.emitEvent(message.type, {
+            ...message.payload,
+            runtime,
+          });
+          return;
+        }
 
         const targeted =
           targetAgents === "all" ||
@@ -56,55 +68,40 @@ export class CoordinationService extends Service {
 
         if (!targeted) return;
 
-        // Emit into the local runtime so plugins can react via `events`.
-        // Prefix with "GAME:" to match plugin event keys (e.g., "GAME:ARE_YOU_READY").
-        console.log(
-          `[CoordinationService] Emitting runtime event ${message.type} for ${runtime.character?.name}`,
-        );
         await runtime.emitEvent(message.type, {
           ...message.payload,
           runtime,
         });
+      }),
+      gameEvent$.subscribe(async (message) => {
+        const { targetAgents } = message;
+        if (
+          targetAgents === "house" &&
+          getAgentRole(runtime) !== AgentRole.HOUSE
+        ) {
+          // Send to the house only, ignore
+          await runtime.emitEvent(message.type, {
+            ...message.payload,
+            runtime,
+          });
+          return;
+        }
 
-        logger.debug(
-          `${runtime.character?.name} processed coordination event: ${message.type}`,
-        );
+        const targeted =
+          targetAgents === "all" ||
+          (targetAgents === "others" &&
+            message.sourceAgent !== runtime.agentId) ||
+          (Array.isArray(targetAgents) &&
+            targetAgents.includes(runtime.agentId));
+
+        if (!targeted) return;
+
+        await runtime.emitEvent(message.type, {
+          ...message.payload,
+          runtime,
+        });
       }),
     );
-
-    // DISABLED DUE TO FIRING OFF ALL_PLAYERS_READY events all the time
-    //   // Future: subscribe to additional coordination streams as needed
-    //   service.subscriptions.push(
-    //     messages$.subscribe(async (message) => {
-    //       try {
-    //         // Only the House translates its own prompts into phase coordination
-    //         if (
-    //           getAgentRole(runtime) !== AgentRole.HOUSE ||
-    //           message.author_id !== runtime.agentId
-    //         ) {
-    //           return;
-    //         }
-    //         const channelId = message.channel_id as UUID;
-    //         if (service.announcedIntroReady.has(channelId)) return;
-    //         service.announcedIntroReady.add(channelId);
-    //         await service.sendGameEvent(
-    //           {
-    //             gameId: channelId,
-    //             roomId: channelId,
-    //             runtime,
-    //             source: "house",
-    //             timestamp: message.created_at,
-    //             action: {
-    //               type: "ALL_PLAYERS_READY",
-    //             },
-    //           },
-    //           "others"
-    //         );
-    //       } catch (err) {
-    //         logger.warn("Failed to announce ALL_PLAYERS_READY from message", err);
-    //       }
-    //     })
-    //   );
     return service;
   }
 
@@ -134,33 +131,55 @@ export class CoordinationService extends Service {
   /**
    * Send a game event to other agents via coordination channel
    */
-  async sendGameEvent<T extends keyof GameEventPayloadMap>(
+  sendGameEvent<T extends keyof GameEventPayloadMap>(
     payload: GameEventPayloadMap[T],
-    targetAgents: UUID[] | "all" | "others" = "others",
-  ): Promise<void> {
-    if (!("event" in payload || "emitted" in payload)) {
+    targetAgents: UUID[] | "all" | "house" | "others" = "others",
+  ): void {
+    if (!("event" in payload)) {
+      console.warn(
+        "CoordinationService.sendGameEvent called with payload missing 'event' property",
+        payload,
+      );
       return;
     }
-    if (!canSendMessage(this.runtime, "game_event", payload.type)) {
+    if (!canSendMessage(this.runtime, "game_action", payload.type)) {
       throw new Error(
-        `Agent ${this.runtime.character?.name} is not authorized to send game event: ${payload.type}`,
+        `Agent ${this.runtime.character?.name} is not authorized to send game action: ${payload.type}`,
       );
     }
+    console.log(`🏠 Sending game event: ${payload.type} to ${targetAgents}`);
     const coordinationMessage = createGameEventMessage(
       this.runtime.agentId,
       payload,
       targetAgents,
     );
 
-    await this.sendCoordinationMessage(coordinationMessage);
+    this.sendCoordinationMessage(coordinationMessage);
+  }
+
+  emitGameEvent<T extends keyof GameEventPayloadEmittableMap>(
+    payload: GameEventPayloadEmittableMap[T],
+    targetAgents: UUID[] | "all" | "others" = "others",
+  ): void {
+    const coordinationMessage = createGameEmitMessage(
+      this.runtime.agentId,
+      payload,
+      targetAgents,
+    );
+
+    // console.log(`🏠 Emitting game event: ${payload.type} to ${targetAgents}`);
+
+    this.sendStateEvent(coordinationMessage);
   }
 
   /**
    * Send a coordination message to the coordination channel
    */
-  private async sendCoordinationMessage(
-    message: AnyCoordinationMessage,
-  ): Promise<void> {
+  private sendCoordinationMessage(message: GameEventMessages): void {
+    internalMessageBus.emit("game_action", message);
+  }
+
+  private sendStateEvent(message: EmittableGameEventMessages): void {
     internalMessageBus.emit("game_event", message);
   }
 }

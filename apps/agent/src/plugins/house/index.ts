@@ -10,6 +10,7 @@ import { GameEventHandlers, CoordinationService } from "../coordinator";
 import { getGameState } from "@/memory/runtime";
 import { Phase } from "@/game/types";
 import { GameStateManager } from "./gameStateManager";
+import { InfluenceApp } from "@/server";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 
@@ -83,7 +84,7 @@ export const housePlugin: Plugin = {
           const gameStateManager = payload.runtime.getService<GameStateManager>(
             GameStateManager.serviceType,
           );
-          console.log(
+          elizaLogger.info(
             `🏠 House received ENTITY_JOINED event for agent ${payload.entityId} in world ${payload.worldId}`,
           );
           // Ensure phase actor exists before adding players
@@ -91,40 +92,16 @@ export const housePlugin: Plugin = {
           const maxPlayers = Number(
             payload.runtime.getSetting("HOUSE_MAX_PLAYERS") || 8,
           );
-          await gameStateManager?.initializePhase(
-            payload.worldId,
-            {
-              id: payload.worldId,
-              timers: { diary: 60000, round: 60000 },
-            },
-            { maxPlayers, minPlayers, players: [] },
-          );
+          // await gameStateManager?.initializePhase(
+          //   payload.worldId,
+          //   {
+          //     id: payload.worldId,
+          //     timers: { diary: 60000, round: 60000 },
+          //   },
+          //   { maxPlayers, minPlayers, players: [] }
+          // );
           await gameStateManager?.addPlayer(payload.worldId, payload.entityId);
-          // Prompt all agents for readiness so phase INIT can progress deterministically
-          try {
-            const coordinationService = payload.runtime.getService(
-              CoordinationService.serviceType,
-            ) as CoordinationService;
-            await coordinationService?.sendGameEvent(
-              {
-                gameId: payload.worldId,
-                roomId: payload.roomId ?? payload.worldId,
-                runtime: payload.runtime,
-                source: "house",
-                timestamp: Date.now(),
-                type: "GAME:ARE_YOU_READY",
-                event: { type: "ARE_YOU_READY" },
-              },
-              "all",
-            );
-          } catch (e) {
-            console.log("🏠 Failed to send ARE_YOU_READY:", e);
-          }
         }
-        console.log(
-          `🏠 House received ENTITY_JOINED event for agent ${payload.entityId}`,
-        );
-        // Ensure phase system is initialized for this world if not already (handled above)
       },
     ],
     [EventType.MESSAGE_SENT]: [
@@ -140,90 +117,68 @@ export const housePlugin: Plugin = {
         const isHouseAuthored =
           payload.message.entityId === payload.runtime.agentId;
 
-        if (isHouseAuthored) {
-          const text = payload.message.content?.text || "";
-          if (/INTRODUCTION PHASE/i.test(text)) {
-            await coordinationService?.sendGameEvent(
-              {
-                gameId: payload.message.roomId,
-                roomId: payload.message.roomId,
-                runtime: payload.runtime,
-                source: "house",
-                timestamp: Date.now(),
-                type: "GAME:PHASE_STARTED",
-                event: {
-                  type: "PHASE_STARTED",
-                  phase: Phase.INTRODUCTION,
-                },
-              },
-              "others",
-            );
-          }
-          if (/Diary Question for/i.test(text)) {
-            const match = text.match(/@([^\s]+)/);
-            const targetAgentName = match?.[1];
-            if (targetAgentName) {
-              await coordinationService?.sendGameEvent(
-                {
-                  gameId: payload.message.roomId,
-                  roomId: payload.message.roomId,
-                  runtime: payload.runtime,
-                  source: "house",
-                  timestamp: Date.now(),
-                  type: "GAME:DIARY_PROMPT",
-                  event: { type: "DIARY_PROMPT", targetAgentName },
-                },
-                "others",
-              );
-            }
-          }
-        } else if (payload.message.id) {
-          // Forward player messages as structured game events
-          await coordinationService?.sendGameEvent(
-            {
-              gameId: payload.message.roomId,
-              roomId: payload.message.roomId,
-              runtime: payload.runtime,
-              source: "house",
-              timestamp: Date.now(),
-              type: "GAME:MESSAGE_SENT",
-              event: {
-                type: "MESSAGE_SENT",
-                messageId: payload.message.id,
-                playerId: payload.message.entityId,
-              },
-            },
-            "others",
-          );
-        }
+        // DISABLED FOR VIOLATING DEVELOPMENT RULES AGAINST USING STRING CONTENT MATCHING TO INFER GAME STATE
+        // if (isHouseAuthored) {
+        //   const text = payload.message.content?.text || "";
+        //   if (/INTRODUCTION PHASE/i.test(text)) {
+        //     coordinationService?.sendGameEvent(
+        //       {
+        //         gameId: payload.message.roomId,
+        //         roomId: payload.message.roomId,
+        //         runtime: payload.runtime,
+        //         source: "house",
+        //         timestamp: Date.now(),
+        //         type: "GAME:PHASE_ENTERED",
+        //         event: {
+        //           type: "PHASE_ENTERED",
+        //           phase: Phase.INTRODUCTION,
+        //         },
+        //       },
+        //       "others"
+        //     );
+        //   }
+        //   if (/Diary Question for/i.test(text)) {
+        //     const match = text.match(/@([^\s]+)/);
+        //     const targetAgentName = match?.[1];
+        //     if (targetAgentName) {
+        //       coordinationService?.sendGameEvent(
+        //         {
+        //           gameId: payload.message.roomId,
+        //           roomId: payload.message.roomId,
+        //           runtime: payload.runtime,
+        //           source: "house",
+        //           timestamp: Date.now(),
+        //           type: "GAME:DIARY_PROMPT",
+        //           event: { type: "DIARY_PROMPT", targetAgentName },
+        //         },
+        //         "others"
+        //       );
+        //     }
+        //   }
+        // } else if (payload.message.id) {
+        //   // Forward player messages as structured game events
+        //   await coordinationService?.sendGameEvent(
+        //     {
+        //       gameId: payload.message.roomId,
+        //       roomId: payload.message.roomId,
+        //       runtime: payload.runtime,
+        //       source: "house",
+        //       timestamp: Date.now(),
+        //       type: "GAME:MESSAGE_SENT",
+        //       event: {
+        //         type: "MESSAGE_SENT",
+        //         messageId: payload.message.id,
+        //         playerId: payload.message.entityId,
+        //       },
+        //     },
+        //     "others"
+        //   );
+        // }
       },
     ],
-    // Listen for coordination PHASE_STARTED events and react when the WHISPER phase begins
-    ["GAME:PHASE_STARTED"]: [
+    ["GAME:PHASE_ENTERED"]: [
       async (payload) => {
-        const action = payload.event;
-        if (action?.phase === Phase.WHISPER) {
-          const coordinationService = payload.runtime.getService(
-            CoordinationService.serviceType,
-          ) as CoordinationService;
-
-          if (!coordinationService) {
-            throw new Error("CoordinationService not available");
-          }
-
-          await coordinationService.sendGameEvent(
-            {
-              gameId: payload.gameId,
-              roomId: payload.roomId ?? payload.gameId,
-              runtime: payload.runtime,
-              source: "house",
-              timestamp: Date.now(),
-              type: "GAME:PHASE_STARTED",
-              event: { type: "PHASE_STARTED", phase: Phase.WHISPER },
-            },
-            "all",
-          );
-        }
+        const action = payload.emitted;
       },
     ],
   } as GameEventHandlers,

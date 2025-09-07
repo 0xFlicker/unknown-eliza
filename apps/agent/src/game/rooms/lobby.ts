@@ -5,23 +5,51 @@ import { createGameplayMachine } from "../gameplay";
 
 export type LobbyContext = {
   players: UUID[];
+  roomId: UUID;
   // playerId -> list of messageIds they have sent during LOBBY
   lobbyMessages: Record<UUID, UUID[]>;
 };
 
 export type LobbyInput = {
   players: UUID[];
+  roomId: UUID;
+};
+
+export type LobbyEventMessageSent = {
+  type: "GAME:MESSAGE_SENT";
+  playerId: UUID;
+  messageId: UUID;
+};
+
+export type LobbyEventChannelExhausted = { type: "GAME:CHANNEL_EXHAUSTED" };
+export type LobbyEventEndRound = { type: "GAME:END_ROUND" };
+export type LobbyEventAreYouReady = { type: "GAME:ARE_YOU_READY" };
+export type LobbyEventPlayerReady = {
+  type: "GAME:PLAYER_READY";
+  playerId: UUID;
 };
 
 export type LobbyEvent =
-  | { type: "MESSAGE_SENT"; playerId: UUID; messageId: UUID }
-  | { type: "END_ROUND" }
-  | { type: "ARE_YOU_READY" }
-  | { type: "PLAYER_READY"; playerId: UUID };
+  | LobbyEventMessageSent
+  | LobbyEventChannelExhausted
+  | LobbyEventEndRound
+  | LobbyEventAreYouReady
+  | LobbyEventPlayerReady;
+
+export type LobbyEmittedAreYouReady = {
+  type: "GAME:ARE_YOU_READY";
+  roomId?: UUID;
+  playerId: UUID;
+};
+export type LobbyEmittedPlayerReadyError = {
+  type: "GAME:PLAYER_READY_ERROR";
+  error: Error;
+  roomId?: UUID;
+};
 
 export type LobbyEmitted =
-  | { type: "PLAYER_READY_ERROR"; error: Error }
-  | { type: "ARE_YOU_READY" };
+  | LobbyEmittedPlayerReadyError
+  | LobbyEmittedAreYouReady;
 
 export function createLobbyMachine({
   roundTimeoutMs,
@@ -48,12 +76,13 @@ export function createLobbyMachine({
     context: ({ input }) => ({
       players: input.players,
       lobbyMessages: {},
+      roomId: input.roomId,
     }),
     initial: "chat",
     states: {
       chat: {
         on: {
-          MESSAGE_SENT: {
+          ["GAME:MESSAGE_SENT"]: {
             actions: assign(({ context, event }) => ({
               lobbyMessages: {
                 ...context.lobbyMessages,
@@ -64,7 +93,10 @@ export function createLobbyMachine({
               },
             })),
           },
-          END_ROUND: {
+          ["GAME:END_ROUND"]: {
+            target: "strategy",
+          },
+          ["GAME:CHANNEL_EXHAUSTED"]: {
             target: "strategy",
           },
         },
@@ -77,9 +109,13 @@ export function createLobbyMachine({
       strategy: {
         entry: [
           // Kick off diary collection for the gameplay child
-          emit(() => ({ type: "ARE_YOU_READY" })),
-          sendTo("strategy", { type: "END_ROUND" }),
-          sendTo("strategy", { type: "ARE_YOU_READY" }),
+          emit(({ context }) => ({
+            type: "GAME:ARE_YOU_READY",
+            roomId: context.roomId,
+            playerId: context.players[0],
+          })),
+          sendTo("strategy", { type: "GAME:END_ROUND" }),
+          sendTo("strategy", { type: "GAME:ARE_YOU_READY" }),
         ],
         on: {
           "*": {

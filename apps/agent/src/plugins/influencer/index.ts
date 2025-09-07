@@ -85,7 +85,6 @@ export const influencerPlugin: Plugin = {
     console.log("🎭 Influencer plugin initialized - ready to play the game");
   },
   events: {
-    // Coordination handled via internal bus; no MESSAGE_RECEIVED hook needed.
     ["GAME:ARE_YOU_READY"]: [
       async ({ runtime, gameId, roomId }) => {
         console.log(
@@ -103,31 +102,31 @@ export const influencerPlugin: Plugin = {
         console.log(
           `🎭 Influencer(${runtime.character?.name}) sending PLAYER_READY`,
         );
-        await coordinationService.sendGameEvent(
+        coordinationService.sendGameEvent(
           {
             gameId,
             roomId,
             type: "GAME:PLAYER_READY",
-            event: { type: "PLAYER_READY", playerId: runtime.agentId },
+            event: { type: "GAME:PLAYER_READY", playerId: runtime.agentId },
             timestamp: Date.now(),
             runtime,
             source: "influencer-plugin",
           },
-          "others",
+          "house",
         );
       },
     ],
-    ["GAME:PHASE_STARTED"]: [
-      async ({ runtime, roomId, event }) => {
+    ["GAME:PHASE_ENTERED"]: [
+      async ({ runtime, roomId, emitted: event }) => {
         const svc = runtime.getService<PlayerStateService>(
           PlayerStateService.serviceType,
         );
         if (!svc) return;
-        if (event.phase === Phase.INTRODUCTION) {
+        if (event.phase === Phase.INTRODUCTION && roomId) {
           await svc.markIntroductionRequired(roomId);
         }
       },
-      async ({ runtime, gameId, roomId, event }) => {
+      async ({ runtime, gameId, roomId, emitted: event }) => {
         if (event.phase === Phase.INIT) {
           const coordinationService = runtime.getService(
             CoordinationService.serviceType,
@@ -138,12 +137,12 @@ export const influencerPlugin: Plugin = {
             );
             return;
           }
-          await coordinationService.sendGameEvent(
+          coordinationService.sendGameEvent(
             {
               gameId,
               roomId,
               type: "GAME:PLAYER_READY",
-              event: { type: "PLAYER_READY", playerId: runtime.agentId },
+              event: { type: "GAME:PLAYER_READY", playerId: runtime.agentId },
               timestamp: Date.now(),
               runtime,
               source: "influencer-plugin",
@@ -159,7 +158,7 @@ export const influencerPlugin: Plugin = {
           PlayerStateService.serviceType,
         );
         if (!svc) return;
-        if (runtime.character?.name === event.targetAgentName) {
+        if (runtime.character?.name === event.targetAgentName && roomId) {
           await svc.setDiaryPending(roomId);
         }
       },

@@ -435,25 +435,22 @@ export class ChannelManager<
 
     logger.info(`Removing channel ${channel.name} (${channelId})`);
 
-    try {
-      // Remove all associations for this channel
-      const associations =
-        this.associationManager.getChannelAssociations(channelId);
-      for (const association of associations) {
-        this.associationManager.removeAssociation(
-          association.agentId,
-          channelId,
-        );
-      }
-
-      // Remove channel from storage
-      this.channels.delete(channelId);
-
-      logger.info(`Successfully removed channel ${channel.name}`);
-    } catch (error) {
-      logger.error(`Failed to remove channel ${channel.name}:`, error);
-      throw error;
+    // Remove all associations for this channel
+    const associations =
+      this.associationManager.getChannelAssociations(channelId);
+    for (const association of associations) {
+      this.associationManager.removeAssociation(association.agentId, channelId);
     }
+
+    // Remove each participant from the channel
+    for (const participant of channel.participants.values()) {
+      await this.removeParticipantFromChannel(channelId, participant.agentId);
+    }
+
+    // Remove channel from storage
+    this.channels.delete(channelId);
+
+    logger.info(`Successfully removed channel ${channel.name}`);
   }
 
   /**

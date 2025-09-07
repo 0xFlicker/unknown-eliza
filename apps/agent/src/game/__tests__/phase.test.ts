@@ -3,6 +3,7 @@ import { createPhaseMachine } from "../phase";
 import { Phase } from "../types";
 import { describe, it, expect } from "bun:test";
 import { stringToUuid } from "@elizaos/core";
+import { pbkdf2 } from "crypto";
 
 describe("Phase → DiaryRoom integration", () => {
   it("goes through diary phase and ends in LOBBY", () => {
@@ -25,24 +26,33 @@ describe("Phase → DiaryRoom integration", () => {
     ).start();
 
     expect(actor.getSnapshot().value).toBe("init");
-
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
+    // console.log(actor.getSnapshot().context);
 
     expect(actor.getSnapshot().value).toBe("introduction");
     actor.send({
-      type: "MESSAGE_SENT",
+      type: "GAME:MESSAGE_SENT",
       playerId: p1,
       messageId: stringToUuid("m1"),
     });
-    actor.send({ type: "END_ROUND" });
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:END_ROUND" });
+
+    expect(actor.getSnapshot().value).toBe("introduction");
+    expect(actor.getSnapshot().children.introduction?.getSnapshot().value).toBe(
+      "strategy",
+    );
+    // actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
+
     expect(actor.getSnapshot().value).toBe("lobby");
 
     // Respond ready, which should complete diary and go to LOBBY
-    actor.send({ type: "END_ROUND" });
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:END_ROUND" });
+    expect(actor.getSnapshot().children.lobby?.getSnapshot().value).toBe(
+      "strategy",
+    );
+    actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
     expect(actor.getSnapshot().value).toBe("whisper");
   });
 });

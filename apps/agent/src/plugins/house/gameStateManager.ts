@@ -1,10 +1,13 @@
-import { IAgentRuntime, UUID } from "@elizaos/core";
+import { AgentRuntime, ChannelType, IAgentRuntime, UUID } from "@elizaos/core";
 import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
 import { getGameState } from "@/memory/runtime";
 import { GameSettings, Phase } from "@/game/types";
-import { gameEvent$ } from "../coordinator/bus";
+import { gameAction$ } from "../coordinator/bus";
 import { CoordinationService } from "../coordinator/service";
 import { Service } from "@elizaos/core";
+import { InfluenceApp, ParticipantMode, ParticipantState } from "@/server";
+
+type RoomType = "introduction" | "lobby" | "whisper" | "diary";
 
 /**
  * High-level abstraction for managing game state changes and triggering
@@ -15,30 +18,78 @@ import { Service } from "@elizaos/core";
  */
 export class GameStateManager extends Service {
   // Map of gameID (worldId externally) to phaseActor
-  private phases: Map<UUID, ReturnType<typeof createPhaseActor>>;
-  // Whisper phase state per game
-  private whispers: Map<
-    UUID,
-    {
-      settings: Partial<{
-        maxWhisperRequests: number;
-        maxMessagesPerPlayerPerRoom: number;
-        whisperRoomTimeoutMs: number;
-        perRoomMaxParticipants?: number;
-      }>;
-      remainingRequests: Map<UUID, number>;
-      turnOrder: UUID[];
-      currentTurnIndex: number;
+  private influenceApp?: InfluenceApp<any, any, IAgentRuntime>;
+  private phaseActor?: ReturnType<typeof createPhaseActor>;
+  private gameId?: UUID;
+
+  public getGameId() {
+    return this.gameId;
+  }
+  private diaryRoomPerPlayer: Map<UUID, UUID> = new Map();
+  private whisperRoomPerPlayer: Map<UUID, UUID> = new Map();
+  private introductionRoomId?: UUID;
+
+  public getIntroductionRoomId() {
+    if (!this.introductionRoomId) {
+      throw new Error("Introduction room not initialized");
     }
-  >;
+    return this.introductionRoomId;
+  }
+  private lobbyRoomId?: UUID;
 
   capabilityDescription = "Manages the game state for the house";
   static serviceType = "game-state-manager";
 
   constructor(runtime: IAgentRuntime) {
     super(runtime);
-    this.phases = new Map();
-    this.whispers = new Map();
+  }
+
+  async initializeGame(
+    influenceApp: InfluenceApp<any, any, any>,
+    players: UUID[],
+  ) {
+    const app = (this.influenceApp = influenceApp);
+    const minPlayers = Number(
+      this.runtime.getSetting("HOUSE_MIN_PLAYERS") || 3,
+    );
+    const maxPlayers = Number(
+      this.runtime.getSetting("HOUSE_MAX_PLAYERS") || 8,
+    );
+    if (players.length < minPlayers || players.length > maxPlayers) {
+      throw new Error(
+        `Cannot initialize game: player count ${players.length} is out of bounds (${minPlayers}-${maxPlayers})`,
+      );
+    }
+    console.log(
+      `🏠 Initializing game with settings (minPlayers: ${minPlayers}, maxPlayers: ${maxPlayers})`,
+    );
+    const gameId = (this.gameId = await app.createGame({
+      players,
+      settings: {
+        minPlayers,
+        maxPlayers,
+      },
+      initialPhase: Phase.INIT,
+    }));
+    this.introductionRoomId = await app.createGameChannel(gameId, {
+      name: "Introduction Room",
+      participants: players.map((p) => ({
+        agentId: p,
+        mode: ParticipantMode.READ_WRITE,
+        state: ParticipantState.FOLLOWED,
+      })),
+      type: ChannelType.GROUP,
+    });
+    this.lobbyRoomId = await app.createGameChannel(gameId, {
+      name: "Lobby Room",
+      participants: players.map((p) => ({
+        agentId: p,
+        mode: ParticipantMode.READ_WRITE,
+        state: ParticipantState.FOLLOWED,
+      })),
+      type: ChannelType.GROUP,
+    });
+    this.phaseActor = app.getGame(gameId)?.phase!;
   }
 
   async initializePhase(
@@ -46,137 +97,83 @@ export class GameStateManager extends Service {
     gameSettings: GameSettings,
     phaseInput: PhaseInput,
   ) {
-    console.log("🏠 Initializing phase", roomId, gameSettings, phaseInput);
     let gameState = await getGameState(this.runtime, roomId);
     // Avoid re-initializing if we already created the actor for this gameId
-    if (!this.phases.has(gameSettings.id)) {
-      const phaseActor = createPhaseActor(
-        createPhaseMachine(gameSettings),
-        phaseInput,
-      );
-      phaseActor.start();
-      gameState = {
-        id: gameSettings.id,
-        gameSettings,
-        phaseInput,
-        phaseSnapshot: phaseActor.getPersistedSnapshot(),
-      };
-      this.phases.set(gameSettings.id, phaseActor);
+    // if (!this.phases.has(gameSettings.id)) {
+    //   const phaseActor = createPhaseActor(
+    //     createPhaseMachine(gameSettings),
+    //     phaseInput
+    //   );
+    //   phaseActor.start();
+    //   gameState = {
+    //     id: gameSettings.id,
+    //     gameSettings,
+    //     phaseInput,
+    //     phaseSnapshot: phaseActor.getPersistedSnapshot(),
+    //   };
+    //   this.phases.set(gameSettings.id, phaseActor);
 
-      gameEvent$.subscribe((event) => {
-        // Only send events to phase actors "emitted" will be events from the phase machine
-        if (!("event" in event.payload)) {
-          return;
-        }
+    //   gameAction$.subscribe((event) => {
+    //     // Only send events to phase actors "emitted" will be events from the phase machine
+    //     if (!("event" in event.payload)) {
+    //       return;
+    //     }
 
-        console.log(`🏠 House received game event: ${event.type}`);
-        phaseActor.send(event.payload.event);
-      });
+    //     console.log(`🏠 House received game event: ${event.type}`);
+    //     phaseActor.send(event.payload.event);
+    //   });
 
-      phaseActor.on("*", (event) => {
-        const broadcastable = new Set([
-          "ARE_YOU_READY",
-          "ALL_PLAYERS_READY",
-          "PLAYER_READY_ERROR",
-        ]);
-        if (!broadcastable.has(event.type)) {
-          return;
-        }
-        const svc = this.runtime.getService<CoordinationService>(
-          CoordinationService.serviceType,
-        );
-        const payload: any = {
-          gameId: gameSettings.id,
-          roomId,
-          runtime: this.runtime,
-          source: "house",
-          timestamp: Date.now(),
-          action: event,
-        };
-        svc?.sendGameEvent(payload);
-      });
-    }
+    // phaseActor.on("*", (event) => {
+    //   const coordSvc = this.runtime.getService<CoordinationService>(
+    //     CoordinationService.serviceType
+    //   );
+
+    //   coordSvc?.emitGameEvent({
+    //     emitted: event,
+    //     type: `GAME:${event.type}` as const,
+    //     gameId: roomId,
+    //     roomId: roomId,
+    //     runtime: this.runtime,
+    //     source: "house",
+    //     timestamp: Date.now(),
+    //   } as any); // TODO fix any
+    // });
+
+    //   // phaseActor.on("*", (event) => {
+    //   //   const broadcastable = new Set([
+    //   //     "ARE_YOU_READY",
+    //   //     "ALL_PLAYERS_READY",
+    //   //     "PLAYER_READY_ERROR",
+    //   //   ]);
+    //   //   if (!broadcastable.has(event.type)) {
+    //   //     return;
+    //   //   }
+    //   //   const svc = this.runtime.getService<CoordinationService>(
+    //   //     CoordinationService.serviceType,
+    //   //   );
+    //   //   const payload: any = {
+    //   //     gameId: gameSettings.id,
+    //   //     roomId,
+    //   //     runtime: this.runtime,
+    //   //     source: "house",
+    //   //     timestamp: Date.now(),
+    //   //     action: event,
+    //   //   };
+    //   //   svc?.sendGameEvent(payload);
+    //   // });
+    // }
 
     return gameState;
   }
 
-  /**
-   * Initialize the whisper phase state for the given room/game and notify the first player.
-   */
-  async startWhisperPhase(
-    gameId: UUID,
-    settings: Partial<{
-      maxWhisperRequests: number;
-      maxMessagesPerPlayerPerRoom: number;
-      whisperRoomTimeoutMs: number;
-      perRoomMaxParticipants?: number;
-    }> = {},
-  ) {
-    // Retrieve canonical game state to get player list
-    const roomId = gameId;
-    const gameState = await getGameState(this.runtime, roomId);
-    const players = (gameState?.phaseInput?.players as UUID[]) || [];
-
-    const whisperSettings = {
-      maxWhisperRequests: settings.maxWhisperRequests ?? 1,
-      maxMessagesPerPlayerPerRoom: settings.maxMessagesPerPlayerPerRoom ?? 3,
-      whisperRoomTimeoutMs: settings.whisperRoomTimeoutMs ?? 60000,
-      perRoomMaxParticipants: settings.perRoomMaxParticipants ?? 4,
-    };
-
-    // Build initial turn order by shuffling player ids
-    const turnOrder = [...players];
-    for (let i = turnOrder.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [turnOrder[i], turnOrder[j]] = [turnOrder[j], turnOrder[i]];
-    }
-
-    const remainingRequests = new Map<UUID, number>();
-    for (const p of players) {
-      remainingRequests.set(p, whisperSettings.maxWhisperRequests);
-    }
-
-    this.whispers.set(gameId, {
-      settings: whisperSettings,
-      remainingRequests,
-      turnOrder,
-      currentTurnIndex: 0,
-    });
-
-    // Notify all that whisper phase started, then notify the first player of their turn
-    const svc = this.runtime.getService<CoordinationService>(
-      CoordinationService.serviceType,
-    );
-    if (!svc) throw new Error("CoordinationService not available");
-
-    // Broadcast phase start to all agents in the game
-    await svc.sendGameEvent(
-      {
-        gameId,
-        roomId,
-        runtime: this.runtime,
-        source: "house",
-        timestamp: Date.now(),
-        type: "GAME:PHASE_STARTED",
-        event: { type: "PHASE_STARTED", phase: Phase.WHISPER },
-      },
-      "all",
-    );
-
-    // Notify the first player privately that it's their turn once implemented in state machine
-  }
-
   async addPlayer(gameId: UUID, playerId: UUID) {
-    const phaseActor = this.phases.get(gameId);
-    if (phaseActor) {
-      phaseActor.send({ type: "ADD_PLAYER", playerId });
+    if (this.phaseActor) {
+      this.phaseActor.send({ type: "GAME:ADD_PLAYER", playerId });
     }
   }
 
   async stop() {
-    this.phases.forEach((phase) => {
-      phase.stop();
-    });
+    this.phaseActor?.stop();
   }
 
   static async start(runtime: IAgentRuntime) {

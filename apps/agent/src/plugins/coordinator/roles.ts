@@ -37,9 +37,8 @@ export function canSendMessage(
   gameEventType?: string,
 ): boolean {
   const role = getAgentRole(runtime);
-
   switch (messageType) {
-    case "game_event":
+    case "game_action":
       // Check specific game event permissions
       if (gameEventType) {
         return canSendGameEvent(role, gameEventType);
@@ -77,7 +76,7 @@ function canSendGameEvent(role: AgentRole, gameEventType: string): boolean {
       // Players can announce readiness in response to prompts
       return role === AgentRole.PLAYER || role === AgentRole.HOUSE;
 
-    case "GAME:PHASE_STARTED":
+    case "GAME:PHASE_ENTERED":
     case "GAME:ALL_PLAYERS_READY":
     case "GAME:TIMER_UPDATE":
       // Only house can send these events

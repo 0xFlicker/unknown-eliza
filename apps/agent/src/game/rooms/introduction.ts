@@ -7,22 +7,36 @@ import { createGameplayMachine } from "../gameplay";
 export type IntroductionContext = {
   players: UUID[];
   // playerId -> list of messageIds they have sent
-  introductionMessages: Record<UUID, UUID[]>;
+  introductionMessages: Record<UUID, UUID>;
+  roomId: UUID;
 };
 
 export type IntroductionInput = {
   players: UUID[];
+  roomId: UUID;
 };
 
-export type IntroductionEvent = {
-  type: "MESSAGE_SENT";
+export type IntroductionMessageEvent = {
+  type: "GAME:MESSAGE_SENT";
   playerId: UUID;
   messageId: UUID;
 };
 
+export type IntroductionEmittedPlayerReadyError = {
+  type: "GAME:PLAYER_READY_ERROR";
+  error: Error;
+  roomId?: UUID;
+};
+
+export type IntroductionEmittedAreYouReady = {
+  type: "GAME:ARE_YOU_READY";
+  roomId?: UUID;
+  playerId: UUID;
+};
+
 export type IntroductionEmitted =
-  | { type: "PLAYER_READY_ERROR"; error: Error }
-  | { type: "ARE_YOU_READY" };
+  | IntroductionEmittedPlayerReadyError
+  | IntroductionEmittedAreYouReady;
 
 export function createIntroductionMachine({
   roundTimeoutMs,
@@ -35,7 +49,7 @@ export function createIntroductionMachine({
     types: {
       context: {} as IntroductionContext,
       input: {} as IntroductionInput,
-      events: {} as IntroductionEvent,
+      events: {} as IntroductionMessageEvent,
       emitted: {} as IntroductionEmitted,
     },
     actors: {
@@ -57,6 +71,7 @@ export function createIntroductionMachine({
     context: ({ input }) => ({
       players: input.players,
       introductionMessages: {},
+      roomId: input.roomId,
     }),
     initial: "waiting",
     states: {
@@ -70,29 +85,26 @@ export function createIntroductionMachine({
           },
         },
         on: {
-          MESSAGE_SENT: {
+          ["GAME:MESSAGE_SENT"]: {
             actions: assign(({ context, event }) => ({
               introductionMessages: {
                 ...context.introductionMessages,
-                [event.playerId]: [
-                  ...(context.introductionMessages[event.playerId] || []),
-                  event.messageId,
-                ],
+                [event.playerId]: event.messageId,
               },
             })),
           },
           // Treat readiness as a proxy for introduction (iteration 1)
-          PLAYER_READY: {
-            actions: assign(({ context, event }) => ({
-              introductionMessages: {
-                ...context.introductionMessages,
-                [event.playerId]: [
-                  ...(context.introductionMessages[event.playerId] || []),
-                  "ready" as unknown as UUID,
-                ],
-              },
-            })),
-          },
+          // ["GAME:PLAYER_READY"]: {
+          //   actions: assign(({ context, event }) => ({
+          //     introductionMessages: {
+          //       ...context.introductionMessages,
+          //       [event.playerId]: [
+          //         ...(context.introductionMessages[event.playerId] || []),
+          //         "ready" as unknown as UUID,
+          //       ],
+          //     },
+          //   })),
+          // },
         },
         always: {
           guard: "allPlayersIntroduced",
@@ -102,9 +114,13 @@ export function createIntroductionMachine({
       strategy: {
         entry: [
           // Broadcast and kick off readiness collection for the gameplay child
-          emit(() => ({ type: "ARE_YOU_READY" })),
-          sendTo("strategy", { type: "END_ROUND" }),
-          sendTo("strategy", { type: "ARE_YOU_READY" }),
+          emit(({ context }) => ({
+            type: "GAME:ARE_YOU_READY",
+            roomId: context.roomId,
+            playerId: context.players[0],
+          })),
+          sendTo("strategy", { type: "GAME:END_ROUND" }),
+          sendTo("strategy", { type: "GAME:ARE_YOU_READY" }),
         ],
         on: {
           "*": {

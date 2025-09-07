@@ -1,4 +1,25 @@
-import { PhaseEmitted, PhaseEvent } from "@/game/phase";
+import {
+  GameplayEmittedAllPlayersReady,
+  GameplayEmittedAreYouReady,
+  GameplayEmittedDiaryRoomsCreated,
+  GameplayEmittedPhaseEntered,
+  GameplayEmittedPlayerReadyError,
+  GameplayEndRoundEvent,
+  GameplayPlayerReadyEvent,
+} from "@/game/gameplay";
+import {
+  IntroductionRoomCreatedEmitted,
+  PhaseEmitted,
+  PhaseEvent,
+  PhaseEventDiaryPrompt,
+} from "@/game/phase";
+import { IntroductionMessageEvent } from "@/game/rooms/introduction";
+import { LobbyEventMessageSent } from "@/game/rooms/lobby";
+import {
+  WhisperEmittedError,
+  WhisperEmittedYourTurn,
+  WhisperEventMessageSent,
+} from "@/game/rooms/whisper";
 import { Phase } from "@/game/types";
 import {
   EventHandler,
@@ -23,125 +44,107 @@ export interface MessageServiceMessage {
   metadata?: any;
 }
 
-// /**
-//  * Game-specific event types for Influence game coordination
-//  */
-// export enum GameEventType {
-//   // Phase lifecycle events
-//   PHASE_TRANSITION_INITIATED = "GAME:PHASE_TRANSITION_INITIATED",
-//   PHASE_STARTED = "GAME:PHASE_STARTED",
-//   PHASE_ENDED = "GAME:PHASE_ENDED",
-
-//   // Player coordination events
-//   ARE_YOU_READY = "GAME:ARE_YOU_READY",
-//   PLAYER_READY = "GAME:PLAYER_READY",
-//   ALL_PLAYERS_READY = "GAME:ALL_PLAYERS_READY",
-//   I_AM_READY = "GAME:I_AM_READY",
-
-//   // Timer management events
-//   TIMER_WARNING = "GAME:TIMER_WARNING",
-//   TIMER_EXPIRED = "GAME:TIMER_EXPIRED",
-
-//   // Strategic events
-//   STRATEGIC_THINKING_REQUIRED = "GAME:STRATEGIC_THINKING_REQUIRED",
-//   STRATEGIC_THINKING_COMPLETED = "GAME:STRATEGIC_THINKING_COMPLETED",
-
-//   // Diary room events
-//   DIARY_ROOM_OPENED = "GAME:DIARY_ROOM_OPENED",
-//   DIARY_ROOM_COMPLETED = "GAME:DIARY_ROOM_COMPLETED",
-
-//   // Game state events
-//   GAME_STATE_CHANGED = "GAME:GAME_STATE_CHANGED",
-//   ROUND_STARTED = "GAME:ROUND_STARTED",
-//   ROUND_ENDED = "GAME:ROUND_ENDED",
-// }
-
 /**
  * Base payload for all game events
  */
 export interface GameEventPayload<Action extends PhaseEvent>
   extends EventPayload {
   gameId: UUID;
-  roomId: UUID;
+  roomId?: UUID;
   timestamp: number;
   event: Action;
-  type: `GAME:${Action["type"]}`;
+  type: Action["type"];
 }
 
 export interface GameEmitPayload<Action extends PhaseEmitted>
   extends EventPayload {
   gameId: UUID;
-  roomId: UUID;
+  roomId?: UUID;
   timestamp: number;
   emitted: Action;
-  type: `GAME:${Action["type"]}`;
+  type: Action["type"];
 }
 
 /**
  * Payload for ARE_YOU_READY events - asking players if they're ready
  */
 export interface AreYouReadyPayload
-  extends GameEventPayload<{ type: "ARE_YOU_READY" }> {}
+  extends GameEmitPayload<GameplayEmittedAreYouReady> {}
 
 /**
  * Payload for player readiness events
  */
 export interface PlayerReadyPayload
-  extends GameEventPayload<{ type: "PLAYER_READY"; playerId: UUID }> {}
+  extends GameEventPayload<GameplayPlayerReadyEvent> {}
 
+// Emit types are "GAME:ALL_PLAYERS_READY" | "GAME:PLAYER_READY_ERROR" | "GAME:WHISPER_YOUR_TURN" | "GAME:ARE_YOU_READY" | "GAME:PHASE_ENTERED" | "GAME:WHISPER_ERROR" | "GAME:WHISPER_COMPLETE"
 /**
  * Payload for all players ready events
  */
 export interface AllPlayersReadyPayload
-  extends GameEmitPayload<{
-    type: "ALL_PLAYERS_READY";
-    fromPhase: Phase;
-    toPhase: Phase;
-    transitionReason: string;
-  }> {}
-
-export interface PhaseStartedPayload
-  extends GameEventPayload<{ type: "PHASE_STARTED"; phase: Phase }> {}
-
-export interface DiaryPromptPayload
-  extends GameEventPayload<{ type: "DIARY_PROMPT"; targetAgentName: string }> {}
-
-export interface EndRoundPayload
-  extends GameEventPayload<{ type: "END_ROUND" }> {}
-
-export interface MessageSentPayload
-  extends GameEventPayload<{
-    type: "MESSAGE_SENT";
-    messageId: UUID;
-    playerId: UUID;
-  }> {}
+  extends GameEmitPayload<GameplayEmittedAllPlayersReady> {}
 
 export interface PlayerReadyErrorPayload
-  extends GameEmitPayload<{
-    type: "PLAYER_READY_ERROR";
-    error: Error;
-  }> {}
+  extends GameEmitPayload<GameplayEmittedPlayerReadyError> {}
 
 export interface WhisperYourTurnPayload
-  extends GameEmitPayload<{
-    type: "WHISPER_YOUR_TURN";
-    playerId: UUID;
-  }> {}
+  extends GameEmitPayload<WhisperEmittedYourTurn> {}
+
+export interface WhisperErrorPayload
+  extends GameEmitPayload<WhisperEmittedError> {}
+
+export interface WhisperCompletePayload
+  extends GameEmitPayload<{ type: "GAME:WHISPER_COMPLETE" }> {}
+
+export interface WhisperRoomOpenedPayload
+  extends GameEmitPayload<{ type: "GAME:WHISPER_ROOM_OPENED" }> {}
+
+export interface WhisperRoomClosedPayload
+  extends GameEmitPayload<{ type: "GAME:WHISPER_ROOM_CLOSED" }> {}
+
+export interface PhaseStartedPayload
+  extends GameEmitPayload<GameplayEmittedPhaseEntered> {}
+
+export interface GameplayDiaryRoomCreatedPayload
+  extends GameEmitPayload<GameplayEmittedDiaryRoomsCreated> {}
+
+export interface IntroductionRoomCreatedPayload
+  extends GameEmitPayload<IntroductionRoomCreatedEmitted> {}
+
+export interface DiaryPromptPayload
+  extends GameEventPayload<PhaseEventDiaryPrompt> {}
+
+export interface EndRoundPayload
+  extends GameEventPayload<GameplayEndRoundEvent> {}
+
+export interface MessageSentPayload
+  extends GameEventPayload<
+    IntroductionMessageEvent | LobbyEventMessageSent | WhisperEventMessageSent
+  > {}
 
 /**
  * Maps game event types to their corresponding payload types
  */
 export interface GameEventPayloadMap {
-  ["GAME:ARE_YOU_READY"]: AreYouReadyPayload;
   ["GAME:PLAYER_READY"]: PlayerReadyPayload;
-  ["GAME:ALL_PLAYERS_READY"]: AllPlayersReadyPayload;
   ["GAME:I_AM_READY"]: PlayerReadyPayload;
   ["GAME:END_ROUND"]: EndRoundPayload;
   ["GAME:MESSAGE_SENT"]: MessageSentPayload;
-  ["GAME:PHASE_STARTED"]: PhaseStartedPayload;
   ["GAME:DIARY_PROMPT"]: DiaryPromptPayload;
+}
+
+export interface GameEventPayloadEmittableMap {
+  ["GAME:PHASE_ENTERED"]: PhaseStartedPayload;
+  ["GAME:ARE_YOU_READY"]: AreYouReadyPayload;
+  ["GAME:ALL_PLAYERS_READY"]: AllPlayersReadyPayload;
   ["GAME:PLAYER_READY_ERROR"]: PlayerReadyErrorPayload;
   ["GAME:WHISPER_YOUR_TURN"]: WhisperYourTurnPayload;
+  ["GAME:WHISPER_ERROR"]: WhisperErrorPayload;
+  ["GAME:WHISPER_COMPLETE"]: WhisperCompletePayload;
+  ["GAME:WHISPER_ROOM_OPENED"]: WhisperRoomOpenedPayload;
+  ["GAME:WHISPER_ROOM_CLOSED"]: WhisperRoomClosedPayload;
+  ["GAME:DIARY_ROOMS_CREATED"]: GameplayDiaryRoomCreatedPayload;
+  ["GAME:INTRODUCTION_ROOM_CREATED"]: IntroductionRoomCreatedPayload;
 }
 
 /**
@@ -153,9 +156,20 @@ export interface GameEventCoordinationMessage<
   messageId: string;
   timestamp: number;
   sourceAgent: UUID;
-  targetAgents: UUID[] | "all" | "others";
+  targetAgents: UUID[] | "all" | "others" | "house";
   type: "coordination_message";
   payload: GameEventPayloadMap[T];
+}
+
+export interface GameEmitCoordinationMessage<
+  T extends keyof GameEventPayloadEmittableMap,
+> {
+  messageId: string;
+  timestamp: number;
+  sourceAgent: UUID;
+  targetAgents: UUID[] | "all" | "others" | "house";
+  type: "coordination_message";
+  payload: GameEventPayloadEmittableMap[T];
 }
 
 /**
@@ -164,7 +178,7 @@ export interface GameEventCoordinationMessage<
 export function createGameEventMessage<T extends keyof GameEventPayloadMap>(
   sourceAgent: UUID,
   payload: GameEventPayloadMap[T],
-  targetAgents: UUID[] | "all" | "others" = "others",
+  targetAgents: UUID[] | "all" | "others" | "house" = "others",
 ): GameEventCoordinationMessage<T> {
   return {
     messageId: v4() as UUID,
@@ -176,13 +190,30 @@ export function createGameEventMessage<T extends keyof GameEventPayloadMap>(
   };
 }
 
+export function createGameEmitMessage<
+  T extends keyof GameEventPayloadEmittableMap,
+>(
+  sourceAgent: UUID,
+  payload: GameEventPayloadEmittableMap[T],
+  targetAgents: UUID[] | "all" | "others" = "others",
+): GameEmitCoordinationMessage<T> {
+  return {
+    messageId: v4() as UUID,
+    timestamp: Date.now(),
+    sourceAgent,
+    targetAgents: targetAgents || ("others" as const),
+    type: "coordination_message" as const,
+    payload,
+  };
+}
+
 /**
  * Create an agent ready coordination message
  */
 export function createAgentReadyMessage(
   sourceAgent: UUID,
-  payload: GameEventPayloadMap["GAME:ARE_YOU_READY"],
-): GameEventCoordinationMessage<"GAME:ARE_YOU_READY"> {
+  payload: GameEventPayloadEmittableMap["GAME:ARE_YOU_READY"],
+): GameEmitCoordinationMessage<"GAME:ARE_YOU_READY"> {
   return {
     messageId: `agent-ready-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
@@ -200,6 +231,10 @@ export type GameEventHandler<T extends keyof GameEventPayloadMap> = (
   payload: GameEventPayloadMap[T],
 ) => Promise<void>;
 
+export type GameEventEmitter<T extends keyof GameEventPayloadEmittableMap> = (
+  payload: GameEventPayloadEmittableMap[T],
+) => Promise<void>;
+
 /**
  * Utility type for properly typed game event handlers in plugins
  */
@@ -207,8 +242,18 @@ export type GameEventHandlers = {
   [K in keyof EventPayloadMap]?: EventHandler<K>[];
 } & {
   [key in keyof GameEventPayloadMap]?: GameEventHandler<key>[];
+} & {
+  [key in keyof GameEventPayloadEmittableMap]?: GameEventEmitter<key>[];
 };
 
-export type AnyCoordinationMessage = GameEventCoordinationMessage<
+export type GameEventMessages = GameEventCoordinationMessage<
   keyof GameEventPayloadMap
 >;
+
+export type EmittableGameEventMessages = GameEmitCoordinationMessage<
+  keyof GameEventPayloadEmittableMap
+>;
+
+export type AnyCoordinationMessage =
+  | GameEventMessages
+  | EmittableGameEventMessages;

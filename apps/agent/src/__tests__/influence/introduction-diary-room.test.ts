@@ -7,6 +7,7 @@ import { influencerPlugin } from "../../plugins/influencer";
 import { ChannelType } from "@elizaos/core";
 import { ParticipantMode, ParticipantState, StreamedMessage } from "@/server";
 import alexCharacter from "@/characters/alex";
+import { Phase } from "@/game/types";
 
 describe("Introduction → Diary Room flow", () => {
   it(
@@ -19,7 +20,6 @@ describe("Introduction → Diary Room flow", () => {
       });
 
       await app.initialize();
-      await app.start();
 
       try {
         // Add 3 influencer agents
@@ -46,25 +46,6 @@ describe("Introduction → Diary Room flow", () => {
           players.push(player);
         }
 
-        // Create a game in INTRODUCTION phase and channel with players
-        const gameId = await app.createGame({
-          players: players.map((p) => p.id),
-          settings: { minPlayers: 3, maxPlayers: 5 },
-          initialPhase: 0 as any, // Phase.INTRODUCTION
-        } as any);
-
-        const channelId = await app.createGameChannel(gameId, {
-          name: "intro-diary",
-          participants: [
-            ...players.map((p) => ({
-              agentId: p.id,
-              mode: ParticipantMode.READ_WRITE,
-              state: ParticipantState.FOLLOWED,
-            })),
-          ],
-          type: ChannelType.GROUP,
-        });
-
         // Map agentId → display name helper
         const nameById = new Map(
           players.map((p) => [p.id, p.character.name] as const),
@@ -75,6 +56,13 @@ describe("Introduction → Diary Room flow", () => {
         const diary = new Map<string, StreamedMessage>();
         const diaryResponses = new Set<string>();
         let diariesStart = 0;
+
+        const gameId = await app.start();
+        const channelId = app.getGameManager().getIntroductionRoomId(gameId);
+
+        if (!channelId) {
+          throw new Error("Introduction channel not found");
+        }
 
         const sub = app.getChannelMessageStream(channelId).subscribe((msg) => {
           const isPlayer = players.some((p) => p.id === msg.authorId);
@@ -94,7 +82,6 @@ describe("Introduction → Diary Room flow", () => {
             }
           }
         });
-
         // Step 1: House announces introduction phase
         await app.sendMessage(
           channelId,

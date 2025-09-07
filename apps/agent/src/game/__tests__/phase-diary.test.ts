@@ -22,19 +22,19 @@ describe("Phase → DiaryRoom integration", () => {
     ).start();
 
     // INIT → INTRODUCTION
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
 
     expect(actor.getSnapshot().value).toBe("gameplay");
 
     // INTRODUCTION → INTRODUCTION_DR (diary invoked)
     // Trigger diary: ask if ready
-    actor.send({ type: "END_ROUND" });
+    actor.send({ type: "GAME:END_ROUND" });
     const snapshot2 = actor.getSnapshot().value;
     expect(snapshot2).toBe("diary");
 
     // Respond ready, which should complete diary and go to LOBBY
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: p1 });
+    actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
     expect(actor.getSnapshot().value).toBe("allPlayersReady");
   });
 });

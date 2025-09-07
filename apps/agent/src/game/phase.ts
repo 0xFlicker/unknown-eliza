@@ -11,16 +11,19 @@ import {
 import {
   createIntroductionMachine,
   IntroductionEmitted,
-  IntroductionEvent,
+  IntroductionMessageEvent,
 } from "./rooms/introduction";
 import { createLobbyMachine, LobbyEmitted, LobbyEvent } from "./rooms/lobby";
 import { WhisperEmitted, WhisperEvent } from "./rooms/whisper";
+import { randomUUID } from "@/lib/utils";
 
 export interface PhaseContext {
   players: UUID[];
   playersReady: Record<UUID, boolean>;
   minPlayers: number;
   maxPlayers: number;
+  introductionRoomId?: UUID;
+  lobbyRoomId?: UUID;
 }
 
 export type PhaseInput = {
@@ -29,19 +32,36 @@ export type PhaseInput = {
   minPlayers: number;
 };
 
+export type PhaseEventDiaryPrompt = {
+  type: "GAME:DIARY_PROMPT";
+  targetAgentName: string;
+};
+
+export type IntroductionRoomCreatedEmitted = {
+  type: "GAME:INTRODUCTION_ROOM_CREATED";
+  roomId: UUID;
+  playerIds: UUID[];
+};
+
+export type LobbyRoomCreatedEvent = {
+  type: "GAME:LOBBY_ROOM_CREATED";
+  roomId: UUID;
+  playerIds: UUID[];
+};
+
 export type PhaseEvent =
   | GameplayEvent
-  | IntroductionEvent
+  | IntroductionMessageEvent
   | LobbyEvent
   | WhisperEvent
-  | { type: "PHASE_STARTED"; phase: Phase }
-  | { type: "DIARY_PROMPT"; targetAgentName: string };
+  | PhaseEventDiaryPrompt;
 
 export type PhaseEmitted =
   | GameplayEmitted
   | IntroductionEmitted
   | LobbyEmitted
-  | WhisperEmitted;
+  | WhisperEmitted
+  | IntroductionRoomCreatedEmitted;
 
 export function createPhaseActor(
   phase: ReturnType<typeof createPhaseMachine>,
@@ -104,33 +124,15 @@ export function createPhaseMachine(gameSettings: GameSettings) {
     states: {
       init: {
         on: {
-          ADD_PLAYER: {
-            target: "init",
-            actions: [
-              assign({
-                players: ({ context, event }) => [
-                  ...context.players,
-                  event.playerId,
-                ],
-              }),
-            ],
-          },
-          PLAYER_READY: {
+          ["GAME:PLAYER_READY"]: {
             target: "init",
             actions: [
               assign({
                 playersReady: ({ context, event }) => ({
                   ...context.playersReady,
-                  ...(event.type === "PLAYER_READY" &&
-                  Object.keys(context.playersReady).length < context.maxPlayers
-                    ? { [event.playerId]: true }
-                    : {}),
+                  ...{ [event.playerId]: true },
                 }),
               }),
-              // emit(({ event }) => ({
-              //   type: "PLAYER_READY",
-              //   playerId: event.playerId,
-              // })),
             ],
           },
         },
@@ -145,7 +147,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             target: "introduction",
             actions: [
               emit(() => ({
-                type: "ALL_PLAYERS_READY",
+                type: "GAME:ALL_PLAYERS_READY",
                 fromPhase: Phase.INTRODUCTION,
                 toPhase: Phase.LOBBY,
                 transitionReason: "all_players_ready",
@@ -160,11 +162,22 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             actions: [sendTo("introduction", ({ event }) => event)],
           },
         },
+        entry: [
+          assign({
+            introductionRoomId: () => randomUUID(),
+          }),
+          emit(({ context }) => ({
+            type: "GAME:PHASE_ENTERED",
+            phase: Phase.INTRODUCTION,
+            roomId: context.introductionRoomId!,
+          })),
+        ],
         invoke: {
           id: "introduction",
           src: "introduction",
           input: ({ context }) => ({
             players: context.players,
+            roomId: context.introductionRoomId!,
           }),
           onDone: {
             target: "lobby",
@@ -184,16 +197,21 @@ export function createPhaseMachine(gameSettings: GameSettings) {
           actions: [sendTo("lobby", ({ event }) => event)],
         },
         entry: [
-          emit({
-            type: "PHASE_ENTERED",
-            phase: Phase.LOBBY,
+          assign({
+            lobbyRoomId: () => randomUUID(),
           }),
+          emit(({ context }) => ({
+            type: "GAME:PHASE_ENTERED",
+            phase: Phase.LOBBY,
+            roomId: context.lobbyRoomId!,
+          })),
         ],
         invoke: {
           id: "lobby",
           src: "lobby",
           input: ({ context }) => ({
             players: context.players,
+            roomId: context.lobbyRoomId!,
           }),
           onDone: {
             target: "whisper",
@@ -204,12 +222,14 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       whisper: {
-        always: {
-          actions: [sendTo("whisper", ({ event }) => event)],
+        on: {
+          "*": {
+            actions: [sendTo("whisper", ({ event }) => event)],
+          },
         },
         entry: [
           emit({
-            type: "PHASE_ENTERED",
+            type: "GAME:PHASE_ENTERED",
             phase: Phase.WHISPER,
           }),
         ],
@@ -228,7 +248,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             target: "rumor",
             actions: [
               emit(({ event }) => ({
-                type: "PLAYER_READY_ERROR",
+                type: "GAME:PLAYER_READY_ERROR",
                 error: event.error as Error,
               })),
             ],
@@ -241,7 +261,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         entry: [
           emit({
-            type: "PHASE_ENTERED",
+            type: "GAME:PHASE_ENTERED",
             phase: Phase.RUMOR,
           }),
         ],
@@ -267,7 +287,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         entry: [
           emit({
-            type: "PHASE_ENTERED",
+            type: "GAME:PHASE_ENTERED",
             phase: Phase.VOTE,
           }),
         ],
@@ -293,7 +313,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         entry: [
           emit({
-            type: "PHASE_ENTERED",
+            type: "GAME:PHASE_ENTERED",
             phase: Phase.POWER,
           }),
         ],
@@ -319,7 +339,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         entry: [
           emit({
-            type: "PHASE_ENTERED",
+            type: "GAME:PHASE_ENTERED",
             phase: Phase.REVEAL,
           }),
         ],

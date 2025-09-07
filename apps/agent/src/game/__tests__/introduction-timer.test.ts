@@ -22,9 +22,9 @@ describe("INTRODUCTION timer fallback", () => {
     ).start();
 
     // Players indicate readiness
-    actor.send({ type: "ARE_YOU_READY" });
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p1") });
-    actor.send({ type: "PLAYER_READY", playerId: stringToUuid("p2") });
+    actor.send({ type: "GAME:ARE_YOU_READY" });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("p1") });
+    actor.send({ type: "GAME:PLAYER_READY", playerId: stringToUuid("p2") });
 
     expect(actor.getSnapshot().value).toBe("gameplay");
   });
