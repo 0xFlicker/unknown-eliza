@@ -46,6 +46,11 @@ export async function start() {
       environment: "production",
       version: "0.0.1",
     },
+    houseConfig: {
+      maxPlayers: 16,
+      minPlayers: 5,
+      autoStartGame: true,
+    },
   });
 
   // Initialize the app
@@ -112,40 +117,8 @@ export async function start() {
     `Added agents: ${houseAgent.character.name}, ${alexAgent.character.name}, ${bethanyAgent.character.name}, ${chloeAgent.character.name}, ${elenaAgent.character.name}, ${ethanAgent.character.name}, ${marcusAgent.character.name}, ${mayaAgent.character.name}, ${ryanAgent.character.name}`,
   );
 
-  // Create a channel with all participants
-  console.log("Creating channel...");
-
-  const channelConfig: ChannelConfig = {
-    name: "Game Channel",
-    type: ChannelType.GROUP,
-    participants: [
-      {
-        agentId: houseAgent.id,
-        mode: ParticipantMode.READ_WRITE,
-        state: ParticipantState.FOLLOWED,
-      },
-      {
-        agentId: alexAgent.id,
-        mode: ParticipantMode.READ_WRITE,
-        state: ParticipantState.FOLLOWED,
-      },
-      {
-        agentId: bethanyAgent.id,
-        mode: ParticipantMode.READ_WRITE,
-        state: ParticipantState.FOLLOWED,
-      },
-    ],
-    metadata: { gameType: "social-strategy" },
-  };
-
   // Start the server
   await app.start();
-
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-
-  const channelId = await app.createChannel(channelConfig);
-  console.log(`Created channel: ${channelId}`);
-
   // Return the app for further use
   return app;
 }
