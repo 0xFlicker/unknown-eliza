@@ -7,7 +7,7 @@ import { influencerPlugin } from "../../plugins/influencer";
 import { ChannelType } from "@elizaos/core";
 import { ParticipantMode, ParticipantState, StreamedMessage } from "@/server";
 import alexCharacter from "@/characters/alex";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 
 describe("Introduction → Diary Room flow", () => {
   it(

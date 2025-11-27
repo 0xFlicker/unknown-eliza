@@ -93,18 +93,6 @@ export function createIntroductionMachine({
               },
             })),
           },
-          // Treat readiness as a proxy for introduction (iteration 1)
-          // ["GAME:PLAYER_READY"]: {
-          //   actions: assign(({ context, event }) => ({
-          //     introductionMessages: {
-          //       ...context.introductionMessages,
-          //       [event.playerId]: [
-          //         ...(context.introductionMessages[event.playerId] || []),
-          //         "ready" as unknown as UUID,
-          //       ],
-          //     },
-          //   })),
-          // },
         },
         always: {
           guard: "allPlayersIntroduced",

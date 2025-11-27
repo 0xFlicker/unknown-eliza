@@ -1,7 +1,7 @@
 import { UUID } from "@elizaos/core";
 import { GameSettings, Player } from "../game/types";
 import { PersistedHistoryValue, Snapshot } from "xstate";
-import { createPhaseMachine, PhaseInput } from "@/game/phase";
+import { createPhaseMachine, PhaseInput } from "@/plugins/house/game/phase";
 
 /**
  * Vote cast by a player in the VOTE phase

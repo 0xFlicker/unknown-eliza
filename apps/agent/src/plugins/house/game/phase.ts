@@ -14,7 +14,11 @@ import {
   IntroductionMessageEvent,
 } from "./rooms/introduction";
 import { createLobbyMachine, LobbyEmitted, LobbyEvent } from "./rooms/lobby";
-import { WhisperEmitted, WhisperEvent } from "./rooms/whisper";
+import {
+  createWhisperMachine,
+  WhisperEmitted,
+  WhisperEvent,
+} from "./rooms/whisper";
 import { randomUUID } from "@/lib/utils";
 
 export interface PhaseContext {
@@ -86,12 +90,9 @@ export function createPhaseActor(
 
 export function createPhaseMachine(gameSettings: GameSettings) {
   const {
-    timers: { round, diary },
+    timers: { round, diary, whisper, whisper_pick, whisper_room },
   } = gameSettings;
   return setup({
-    // actions: {
-    //   emitEvent: emit(({ event }) => event),
-    // },
     types: {
       context: {} as PhaseContext,
       events: {} as PhaseEvent,
@@ -109,6 +110,12 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       }),
       lobby: createLobbyMachine({
         roundTimeoutMs: round,
+        diaryTimeoutMs: diary,
+      }),
+      whisper: createWhisperMachine({
+        pickTimeoutMs: whisper_pick,
+        roomTimeoutMs: whisper_room,
+        roundTimeoutMs: whisper,
         diaryTimeoutMs: diary,
       }),
     },
@@ -235,7 +242,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         ],
         invoke: {
           id: "whisper",
-          src: "gameplay",
+          src: "whisper",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.WHISPER,

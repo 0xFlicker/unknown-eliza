@@ -6,21 +6,21 @@ import {
   GameplayEmittedPlayerReadyError,
   GameplayEndRoundEvent,
   GameplayPlayerReadyEvent,
-} from "@/game/gameplay";
+} from "@/plugins/house/game/gameplay";
 import {
   IntroductionRoomCreatedEmitted,
   PhaseEmitted,
   PhaseEvent,
   PhaseEventDiaryPrompt,
-} from "@/game/phase";
-import { IntroductionMessageEvent } from "@/game/rooms/introduction";
-import { LobbyEventMessageSent } from "@/game/rooms/lobby";
+} from "@/plugins/house/game/phase";
+import { IntroductionMessageEvent } from "@/plugins/house/game/rooms/introduction";
+import { LobbyEventMessageSent } from "@/plugins/house/game/rooms/lobby";
 import {
   WhisperEmittedError,
   WhisperEmittedYourTurn,
   WhisperEventMessageSent,
-} from "@/game/rooms/whisper";
-import { Phase } from "@/game/types";
+} from "@/plugins/house/game/rooms/whisper";
+import { Phase } from "@/plugins/house/game/types";
 import {
   EventHandler,
   EventPayload,

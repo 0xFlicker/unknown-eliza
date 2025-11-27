@@ -12,7 +12,7 @@ import { ParticipantMode, ParticipantState } from "@/server";
 import { influencerPlugin } from "@/plugins/influencer";
 import openaiPlugin from "@elizaos/plugin-openai";
 import { gameAction$, gameEvent$ } from "@/plugins/coordinator/bus";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 import { GameStateManager } from "@/plugins/house/gameStateManager";
 
 /**

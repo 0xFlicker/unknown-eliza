@@ -19,6 +19,9 @@ export interface GameSettings {
   id: UUID;
   timers: {
     // in milliseconds
+    whisper: number;
+    whisper_pick: number;
+    whisper_room: number;
     diary: number;
     round: number;
   };

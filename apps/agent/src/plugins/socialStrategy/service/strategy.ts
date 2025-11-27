@@ -16,7 +16,7 @@ import {
   DEFAULT_STRATEGY_PROMPTS,
   StrategyPrompts,
 } from "../types";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 
 const logger = elizaLogger;
 

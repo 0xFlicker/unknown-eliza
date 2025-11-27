@@ -203,7 +203,7 @@ GameMachine (Phase Orchestrator)
 ## File Structure
 
 ```
-apps/agent/src/
+apps/agent/src/house
 ├── game/
 │   ├── types.ts          # Core type definitions
 │   ├── phase.ts          # PhaseMachine implementation

@@ -1,3 +1,4 @@
+import { GameStateManager } from "@/plugins/house/gameStateManager";
 import {
   type Action,
   type ActionExample,
@@ -54,7 +55,25 @@ export const replyAction = {
   similes: ["RESPOND"],
   description:
     "Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.",
-  validate: async (_runtime: IAgentRuntime) => {
+  validate: async (runtime: IAgentRuntime) => {
+    const gameStateManager = runtime.getService<GameStateManager>(
+      GameStateManager.serviceType,
+    );
+
+    if (!gameStateManager) {
+      throw new Error("GameStateManager service is not available in runtime");
+    }
+
+    const { snapshot } = gameStateManager;
+    const introductionPlayers =
+      snapshot.children.introduction?.getSnapshot().context.players ?? [];
+    if (
+      snapshot.value === "introduction" &&
+      introductionPlayers.includes(runtime.agentId)
+    ) {
+      return false;
+    }
+
     return true;
   },
   handler: async (

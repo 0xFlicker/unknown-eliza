@@ -7,7 +7,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { HousePluginConfig } from "../plugins/house";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 import { GameStatePreloader } from "../__tests__/utils/game-state-preloader";
 import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
@@ -17,8 +17,8 @@ import {
   createPhaseMachine,
   PhaseInput,
   PhaseEmitted,
-} from "@/game/phase";
-import { GameSettings } from "@/game/types";
+} from "@/plugins/house/game/phase";
+import { GameSettings } from "@/plugins/house/game/types";
 import { getCapacityTracker } from "@elizaos/server";
 import { gameAction$ } from "@/plugins/coordinator/bus";
 import { CoordinationService } from "@/plugins/coordinator";
@@ -141,6 +141,9 @@ export class GameManager<
       timers: {
         diary: config.settings?.phaseTimeouts?.diary || 10000,
         round: config.settings?.phaseTimeouts?.round || 10000,
+        whisper: config.settings?.phaseTimeouts?.whisper || 360000,
+        whisper_pick: config.settings?.phaseTimeouts?.whisperPick || 10000,
+        whisper_room: config.settings?.phaseTimeouts?.whisperRoom || 10000,
       },
     };
 

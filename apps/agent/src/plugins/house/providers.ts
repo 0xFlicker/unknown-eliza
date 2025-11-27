@@ -6,9 +6,9 @@ import {
   ModelType,
   UUID,
 } from "@elizaos/core";
-import { Phase } from "@/game/types";
-import { getGameState } from "../../memory/runtime";
-import { createPhaseMachine } from "@/game/phase";
+import { Phase } from "@/plugins/house/game/types";
+import { getGameState } from "./memory/runtime";
+import { createPhaseMachine } from "@/plugins/house/game/phase";
 import { createActor } from "xstate";
 
 /**

@@ -14,6 +14,9 @@ describe("Phase → DiaryRoom integration", () => {
         timers: {
           diary: 1000,
           round: 1000,
+          whisper: 1000,
+          whisper_pick: 500,
+          whisper_room: 500,
         },
       }),
       {

@@ -1,11 +1,15 @@
 import { IAgentRuntime, stringToUuid, UUID } from "@elizaos/core";
-import { saveGameState } from "../../memory/runtime";
-import { GameState } from "../../memory/types";
+import { saveGameState } from "../../plugins/house/memory/runtime";
+import { GameState } from "../../plugins/house/memory/types";
 import { Agent } from "../../server/types";
-import { Phase } from "@/game/types";
-import { GameSettings, Player, PlayerStatus } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
+import { GameSettings, Player, PlayerStatus } from "@/plugins/house/game/types";
 import { GameConfig, GameSession } from "@/server/game-manager";
-import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
+import {
+  createPhaseActor,
+  createPhaseMachine,
+  PhaseInput,
+} from "@/plugins/house/game/phase";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases
@@ -32,8 +36,11 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     const phaseSettings: GameSettings = {
       id: gameId,
       timers: {
-        diary: config.settings?.phaseTimeouts?.diary || 10000,
-        round: config.settings?.phaseTimeouts?.round || 10000,
+        whisper: config.settings?.phaseTimeouts?.whisper || 360000,
+        whisper_pick: config.settings?.phaseTimeouts?.whisperPick || 10000,
+        whisper_room: config.settings?.phaseTimeouts?.whisperRoom || 10000,
+        diary: config.settings?.phaseTimeouts?.diary || 120000,
+        round: config.settings?.phaseTimeouts?.round || 720000,
       },
     };
 

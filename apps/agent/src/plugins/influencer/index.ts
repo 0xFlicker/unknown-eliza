@@ -23,7 +23,7 @@ import {
 } from "./actions";
 import { GameEventHandlers } from "../coordinator/types";
 import { CoordinationService } from "../coordinator";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 import { recentMessagesProvider } from "./providers/recentMessages";
 import { shouldRespondProvider } from "./providers/shouldRespond";
 import { replyAction } from "./actions/reply";

@@ -1,7 +1,11 @@
 import { AgentRuntime, ChannelType, IAgentRuntime, UUID } from "@elizaos/core";
-import { createPhaseActor, createPhaseMachine, PhaseInput } from "@/game/phase";
-import { getGameState } from "@/memory/runtime";
-import { GameSettings, Phase } from "@/game/types";
+import {
+  createPhaseActor,
+  createPhaseMachine,
+  PhaseInput,
+} from "@/plugins/house/game/phase";
+import { getGameState } from "@/plugins/house/memory/runtime";
+import { GameSettings, Phase } from "@/plugins/house/game/types";
 import { gameAction$ } from "../coordinator/bus";
 import { CoordinationService } from "../coordinator/service";
 import { Service } from "@elizaos/core";
@@ -42,6 +46,13 @@ export class GameStateManager extends Service {
 
   constructor(runtime: IAgentRuntime) {
     super(runtime);
+  }
+
+  get snapshot() {
+    if (!this.phaseActor) {
+      throw new Error("Phase actor not initialized");
+    }
+    return this.phaseActor.getSnapshot();
   }
 
   async initializeGame(

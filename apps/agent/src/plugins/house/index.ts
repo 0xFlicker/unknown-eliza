@@ -4,11 +4,12 @@ import {
   elizaLogger,
   EventType,
 } from "@elizaos/core";
+import type { Request, Response } from "express";
 // House plugin is event-driven, not action-based
 import { gameStateProvider } from "./providers";
 import { GameEventHandlers, CoordinationService } from "../coordinator";
-import { getGameState } from "@/memory/runtime";
-import { Phase } from "@/game/types";
+import { getGameState } from "@/plugins/house/memory/runtime";
+import { Phase } from "@/plugins/house/game/types";
 import { GameStateManager } from "./gameStateManager";
 import { InfluenceApp } from "@/server";
 
@@ -27,6 +28,7 @@ export interface HousePluginConfig {
     introduction?: number;
     lobby?: number;
     whisper?: number;
+    whisperPick?: number;
     whisperRoom?: number;
     rumor?: number;
     vote?: number;
@@ -56,6 +58,15 @@ export const housePlugin: Plugin = {
   providers: [gameStateProvider],
   evaluators: [],
   services: [GameStateManager],
+  routes: [
+    {
+      type: "GET",
+      path: "/house/hello",
+      handler: async (_req: Request, res: Response) => {
+        res.json({ message: "Hello from the House plugin!" });
+      },
+    },
+  ],
   config: {
     HOUSE_MIN_PLAYERS: {
       type: "number",

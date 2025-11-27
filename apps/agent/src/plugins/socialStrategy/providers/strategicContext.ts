@@ -7,7 +7,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { StrategyService } from "../service/strategy";
-import { Phase } from "@/game/types";
+import { Phase } from "@/plugins/house/game/types";
 import { StrategyMode, TrustLevel } from "../types";
 
 const logger = elizaLogger;

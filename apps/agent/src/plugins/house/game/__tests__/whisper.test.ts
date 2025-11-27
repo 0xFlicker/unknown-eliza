@@ -2,7 +2,7 @@ import { createActor } from "xstate";
 import { createWhisperMachine } from "../rooms/whisper";
 import { stringToUuid, UUID } from "@elizaos/core";
 import { describe, it, expect } from "bun:test";
-import { ac } from "../../../../../packages/core/dist/index-C2b71pQw";
+import { ac } from "../../../../../../../packages/core/dist/index-C2b71pQw";
 import { create } from "domain";
 
 describe("Whisper machine", () => {
