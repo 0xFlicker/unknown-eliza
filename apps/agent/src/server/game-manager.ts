@@ -13,7 +13,6 @@ import { ChannelManager } from "./channel-manager";
 import { AgentManager } from "./agent-manager";
 import { ChannelConfig, ParticipantMode, ParticipantState } from "./types";
 import {
-  createPhaseActor,
   createPhaseMachine,
   PhaseInput,
   PhaseEmitted,
@@ -24,6 +23,7 @@ import { gameAction$ } from "@/plugins/coordinator/bus";
 import { CoordinationService } from "@/plugins/coordinator";
 import { GameStateManager } from "@/plugins/house/gameStateManager";
 import "@/plugins/coordinator/bus"; // Ensure bus is initialized
+import { Actor, createActor } from "xstate";
 
 /**
  * Game configuration for creating a new game
@@ -47,7 +47,7 @@ export interface GameSession {
   createdAt: number;
   phaseInput: PhaseInput;
   phaseSettings: GameSettings;
-  phase: ReturnType<typeof createPhaseActor>;
+  phase: Actor<ReturnType<typeof createPhaseMachine>>;
 }
 
 /**
@@ -131,28 +131,33 @@ export class GameManager<
     );
 
     const phaseInput: PhaseInput = {
-      players,
+      playerSettings: players.map((p) => ({
+        agentId: p,
+        // FIXME: We are now required to pre-create the diary room id for each player and this is a hack to get typescript to be happy.
+        diaryRoomId: stringToUuid(p + "-diary1"),
+      })),
       maxPlayers: config.settings?.maxPlayers || 8,
       minPlayers: config.settings?.minPlayers || 4,
     };
 
     const phaseSettings = {
-      id: gameId,
       timers: {
         diary: config.settings?.phaseTimeouts?.diary || 10000,
         round: config.settings?.phaseTimeouts?.round || 10000,
         whisper: config.settings?.phaseTimeouts?.whisper || 360000,
         whisper_pick: config.settings?.phaseTimeouts?.whisperPick || 10000,
         whisper_room: config.settings?.phaseTimeouts?.whisperRoom || 10000,
+        diary_response: config.settings?.phaseTimeouts?.diaryResponse || 10000,
+        diary_ready: config.settings?.phaseTimeouts?.diaryReady || 10000,
+        diary_prompt: config.settings?.phaseTimeouts?.diaryPrompt || 10000,
       },
     };
 
-    const phase = createPhaseActor(
+    const phase = createActor(
       createPhaseMachine({
-        id: gameId,
         timers: phaseSettings.timers,
       }),
-      phaseInput,
+      { input: phaseInput },
     );
 
     // Create game session
@@ -289,33 +294,34 @@ export class GameManager<
     const game = this.games.get(gameId);
     if (!game) return;
 
-    const state = game.phase.getSnapshot();
-    if (state.value !== "lobby") return;
-    if (this.lobbyEndedChannels.has(channelId)) return;
+    // The fuck is this?
+    // const state = game.phase.getSnapshot();
+    // if (state.value !== "lobby") return;
+    // if (this.lobbyEndedChannels.has(channelId)) return;
 
-    const tracker = getCapacityTracker?.();
-    if (!tracker) return;
+    // const tracker = getCapacityTracker?.();
+    // if (!tracker) return;
 
-    // Require a configured channel limit; if not configured, skip
-    const allExhausted = game.players.every((pid) => {
-      const info = tracker.getCapacityInfo(channelId, pid);
-      return info.responsesRemaining === 0;
-    });
+    // // Require a configured channel limit; if not configured, skip
+    // const allExhausted = game.players.every((pid) => {
+    //   const info = tracker.getCapacityInfo(channelId, pid);
+    //   return info.responsesRemaining === 0;
+    // });
 
-    if (allExhausted) {
-      this.lobbyEndedChannels.add(channelId);
-      // End LOBBY round; the lobby room machine will trigger diary ready sequence
-      game.phase.send({ type: "GAME:CHANNEL_EXHAUSTED" });
+    // if (allExhausted) {
+    //   this.lobbyEndedChannels.add(channelId);
+    //   // End LOBBY round; the lobby room machine will trigger diary ready sequence
+    //   game.phase.send({ type: "GAME:CHANNEL_EXHAUSTED" });
 
-      // Proactively mute players in lobby channel to prevent further replies
-      for (const pid of game.players) {
-        await this.channelManager.updateParticipantState(
-          channelId,
-          pid,
-          ParticipantState.MUTED,
-        );
-      }
-    }
+    //   // Proactively mute players in lobby channel to prevent further replies
+    //   for (const pid of game.players) {
+    //     await this.channelManager.updateParticipantState(
+    //       channelId,
+    //       pid,
+    //       ParticipantState.MUTED
+    //     );
+    //   }
+    // }
   }
 
   /**
