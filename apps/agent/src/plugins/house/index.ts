@@ -25,6 +25,9 @@ export interface HousePluginConfig {
   maxWhispersPerPlayer?: number;
   phaseTimeouts?: {
     diary?: number;
+    diaryResponse?: number;
+    diaryReady?: number;
+    diaryPrompt?: number;
     round?: number;
     introduction?: number;
     lobby?: number;

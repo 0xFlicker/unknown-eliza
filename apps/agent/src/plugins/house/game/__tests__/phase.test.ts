@@ -10,7 +10,6 @@ describe("Phase → DiaryRoom integration", () => {
     const p1 = stringToUuid("p1");
     const actor = createActor(
       createPhaseMachine({
-        id: stringToUuid("game1"),
         timers: {
           diary: 1000,
           round: 1000,

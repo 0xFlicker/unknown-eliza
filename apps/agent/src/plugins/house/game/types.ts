@@ -36,7 +36,6 @@ export enum Phase {
  * Game settings and configuration
  */
 export interface GameSettings {
-  id: UUID;
   timers: {
     // in milliseconds
     whisper: number;

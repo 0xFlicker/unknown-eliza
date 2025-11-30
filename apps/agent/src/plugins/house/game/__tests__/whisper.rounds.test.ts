@@ -12,7 +12,6 @@ describe("Whisper rounds and exhaustion", () => {
 
     const actor = createActor(
       createPhaseMachine({
-        id: stringToUuid("game1"),
         timers: {
           whisper: 1000,
           whisper_pick: 1000,

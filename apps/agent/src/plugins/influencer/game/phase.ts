@@ -7,9 +7,9 @@ import { createPlayerIntroductionMachine } from "./rooms/introduction";
 export type PlayerPhaseEvent =
   | { type: "GAME:PHASE_ENTERED"; phase: Phase; roomId?: UUID }
   | { type: "GAME:DIARY_PROMPT"; roomId: UUID; messageId: UUID }
-  | { type: "GAME:MESSAGE_SENT"; playerId: UUID; messageId: UUID }
-  | { type: "GAME:AGENT_ENTERED"; playerId: UUID }
-  | { type: "GAME:AGENT_LEFT"; playerId: UUID }
+  | { type: "GAME:MESSAGE_SENT"; playerId: UUID; messageId: UUID; roomId: UUID }
+  | { type: "GAME:AGENT_ENTERED"; playerId: UUID; roomId: UUID }
+  | { type: "GAME:AGENT_LEFT"; playerId: UUID; roomId: UUID }
   | { type: "GAME:ARE_YOU_READY" }
   | { type: "GAME:PLAYER_READY"; playerId: UUID };
 

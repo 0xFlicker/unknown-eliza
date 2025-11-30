@@ -5,11 +5,8 @@ import { Agent } from "../../server/types";
 import { Phase } from "@/plugins/house/game/types";
 import { GameSettings, Player, PlayerStatus } from "@/plugins/house/game/types";
 import { GameConfig, GameSession } from "@/server/game-manager";
-import {
-  createPhaseActor,
-  createPhaseMachine,
-  PhaseInput,
-} from "@/plugins/house/game/phase";
+import { createPhaseMachine, PhaseInput } from "@/plugins/house/game/phase";
+import { createActor } from "xstate";
 
 /**
  * Utility for pre-loading game state in tests to skip the initialization phases
@@ -27,21 +24,33 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     const { runtime, config, gameId: providedGameId } = options;
 
     const gameId = providedGameId || stringToUuid(`test-game-${Date.now()}`);
+    throw new Error("Not implemented");
     const phaseInput: PhaseInput = {
-      players: config.players,
+      playerSettings: config.players.map((p) => ({
+        agentId: p,
+        // FIXME: We are now required to pre-create the diary room id for each player and this is a hack to get typescript to be happy.
+        diaryRoomId: stringToUuid(p + "-diary1"),
+      })),
       maxPlayers: config.settings?.maxPlayers || 8,
       minPlayers: config.settings?.minPlayers || 4,
+      // fix this later
+      // whisperSettings: config.settings?.whisperSettings || {
+      //   requestsPerPlayer: 3,
+      //   maxMessagesPerPlayerPerRoom: 2,
+      //   perRoomMaxParticipants: 3,
+      // },
     };
 
     const phaseSettings: GameSettings = {
-      id: gameId,
-      maxWhispersPerPlayer: config.settings?.maxWhispersPerPlayer || 3,
       timers: {
         whisper: config.settings?.phaseTimeouts?.whisper || 360000,
         whisper_pick: config.settings?.phaseTimeouts?.whisperPick || 10000,
         whisper_room: config.settings?.phaseTimeouts?.whisperRoom || 10000,
         diary: config.settings?.phaseTimeouts?.diary || 120000,
         round: config.settings?.phaseTimeouts?.round || 720000,
+        diary_response: config.settings?.phaseTimeouts?.diaryResponse || 10000,
+        diary_ready: config.settings?.phaseTimeouts?.diaryReady || 10000,
+        diary_prompt: config.settings?.phaseTimeouts?.diaryPrompt || 10000,
       },
     };
 
@@ -59,14 +68,9 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       createdAt: Date.now(),
       phaseInput,
       phaseSettings,
-      phase: createPhaseActor(
-        createPhaseMachine({
-          id: gameId,
-          maxWhispersPerPlayer: phaseSettings.maxWhispersPerPlayer,
-          timers: phaseSettings.timers,
-        }),
-        phaseInput,
-      ),
+      phase: createActor(createPhaseMachine(phaseSettings), {
+        input: phaseInput,
+      }).start(),
     };
 
     gameSession.phase.start();

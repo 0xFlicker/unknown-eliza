@@ -21,7 +21,6 @@ function createTestHouseMachine(
   settings: Partial<GameSettings["timers"]> = {},
 ) {
   const gameSettings: GameSettings = {
-    id: stringToUuid("test-game"),
     timers: {
       whisper: 360000,
       whisper_pick: 10000,
@@ -38,7 +37,10 @@ function createTestHouseMachine(
   const phaseMachine = createPhaseMachine(gameSettings);
   return createActor(phaseMachine, {
     input: {
-      players,
+      playerSettings: players.map((p) => ({
+        agentId: p,
+        diaryRoomId: stringToUuid(p + "-diary1"),
+      })),
       maxPlayers: 8,
       minPlayers: 2,
     },
@@ -204,7 +206,7 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
 
         // Send GAME:DIARY_PROMPT with messageId through introduction machine
         // (which forwards to diary child)
-        introChildState!.send({
+        houseActor.send({
           type: "GAME:DIARY_PROMPT",
           targetPlayerId: playerId,
           messageId: promptMessageId,
@@ -212,7 +214,7 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
 
         // After receiving DIARY_PROMPT, diary should emit it to player and transition to awaitResponse
         diarySnapshot = diaryChild!.getSnapshot();
-        expect(diarySnapshot.value).toBe("awaitResponse");
+        expect(diarySnapshot.value).toBe("prompting");
 
         // Player should receive GAME:DIARY_PROMPT via event bus
         // Then player responds with GAME:DIARY_RESPONSE
@@ -222,21 +224,20 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
         );
 
         // Simulate player responding - send through event bus (which routes to house)
-        const playerActor = playerActors.get(playerId);
-        if (playerActor) {
-          // The player diary machine should receive the prompt and be in responding state
-          // Send the response event (event bus will route to house)
-          playerActor.send({
-            type: "GAME:DIARY_RESPONSE",
-            playerId,
-            roomId: introRoomId!,
-            messageId: responseMessageId,
-          });
-        }
+        const playerActor = playerActors.get(playerId)!;
+
+        // The player diary machine should receive the prompt and be in responding state
+        // Send the response event (event bus will route to house)
+        playerActor.send({
+          type: "GAME:MESSAGE_SENT",
+          playerId,
+          roomId: introRoomId!,
+          messageId: responseMessageId,
+        });
 
         // Send response to house (through introduction machine which forwards to diary)
-        introChildState!.send({
-          type: "GAME:DIARY_RESPONSE",
+        houseActor.send({
+          type: "GAME:MESSAGE_SENT",
           playerId,
           roomId: introRoomId!,
           messageId: responseMessageId,
@@ -249,15 +250,11 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
         }
       }
 
-      // After all players responded, diary should be in readyBroadcast
-      diarySnapshot = diaryChild!.getSnapshot();
-      expect(diarySnapshot.value).toBe("readyBroadcast");
-
       // Step 4: Ready Phase
       // After all diary prompts, diary should be in readyBroadcast and emit GAME:ARE_YOU_READY
       // This should be routed to all players via event bus
       diarySnapshot = diaryChild!.getSnapshot();
-      expect(diarySnapshot.value).toBe("readyBroadcast");
+      expect(diarySnapshot.value).toBe("allPlayersReady");
 
       // The diary machine should have emitted GAME:ARE_YOU_READY
       // The event bus should route this to all players
@@ -297,7 +294,7 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
           });
         }
         // Also send directly to house introduction machine which forwards to diary
-        introChildState!.send({
+        houseActor.send({
           type: "GAME:PLAYER_READY",
           playerId,
         });
@@ -309,19 +306,15 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
 
       // Introduction machine should complete and house should transition to lobby
       houseState = houseActor.getSnapshot();
-      expect(houseState.value).toBe("lobby");
+      expect(houseState.value).toEqual("lobby_wait");
 
       for (const [playerId, actor] of playerActors.entries()) {
         const playerState = actor.getSnapshot();
         expect(playerState.value).toBe("complete");
       }
-
+    } finally {
       // Cleanup
       eventBus.stop();
-    } catch (error) {
-      // Cleanup on error
-      eventBus.stop();
-      throw error;
     }
   });
 });
