@@ -35,6 +35,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
 
     const phaseSettings: GameSettings = {
       id: gameId,
+      maxWhispersPerPlayer: config.settings?.maxWhispersPerPlayer || 3,
       timers: {
         whisper: config.settings?.phaseTimeouts?.whisper || 360000,
         whisper_pick: config.settings?.phaseTimeouts?.whisperPick || 10000,
@@ -61,6 +62,7 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       phase: createPhaseActor(
         createPhaseMachine({
           id: gameId,
+          maxWhispersPerPlayer: phaseSettings.maxWhispersPerPlayer,
           timers: phaseSettings.timers,
         }),
         phaseInput,

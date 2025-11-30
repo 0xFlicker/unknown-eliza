@@ -22,6 +22,7 @@ export interface HousePluginConfig {
   minPlayers?: number;
   maxPlayers?: number;
   autoStartGame?: boolean;
+  maxWhispersPerPlayer?: number;
   phaseTimeouts?: {
     diary?: number;
     round?: number;

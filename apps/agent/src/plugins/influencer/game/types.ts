@@ -17,34 +17,6 @@ export enum Phase {
   END = "END",
 }
 
-/**
- * Minimal identity record for the local player or other observed participants.
- */
-export interface PlayerIdentity {
-  id: UUID;
-  name?: string;
-}
-
-/**
- * Information a player could reasonably infer about another participant based
- * solely on public/DM events routed to them. We avoid storing any global state
- * that the player would not directly observe.
- */
-export interface KnownPlayer extends PlayerIdentity {
-  /**
-   * Timestamp (ms) when this player was first seen in any channel.
-   */
-  firstSeenAt: number;
-  /**
-   * Latest timestamp (ms) we observed activity from this player.
-   */
-  lastSeenAt: number;
-  /**
-   * Rooms where we have seen this player speak or be referenced.
-   */
-  roomsSeenIn: UUID[];
-}
-
 // /**
 //  * Tracks our own introduction obligations in the current phase.
 //  */
@@ -67,35 +39,4 @@ export interface DiaryPromptState {
   promptMessageId?: UUID;
   respondedAt?: number;
   phase?: Phase;
-}
-
-/**
- * Top-level context tracked by the influencer-specific phase machine. This is
- * strictly the player's point-of-view: no global player lists, no shared
- * coordinators.
- */
-export interface PlayerPhaseContext {
-  self: PlayerIdentity;
-  currentPhase: Phase;
-  phaseEnteredAt: number;
-  currentPhaseRoomId?: UUID;
-  knownPlayers: Record<UUID, KnownPlayer>;
-  // introduction: IntroductionTracker;
-  diaryPrompts: Record<UUID, DiaryPromptState>;
-}
-
-/**
- * Runtime configuration for the player phase machine.
- */
-export interface PhaseInput {
-  self: PlayerIdentity;
-  initialPhase?: Phase;
-  /**
-   * Seeds for previously seen players (useful when restoring from persistence).
-   */
-  initialKnownPlayers?: KnownPlayer[];
-  /**
-   * Optional clock override (facilitates deterministic tests).
-   */
-  getNow?: () => number;
 }

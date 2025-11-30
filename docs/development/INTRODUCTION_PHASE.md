@@ -9,6 +9,41 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 - No text matching in providers; state is driven by structured events and per‑room flags
 - One‑message replies are generated via LLM prompts without invoking the generic chat action chain
 
+## Current Status (2025‑11‑27)
+
+- House Phase Machines
+
+  - `introduction` room now emits `GAME:INTRODUCTION_ROOM_CREATED` and `GAME:PHASE_ENTERED` with `roomId`.
+  - After all intros or timer, House invokes a centralized `diary` machine (child actor) and starts it via `GAME:DIARY_START`.
+  - House Diary Machine implements targeted prompt → response → ready flow:
+    - Emits `GAME:DIARY_PROMPT { roomId, targetPlayerId, promptId }` per player in sequence.
+    - Accepts `GAME:DIARY_RESPONSE { playerId, roomId, messageId }` and advances.
+    - After all prompts, broadcasts targeted `GAME:ARE_YOU_READY` events and awaits `GAME:PLAYER_READY` from all players.
+    - Finalizes with `GAME:ALL_PLAYERS_READY { roomId, transitionReason }`.
+  - All timeouts are factory parameters on the House diary machine (`promptTimeoutMs`, `responseTimeoutMs`, `readyTimeoutMs`).
+
+- Influencer (Player) Machines
+
+  - Added player‐side `introduction` room that records other players’ intro messages and transitions to diary.
+  - Player Diary Machine now models:
+    - `awaitPrompt` → waits for `GAME:DIARY_PROMPT`.
+    - `responding` → emits `GAME:DIARY_RESPONSE` when the agent crafts a reply.
+    - `awaitNextOrReady` → awaits either a followup `GAME:DIARY_PROMPT` or `GAME:ARE_YOU_READY`.
+    - `finishingUp` → sends `GAME:PLAYER_READY` when the agent is done.
+  - Player no longer owns timers; instead it reacts to House timeout events:
+    - `GAME:DIARY_PROMPT_TIMEOUT`, `GAME:DIARY_RESPONSE_TIMEOUT`, `GAME:DIARY_READY_TIMEOUT`.
+    - Also supports `PLAYER:FORCE_CONTINUE` for deterministic test control or agent override.
+  - Player `phase.ts` is partially wired to the new rooms and will be updated to accept explicit `playerId` input and emit phase update events.
+
+- Event Contracts (no text matching)
+
+  - Structured events drive behavior: `PHASE_ENTERED`, `INTRODUCTION_ROOM_CREATED`, `DIARY_START`, `DIARY_PROMPT`, `DIARY_RESPONSE`, `ARE_YOU_READY`, `PLAYER_READY`, `ALL_PLAYERS_READY`.
+  - Providers remain policy‐only and do not parse message text.
+
+- Tests
+  - House unit tests for INIT → INTRODUCTION → LOBBY and whisper unaffected and passing prior to diary changes; diary integration tests will be added next.
+  - Upcoming end‑to‑end test will boot House + 2–3 players, simulate introductions, targeted diary prompts/responses, and readiness completion.
+
 ## Components and Files
 
 - House plugin (MC): `src/plugins/house/index.ts`
@@ -19,6 +54,13 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 - LLM generation service: `src/plugins/influencer/services/introductionDiaryService.ts`
 - Provider policy: `src/plugins/influencer/providers/shouldRespond.ts`
 - E2E test: `src/__tests__/influence/introduction-diary-room.test.ts`
+
+### New/Updated Actor Files
+
+- House: `apps/agent/src/plugins/house/game/rooms/introduction.ts`
+- House: `apps/agent/src/plugins/house/game/rooms/diary.ts`
+- Influencer: `apps/agent/src/plugins/influencer/game/rooms/introduction.ts`
+- Influencer: `apps/agent/src/plugins/influencer/game/rooms/diary.ts`
 
 ## Event Flow
 
@@ -38,10 +80,10 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 
 3. House posts diary questions (one per player)
 
-- House posts a message like `@Alpha Diary Question for Alpha: …`
-- House emits `GAME:DIARY_PROMPT { targetAgentName }` for structured consumers.
-- Influencer also detects immediate mentions and sets `diaryPending = true` (race guard) via `PlayerStateService`.
-- Reference: `src/plugins/house/index.ts`, `src/plugins/influencer/index.ts`
+- House diary actor emits targeted prompts via events:
+  - `GAME:DIARY_PROMPT { roomId, targetPlayerId, promptId }` (House → Players)
+  - Players respond with `GAME:DIARY_RESPONSE { playerId, roomId, messageId }` (Players → House)
+  - House then emits targeted `GAME:ARE_YOU_READY` to transition toward round completion and awaits `GAME:PLAYER_READY`.
 
 4. Player diary response posting
 
@@ -70,10 +112,16 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 
 ## E2E Coverage
 
-- `src/__tests__/influence/introduction-diary-room.test.ts` bootstraps a House and three players, starts a game in INTRODUCTION, posts the Introduction prompt, collects one intro per player, then posts diary questions per player and collects one diary response per player. It prints both introduction and diary summaries (no channel send).
+- Planned: `src/__tests__/influence/introduction-diary-room.test.ts` will bootstrap a House and 2–3 players, run INTRODUCTION → DIARY prompt/response → ARE_YOU_READY → PLAYER_READY, and assert `ALL_PLAYERS_READY` is emitted.
 
 ## Extensibility Notes
 
 - To persist summaries as memories, add a House service that writes `game` table memories after both collections, and optionally fans them out to each runtime.
 - To evolve the actor model, forward `PHASE_STARTED` and `DIARY_PROMPT` into the `introduction` actor in `src/game/rooms/introduction.ts` and gate completion on per‑player message counts (already partially implemented).
 - To refine text style, replace `TEXT_LARGE` with provider‑specific models and add character‑specific prompt slots (e.g., tone, quirks) in `IntroductionDiaryService`.
+
+## Next Steps
+
+- Finalize influencer `phase.ts` input and emitted events.
+- Add end‑to‑end tests for House + Players covering the full introduction + diary flow.
+- Ensure House broadcasts `GAME:DIARY_*_TIMEOUT` events to players where applicable; players already handle these.

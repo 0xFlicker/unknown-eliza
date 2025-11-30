@@ -1,44 +1,60 @@
-// Replace Phase state machine with basic setup builder (no diary invoke yet)
 import { assign, emit, sendTo, setup } from "xstate";
-import { Phase } from "../types";
 import { UUID } from "@elizaos/core";
-import { createGameplayMachine } from "../gameplay";
+import { Phase } from "../types";
+import { createPlayerDiaryMachine } from "./diary";
 
-export type IntroductionContext = {
+export type PlayerIntroductionContext = {
+  playerId: UUID;
+  roomId?: UUID;
   players: UUID[];
-  // playerId -> list of messageIds they have sent
-  introductionMessages: Record<UUID, UUID>;
-  roomId: UUID;
+  seenIntroductions: Record<UUID, UUID>;
+  myIntroductionId?: UUID;
 };
 
-export type IntroductionInput = {
+export type PlayerIntroductionInput = {
+  playerId: UUID;
   players: UUID[];
-  roomId: UUID;
 };
 
-export type IntroductionMessageEvent = {
+export type PlayerIntroductionEventPhaseEntered = {
+  type: "GAME:PHASE_ENTERED";
+  phase: Phase;
+  roomId?: UUID;
+};
+export type PlayerIntroductionEventMessageSent = {
   type: "GAME:MESSAGE_SENT";
   playerId: UUID;
   messageId: UUID;
 };
-
-export type IntroductionEmittedPlayerReadyError = {
-  type: "GAME:PLAYER_READY_ERROR";
-  error: Error;
-  roomId?: UUID;
+export type PlayerIntroductionEventAgentEntered = {
+  type: "GAME:AGENT_ENTERED";
+  playerId: UUID;
 };
-
-export type IntroductionEmittedAreYouReady = {
-  type: "GAME:ARE_YOU_READY";
-  roomId?: UUID;
+export type PlayerIntroductionEventAgentLeft = {
+  type: "GAME:AGENT_LEFT";
+  playerId: UUID;
+};
+export type PlayerIntroductionEventDiaryPrompt = {
+  type: "GAME:DIARY_PROMPT";
+  roomId: UUID;
+  messageId: UUID;
+};
+export type PlayerIntroductionEventAreYouReady = { type: "GAME:ARE_YOU_READY" };
+export type PlayerIntroductionEventPlayerReady = {
+  type: "GAME:PLAYER_READY";
   playerId: UUID;
 };
 
-export type IntroductionEmitted =
-  | IntroductionEmittedPlayerReadyError
-  | IntroductionEmittedAreYouReady;
+export type PlayerIntroductionEvent =
+  | PlayerIntroductionEventPhaseEntered
+  | PlayerIntroductionEventMessageSent
+  | PlayerIntroductionEventAgentEntered
+  | PlayerIntroductionEventAgentLeft
+  | PlayerIntroductionEventDiaryPrompt
+  | PlayerIntroductionEventAreYouReady
+  | PlayerIntroductionEventPlayerReady;
 
-export function createIntroductionMachine({
+export function createPlayerIntroductionMachine({
   roundTimeoutMs,
   diaryTimeoutMs,
 }: {
@@ -47,91 +63,97 @@ export function createIntroductionMachine({
 }) {
   return setup({
     types: {
-      context: {} as IntroductionContext,
-      input: {} as IntroductionInput,
-      events: {} as IntroductionMessageEvent,
-      emitted: {} as IntroductionEmitted,
+      context: {} as PlayerIntroductionContext,
+      input: {} as PlayerIntroductionInput,
+      events: {} as PlayerIntroductionEvent,
     },
     actors: {
-      gameplay: createGameplayMachine({
-        phaseTimeoutMs: roundTimeoutMs,
-        diaryTimeoutMs: diaryTimeoutMs,
-      }),
+      diary: createPlayerDiaryMachine(),
     },
     guards: {
-      allPlayersIntroduced: ({ context }) => {
-        return (
-          Object.keys(context.introductionMessages).length ===
-          context.players.length
-        );
-      },
+      allIntroduced: ({ context }) =>
+        context.players.length > 0 &&
+        context.players.every(
+          (p) => context.seenIntroductions[p] !== undefined,
+        ),
     },
   }).createMachine({
-    id: "introduction",
+    id: "player-introduction",
     context: ({ input }) => ({
+      playerId: input.playerId,
       players: input.players,
-      introductionMessages: {},
-      roomId: input.roomId,
+      seenIntroductions: {},
     }),
-    initial: "waiting",
+    initial: "idle",
     states: {
-      waiting: {
-        after: {
-          0: {
-            target: "strategy",
-          },
-          [roundTimeoutMs]: {
-            target: "strategy",
+      idle: {
+        on: {
+          ["GAME:PHASE_ENTERED"]: {
+            guard: ({ event }) => event.phase === Phase.INTRODUCTION,
+            target: "introduction",
+            actions: assign(({ event }) => ({ roomId: event.roomId })),
           },
         },
+      },
+      introduction: {
         on: {
           ["GAME:MESSAGE_SENT"]: {
             actions: assign(({ context, event }) => ({
-              introductionMessages: {
-                ...context.introductionMessages,
+              seenIntroductions: {
+                ...context.seenIntroductions,
                 [event.playerId]: event.messageId,
               },
+              myIntroductionId:
+                event.playerId === context.playerId
+                  ? event.messageId
+                  : context.myIntroductionId,
             })),
           },
+          ["GAME:AGENT_ENTERED"]: {
+            actions: assign(({ context, event }) => ({
+              players: Array.from(
+                new Set([...context.players, event.playerId]),
+              ),
+            })),
+          },
+          ["GAME:AGENT_LEFT"]: {
+            // We do not remove from players to keep expectations consistent
+          },
         },
-        always: {
-          guard: "allPlayersIntroduced",
-          target: "strategy",
-        },
+        always: [{ guard: "allIntroduced", target: "diary" }],
+        after: { [roundTimeoutMs]: { target: "diary" } },
       },
-      strategy: {
+      diary: {
         entry: [
-          // Broadcast and kick off readiness collection for the gameplay child
-          emit(({ context }) => ({
-            type: "GAME:ARE_YOU_READY",
-            roomId: context.roomId,
-            playerId: context.players[0],
-          })),
-          sendTo("strategy", { type: "GAME:END_ROUND" }),
-          sendTo("strategy", { type: "GAME:ARE_YOU_READY" }),
+          // Start diary child actor; influencer will respond when prompted
         ],
         on: {
-          "*": {
-            actions: [sendTo("strategy", ({ event }) => event)],
+          ["GAME:DIARY_PROMPT"]: {
+            actions: [sendTo("diary", ({ event }) => event)],
+          },
+          ["GAME:ARE_YOU_READY"]: {
+            actions: [sendTo("diary", ({ event }) => event)],
+          },
+          ["GAME:PLAYER_READY"]: {
+            actions: [sendTo("diary", ({ event }) => event)],
           },
         },
         invoke: {
-          id: "strategy",
-          src: "gameplay",
+          id: "diary",
+          src: "diary",
           input: ({ context }) => ({
-            players: context.players,
-            initialPhase: Phase.INTRODUCTION,
-            nextPhase: Phase.LOBBY,
+            playerId: context.playerId,
+            roomId: context.roomId!,
           }),
           onDone: {
-            target: "end",
+            target: "complete",
           },
           onError: {
-            target: "end",
+            target: "complete",
           },
         },
       },
-      end: { type: "final" },
+      complete: { type: "final" },
     },
   });
 }

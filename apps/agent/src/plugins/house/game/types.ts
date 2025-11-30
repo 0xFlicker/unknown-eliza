@@ -1,4 +1,24 @@
 import { UUID } from "@elizaos/core";
+import {
+  EventObject,
+  ProvidedActor,
+  ParameterizedObject,
+  AnyActorRef,
+  StateMachine,
+  MachineContext,
+  StateValue,
+  MetaObject,
+  ActorRef,
+  MachineSnapshot,
+  Snapshot,
+} from "xstate";
+import { StateSchema } from "xstate";
+
+export type ParentMachine<TEvent extends EventObject> = ActorRef<
+  Snapshot<unknown>,
+  TEvent,
+  EventObject
+>;
 
 export enum Phase {
   INIT = "INIT",
@@ -23,6 +43,9 @@ export interface GameSettings {
     whisper_pick: number;
     whisper_room: number;
     diary: number;
+    diary_response: number;
+    diary_ready: number;
+    diary_prompt: number;
     round: number;
   };
 }

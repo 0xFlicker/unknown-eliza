@@ -1,9 +1,8 @@
 import { createActor } from "xstate";
-import { createWhisperMachine } from "../rooms/whisper";
+import { createPhaseMachine } from "../phase";
 import { stringToUuid, UUID } from "@elizaos/core";
 import { describe, it, expect } from "bun:test";
-import { ac } from "../../../../../../../packages/core/dist/index-C2b71pQw";
-import { create } from "domain";
+import { Phase } from "../types";
 
 describe("Whisper machine", () => {
   it("creates a room, counts messages, enforces per-player per-room limit, and advances turns", () => {
@@ -13,16 +12,27 @@ describe("Whisper machine", () => {
     const allPlayers = [p1, p2, p3];
 
     const actor = createActor(
-      createWhisperMachine({
-        roundTimeoutMs: 1000,
-        roomTimeoutMs: 1000,
-        diaryTimeoutMs: 1000,
-        pickTimeoutMs: 1000,
+      createPhaseMachine({
+        id: stringToUuid("game1"),
+        timers: {
+          whisper: 1000,
+          whisper_pick: 1000,
+          whisper_room: 1000,
+          diary: 1000,
+          diary_response: 1000,
+          diary_ready: 1000,
+          diary_prompt: 1000,
+          round: 1000,
+        },
       }),
       {
         input: {
-          players: allPlayers.map((id) => ({ id, maxRequests: 1 })),
-          settings: {
+          players: allPlayers,
+          minPlayers: 2,
+          maxPlayers: 3,
+          startPhase: Phase.WHISPER,
+          whisperSettings: {
+            requestsPerPlayer: 3,
             maxMessagesPerPlayerPerRoom: 2,
             perRoomMaxParticipants: 3,
           },
@@ -49,6 +59,7 @@ describe("Whisper machine", () => {
       actor.send({
         type: "GAME:CREATE_ROOM",
         ownerId: event.playerId,
+        roomId: stringToUuid("r1"),
         participantIds: [otherPlayer],
       });
     });
@@ -56,18 +67,24 @@ describe("Whisper machine", () => {
     actor.start();
 
     const sv = actor.getSnapshot().value;
-    expect(sv).toBe("active");
+    expect(sv).toEqual({
+      whisper: "active",
+    });
     expect(players.length).toBe(1);
 
     // p1 sends two messages
     players.forEach(({ ownerId, participantIds }) => {
       actor.send({
         type: "GAME:MESSAGE_SENT",
+        roomId: stringToUuid("r1"),
+        messageId: stringToUuid("m1"),
         playerId: ownerId,
       });
       participantIds.forEach((participantId) => {
         actor.send({
           type: "GAME:MESSAGE_SENT",
+          roomId: stringToUuid("r1"),
+          messageId: stringToUuid("m2"),
           playerId: participantId,
         });
       });
@@ -76,31 +93,42 @@ describe("Whisper machine", () => {
     // advance to next turn so the machine returns to picking
     actor.send({
       type: "GAME:END_ROOM",
+      roomId: stringToUuid("r1"),
     });
-    expect(actor.getSnapshot().value).toBe("picking");
+    expect(actor.getSnapshot().value).toEqual({
+      whisper: "picking",
+    });
     const { context } = actor.getSnapshot();
-    expect(context.activeRoom).toBeUndefined();
+    expect(context.whisper?.activeRoom).toBeUndefined();
   });
   it("blocks CREATE_ROOM when owner lacks requests", () => {
     const p1 = stringToUuid("p1");
     const p2 = stringToUuid("p2");
 
     const actor = createActor(
-      createWhisperMachine({
-        roundTimeoutMs: 1000,
-        roomTimeoutMs: 1000,
-        diaryTimeoutMs: 1000,
-        pickTimeoutMs: 1000,
+      createPhaseMachine({
+        id: stringToUuid("game1"),
+        timers: {
+          whisper: 1000,
+          whisper_pick: 1000,
+          whisper_room: 1000,
+          diary: 1000,
+          diary_response: 1000,
+          diary_ready: 1000,
+          diary_prompt: 1000,
+          round: 1000,
+        },
       }),
       {
         input: {
-          players: [
-            { id: p1, maxRequests: 0 }, // no requests
-            { id: p2, maxRequests: 1 },
-          ],
-          settings: {
+          players: [p1, p2],
+          minPlayers: 2,
+          maxPlayers: 3,
+          startPhase: Phase.WHISPER,
+          whisperSettings: {
+            requestsPerPlayer: 3,
             maxMessagesPerPlayerPerRoom: 3,
-            perRoomMaxParticipants: 3,
+            perRoomMaxParticipants: 2,
           },
         },
       },
@@ -110,13 +138,14 @@ describe("Whisper machine", () => {
 
     actor.send({
       type: "GAME:CREATE_ROOM",
+      roomId,
       ownerId: p1,
       participantIds: [p1, p2],
     });
 
     const ctx = actor.getSnapshot().context;
-    expect(ctx.activeRoom).toBeUndefined();
-    expect(ctx.remainingRequests[p1]).toBe(0);
+    expect(ctx.whisper?.activeRoom).toBeUndefined();
+    expect(ctx.whisper?.remainingRequests[p1]).toBe(3);
   });
 
   it("decrements remainingRequests only on CREATE_ROOM and by correct amount", () => {
@@ -124,19 +153,27 @@ describe("Whisper machine", () => {
     const p2 = stringToUuid("p2");
 
     const actor = createActor(
-      createWhisperMachine({
-        roundTimeoutMs: 1000,
-        roomTimeoutMs: 1000,
-        diaryTimeoutMs: 1000,
-        pickTimeoutMs: 1000,
+      createPhaseMachine({
+        id: stringToUuid("game1"),
+        timers: {
+          whisper: 1000,
+          whisper_pick: 1000,
+          whisper_room: 1000,
+          diary: 1000,
+          diary_response: 1000,
+          diary_ready: 1000,
+          diary_prompt: 1000,
+          round: 1000,
+        },
       }),
       {
         input: {
-          players: [
-            { id: p1, maxRequests: 2 },
-            { id: p2, maxRequests: 1 },
-          ],
-          settings: {
+          players: [p1, p2],
+          minPlayers: 2,
+          maxPlayers: 3,
+          startPhase: Phase.WHISPER,
+          whisperSettings: {
+            requestsPerPlayer: 3,
             maxMessagesPerPlayerPerRoom: 5,
             perRoomMaxParticipants: 3,
           },
@@ -146,14 +183,20 @@ describe("Whisper machine", () => {
 
     actor.send({
       type: "GAME:CREATE_ROOM",
+      roomId: stringToUuid("r-decrement-requests"),
       ownerId: p1,
       participantIds: [p1, p2],
     });
-    expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
+    expect(actor.getSnapshot().context.whisper?.remainingRequests[p1]).toBe(2);
 
     // MESSAGE_SENT should not change remainingRequests
-    actor.send({ type: "GAME:MESSAGE_SENT", playerId: p1 });
-    expect(actor.getSnapshot().context.remainingRequests[p1]).toBe(1);
+    actor.send({
+      type: "GAME:MESSAGE_SENT",
+      roomId: stringToUuid("r-decrement-requests"),
+      messageId: stringToUuid("m1"),
+      playerId: p1,
+    });
+    expect(actor.getSnapshot().context.whisper?.remainingRequests[p1]).toBe(2);
   });
 
   it("PASS forfeits current player's remainingRequests and emits next player's turn", () => {
@@ -161,19 +204,27 @@ describe("Whisper machine", () => {
     const p2 = stringToUuid("p2");
 
     const actor = createActor(
-      createWhisperMachine({
-        roundTimeoutMs: 1000,
-        roomTimeoutMs: 1000,
-        diaryTimeoutMs: 1000,
-        pickTimeoutMs: 1000,
+      createPhaseMachine({
+        id: stringToUuid("game1"),
+        timers: {
+          whisper: 1000,
+          whisper_pick: 1000,
+          whisper_room: 1000,
+          diary: 1000,
+          diary_response: 1000,
+          diary_ready: 1000,
+          diary_prompt: 1000,
+          round: 1000,
+        },
       }),
       {
         input: {
-          players: [
-            { id: p1, maxRequests: 1 },
-            { id: p2, maxRequests: 1 },
-          ],
-          settings: {
+          players: [p1, p2],
+          minPlayers: 2,
+          maxPlayers: 3,
+          startPhase: Phase.WHISPER,
+          whisperSettings: {
+            requestsPerPlayer: 3,
             maxMessagesPerPlayerPerRoom: 3,
             perRoomMaxParticipants: 2,
           },
@@ -190,14 +241,16 @@ describe("Whisper machine", () => {
     actor.start();
     // ensure we're in picking and current is p1
     const current =
-      actor.getSnapshot().context.turnOrder[
-        actor.getSnapshot().context.currentTurnIndex
-      ];
+      actor.getSnapshot().context.whisper?.turnOrder[
+        actor.getSnapshot().context.whisper?.currentTurnIndex ?? 0
+      ] ?? ("unknown" as UUID);
     expect(current).toBeDefined();
 
-    actor.send({ type: "GAME:PASS", playerId: current });
+    actor.send({ type: "GAME:PASS", playerId: current as UUID });
 
-    expect(actor.getSnapshot().context.remainingRequests[current]).toBe(0);
+    expect(
+      actor.getSnapshot().context.whisper?.remainingRequests[current as UUID],
+    ).toBe(0);
     // because we emitted next player's turn synchronously via emitYourTurn, we should have seen it already
     expect(sawYourTurnForNext).toBeTruthy();
   });
@@ -207,19 +260,27 @@ describe("Whisper machine", () => {
     const p2 = stringToUuid("p2");
 
     const actor = createActor(
-      createWhisperMachine({
-        roundTimeoutMs: 1000,
-        roomTimeoutMs: 1000,
-        diaryTimeoutMs: 1000,
-        pickTimeoutMs: 20,
+      createPhaseMachine({
+        id: stringToUuid("game1"),
+        timers: {
+          whisper: 1000,
+          whisper_pick: 5,
+          whisper_room: 1000,
+          diary: 1000,
+          diary_response: 1000,
+          diary_ready: 1000,
+          diary_prompt: 1000,
+          round: 1000,
+        },
       }),
       {
         input: {
-          players: [
-            { id: p1, maxRequests: 1 },
-            { id: p2, maxRequests: 1 },
-          ],
-          settings: {
+          players: [p1, p2],
+          minPlayers: 2,
+          maxPlayers: 3,
+          startPhase: Phase.WHISPER,
+          whisperSettings: {
+            requestsPerPlayer: 3,
             maxMessagesPerPlayerPerRoom: 3,
             perRoomMaxParticipants: 2,
           },
@@ -228,15 +289,17 @@ describe("Whisper machine", () => {
     ).start();
 
     const startPlayer =
-      actor.getSnapshot().context.turnOrder[
-        actor.getSnapshot().context.currentTurnIndex
-      ];
-    await new Promise((r) => setTimeout(r, 50));
-
+      actor.getSnapshot().context.whisper?.turnOrder[
+        actor.getSnapshot().context.whisper?.currentTurnIndex ?? 0
+      ] ?? ("unknown" as UUID);
+    await new Promise((r) => setTimeout(r, 10));
+    // console.log(actor.getSnapshot().context);
     const after = actor.getSnapshot();
     // startPlayer should have remainingRequests 0
-    expect(after.context.remainingRequests[startPlayer]).toBe(0);
+    expect(after.context.whisper?.remainingRequests[startPlayer]).toBe(0);
     // machine should have proceeded (either to picking another player or diary)
-    expect(after.value).toBe("pick-timeout");
+    expect(after.value).toEqual({
+      whisper: "pick-timeout",
+    });
   });
 });

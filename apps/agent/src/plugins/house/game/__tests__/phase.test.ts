@@ -17,6 +17,9 @@ describe("Phase → DiaryRoom integration", () => {
           whisper: 1000,
           whisper_pick: 500,
           whisper_room: 500,
+          diary_prompt: 500,
+          diary_ready: 500,
+          diary_response: 500,
         },
       }),
       {
@@ -30,32 +33,51 @@ describe("Phase → DiaryRoom integration", () => {
 
     expect(actor.getSnapshot().value).toBe("init");
     actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
-    // console.log(actor.getSnapshot().context);
 
-    expect(actor.getSnapshot().value).toBe("introduction");
+    expect(actor.getSnapshot().value).toBe("introduction_wait");
+
+    // House creates the room
+    const introRoomId = stringToUuid("intro");
+    actor.send({
+      type: "GAME:INTRODUCTION_ROOM_CREATED",
+      roomId: introRoomId,
+    });
+
+    expect(actor.getSnapshot().value).toEqual({
+      introduction: "waiting",
+    });
+
     actor.send({
       type: "GAME:MESSAGE_SENT",
       playerId: p1,
       messageId: stringToUuid("m1"),
+      roomId: introRoomId,
     });
-    actor.send({ type: "GAME:END_ROUND" });
 
-    expect(actor.getSnapshot().value).toBe("introduction");
-    expect(actor.getSnapshot().children.introduction?.getSnapshot().value).toBe(
-      "strategy",
+    expect(actor.getSnapshot().value).toEqual({
+      introduction: "strategy",
+    });
+
+    actor.send({
+      type: "GAME:DIARY_PROMPT",
+      messageId: stringToUuid("prompt1"),
+      playerId: p1,
+      roomId: stringToUuid("p1-diary"),
+    });
+    actor.send({
+      type: "GAME:DIARY_RESPONSE",
+      playerId: p1,
+      roomId: stringToUuid("p1-diary"),
+      messageId: stringToUuid("response1"),
+    });
+
+    expect(actor.getSnapshot().children?.diary?.getSnapshot()?.value).toBe(
+      "prompting",
     );
-    // actor.send({ type: "GAME:ARE_YOU_READY" });
+
     actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
 
-    expect(actor.getSnapshot().value).toBe("lobby");
-
-    // Respond ready, which should complete diary and go to LOBBY
-    actor.send({ type: "GAME:END_ROUND" });
-    expect(actor.getSnapshot().children.lobby?.getSnapshot().value).toBe(
-      "strategy",
-    );
-    actor.send({ type: "GAME:ARE_YOU_READY" });
-    actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
-    expect(actor.getSnapshot().value).toBe("whisper");
+    console.log(actor.getSnapshot().children?.diary?.getSnapshot().context);
+    expect(actor.getSnapshot().value).toBe("lobby_wait");
   });
 });

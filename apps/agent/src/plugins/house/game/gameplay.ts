@@ -1,8 +1,22 @@
 // Replace Phase state machine with basic setup builder (no diary invoke yet)
-import { assign, emit, setup } from "xstate";
-import { Phase } from "./types";
+import {
+  AnyActorRef,
+  assign,
+  emit,
+  EventObject,
+  MachineContext,
+  MetaObject,
+  ParameterizedObject,
+  ProvidedActor,
+  setup,
+  StateMachine,
+  StateSchema,
+  StateValue,
+} from "xstate";
+import { ParentMachine, Phase } from "./types";
 import { UUID } from "@elizaos/core";
 import { randomUUID } from "@/lib/utils";
+import { createPhaseActor, PhaseEvent } from "./phase";
 
 export interface GameplayContext {
   players: UUID[];
@@ -21,22 +35,36 @@ export type GameplayInput = {
 
 export type GameplayState = "gameplay" | "diary" | "end";
 
+type PhaseMachine = ParentMachine<PhaseEvent>;
+
 // PhaseEvent includes both phase triggers and diary events
-export type GameplayAreYouReadyEvent = { type: "GAME:ARE_YOU_READY" };
+export type GameplayAreYouReadyEvent = {
+  type: "GAME:ARE_YOU_READY";
+  sender: PhaseMachine;
+};
 export type GameplayAddPlayerEvent = {
   type: "GAME:ADD_PLAYER";
   playerId: UUID;
+  sender: PhaseMachine;
 };
 export type GameplayPlayerReadyEvent = {
   type: "GAME:PLAYER_READY";
   playerId: UUID;
+  sender: PhaseMachine;
 };
 export type GameplayCreateDiaryRoomEvent = {
   type: "GAME:CREATE_DIARY_ROOM";
   playerId: UUID;
+  sender: PhaseMachine;
 };
-export type GameplayChannelExhaustedEvent = { type: "GAME:CHANNEL_EXHAUSTED" };
-export type GameplayEndRoundEvent = { type: "GAME:END_ROUND" };
+export type GameplayChannelExhaustedEvent = {
+  type: "GAME:CHANNEL_EXHAUSTED";
+  sender: PhaseMachine;
+};
+export type GameplayEndRoundEvent = {
+  type: "GAME:END_ROUND";
+  sender: PhaseMachine;
+};
 
 export type GameplayEvent =
   | GameplayAreYouReadyEvent
