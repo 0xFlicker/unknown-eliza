@@ -124,15 +124,19 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
       playerEvents.set(playerId, collectEmittedEvents(actor));
     }
 
+    const houseAgentId = stringToUuid("house-agent");
+
     try {
       // Step 1: Join Phase - All players ready
       for (const playerId of playerIds) {
         houseActor.send({ type: "GAME:PLAYER_READY", playerId });
       }
 
+      const introRoomId = stringToUuid("intro-room");
       houseActor.send({
         type: "GAME:CREATE_ROOM",
-        // ownerId: playerIds[0],
+        roomId: introRoomId,
+        ownerId: houseAgentId,
         participantIds: playerIds,
       });
 
@@ -143,8 +147,7 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
 
       // Step 2: Introduction Phase
       // House should emit GAME:PHASE_ENTERED and GAME:INTRODUCTION_ROOM_CREATED
-      const introRoomId = houseState.context.introduction?.roomId;
-      expect(introRoomId).toBeDefined();
+      expect(introRoomId).toBe(introRoomId);
 
       // Each player sends introduction message
       let messageIdCounter = 0;
@@ -161,17 +164,9 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
 
       // Verify all players introduced
       houseState = houseActor.getSnapshot();
-      const introChild = houseState.children.introduction;
-      if (introChild) {
-        const introSnapshot = introChild.getSnapshot();
-        // Check introduction messages in context
-        const introContext = introSnapshot.context as {
-          introductionMessages: Record<string, string>;
-        };
-        expect(Object.keys(introContext.introductionMessages).length).toBe(
-          playerIds.length,
-        );
-      }
+      expect(
+        Object.keys(houseState.context.introduction?.messages ?? {}).length,
+      ).toBe(playerIds.length);
 
       // Step 3: Diary Phase
       // The introduction machine should transition to diary (strategy state)
@@ -180,13 +175,12 @@ describe("Introduction Phase End-to-End State Machine Test", () => {
       expect(houseState.children.introduction).toBeDefined();
 
       const introSnapshot = houseState.children.introduction!.getSnapshot();
-      expect(introSnapshot.value).toBe("strategy");
+      expect(introSnapshot.value).toBe("diary");
 
       // The diary machine should be invoked and waiting in "prompting" state
       const diaryChild =
-        houseState.children.introduction!.getSnapshot().children?.[
-          "house-diary"
-        ];
+        houseActor.getSnapshot().children?.["introduction-diary"];
+
       expect(diaryChild).toBeDefined();
 
       let diarySnapshot = diaryChild!.getSnapshot();

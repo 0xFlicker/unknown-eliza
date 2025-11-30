@@ -26,7 +26,16 @@ describe("Whisper rounds and exhaustion", () => {
       }),
       {
         input: {
-          players: [p1, p2],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+            {
+              agentId: p2,
+              diaryRoomId: stringToUuid("diary2"),
+            },
+          ],
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,

@@ -27,7 +27,10 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
-          players: allPlayers,
+          playerSettings: allPlayers.map((p) => ({
+            agentId: p,
+            diaryRoomId: stringToUuid(p + "-diary1"),
+          })),
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
@@ -48,7 +51,7 @@ describe("Whisper machine", () => {
     actor.on("GAME:WHISPER_YOUR_TURN", (event) => {
       if (didCreate) return;
       didCreate = true;
-      console.log(`Player ${event.playerId} turn`);
+      // console.log(`Player ${event.playerId} turn`);
 
       // take 1 action
       const otherPlayer = allPlayers.filter((p) => p !== event.playerId)[0];
@@ -121,7 +124,16 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
-          players: [p1, p2],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+            {
+              agentId: p2,
+              diaryRoomId: stringToUuid("diary2"),
+            },
+          ],
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
@@ -168,7 +180,16 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
-          players: [p1, p2],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+            {
+              agentId: p2,
+              diaryRoomId: stringToUuid("diary2"),
+            },
+          ],
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
@@ -219,7 +240,16 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
-          players: [p1, p2],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+            {
+              agentId: p2,
+              diaryRoomId: stringToUuid("diary2"),
+            },
+          ],
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
@@ -275,7 +305,16 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
-          players: [p1, p2],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+            {
+              agentId: p2,
+              diaryRoomId: stringToUuid("diary2"),
+            },
+          ],
           minPlayers: 2,
           maxPlayers: 3,
           startPhase: Phase.WHISPER,

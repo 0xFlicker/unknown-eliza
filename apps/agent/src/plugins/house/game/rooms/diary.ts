@@ -14,6 +14,7 @@ export type DiaryEventPlayerReady = {
 };
 export type DiaryEventDiaryPrompt = {
   type: "GAME:DIARY_PROMPT";
+  roomId: UUID;
   playerId: UUID;
   messageId: UUID; // messageId provided externally by house agent
 };
@@ -26,15 +27,15 @@ export type DiaryEvent =
 // Emitted events (House -> Players / System)
 export type DiaryEmittedAllPlayersReady = {
   type: "GAME:ALL_PLAYERS_READY";
-  roomId: UUID;
   transitionReason: string;
 };
 
 export type DiaryEmitted = DiaryEmittedAllPlayersReady;
 
 export interface DiaryContext {
-  roomId: UUID;
   players: UUID[];
+  // playerId -> roomId
+  playerRoomIds: Record<UUID, UUID>;
   // playerId -> list of messageIds
   prompts: Record<UUID, UUID[]>;
   // prompt messageId -> response messageId
@@ -44,8 +45,7 @@ export interface DiaryContext {
 }
 
 export interface DiaryInput {
-  roomId: UUID;
-  players: UUID[];
+  playerRoomIds: Record<UUID, UUID>;
 }
 
 export function createDiaryMachine() {
@@ -84,11 +84,11 @@ export function createDiaryMachine() {
   }).createMachine({
     id: "house-diary",
     context: ({ input }) => ({
-      roomId: input.roomId,
-      players: input.players,
+      players: Object.keys(input.playerRoomIds) as UUID[],
+      playerRoomIds: input.playerRoomIds,
       responses: {},
       prompts: {},
-      playersReady: input.players.reduce(
+      playersReady: (Object.keys(input.playerRoomIds) as UUID[]).reduce(
         (acc, p) => {
           acc[p] = false;
           return acc;
@@ -126,7 +126,6 @@ export function createDiaryMachine() {
           emit(({ context }) => {
             const evt: DiaryEmittedAllPlayersReady = {
               type: "GAME:ALL_PLAYERS_READY",
-              roomId: context.roomId,
               transitionReason: "all_players_ready",
             };
             return evt;

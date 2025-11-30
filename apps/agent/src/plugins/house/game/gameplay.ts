@@ -16,7 +16,7 @@ import {
 import { ParentMachine, Phase } from "./types";
 import { UUID } from "@elizaos/core";
 import { randomUUID } from "@/lib/utils";
-import { createPhaseActor, PhaseEvent } from "./phase";
+import { PhaseEvent } from "./phase";
 
 export interface GameplayContext {
   players: UUID[];

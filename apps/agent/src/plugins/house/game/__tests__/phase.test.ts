@@ -24,7 +24,12 @@ describe("Phase → DiaryRoom integration", () => {
       }),
       {
         input: {
-          players: [p1],
+          playerSettings: [
+            {
+              agentId: p1,
+              diaryRoomId: stringToUuid("diary1"),
+            },
+          ],
           maxPlayers: 2,
           minPlayers: 1,
         },
@@ -39,8 +44,10 @@ describe("Phase → DiaryRoom integration", () => {
     // House creates the room
     const introRoomId = stringToUuid("intro");
     actor.send({
-      type: "GAME:INTRODUCTION_ROOM_CREATED",
+      type: "GAME:CREATE_ROOM",
       roomId: introRoomId,
+      ownerId: p1,
+      participantIds: [p1],
     });
 
     expect(actor.getSnapshot().value).toEqual({
@@ -71,13 +78,13 @@ describe("Phase → DiaryRoom integration", () => {
       messageId: stringToUuid("response1"),
     });
 
-    expect(actor.getSnapshot().children?.diary?.getSnapshot()?.value).toBe(
-      "prompting",
-    );
+    expect(
+      actor.getSnapshot().children?.["introduction-diary"]?.getSnapshot()
+        ?.value,
+    ).toBe("prompting");
 
     actor.send({ type: "GAME:PLAYER_READY", playerId: p1 });
 
-    console.log(actor.getSnapshot().children?.diary?.getSnapshot().context);
     expect(actor.getSnapshot().value).toBe("lobby_wait");
   });
 });

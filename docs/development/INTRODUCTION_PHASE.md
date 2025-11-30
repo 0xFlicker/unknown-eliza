@@ -13,7 +13,7 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 
 - House Phase Machines
 
-  - `introduction` room now emits `GAME:INTRODUCTION_ROOM_CREATED` and `GAME:PHASE_ENTERED` with `roomId`.
+  - `introduction` room now emits `GAME:PHASE_ENTERED` with `roomId`.
   - After all intros or timer, House invokes a centralized `diary` machine (child actor) and starts it via `GAME:DIARY_START`.
   - House Diary Machine implements targeted prompt → response → ready flow:
     - Emits `GAME:DIARY_PROMPT { roomId, targetPlayerId, promptId }` per player in sequence.
@@ -57,7 +57,6 @@ This document explains how the Introduction phase is implemented in `apps/agent`
 
 ### New/Updated Actor Files
 
-- House: `apps/agent/src/plugins/house/game/rooms/introduction.ts`
 - House: `apps/agent/src/plugins/house/game/rooms/diary.ts`
 - Influencer: `apps/agent/src/plugins/influencer/game/rooms/introduction.ts`
 - Influencer: `apps/agent/src/plugins/influencer/game/rooms/diary.ts`

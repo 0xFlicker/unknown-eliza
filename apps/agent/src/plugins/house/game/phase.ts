@@ -12,18 +12,29 @@ import { randomUUID } from "@/lib/utils";
 import { createDiaryMachine } from "./rooms/diary";
 import { shuffleArray } from "@/utils/random";
 
+/**
+ * Configuration options for the WHISPER phase.
+ *
+ * These values are provided via `GameSettings` and control how many
+ * rooms and messages can be created during the whisper phase.
+ */
 export type WhisperSettings = {
   requestsPerPlayer?: number;
   maxMessagesPerPlayerPerRoom?: number;
   perRoomMaxParticipants?: number;
 };
 
+/**
+ * Long–lived context for the phase state machine – this is the single
+ * source of truth for phase orchestration across the full game round.
+ */
 export interface PhaseContext {
   players: UUID[];
   playersReady: Record<UUID, boolean>;
   minPlayers: number;
   maxPlayers: number;
   startPhase?: Phase;
+  diaryRooms: Record<UUID, UUID>;
   introduction?: {
     roomId: UUID;
     messages: Record<UUID, UUID>;
@@ -46,13 +57,25 @@ export interface PhaseContext {
   whisperSettings?: WhisperSettings;
 }
 
+export type PlayerSettings = {
+  agentId: UUID;
+  diaryRoomId: UUID;
+};
+
+/**
+ * Static input used to initialise the phase machine.
+ */
 export type PhaseInput = {
-  players: UUID[];
+  playerSettings: PlayerSettings[];
   maxPlayers: number;
   minPlayers: number;
   startPhase?: Phase;
   whisperSettings?: WhisperSettings;
 };
+
+// ---------------------------------------------------------------------------
+// Game events (shared across multiple phases)
+// ---------------------------------------------------------------------------
 
 export type PhaseEventDiaryPrompt = {
   type: "GAME:DIARY_PROMPT";
@@ -61,6 +84,10 @@ export type PhaseEventDiaryPrompt = {
   roomId: UUID;
 };
 
+/**
+ * Generic event for a player sending a message to a room.
+ * Used by introduction, lobby and whisper phases.
+ */
 export type GameMessageEvent = {
   type: "GAME:MESSAGE_SENT";
   roomId: UUID;
@@ -68,22 +95,36 @@ export type GameMessageEvent = {
   messageId: UUID;
 };
 
+/**
+ * Event emitted when the House creates a new game room.
+ * Used by multiple phases (introduction, lobby, whisper).
+ */
 export type GameEventCreateRoom = {
   type: "GAME:CREATE_ROOM";
-  ownerId?: UUID;
+  ownerId: UUID;
   roomId: UUID;
   participantIds: UUID[];
 };
 
+/**
+ * Emitted when a channel can no longer accept new messages for the phase.
+ */
 export type GameChannelExhaustedEvent = {
   type: "GAME:CHANNEL_EXHAUSTED";
   roomId: UUID;
 };
 
+/**
+ * Emitted when the House explicitly ends the public round.
+ */
 export type GameEndRoundEvent = {
   type: "GAME:END_ROUND";
   roomId: UUID;
 };
+
+// ---------------------------------------------------------------------------
+// Introduction phase events
+// ---------------------------------------------------------------------------
 
 export type IntroductionAreYouReadyEvent = {
   type: "GAME:ARE_YOU_READY";
@@ -94,6 +135,9 @@ export type IntroductionPlayerReadyEvent = {
   playerId: UUID;
 };
 
+/**
+ * Player has responded to a diary prompt during the introduction phase.
+ */
 export type IntroductionDiaryResponseEvent = {
   type: "GAME:DIARY_RESPONSE";
   playerId: UUID;
@@ -101,11 +145,18 @@ export type IntroductionDiaryResponseEvent = {
   messageId: UUID;
 };
 
+/**
+ * House has prompted a specific player to write a diary entry.
+ */
 export type IntroductionDiaryPromptEvent = {
   type: "GAME:DIARY_PROMPT";
   targetPlayerId: UUID;
   messageId: UUID;
 };
+
+// ---------------------------------------------------------------------------
+// Whisper phase events
+// ---------------------------------------------------------------------------
 
 export type WhisperEventEndRoom = { type: "GAME:END_ROOM"; roomId: UUID };
 export type WhisperEventLeaveRoom = { type: "GAME:LEAVE_ROOM"; playerId: UUID };
@@ -116,6 +167,13 @@ export type WhisperEvent =
   | WhisperEventPass
   | WhisperEventEndRoom;
 
+// ---------------------------------------------------------------------------
+// Phase event unions
+// ---------------------------------------------------------------------------
+
+/**
+ * Events that are specific to the introduction phase.
+ */
 export type PhaseIntroductionEvents =
   | GameMessageEvent
   | GameEventCreateRoom
@@ -126,12 +184,22 @@ export type PhaseIntroductionEvents =
   | IntroductionDiaryResponseEvent
   | IntroductionDiaryPromptEvent;
 
+/**
+ * Main event type accepted by the phase state machine.
+ *
+ * This intentionally combines both phase orchestration events and
+ * gameplay/diary events forwarded down to child machines.
+ */
 export type PhaseEvent =
   | PhaseIntroductionEvents
   | GameplayEvent
   | GameMessageEvent
   | PhaseEventDiaryPrompt
   | WhisperEvent;
+
+// ---------------------------------------------------------------------------
+// Emitted events – notifications from the phase machine out to the world
+// ---------------------------------------------------------------------------
 
 export type IntroductionEmittedPlayerReadyErrorEmitted = {
   type: "GAME:PLAYER_READY_ERROR";
@@ -145,16 +213,15 @@ export type IntroductionEmittedAreYouReadyEmitted = {
   playerId: UUID;
 };
 
-// export type IntroductionRoomCreatedEmitted = {
-//   type: "GAME:INTRODUCTION_ROOM_CREATED";
-//   roomId: UUID;
-//   playerIds: UUID[];
-// };
-
 export type IntroductionRoomPhaseEnteredEmitted = {
   type: "GAME:PHASE_ENTERED";
   phase: Phase.INTRODUCTION;
   roomId?: UUID;
+};
+
+export type IntroductionRoomCreatedEmitted = {
+  type: "GAME:INTRODUCTION_ROOM_CREATED";
+  roomId: UUID;
 };
 
 export type WhisperRoomClosed = {
@@ -170,8 +237,15 @@ export type WhisperEmittedYourTurn = {
 export type IntroductionEmitted =
   | IntroductionEmittedPlayerReadyErrorEmitted
   | IntroductionEmittedAreYouReadyEmitted
-  | IntroductionRoomPhaseEnteredEmitted;
+  | IntroductionRoomPhaseEnteredEmitted
+  | IntroductionRoomCreatedEmitted;
 
+/**
+ * High‑level events emitted by the phase machine.
+ *
+ * These are consumed by the coordinator / EventBus and are the
+ * only events that should leave the internal state machine boundary.
+ */
 export type PhaseEmitted =
   | {
       type: "GAME:PHASE_ENTERED";
@@ -187,13 +261,9 @@ export type PhaseEmitted =
       type: "GAME:PLAYER_READY_ERROR";
       error: Error;
     }
-  // | GameplayEmitted
   | IntroductionEmitted
   | WhisperEmittedYourTurn
   | WhisperRoomClosed;
-// | LobbyEmitted
-// | WhisperEmitted
-// | IntroductionRoomCreatedEmitted;
 
 export function createPhaseMachine(gameSettings: GameSettings) {
   const {
@@ -231,9 +301,19 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
     },
   }).createMachine({
+    /** @xstate-layout N4IgpgJg5mDOIC5QAcAWBDWYB0BLAdrgC4DEA4gIICyAoggAoAyFAmjQEoD67NFAIiwDaABgC6iFAHtYxXJPwSQAD0QAmAKwBGbAA4AnMIBsAZk0B2HZvXCdqwwBoQATzWad2VQBY9ez8dVmhurGfgC+oY5omDgExCQi4kggyNKy8ooqCOqe7j556qrCmsKqqsaOLgjGwmbYnsGamsb6peYm4ZEYWHiEpIKaiVIyRHIKSZnZuXl6BUUlZRWInmXYM6Y6xnobwupmmh3JXTG98aqDyakj6eOIZqqLCIWN2IHquwaqtsbfB1HdsX1jOcUsNRhlEMEpvknvNys5EJp6thrMJUaVhNVDHYdL8jj0iAAnSQQACuAGMrvhOAB3dBxSi0BAAYR4FAAKjRuAB5LlUBKKEFpMagTK2B6IyzYQzCPSFCyGMxFWW46L4omkimjEgQeQ4WBEdBEHB-Y6E4nkyn8pKCyngx4BdQeSwBTSGNpecXWR0bXY6IJ6BU7dQq-74M0aynYWmyfBQcjUOi0ADKSYoZE5SZoADk2VahkK7fVDNh-CUfajfHpAp7lnUzAYin5655DHoQ6b1RbRlG6SNY-ExALLmCbgh6+5NF4A54Z6Z1ArxYZvNg3KUAjPhJ4McZ22rzZr5Nh9QTDWAoE5tbqegA3SQAaxwEFw6AJTjzF1B1xFCLdql06j0TFUUnZoHHhBBzH8bAijeAJW2WYxW13Ahwy7Q9j1Pc8SDAAkiQJbBkAAG0NAAzSQCQAW2wJ8XzfQdrWHL9lB-Sd-0AoxgLKP1Fx0TxkSsXY3U8NwMWQsNOwPfAj0JTCLwZOg+AASQodgWG4Ggk3oLks0zd8bRHb8ILgjw7GCIpNiMBdwKsLFdBA4TJg2YxgwiQ5VRQiTIwwo0sPkhhmDYLhWQEPTGOFZijN43RbDMRC9mMesLHFFtix0ADEU8WLMuyVQxNQyTpJPHy5ITBAlJUtT6HYXl6Fzej81tUdJyiowvB0CwdBsQodHFBLhFWDjnLuVRfFi3dCMkAAjSanBpXt40ZFleA5bleVCz9wtFe5wJGgoPDeb4dH0P0yk8cappmy98D1A0jQIvEJumujgTCu1SkMYt5y8IxnOKIwHhGwI6ksWwtjsDEzHOp7sDJDBSD87M+G5ABVLM+HWgtR1sCcZWabwvT8HrwPWdxPiXWUjDMAod1ck1sEemaYbhha6CZAAJCgsyzGhGE4GgAA0OeRpMOXR+qP0xwzsZXXHeJmHZCYeUwEpeP1pRKdQ0rMMwztph6LqcQrZKu45bwfajn1fDHGsM11NxXLc3RMTZXSxJXNB8OpGjeLRpTsXXOlVBnDe8s8LxwvCCOIogyMoi3aOtgyIrtvjESMV1vj0V3tsqOdtCzqwrE6n2dahxnQ980rytU9TNO03Txf0pjMhA9wEpRLwm14pWSmMF4bDeVtAMA+oy5DmTipZ-zWA4dT+CERvXqarxagxScCizgMtDMAHZVqKngmlcwtmyFzA+6YOjcnvzq8q6qqFqxPm4RLxi1UYos6xXit3MAGNm0Tq79nZBG1tkXc1JUC4FgMgHCeAICETAAOF6G07TNEQh4EIMoSge0RIhJWyxcheDeDKTqTR9h61VBAqBMD8K4HgYg-oyDJYRTQW-TBHwcF+DArnTKfFZT1ECNUbIo8KHdCodA2B10lB9EXig0crCMFbg4VnLhSsyYrirJ-Nw+gAyQ1ETgcRNDsBSL6AMIccjDIKNOlg9+Ki8HExKP1es5gyF+BCHo8+BjIESPwiY04TCbYsI2GwpR2C7HcMQKYPwLwZyWEnNrTYZ83JiO8UY5AuAyR3gIHGPy9AKApifptJYnxHTWJ8GvTYnhd7NF0G6dqWwLBNGcuA1JsD0mZOyVPJa7JOTVTWrI5hmRNgBDqEAhU1gNCISqTtdq7gtA7HalTQCzT9FRlafhdAmpryIL8smVM6ZOCZhzIUt6vtoJpX0FoACew1FuheD4L0lhEI+ADskrx1DYGbJGNsqeiNVp8gGYEzII1omnTah7LOR13ZU10MsmYVh-BaBaR8jZWydmlXZpzbmvMBZCxFjQMWASk7At8H3MFOQIXaLUXsXQLZhImCxBYFsyKfHYC+bgH5flGC8AAGq9J5AColz9HiksUeCnwVLiZxXuaSqmdx1g008WslFbK0VT25RQPl-zGHmMGWoUV5LLASqhQ49+qx2puCdiYKmLKjHss5aVDVWq+l8jOLqoFaheGKP8HsFoxR1Du0RLSoIIRhK8Q+kkumhjYE0VfCbG894bpFTDic0cmUPaKOKEyqZESqhemRFnV+7VDCdQ8W85VrLY3h1wuRKOpFyJUQrs9d1xKlh7D0JmmovEc34NrHK-Q5hNytnIUq6N+Eq0kAAFSpsMjODNgFfVXM6oBJW1R+qtGaDrbIJgyi7gJCSCi5F40EDNjgfdh6CQzoipCVYeQaibHat4aZlRZnIlMArWKaslx7oPUeiOtaiL1rjue8iV6Jg1OmPehpT6Hj-2gqYD2JC0pBh-RepBLbhXVA7YqUw0pTDa2WAscCrZaiuiaC6bwgFdi7lvEaY9+BT3YFo2AMDEIc5qH8H+EICVWzfCxFnGjkg6P-vwoBmODamNCZY4C1tCA3Y7XXLShKI0thF2Zas5j6GGIWIigEAwugqYQ1An6He4E9j5waABJ9NQSi7hSNSHC9HGP2ZwqxuT+gPCUbuFlGodwAbfFI85DcioZiykVeWlzBJsI1tE9HWOVFItuZLR2qcVYAiYO1ux+0HmTDZHMo5YIdnJAOai25gSf4LAGECAYSCVlKjvzeC8II84FQbB1qJVZBIwDbPQIRJzibsBdZ64RNzBQlY+2RI09eI1CgBj3d1sAvXouRzE-FwbC3etJay85Gw0ELD3vMPUEohh5vDa0w1WT9Rlx3A+m1J4iSAaDuRLsYSPGi56NcvgYkcABRHAw0UhAABaTQDxAcndWQCf7hZTO5wzYUKJFZ05oLyp5UYc1iBQ9HOxaCqIiiBCIY2cU7UpR+Hfllcw7UNAo-3IEpuAORp9w-iETWORmjWDhJUScGbHbbi0FsXiZa6YeRp92aMfYoCY8scJGWI8WcbGQxzn80TSce1sLMOw4OlXC4jN2Jtkvk7HxXFOP0X77Gc4+n3V4kJEIjSadTnXh4wD4AgPrluVMyVxKOkJfw3FrIfTmfzr0sVGg1DHujogruOMebWIUaUgZ5ww4RN4WoGhX4WHSwYSN+snqR8eEdGXzQqz4wawDEt-VqilByNOE+gvs+M1hoaXPfGC-6B1jMEvxNGh-gxCGjEOQlljyvmHXPjRWJpyxI0ZouDn2RMnHxD6Vh0995LeFuml8ncu+03qiCOs+JfW8Jc0oX13bOVvVXuwdwFe2pwrnsoJaxUb1Ux9UvCpoLFBbJnD2mVV94jHXAhBTe3wfEp0q4tgGIvgM+VQywfEMoc+NgreI0OIqyf+JigBIQma2M8OEBaie0-g1QiG1yTY1+omGSWSsYuehGKemCbUW4zk7s0SdwTQW4RQ5gVmxBBEpBgOIwFEYAkgJIEeW+Hqjw9KD+Kmlgz+O0MwbcdKfoVYbwVG7B9qYAt+Ihp0mCnUm4mwq6tkVMqeioZQZQiE7BVaFBpQVBW4NBGIAaUqWwK4W6X0Moe8telC6y2AG+FB9SqwCUTYLYGuuazOfcqI44uMtBc2nWv6BIFBieY4MwK4GUoWOwZQNggmRoueJafC78zobgsEsGMoA0boBQS4FKYRSqkWI+VYnmPgoC3wCsegAMkyLwbgsUB0BgKySqQ2i2hEuebW0ELYpaGglmWW70cy7+RghafGP+qo7hghsmcoHgTRvE2R2sio1hPCsoK4QkKIwk9YYC4QoQQAA */
     id: "phase",
+    description:
+      "Top-level phase machine that orchestrates the Influence game phases from INIT through REVEAL.",
     context: ({ input }) => ({
-      players: input.players,
+      players: input.playerSettings.map((p) => p.agentId),
+      diaryRooms: input.playerSettings.reduce(
+        (acc, p) => {
+          acc[p.agentId] = p.diaryRoomId;
+          return acc;
+        },
+        {} as Record<UUID, UUID>,
+      ),
       playersReady: {},
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
@@ -242,7 +322,12 @@ export function createPhaseMachine(gameSettings: GameSettings) {
     }),
     initial: "init",
     states: {
+      // ─────────────────────────────────────────────────────────────
+      // INIT PHASE
+      // ─────────────────────────────────────────────────────────────
       init: {
+        description:
+          "Bootstrap state that waits for players to be ready and routes to the configured starting phase.",
         on: {
           ["GAME:PLAYER_READY"]: {
             target: "init",
@@ -264,24 +349,32 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
         always: [
           {
+            description:
+              "If a start phase is explicitly configured as INTRODUCTION, immediately move there once context is ready.",
             guard: ({ context }) => {
               return context.startPhase === Phase.INTRODUCTION;
             },
             target: "introduction_wait",
           },
           {
+            description:
+              "If a start phase is explicitly configured as LOBBY, immediately wait for the lobby room.",
             guard: ({ context }) => {
               return context.startPhase === Phase.LOBBY;
             },
             target: "lobby_wait",
           },
           {
+            description:
+              "If a start phase is explicitly configured as WHISPER, immediately enter the whisper phase.",
             guard: ({ context }) => {
               return context.startPhase === Phase.WHISPER;
             },
             target: "whisper",
           },
           {
+            description:
+              "Default path: once minimum players are present and all are ready, move into the INTRODUCTION phase.",
             guard: ({ context }) => {
               if (context.players.length < context.minPlayers) return false;
               const playerIds = Object.keys(context.playersReady);
@@ -302,8 +395,13 @@ export function createPhaseMachine(gameSettings: GameSettings) {
           },
         ],
       },
+      // ─────────────────────────────────────────────────────────────
+      // INTRODUCTION PHASE
+      // ─────────────────────────────────────────────────────────────
       // Wait for house to create the introduction room
       introduction_wait: {
+        description:
+          "Intermediate state that waits for The House to create the public introduction room.",
         on: {
           ["GAME:CREATE_ROOM"]: {
             actions: [
@@ -319,9 +417,13 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       introduction: {
+        description:
+          "Agents introduce themselves publicly, then immediately transition into diary strategy and end in the lobby.",
         initial: "waiting",
         states: {
           waiting: {
+            description:
+              "Players are composing their initial introductions in the shared room.",
             entry: [
               emit(({ context }) => ({
                 type: "GAME:PHASE_ENTERED",
@@ -348,28 +450,32 @@ export function createPhaseMachine(gameSettings: GameSettings) {
               },
             },
             always: {
+              description:
+                "Once every player has posted at least one introduction, move to diary strategy without waiting for the timeout.",
               guard: "allPlayersIntroduced",
               target: "strategy",
             },
           },
           strategy: {
+            description:
+              "Diary-driven strategy evaluation for the INTRODUCTION phase.",
             on: {
               ["GAME:DIARY_RESPONSE"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
               },
               ["GAME:PLAYER_READY"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
               },
               ["GAME:DIARY_PROMPT"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
               },
             },
             invoke: {
-              id: "diary",
+              id: "introduction-diary",
               src: "diary",
               input: ({ context }) => ({
                 players: context.players,
-                roomId: context.introduction!.roomId,
+                playerRoomIds: context.diaryRooms,
               }),
               onDone: {
                 target: "end",
@@ -379,13 +485,19 @@ export function createPhaseMachine(gameSettings: GameSettings) {
               },
             },
           },
-          end: { type: "final" },
+          end: {
+            description:
+              "Terminal internal state for the INTRODUCTION phase, signalling transition to the lobby.",
+            type: "final",
+          },
         },
         onDone: {
           target: "lobby_wait",
         },
       },
       lobby_wait: {
+        description:
+          "Waits for The House to create the public lobby room between rounds.",
         on: {
           ["GAME:CREATE_ROOM"]: {
             actions: [
@@ -400,9 +512,13 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       lobby: {
+        description:
+          "Public lobby where agents can only speak in the shared room before whispers open.",
         initial: "chat",
         states: {
           chat: {
+            description:
+              "Agents are freely chatting in the public lobby until the round ends or the timer expires.",
             entry: [
               emit(({ context }) => ({
                 type: "GAME:PHASE_ENTERED",
@@ -425,24 +541,24 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             },
           },
           strategy: {
+            description:
+              "Diary-driven strategy evaluation for the LOBBY phase before moving into whispers.",
             on: {
               ["GAME:DIARY_RESPONSE"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("lobby-diary", ({ event }) => event)],
               },
               ["GAME:PLAYER_READY"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("lobby-diary", ({ event }) => event)],
               },
               ["GAME:DIARY_PROMPT"]: {
-                actions: [sendTo("diary", ({ event }) => event)],
+                actions: [sendTo("lobby-diary", ({ event }) => event)],
               },
             },
             invoke: {
-              id: "diary",
+              id: "lobby-diary",
               src: "diary",
               input: ({ context }) => ({
-                players: context.players,
-                roomId: context.lobby!.roomId,
-                timeoutMs: diary,
+                playerRoomIds: context.diaryRooms,
               }),
               onDone: {
                 target: "end",
@@ -452,13 +568,19 @@ export function createPhaseMachine(gameSettings: GameSettings) {
               },
             },
           },
-          end: { type: "final" },
+          end: {
+            description:
+              "Terminal internal state for the LOBBY phase, signalling transition to WHISPER.",
+            type: "final",
+          },
         },
         onDone: {
           target: "whisper",
         },
       },
       whisper: {
+        description:
+          "Turn-based WHISPER phase where agents create private rooms, spend request budget, and then transition to gameplay diaries.",
         entry: [
           emit({
             type: "GAME:PHASE_ENTERED",
@@ -481,6 +603,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         initial: "idle",
         states: {
           idle: {
+            description:
+              "Idle substate that decides whether there are remaining requests; either start picking or advance directly to diary.",
             always: [
               {
                 guard: ({ context }) => {
@@ -501,6 +625,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             ],
           },
           next: {
+            description:
+              "Calculates which player should act next or whether to end the WHISPER phase.",
             always: [
               {
                 description:
@@ -569,6 +695,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             ],
           },
           picking: {
+            description:
+              "Current player is choosing whether to PASS or create a new whisper room.",
             entry: [
               // Notify current player that it's their turn
               emit(({ context }) => ({
@@ -680,6 +808,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             },
           },
           ["pick-timeout"]: {
+            description:
+              "Timeout handler when a player fails to make a pick in time; forfeits their remaining requests.",
             entry: [
               assign({
                 whisper: ({ context }) => {
@@ -700,6 +830,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             target: "next",
           },
           active: {
+            description:
+              "A WHISPER room is currently active and accepting a limited number of messages.",
             on: {
               ["GAME:MESSAGE_SENT"]: [
                 {
@@ -840,23 +972,25 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             },
           },
           diary: {
-            entry: [
-              // Broadcast and kick off readiness collection for the gameplay child
-              sendTo("strategy", { type: "GAME:END_ROUND" }),
-              sendTo("strategy", { type: "GAME:ARE_YOU_READY" }),
-            ],
+            description:
+              "After whispers complete, transition into the gameplay diary/strategy machine.",
             on: {
-              "*": {
-                actions: [sendTo("strategy", ({ event }) => event)],
+              ["GAME:DIARY_RESPONSE"]: {
+                actions: [sendTo("whisper-diary", ({ event }) => event)],
+              },
+              ["GAME:PLAYER_READY"]: {
+                actions: [sendTo("whisper-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_PROMPT"]: {
+                actions: [sendTo("whisper-diary", ({ event }) => event)],
               },
             },
             invoke: {
-              id: "strategy",
-              src: "gameplay",
+              id: "whisper-diary",
+              src: "diary",
+              description: "Runs the diary machine for the WHISPER phase.",
               input: ({ context }) => ({
-                players: context.players,
-                initialPhase: Phase.WHISPER,
-                nextPhase: Phase.RUMOR,
+                playerRoomIds: context.diaryRooms,
               }),
               onDone: {
                 target: "end",
@@ -866,10 +1000,16 @@ export function createPhaseMachine(gameSettings: GameSettings) {
               },
             },
           },
-          end: { type: "final" },
+          end: {
+            description:
+              "Terminal internal state for the WHISPER phase, signalling transition to RUMOR.",
+            type: "final",
+          },
         },
       },
       rumor: {
+        description:
+          "RUMOR phase where each player must post exactly one public message or image.",
         always: {
           actions: [sendTo("rumor", ({ event }) => event)],
         },
@@ -882,6 +1022,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "rumor",
           src: "gameplay",
+          description:
+            "Reuses the gameplay machine for the RUMOR phase, moving next to VOTE.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.RUMOR,
@@ -896,6 +1038,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       vote: {
+        description:
+          "VOTE phase where players empower and expose targets according to the game rules.",
         always: {
           actions: [sendTo("vote", ({ event }) => event)],
         },
@@ -908,6 +1052,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "vote",
           src: "gameplay",
+          description:
+            "Reuses the gameplay machine for the VOTE phase, moving next to POWER.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.VOTE,
@@ -922,6 +1068,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       power: {
+        description:
+          "POWER phase where the empowered agent chooses to eliminate or protect a target.",
         always: {
           actions: [sendTo("power", ({ event }) => event)],
         },
@@ -934,6 +1082,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "power",
           src: "gameplay",
+          description:
+            "Reuses the gameplay machine for the POWER phase, moving next to REVEAL.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.POWER,
@@ -948,6 +1098,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       reveal: {
+        description:
+          "REVEAL phase that announces eliminations and determines whether the game should continue.",
         always: {
           actions: [sendTo("reveal", ({ event }) => event)],
         },
@@ -960,6 +1112,8 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "reveal",
           src: "gameplay",
+          description:
+            "Final gameplay phase that reveals outcomes and then transitions to END.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.REVEAL,
@@ -974,7 +1128,11 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         },
       },
       // TODO: add state to evaluate if game is over
-      end: { type: "final" },
+      end: {
+        description:
+          "Top-level terminal state for the phase machine; external caller should decide whether to start a new game.",
+        type: "final",
+      },
     },
   });
 }
