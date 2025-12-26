@@ -29,6 +29,7 @@ export type WhisperSettings = {
  * source of truth for phase orchestration across the full game round.
  */
 export interface PhaseContext {
+  gameId: UUID;
   players: UUID[];
   playersReady: Record<UUID, boolean>;
   minPlayers: number;
@@ -53,6 +54,10 @@ export interface PhaseContext {
     turnOrder: UUID[];
     currentTurnIndex: number;
     remainingRequests: Record<UUID, number>;
+  };
+  rumor?: {
+    roomId: UUID;
+    messages: Record<UUID, UUID>;
   };
   whisperSettings?: WhisperSettings;
 }
@@ -988,7 +993,6 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             invoke: {
               id: "whisper-diary",
               src: "diary",
-              description: "Runs the diary machine for the WHISPER phase.",
               input: ({ context }) => ({
                 playerRoomIds: context.diaryRooms,
               }),
@@ -1007,7 +1011,21 @@ export function createPhaseMachine(gameSettings: GameSettings) {
           },
         },
       },
+      rumor_wait: {
+        description:
+          "Waits for The House to create the public rumor room between rounds.",
+        on: {
+          ["GAME:CREATE_ROOM"]: {
+            actions: [
+              assign(({ event }) => ({
+                rumor: { roomId: event.roomId, messages: {} },
+              })),
+            ],
+          },
+        },
+      },
       rumor: {
+        initial: "waiting",
         description:
           "RUMOR phase where each player must post exactly one public message or image.",
         always: {
@@ -1019,27 +1037,71 @@ export function createPhaseMachine(gameSettings: GameSettings) {
             phase: Phase.RUMOR,
           }),
         ],
-        invoke: {
-          id: "rumor",
-          src: "gameplay",
-          description:
-            "Reuses the gameplay machine for the RUMOR phase, moving next to VOTE.",
-          input: ({ context }) => ({
-            players: context.players,
-            initialPhase: Phase.RUMOR,
-            nextPhase: Phase.VOTE,
-          }),
-          onDone: {
-            target: "vote",
+        states: {
+          // Follow the same pattern as the INTRODUCTION state. Each player is allowed to post exactly one public message or image.
+          waiting: {
+            description:
+              "Players are composing their public messages or images in the shared room.",
+            on: {
+              ["GAME:MESSAGE_SENT"]: {
+                actions: assign(({ context, event }) => ({
+                  rumor: {
+                    ...context.rumor!,
+                    messages: {
+                      ...context.rumor!.messages,
+                      [event.playerId]: event.messageId,
+                    },
+                  },
+                })),
+              },
+            },
+            after: {
+              [round]: {
+                target: "diary",
+              },
+            },
           },
-          onError: {
-            target: "vote",
+          diary: {
+            description:
+              "After rumors are posted, transition into the gameplay diary/strategy machine.",
+            on: {
+              ["GAME:DIARY_RESPONSE"]: {
+                actions: [sendTo("rumor-diary", ({ event }) => event)],
+              },
+              ["GAME:PLAYER_READY"]: {
+                actions: [sendTo("rumor-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_PROMPT"]: {
+                actions: [sendTo("rumor-diary", ({ event }) => event)],
+              },
+            },
+            invoke: {
+              id: "rumor-diary",
+              src: "diary",
+              input: ({ context }) => ({
+                playerRoomIds: context.diaryRooms,
+              }),
+              onDone: {
+                target: "end",
+              },
+              onError: {
+                target: "end",
+              },
+            },
           },
+          end: {
+            description:
+              "Terminal internal state for the WHISPER phase, signalling transition to RUMOR.",
+            type: "final",
+          },
+        },
+        onDone: {
+          target: "vote",
         },
       },
       vote: {
         description:
-          "VOTE phase where players empower and expose targets according to the game rules.",
+          "VOTE phase where players empower and expose targets according to the game rules (one vote for each per player).",
         always: {
           actions: [sendTo("vote", ({ event }) => event)],
         },
@@ -1052,8 +1114,6 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "vote",
           src: "gameplay",
-          description:
-            "Reuses the gameplay machine for the VOTE phase, moving next to POWER.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.VOTE,
@@ -1069,7 +1129,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       power: {
         description:
-          "POWER phase where the empowered agent chooses to eliminate or protect a target.",
+          "POWER phase where the empowered agent chooses to auto eliminate, protect and pick a new revealed candidate, or send the vote to council as-is",
         always: {
           actions: [sendTo("power", ({ event }) => event)],
         },
@@ -1082,8 +1142,6 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "power",
           src: "gameplay",
-          description:
-            "Reuses the gameplay machine for the POWER phase, moving next to REVEAL.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.POWER,
@@ -1099,7 +1157,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
       },
       reveal: {
         description:
-          "REVEAL phase that announces eliminations and determines whether the game should continue.",
+          "REVEAL phase that announces the results of the power phase and determines whether the game should continue.",
         always: {
           actions: [sendTo("reveal", ({ event }) => event)],
         },
@@ -1112,11 +1170,37 @@ export function createPhaseMachine(gameSettings: GameSettings) {
         invoke: {
           id: "reveal",
           src: "gameplay",
-          description:
-            "Final gameplay phase that reveals outcomes and then transitions to END.",
           input: ({ context }) => ({
             players: context.players,
             initialPhase: Phase.REVEAL,
+            nextPhase: Phase.COUNCIL,
+          }),
+          onDone: {
+            target: "end",
+          },
+          onError: {
+            target: "end",
+          },
+        },
+      },
+      council: {
+        description:
+          "COUNCIL phase where players vote to eliminate one of the two revealed candidates.",
+        always: {
+          actions: [sendTo("reveal", ({ event }) => event)],
+        },
+        entry: [
+          emit({
+            type: "GAME:PHASE_ENTERED",
+            phase: Phase.COUNCIL,
+          }),
+        ],
+        invoke: {
+          id: "council",
+          src: "gameplay",
+          input: ({ context }) => ({
+            players: context.players,
+            initialPhase: Phase.COUNCIL,
             nextPhase: Phase.END,
           }),
           onDone: {

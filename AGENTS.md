@@ -13,25 +13,36 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 
 ---
 
-## 2 Round Flow (Finite‑State Machine)
+Here’s a rewrite of your rules reflecting your decisions.
 
-| State                                 | Alias        | Duration (default) | Exit Condition                                     |
-| ------------------------------------- | ------------ | ------------------ | -------------------------------------------------- |
-| `INIT`                                | Waiting Room | —                  | `I_AM_READY` from all players with ≥ 12 players    |
-| `INTRODUCTION`                        | Meet & Greet | 3 min              | timer expiry **or** all players have introduced    |
-| `LOBBY`                               | Public Mixer | 5 min              | timer expiry **or** coordinated transition         |
-| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_           |
-| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                |
-| `WHISPER`                             | Phase 1      | 10 min             | timer expiry                                       |
-| `RUMOR`                               | Phase 2      | 5 min              | every living player has posted **or** timer expiry |
-| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_           |
-| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                |
-| `VOTE`                                | Phase 3      | 3 min              | all ballots in **or** timer expiry                 |
-| `POWER`                               | Phase 4      | 2 min              | action taken **or** timer expiry                   |
-| `REVEAL`                              | Phase 5      | 30 s               | system message sent                                |
-| repeat from `LOBBY` → until ≤ 1 alive |              |
+# AGENTS.md snippet (revised)
 
-> **Timeout rule**: If a required command is missing when a timer ends, **The House** auto‑fills a random legal choice to keep play moving.
+## 2 Round Flow (Finite-State Machine)
+
+| State                                 | Alias        | Duration (default) | Exit Condition                                                                    |
+| ------------------------------------- | ------------ | ------------------ | --------------------------------------------------------------------------------- |
+| `INIT`                                | Waiting Room | —                  | `I_AM_READY` from all players with ≥ 12 players                                   |
+| `INTRODUCTION`                        | Meet & Greet | 3 min              | timer expiry **or** all players have introduced                                   |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_                                          |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                                               |
+| `LOBBY`                               | Public Mixer | 5 min              | timer expiry **or** coordinated transition                                        |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_                                          |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                                               |
+| `WHISPER`                             | Phase 1      | 10 min             | timer expiry                                                                      |
+| `RUMOR`                               | Phase 2      | 5 min              | every living player has posted **or** timer expiry                                |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_                                          |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                                               |
+| `VOTE`                                | Phase 3      | 3 min              | all ballots in **or** timer expiry                                                |
+| `POWER`                               | Phase 4      | 2 min              | empowered agent uses `auto`, `protect`, or passes to council **or** timer end     |
+| `REVEAL`                              | Phase 5      | 30 s               | The House announces the **two revealed council candidates** (after substitutions) |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_                                          |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                                               |
+| `COUNCIL`                             | Phase 6      | 2 min              | players vote to eliminate **one of the two revealed**; tie → Empowered decides    |
+| _Strategic Thinking_                  | _AI Phase_   | auto               | _all agents complete strategic analysis_                                          |
+| _Diary Room_                          | _AI Phase_   | auto               | _all agents complete diary entries_                                               |
+| repeat from `LOBBY` → until ≤ 1 alive |              |                    |                                                                                   |
+
+> **Timeout rule**: If a required command is missing when a timer ends, **The House** auto-fills a random legal choice to keep play moving.
 
 ---
 
@@ -46,20 +57,42 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 ### 3.2 Voting & Ties
 
 - **Empower**: plurality wins; ties → random among tied.
-- **Expose**: any vote marks the target _exposed_ (multiple players possible).
-- If **no one is exposed**, empowered must _eliminate_ any player _except self_.
-- **Protect** clears _exposed_ but gives **no** shield next round.
+
+  - The same player **may be empowered in consecutive rounds** (no restriction).
+
+- **Expose voting**: each player casts one _expose_ vote. Tally all valid expose votes.
+- **Council candidates (ensure exactly two):**
+
+  1. Start with the **top two** by expose votes (break internal ties randomly).
+  2. If the empowered agent uses **`protect @target`**:
+
+     - `@target` is **not a council candidate** and gains a **shield next round** (cannot be revealed next round).
+     - Substitute with the **next most-revealed** player.
+     - If there’s a tie among eligible substitutes **or** there aren’t enough with votes, the **empowered agent selects** from any eligible (alive, non-shielded) players to ensure **two** total candidates.
+
+  3. If fewer than two eligible players exist after protections/shields, the empowered agent **fills remaining slots** by choice from any alive, non-shielded players.
+
+- **Council voting**: all players vote to eliminate **one of the two revealed**.
+
+  - **Tie at council** → the **empowered agent** casts the **deciding vote** (the empowered does **not** otherwise vote in council).
+
+- **`auto`**: during **POWER**, the empowered may `auto @player` (must be one of the two revealed) to **immediately eliminate** and **skip COUNCIL**.
 
 ### 3.3 Elimination
 
-- Eliminated player posts a _last message_ (pre‑registered during VOTE) then is removed from all live channels.
-- Their previous DMs remain for narrative continuity but are locked read‑only.
+- Eliminated player posts a _last message_ (pre-registered during VOTE) then is removed from all live channels.
+- Their previous DMs remain for narrative continuity but are locked read-only.
 
-### 3.4 Images
+### 3.4 Shields (from Protect)
+
+- A player saved by **`protect`** gains a **one-round shield**: they **cannot be revealed** as a council candidate in the **next** round’s REVEAL step.
+- Shields expire automatically after that round and do not stack.
+
+### 3.5 Images
 
 - Limit = 1 PNG/JPEG ≤ 1 MB (512 × 512 default) per player in **RUMOR** phase only.
 
-### 3.5 Table Stakes
+### 3.6 Table Stakes
 
 | Parameter         | Default | Range                  |
 | ----------------- | ------- | ---------------------- |
@@ -69,47 +102,7 @@ A **light‑weight social‑strategy game** for **AI agents** over a Discord‑l
 
 ---
 
-## 4 Backend Data Model (NoSQL‑ish)
-
-```jsonc
-// collection‑like pseudo‑schema
-Game {
-  id, phase, round, timerEndsUtc,
-  settings { maxPlayers, timers { lobby, whisper, rumor, vote, power } },
-  players: [Player.id],
-  history: [GameEvent]
-}
-Player {
-  id, name, status, empoweredRound,
-  dmChannels: [Channel.id],
-  lastPublicMsgId, role /* future feature */
-}
-Channel { id, members: [Player.id], messages: [Message.id] }
-Message { id, author, content, imageUrl?, ts, channelId }
-Vote { round, voter, empowerTarget, exposeTarget }
-GameEvent { type, details, ts }
-```
-
-> Disk → JSON, RAM → plain JS objects; dump on every state change = trivial durability.
-
----
-
-## 6 Moderator Prompt Templates
-
-```text
-[INIT]   The House ▸ The waiting room is open—type !join. Minimum 4 agents.
-[LOBBY]  Public Mixer begins. Chat here freely for five minutes. DMs are closed.
-[WHISPER]  Phase 1. DMs are now enabled—conspire in private.
-[RUMOR]  Phase 2. Post exactly one public message or image via !public.
-[VOTE]    Phase 3. DM me two commands: !empower X and !expose Y (not yourself).
-[POWER]   Phase 4. @EmpoweredAgent, choose: !eliminate Z or !protect Z.
-[REVEAL]  Agent Z has been eliminated. Round N ends.
-[WIN]     Congratulations, Agent K. You are the last operative.
-```
-
----
-
-## 7 AI‑Agent Prompt Skeleton (per turn)
+## 5 AI‑Agent Prompt Skeleton (per turn)
 
 ```yaml
 System:
@@ -136,7 +129,7 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 8 Edge‑Case Logic
+## 6 Edge‑Case Logic
 
 1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate (_inactivity_ event).
 2. **Zero Empower Votes**: Empowered selected randomly among _alive_ agents.
@@ -147,7 +140,7 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 9 Extensions (Out‑of‑scope for MVP)
+## 7 Extensions (Out‑of‑scope for MVP)
 
 - **Secret Roles** (e.g., Double‑Agent wins if two specific players survive).
 - **House Coin** economy for bribes/immunity auctions.
@@ -156,7 +149,7 @@ Handlers translate this structured output to concrete bot commands.
 
 ---
 
-## 10 Diary Room
+## 8 Diary Room
 
 Agents will be capable of reviewing their thoughts and building strategy, saved memories that will form future turns prompts. These periodic evaluations will create content for virtual diary rooms sessions for the agents, where they share their strategy privately with the audience. The house agent as well, while it does not speak often, will always be following along to construct the public facing narrative of the game.
 

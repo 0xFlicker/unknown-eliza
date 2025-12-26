@@ -29,6 +29,7 @@ export enum Phase {
   VOTE = "VOTE",
   POWER = "POWER",
   REVEAL = "REVEAL",
+  COUNCIL = "COUNCIL",
   END = "END",
 }
 

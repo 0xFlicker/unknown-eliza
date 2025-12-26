@@ -1,22 +1,5 @@
 import { UUID } from "@elizaos/core";
-
-/**
- * Influence phases as experienced by a single player. We intentionally mirror
- * the canonical phase enum so player and house actors can reference the same
- * symbolic names without sharing context objects.
- */
-export enum Phase {
-  INIT = "INIT",
-  INTRODUCTION = "INTRODUCTION",
-  LOBBY = "LOBBY",
-  WHISPER = "WHISPER",
-  RUMOR = "RUMOR",
-  VOTE = "VOTE",
-  POWER = "POWER",
-  REVEAL = "REVEAL",
-  END = "END",
-}
-
+import { Phase } from "@/plugins/house/game/types";
 // /**
 //  * Tracks our own introduction obligations in the current phase.
 //  */
@@ -40,3 +23,5 @@ export interface DiaryPromptState {
   respondedAt?: number;
   phase?: Phase;
 }
+
+export { Phase };

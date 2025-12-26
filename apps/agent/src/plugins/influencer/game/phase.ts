@@ -2,7 +2,7 @@ import { UUID } from "@elizaos/core";
 import { assign, createActor, setup, sendTo } from "xstate";
 import type { SnapshotFrom } from "xstate";
 import { Phase } from "./types";
-import { createPlayerIntroductionMachine } from "./rooms/introduction";
+import { createPlayerDiaryMachine } from "./rooms/diary";
 
 export type PlayerPhaseEvent =
   | { type: "GAME:PHASE_ENTERED"; phase: Phase; roomId?: UUID }
@@ -11,62 +11,50 @@ export type PlayerPhaseEvent =
   | { type: "GAME:AGENT_ENTERED"; playerId: UUID; roomId: UUID }
   | { type: "GAME:AGENT_LEFT"; playerId: UUID; roomId: UUID }
   | { type: "GAME:ARE_YOU_READY" }
-  | { type: "GAME:PLAYER_READY"; playerId: UUID };
+  | { type: "GAME:PLAYER_READY"; playerId: UUID }
+  | { type: "GAME:DIARY_PROMPT_TIMEOUT" }
+  | { type: "GAME:DIARY_RESPONSE_TIMEOUT" }
+  | { type: "GAME:DIARY_READY_TIMEOUT" }
+  | { type: "PLAYER:FORCE_CONTINUE" }
+  | {
+      type: "GAME:DIARY_RESPONSE";
+      playerId: UUID;
+      roomId: UUID;
+      messageId: UUID;
+    };
 
-/**
- * Minimal identity record for the local player or other observed participants.
- */
 export interface PlayerIdentity {
   id: UUID;
   name?: string;
 }
 
-/**
- * Information a player could reasonably infer about another participant based
- * solely on public/DM events routed to them. We avoid storing any global state
- * that the player would not directly observe.
- */
 export interface KnownPlayer extends PlayerIdentity {
-  /**
-   * Timestamp (ms) when this player was first seen in any channel.
-   */
   firstSeenAt: number;
-  /**
-   * Latest timestamp (ms) we observed activity from this player.
-   */
   lastSeenAt: number;
-  /**
-   * Rooms where we have seen this player speak or be referenced.
-   */
   roomsSeenIn: UUID[];
 }
 
-/**
- * Runtime configuration for the player phase machine.
- */
 export interface PhaseInput {
   self: PlayerIdentity;
   initialPhase?: Phase;
-  /**
-   * Seeds for previously seen players (useful when restoring from persistence).
-   */
   initialKnownPlayers?: Record<UUID, KnownPlayer>;
-  /**
-   * Optional clock override (facilitates deterministic tests).
-   */
   getNow?: () => number;
 }
 
-/**
- * Top-level context tracked by the influencer-specific phase machine. This is
- * strictly the player's point-of-view: no global player lists, no shared
- * coordinators.
- */
 export interface PlayerPhaseContext {
   self: PlayerIdentity;
   currentPhase: Phase;
   phaseEnteredAt: number;
   knownPlayers: Record<UUID, KnownPlayer>;
+  introduction: {
+    roomId?: UUID;
+    players: UUID[];
+    seenIntroductions: Record<UUID, UUID>;
+    myIntroductionId?: UUID;
+  };
+  roundTimeoutMs: number;
+  diaryTimeoutMs: number;
+  getNow: () => number;
 }
 
 export function createPlayerPhaseMachine({
@@ -83,10 +71,17 @@ export function createPlayerPhaseMachine({
       events: {} as PlayerPhaseEvent,
     },
     actors: {
-      introduction: createPlayerIntroductionMachine({
-        roundTimeoutMs,
-        diaryTimeoutMs,
-      }),
+      introductionDiary: createPlayerDiaryMachine(),
+    },
+    guards: {
+      allIntroductionsComplete: ({ context }) => {
+        const players = context.introduction.players;
+        if (players.length === 0) return false;
+        return players.every(
+          (playerId) =>
+            context.introduction.seenIntroductions[playerId] !== undefined,
+        );
+      },
     },
   }).createMachine({
     id: "player-phase",
@@ -94,9 +89,17 @@ export function createPlayerPhaseMachine({
       self: input.self,
       knownPlayers: input.initialKnownPlayers ?? {},
       phaseEnteredAt: input.getNow ? input.getNow() : Date.now(),
-      roundTimeoutMs: 60000,
-      diaryTimeoutMs: 30000,
-      currentPhase: Phase.INIT,
+      currentPhase: input.initialPhase ?? Phase.INIT,
+      roundTimeoutMs,
+      diaryTimeoutMs,
+      getNow: input.getNow ?? (() => Date.now()),
+      introduction: {
+        players: uniqueAppend(
+          Object.keys(input.initialKnownPlayers ?? {}) as UUID[],
+          input.self.id,
+        ),
+        seenIntroductions: {},
+      },
     }),
     initial: "idle",
     states: {
@@ -105,44 +108,140 @@ export function createPlayerPhaseMachine({
           ["GAME:PHASE_ENTERED"]: {
             guard: ({ event }) => event.phase === Phase.INTRODUCTION,
             target: "introduction",
-            actions: assign(({ event }) => ({ currentPhase: event.phase })),
+            actions: assign(({ context, event }) => ({
+              currentPhase: event.phase,
+              phaseEnteredAt: context.getNow(),
+              introduction: {
+                ...context.introduction,
+                roomId: event.roomId ?? context.introduction.roomId,
+              },
+            })),
           },
         },
       },
       introduction: {
-        on: {
-          ["GAME:MESSAGE_SENT"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
+        initial: "collecting",
+        states: {
+          collecting: {
+            on: {
+              ["GAME:AGENT_ENTERED"]: {
+                actions: assign(({ context, event }) => ({
+                  introduction: {
+                    ...context.introduction,
+                    roomId: event.roomId ?? context.introduction.roomId,
+                    players: uniqueAppend(
+                      context.introduction.players,
+                      event.playerId,
+                    ),
+                  },
+                  knownPlayers: touchKnownPlayer(
+                    context.knownPlayers,
+                    event.playerId,
+                    context.getNow,
+                    event.roomId,
+                  ),
+                })),
+              },
+              ["GAME:MESSAGE_SENT"]: {
+                guard: ({ context, event }) =>
+                  !context.introduction.roomId ||
+                  context.introduction.roomId === event.roomId,
+                actions: assign(({ context, event }) => {
+                  const introduction = context.introduction;
+                  const seenIntroductions = {
+                    ...introduction.seenIntroductions,
+                    [event.playerId]: event.messageId,
+                  };
+                  return {
+                    introduction: {
+                      ...introduction,
+                      roomId: introduction.roomId ?? event.roomId,
+                      seenIntroductions,
+                      myIntroductionId:
+                        event.playerId === context.self.id
+                          ? event.messageId
+                          : introduction.myIntroductionId,
+                      players: uniqueAppend(
+                        introduction.players,
+                        event.playerId,
+                      ),
+                    },
+                    knownPlayers: touchKnownPlayer(
+                      context.knownPlayers,
+                      event.playerId,
+                      context.getNow,
+                      event.roomId,
+                    ),
+                  };
+                }),
+              },
+              ["GAME:AGENT_LEFT"]: {
+                actions: assign(({ context, event }) => ({
+                  knownPlayers: touchKnownPlayer(
+                    context.knownPlayers,
+                    event.playerId,
+                    context.getNow,
+                    event.roomId,
+                  ),
+                })),
+              },
+            },
+            always: {
+              guard: "allIntroductionsComplete",
+              target: "diary",
+            },
+            after: {
+              [roundTimeoutMs]: { target: "diary" },
+            },
           },
-          ["GAME:AGENT_ENTERED"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
+          diary: {
+            on: {
+              ["GAME:DIARY_PROMPT"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_PROMPT_TIMEOUT"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_RESPONSE"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_RESPONSE_TIMEOUT"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:DIARY_READY_TIMEOUT"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:ARE_YOU_READY"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["GAME:PLAYER_READY"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+              ["PLAYER:FORCE_CONTINUE"]: {
+                actions: [sendTo("introduction-diary", ({ event }) => event)],
+              },
+            },
+            invoke: {
+              id: "introduction-diary",
+              src: "introductionDiary",
+              input: ({ context }) => ({
+                playerId: context.self.id,
+                roomId: context.introduction.roomId ?? context.self.id,
+              }),
+              onDone: {
+                target: "complete",
+              },
+              onError: {
+                target: "complete",
+              },
+            },
           },
-          ["GAME:AGENT_LEFT"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
-          },
-          ["GAME:DIARY_PROMPT"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
-          },
-          ["GAME:ARE_YOU_READY"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
-          },
-          ["GAME:PLAYER_READY"]: {
-            actions: [sendTo("introduction", ({ event }) => event)],
+          complete: {
+            type: "final",
           },
         },
-        invoke: {
-          id: "introduction",
-          src: "introduction",
-          input: ({ context }) => ({
-            playerId: context.self.id,
-            players: Object.keys(context.knownPlayers).map((id) => id as UUID),
-          }),
-          onDone: {
-            target: "complete",
-          },
-          onError: {
-            target: "complete",
-          },
+        onDone: {
+          target: "complete",
         },
       },
       complete: { type: "final" },
@@ -164,3 +263,38 @@ export function createPlayerPhaseActor(
 export type PlayerPhaseSnapshot = SnapshotFrom<
   ReturnType<typeof createPlayerPhaseMachine>
 >;
+
+function uniqueAppend(list: UUID[], value: UUID): UUID[] {
+  if (list.includes(value)) return list;
+  return [...list, value];
+}
+
+function touchKnownPlayer(
+  known: Record<UUID, KnownPlayer>,
+  playerId: UUID,
+  getNow: () => number,
+  roomId?: UUID,
+): Record<UUID, KnownPlayer> {
+  if (!playerId) return known;
+  const timestamp = getNow();
+  const previous = known[playerId];
+  const rooms = roomId
+    ? uniqueAppend(previous?.roomsSeenIn ?? [], roomId)
+    : (previous?.roomsSeenIn ?? []);
+  const updated: KnownPlayer = previous
+    ? {
+        ...previous,
+        lastSeenAt: timestamp,
+        roomsSeenIn: rooms,
+      }
+    : {
+        id: playerId,
+        firstSeenAt: timestamp,
+        lastSeenAt: timestamp,
+        roomsSeenIn: rooms,
+      };
+  return {
+    ...known,
+    [playerId]: updated,
+  };
+}
