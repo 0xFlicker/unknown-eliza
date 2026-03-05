@@ -131,6 +131,7 @@ export class GameManager<
     );
 
     const phaseInput: PhaseInput = {
+      gameId,
       playerSettings: players.map((p) => ({
         agentId: p,
         // FIXME: We are now required to pre-create the diary room id for each player and this is a hack to get typescript to be happy.
@@ -446,24 +447,6 @@ export class GameManager<
     logger.info(
       `Removed game ${gameId} and cleaned up ${gameSession.channels.size} channels`,
     );
-  }
-
-  /**
-   * Get game statistics
-   */
-  getStats() {
-    return {
-      totalGames: this.games.size,
-      totalGameChannels: this.gamesByChannel.size,
-      gamesByPhase: Array.from(this.games.values()).reduce(
-        (acc, game) => {
-          acc[game.phase.getSnapshot().value] =
-            (acc[game.phase.getSnapshot().value] || 0) + 1;
-          return acc;
-        },
-        {} as Record<Phase, number>,
-      ),
-    };
   }
 
   /**

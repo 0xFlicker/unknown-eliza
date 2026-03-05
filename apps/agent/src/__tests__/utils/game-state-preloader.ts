@@ -24,8 +24,9 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
     const { runtime, config, gameId: providedGameId } = options;
 
     const gameId = providedGameId || stringToUuid(`test-game-${Date.now()}`);
-    throw new Error("Not implemented");
+
     const phaseInput: PhaseInput = {
+      gameId,
       playerSettings: config.players.map((p) => ({
         agentId: p,
         // FIXME: We are now required to pre-create the diary room id for each player and this is a hack to get typescript to be happy.
@@ -33,12 +34,14 @@ export class GameStatePreloader<Context extends Record<string, unknown>> {
       })),
       maxPlayers: config.settings?.maxPlayers || 8,
       minPlayers: config.settings?.minPlayers || 4,
+
       // fix this later
-      // whisperSettings: config.settings?.whisperSettings || {
-      //   requestsPerPlayer: 3,
-      //   maxMessagesPerPlayerPerRoom: 2,
-      //   perRoomMaxParticipants: 3,
-      // },
+      whisperSettings: config.settings?.whisper || {
+        whisperRoomTimeoutMs: 100,
+        maxWhisperRequests: 3,
+        maxMessagesPerPlayerPerRoom: 2,
+        perRoomMaxParticipants: 3,
+      },
     };
 
     const phaseSettings: GameSettings = {

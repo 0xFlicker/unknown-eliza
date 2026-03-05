@@ -61,18 +61,19 @@ export const replyAction = {
     );
 
     if (!gameStateManager) {
-      throw new Error("GameStateManager service is not available in runtime");
+      console.error("GameStateManager service is not available in runtime");
+      return false;
     }
 
     const { snapshot } = gameStateManager;
-    const introductionPlayers =
-      snapshot.children.introduction?.getSnapshot().context.players ?? [];
-    if (
-      snapshot.value === "introduction" &&
-      introductionPlayers.includes(runtime.agentId)
-    ) {
-      return false;
-    }
+    // const introductionPlayers =
+    //   snapshot.children.introduction?.getSnapshot().context.players ?? [];
+    // if (
+    //   snapshot.value === "introduction_wait" &&
+    //   introductionPlayers.includes(runtime.agentId)
+    // ) {
+    //   return false;
+    // }
 
     return true;
   },

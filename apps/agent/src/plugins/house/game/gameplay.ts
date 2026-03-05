@@ -40,30 +40,24 @@ type PhaseMachine = ParentMachine<PhaseEvent>;
 // PhaseEvent includes both phase triggers and diary events
 export type GameplayAreYouReadyEvent = {
   type: "GAME:ARE_YOU_READY";
-  sender: PhaseMachine;
 };
 export type GameplayAddPlayerEvent = {
   type: "GAME:ADD_PLAYER";
   playerId: UUID;
-  sender: PhaseMachine;
 };
 export type GameplayPlayerReadyEvent = {
   type: "GAME:PLAYER_READY";
   playerId: UUID;
-  sender: PhaseMachine;
 };
 export type GameplayCreateDiaryRoomEvent = {
   type: "GAME:CREATE_DIARY_ROOM";
   playerId: UUID;
-  sender: PhaseMachine;
 };
 export type GameplayChannelExhaustedEvent = {
   type: "GAME:CHANNEL_EXHAUSTED";
-  sender: PhaseMachine;
 };
 export type GameplayEndRoundEvent = {
   type: "GAME:END_ROUND";
-  sender: PhaseMachine;
 };
 
 export type GameplayEvent =

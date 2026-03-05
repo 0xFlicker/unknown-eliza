@@ -39,6 +39,7 @@ function createTestHouseMachine(
   const phaseMachine = createPhaseMachine(gameSettings);
   return createActor(phaseMachine, {
     input: {
+      gameId: stringToUuid("game-123"),
       playerSettings: players.map((p) => ({
         agentId: p,
         diaryRoomId: stringToUuid(p + "-diary1"),

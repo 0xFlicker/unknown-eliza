@@ -12,6 +12,7 @@ import { getGameState } from "@/plugins/house/memory/runtime";
 import { Phase } from "@/plugins/house/game/types";
 import { GameStateManager } from "./gameStateManager";
 import { InfluenceApp } from "@/server";
+import { WhisperSettings } from "@/server/game-manager";
 
 const logger = elizaLogger.child({ component: "HousePlugin" });
 
@@ -39,16 +40,7 @@ export interface HousePluginConfig {
     power?: number;
   };
   // Whisper-specific settings for the WHISPER phase
-  whisper?: {
-    // How many whisper requests each player starts with (each request can be used to create a room or invite participants depending on house rules)
-    maxWhisperRequests?: number;
-    // How many messages a single player may send in a whisper room
-    maxMessagesPerPlayerPerRoom?: number;
-    // Per-room timeout in milliseconds
-    whisperRoomTimeoutMs?: number;
-    // Maximum participants allowed in a single whisper room (including owner)
-    perRoomMaxParticipants?: number;
-  };
+  whisper?: WhisperSettings;
 }
 
 /**

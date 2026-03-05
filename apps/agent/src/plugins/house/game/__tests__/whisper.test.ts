@@ -26,6 +26,7 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: allPlayers.map((p) => ({
             agentId: p,
             diaryRoomId: stringToUuid(p + "-diary1"),
@@ -34,7 +35,8 @@ describe("Whisper machine", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 3,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 3,
             maxMessagesPerPlayerPerRoom: 2,
             perRoomMaxParticipants: 3,
           },
@@ -122,6 +124,7 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: [
             {
               agentId: p1,
@@ -136,7 +139,8 @@ describe("Whisper machine", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 3,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 3,
             maxMessagesPerPlayerPerRoom: 3,
             perRoomMaxParticipants: 2,
           },
@@ -177,6 +181,7 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: [
             {
               agentId: p1,
@@ -191,7 +196,8 @@ describe("Whisper machine", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 3,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 3,
             maxMessagesPerPlayerPerRoom: 5,
             perRoomMaxParticipants: 3,
           },
@@ -236,6 +242,7 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: [
             {
               agentId: p1,
@@ -250,7 +257,8 @@ describe("Whisper machine", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 3,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 3,
             maxMessagesPerPlayerPerRoom: 3,
             perRoomMaxParticipants: 2,
           },
@@ -300,6 +308,7 @@ describe("Whisper machine", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: [
             {
               agentId: p1,
@@ -314,7 +323,8 @@ describe("Whisper machine", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 3,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 3,
             maxMessagesPerPlayerPerRoom: 3,
             perRoomMaxParticipants: 2,
           },

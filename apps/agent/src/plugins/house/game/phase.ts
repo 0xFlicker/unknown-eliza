@@ -1,28 +1,12 @@
 // Replace Phase state machine with basic setup builder (no diary invoke yet)
-import { assign, createActor, emit, forwardTo, sendTo, setup } from "xstate";
+import { assign, emit, sendTo, setup } from "xstate";
 import "xstate/guards";
 import { GameSettings, Phase } from "./types";
 import { UUID } from "@elizaos/core";
-import {
-  createGameplayMachine,
-  GameplayEmitted,
-  GameplayEvent,
-} from "./gameplay";
-import { randomUUID } from "@/lib/utils";
+import { createGameplayMachine, GameplayEvent } from "./gameplay";
 import { createDiaryMachine } from "./rooms/diary";
 import { shuffleArray } from "@/utils/random";
-
-/**
- * Configuration options for the WHISPER phase.
- *
- * These values are provided via `GameSettings` and control how many
- * rooms and messages can be created during the whisper phase.
- */
-export type WhisperSettings = {
-  requestsPerPlayer?: number;
-  maxMessagesPerPlayerPerRoom?: number;
-  perRoomMaxParticipants?: number;
-};
+import { WhisperSettings } from "@/server/game-manager";
 
 /**
  * Long–lived context for the phase state machine – this is the single
@@ -72,6 +56,7 @@ export type PlayerSettings = {
  */
 export type PhaseInput = {
   playerSettings: PlayerSettings[];
+  gameId: UUID;
   maxPlayers: number;
   minPlayers: number;
   startPhase?: Phase;
@@ -311,6 +296,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
     description:
       "Top-level phase machine that orchestrates the Influence game phases from INIT through REVEAL.",
     context: ({ input }) => ({
+      gameId: input.gameId,
       players: input.playerSettings.map((p) => p.agentId),
       diaryRooms: input.playerSettings.reduce(
         (acc, p) => {
@@ -597,7 +583,7 @@ export function createPhaseMachine(gameSettings: GameSettings) {
               currentTurnIndex: 0,
               remainingRequests: context.players.reduce(
                 (acc, p) => {
-                  acc[p] = context.whisperSettings?.requestsPerPlayer ?? 3;
+                  acc[p] = context.whisperSettings?.maxWhisperRequests ?? 3;
                   return acc;
                 },
                 {} as Record<UUID, number>,

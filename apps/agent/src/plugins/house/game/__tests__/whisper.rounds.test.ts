@@ -25,6 +25,7 @@ describe("Whisper rounds and exhaustion", () => {
       }),
       {
         input: {
+          gameId: stringToUuid("game-123"),
           playerSettings: [
             {
               agentId: p1,
@@ -39,7 +40,8 @@ describe("Whisper rounds and exhaustion", () => {
           maxPlayers: 3,
           startPhase: Phase.WHISPER,
           whisperSettings: {
-            requestsPerPlayer: 1,
+            whisperRoomTimeoutMs: 100,
+            maxWhisperRequests: 1,
             maxMessagesPerPlayerPerRoom: 5,
             perRoomMaxParticipants: 3,
           },

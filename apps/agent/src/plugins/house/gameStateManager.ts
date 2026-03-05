@@ -1,15 +1,12 @@
 import { AgentRuntime, ChannelType, IAgentRuntime, UUID } from "@elizaos/core";
-import {
-  createPhaseActor,
-  createPhaseMachine,
-  PhaseInput,
-} from "@/plugins/house/game/phase";
+import { createPhaseMachine, PhaseInput } from "@/plugins/house/game/phase";
 import { getGameState } from "@/plugins/house/memory/runtime";
 import { GameSettings, Phase } from "@/plugins/house/game/types";
 import { gameAction$ } from "../coordinator/bus";
 import { CoordinationService } from "../coordinator/service";
 import { Service } from "@elizaos/core";
 import { InfluenceApp, ParticipantMode, ParticipantState } from "@/server";
+import { Actor } from "xstate";
 
 type RoomType = "introduction" | "lobby" | "whisper" | "diary";
 
@@ -23,7 +20,7 @@ type RoomType = "introduction" | "lobby" | "whisper" | "diary";
 export class GameStateManager extends Service {
   // Map of gameID (worldId externally) to phaseActor
   private influenceApp?: InfluenceApp<any, any, IAgentRuntime>;
-  private phaseActor?: ReturnType<typeof createPhaseActor>;
+  private phaseActor?: Actor<ReturnType<typeof createPhaseMachine>>;
   private gameId?: UUID;
 
   public getGameId() {
