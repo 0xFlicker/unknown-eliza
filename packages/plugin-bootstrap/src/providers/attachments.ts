@@ -1,5 +1,5 @@
-import type { IAgentRuntime, Media, Memory, Provider } from '@elizaos/core';
-import { addHeader } from '@elizaos/core';
+import type { IAgentRuntime, Media, Memory, Provider } from "@elizaos/core";
+import { addHeader } from "@elizaos/core";
 
 /**
  * Provides a list of attachments in the current conversation.
@@ -19,9 +19,9 @@ import { addHeader } from '@elizaos/core';
  * @returns {Object} An object containing values, data, and text about the attachments retrieved.
  */
 export const attachmentsProvider: Provider = {
-  name: 'ATTACHMENTS',
+  name: "ATTACHMENTS",
   description:
-    'List of attachments sent during the current conversation, including names, descriptions, and summaries',
+    "List of attachments sent during the current conversation, including names, descriptions, and summaries",
   dynamic: true,
   get: async (runtime: IAgentRuntime, message: Memory) => {
     // Start with any attachments in the current message
@@ -35,46 +35,49 @@ export const attachmentsProvider: Provider = {
       roomId,
       count: conversationLength,
       unique: false,
-      tableName: 'messages',
+      tableName: "messages",
     });
 
     // Process attachments from recent messages
     if (recentMessagesData && Array.isArray(recentMessagesData)) {
       const lastMessageWithAttachment = recentMessagesData.find(
-        (msg) => msg.content.attachments && msg.content.attachments.length > 0
+        (msg) => msg.content.attachments && msg.content.attachments.length > 0,
       );
 
       if (lastMessageWithAttachment) {
-        const lastMessageTime = lastMessageWithAttachment?.createdAt ?? Date.now();
+        const lastMessageTime =
+          lastMessageWithAttachment?.createdAt ?? Date.now();
         const oneHourBeforeLastMessage = lastMessageTime - 60 * 60 * 1000; // 1 hour before last message
 
         // Create a map of current message attachments by ID for quick lookup
         const currentAttachmentsMap = new Map(
-          currentMessageAttachments.map((att) => [att.id, att])
+          currentMessageAttachments.map((att) => [att.id, att]),
         );
 
         // Process recent messages and merge attachments
-        const recentAttachments = recentMessagesData.reverse().flatMap((msg) => {
-          const msgTime = msg.createdAt ?? Date.now();
-          const isWithinTime = msgTime >= oneHourBeforeLastMessage;
-          const attachments = msg.content.attachments || [];
+        const recentAttachments = recentMessagesData
+          .reverse()
+          .flatMap((msg) => {
+            const msgTime = msg.createdAt ?? Date.now();
+            const isWithinTime = msgTime >= oneHourBeforeLastMessage;
+            const attachments = msg.content.attachments || [];
 
-          return attachments
-            .map((attachment) => {
-              // If this attachment ID exists in current message with rich data, skip it
-              if (currentAttachmentsMap.has(attachment.id)) {
-                return null;
-              }
+            return attachments
+              .map((attachment) => {
+                // If this attachment ID exists in current message with rich data, skip it
+                if (currentAttachmentsMap.has(attachment.id)) {
+                  return null;
+                }
 
-              // For older attachments, hide the text
-              if (!isWithinTime) {
-                return { ...attachment, text: '[Hidden]' };
-              }
+                // For older attachments, hide the text
+                if (!isWithinTime) {
+                  return { ...attachment, text: "[Hidden]" };
+                }
 
-              return attachment;
-            })
-            .filter((att): att is Media => att !== null); // Type guard to ensure Media[]
-        });
+                return attachment;
+              })
+              .filter((att): att is Media => att !== null); // Type guard to ensure Media[]
+          });
 
         // Combine current message attachments (with rich data) and recent attachments
         allAttachments = [...currentMessageAttachments, ...recentAttachments];
@@ -91,15 +94,15 @@ export const attachmentsProvider: Provider = {
     Type: ${attachment.source}
     Description: ${attachment.description}
     Text: ${attachment.text}
-    `
+    `,
       )
-      .join('\n');
+      .join("\n");
 
     // Create formatted text with header
     const text =
       formattedAttachments && formattedAttachments.length > 0
-        ? addHeader('# Attachments', formattedAttachments)
-        : '';
+        ? addHeader("# Attachments", formattedAttachments)
+        : "";
 
     const values = {
       attachments: text,

@@ -1,12 +1,25 @@
-import { AgentRuntime, ChannelType, type Entity, type Room, type UUID } from '@elizaos/core';
-import { v4 as uuidv4 } from 'uuid';
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'bun:test';
-import { PgDatabaseAdapter } from '../../pg/adapter';
-import { PgliteDatabaseAdapter } from '../../pglite/adapter';
-import { participantTable } from '../../schema';
-import { createIsolatedTestDatabase } from '../test-helpers';
+import {
+  AgentRuntime,
+  ChannelType,
+  type Entity,
+  type Room,
+  type UUID,
+} from "@elizaos/core";
+import { v4 as uuidv4 } from "uuid";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+} from "bun:test";
+import { PgDatabaseAdapter } from "../../pg/adapter";
+import { PgliteDatabaseAdapter } from "../../pglite/adapter";
+import { participantTable } from "../../schema";
+import { createIsolatedTestDatabase } from "../test-helpers";
 
-describe('Participant Integration Tests', () => {
+describe("Participant Integration Tests", () => {
   let adapter: PgliteDatabaseAdapter | PgDatabaseAdapter;
   let runtime: AgentRuntime;
   let cleanup: () => Promise<void>;
@@ -15,7 +28,7 @@ describe('Participant Integration Tests', () => {
   let testEntityId: UUID;
 
   beforeAll(async () => {
-    const setup = await createIsolatedTestDatabase('participant-tests');
+    const setup = await createIsolatedTestDatabase("participant-tests");
     adapter = setup.adapter;
     runtime = setup.runtime;
     cleanup = setup.cleanup;
@@ -30,13 +43,17 @@ describe('Participant Integration Tests', () => {
       {
         id: testRoomId,
         agentId: testAgentId,
-        name: 'Test Room',
-        source: 'test',
+        name: "Test Room",
+        source: "test",
         type: ChannelType.GROUP,
       } as Room,
     ]);
     await adapter.createEntities([
-      { id: testEntityId, agentId: testAgentId, names: ['Test Entity'] } as Entity,
+      {
+        id: testEntityId,
+        agentId: testAgentId,
+        names: ["Test Entity"],
+      } as Entity,
     ]);
   });
 
@@ -46,19 +63,19 @@ describe('Participant Integration Tests', () => {
     }
   });
 
-  describe('Participant Tests', () => {
+  describe("Participant Tests", () => {
     beforeEach(async () => {
       await adapter.getDatabase().delete(participantTable);
     });
 
-    it('should add and retrieve a participant', async () => {
+    it("should add and retrieve a participant", async () => {
       const result = await adapter.addParticipant(testEntityId, testRoomId);
       expect(result).toBe(true);
       const rooms = await adapter.getRoomsForParticipant(testEntityId);
       expect(rooms).toContain(testRoomId);
     });
 
-    it('should remove a participant from a room', async () => {
+    it("should remove a participant from a room", async () => {
       await adapter.addParticipant(testEntityId, testRoomId);
       let rooms = await adapter.getRoomsForParticipant(testEntityId);
       expect(rooms).toContain(testRoomId);
@@ -69,11 +86,18 @@ describe('Participant Integration Tests', () => {
       expect(rooms).not.toContain(testRoomId);
     });
 
-    it('should manage participant state', async () => {
+    it("should manage participant state", async () => {
       await adapter.addParticipant(testEntityId, testRoomId);
-      await adapter.setParticipantUserState(testRoomId, testEntityId, 'FOLLOWED');
-      let state = await adapter.getParticipantUserState(testRoomId, testEntityId);
-      expect(state).toBe('FOLLOWED');
+      await adapter.setParticipantUserState(
+        testRoomId,
+        testEntityId,
+        "FOLLOWED",
+      );
+      let state = await adapter.getParticipantUserState(
+        testRoomId,
+        testEntityId,
+      );
+      expect(state).toBe("FOLLOWED");
 
       await adapter.setParticipantUserState(testRoomId, testEntityId, null);
       state = await adapter.getParticipantUserState(testRoomId, testEntityId);

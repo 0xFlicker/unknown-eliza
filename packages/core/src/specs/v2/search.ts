@@ -149,7 +149,8 @@ const isShortV = (w: number[], len: number): boolean => {
   return (
     len >= 2 &&
     isV(w[len - 2]) &&
-    ((len === 2 && !isV(w[len - 1])) || (len >= 3 && !isV(w[len - 3]) && !isWxy(w[len - 1])))
+    ((len === 2 && !isV(w[len - 1])) ||
+      (len >= 3 && !isV(w[len - 3]) && !isWxy(w[len - 1])))
   );
 };
 
@@ -181,38 +182,38 @@ const stem = (word: string): string => {
   // exception1
   if (word.length <= 6) {
     switch (word) {
-      case 'ski':
-        return 'ski';
-      case 'skies':
-        return 'sky';
-      case 'dying':
-        return 'die';
-      case 'lying':
-        return 'lie';
-      case 'tying':
-        return 'tie';
+      case "ski":
+        return "ski";
+      case "skies":
+        return "sky";
+      case "dying":
+        return "die";
+      case "lying":
+        return "lie";
+      case "tying":
+        return "tie";
       // special -LY cases
-      case 'idly':
-        return 'idl';
-      case 'gently':
-        return 'gentl';
-      case 'ugly':
-        return 'ugli';
-      case 'early':
-        return 'earli';
-      case 'only':
-        return 'onli';
-      case 'singly':
-        return 'singl';
+      case "idly":
+        return "idl";
+      case "gently":
+        return "gentl";
+      case "ugly":
+        return "ugli";
+      case "early":
+        return "earli";
+      case "only":
+        return "onli";
+      case "singly":
+        return "singl";
       // invariant forms
-      case 'sky':
-      case 'news':
-      case 'howe':
+      case "sky":
+      case "news":
+      case "howe":
       // not plural forms
-      case 'atlas':
-      case 'cosmos':
-      case 'bias':
-      case 'andes':
+      case "atlas":
+      case "cosmos":
+      case "bias":
+      case "andes":
         return word;
     }
   }
@@ -239,8 +240,16 @@ const stem = (word: string): string => {
   let r1 = rv;
   if (
     l >= 5 &&
-    ((w[0] === 103 && w[1] === 101 && w[2] === 110 && w[3] === 101 && w[4] === 114) || // gener
-      (w[0] === 97 && w[1] === 114 && w[2] === 115 && w[3] === 101 && w[4] === 110)) // arsen
+    ((w[0] === 103 &&
+      w[1] === 101 &&
+      w[2] === 110 &&
+      w[3] === 101 &&
+      w[4] === 114) || // gener
+      (w[0] === 97 &&
+        w[1] === 114 &&
+        w[2] === 115 &&
+        w[3] === 101 &&
+        w[4] === 110)) // arsen
   )
     r1 = 5;
   else if (
@@ -280,7 +289,8 @@ const stem = (word: string): string => {
         // us ss -> <nothing>; s -> "delete if the preceding word part
         // contains a vowel not immediately before the s"
         l -= 1;
-    } else if (w[l - 1] === 100 && w[l - 2] === 101 && w[l - 3] === 105) l -= l >= 5 ? 2 : 1; // ied
+    } else if (w[l - 1] === 100 && w[l - 2] === 101 && w[l - 3] === 105)
+      l -= l >= 5 ? 2 : 1; // ied
   }
   // exception2
   if (
@@ -340,7 +350,7 @@ const stem = (word: string): string => {
           w[5] === 101 && // e
           w[6] === 100))) // d (succeed)
   ) {
-    let exp2Out = '';
+    let exp2Out = "";
     for (let i = 0; i < l; ++i) exp2Out += String.fromCharCode(w[i]);
     return exp2Out;
   }
@@ -382,7 +392,8 @@ const stem = (word: string): string => {
     }
   }
   // Step_1c
-  if (l >= 3 && (w[l - 1] === 89 || w[l - 1] === 121) && !isV(w[l - 2])) w[l - 1] = 105; // i
+  if (l >= 3 && (w[l - 1] === 89 || w[l - 1] === 121) && !isV(w[l - 2]))
+    w[l - 1] = 105; // i
   // Step_2
   if (l >= r1 + 2) {
     switch (w[l - 1]) {
@@ -470,13 +481,23 @@ const stem = (word: string): string => {
       case 105: // i
         if (w[l - 2] === 99) {
           // c (ic)
-          if (l >= r1 + 4 && (w[l - 4] === 101 || w[l - 4] === 97) && w[l - 3] === 110) {
+          if (
+            l >= r1 + 4 &&
+            (w[l - 4] === 101 || w[l - 4] === 97) &&
+            w[l - 3] === 110
+          ) {
             // enci anci
             w[l - 1] = 101; // enci -> ence   anci -> ance
           }
         } else if (w[l - 2] === 103) {
           // g (gi)
-          if (l >= r1 + 3 && l >= 4 && w[l - 2] === 103 && w[l - 3] === 111 && w[l - 4] === 108)
+          if (
+            l >= r1 + 3 &&
+            l >= 4 &&
+            w[l - 2] === 103 &&
+            w[l - 3] === 111 &&
+            w[l - 4] === 108
+          )
             // logi
             --l; // ogi -> og (if preceded by l)
         } else if (w[l - 2] === 116) {
@@ -527,14 +548,24 @@ const stem = (word: string): string => {
               }
             } else if (w[l - 3] === 115) {
               // sli
-              if (l >= 6 && w[l - 4] === 115 && w[l - 5] === 101 && w[l - 6] === 108) {
+              if (
+                l >= 6 &&
+                w[l - 4] === 115 &&
+                w[l - 5] === 101 &&
+                w[l - 6] === 108
+              ) {
                 // lessli
                 if (l >= r1 + 6) l -= 2; // lessli -> less
               } else if (l >= r1 + 5 && w[l - 4] === 117 && w[l - 5] === 111) {
                 // ousli
                 l -= 2; // ousli -> ous
               }
-            } else if (l >= 5 && w[l - 3] === 116 && w[l - 4] === 110 && w[l - 5] === 101) {
+            } else if (
+              l >= 5 &&
+              w[l - 3] === 116 &&
+              w[l - 4] === 110 &&
+              w[l - 5] === 101
+            ) {
               // entli
               if (l >= r1 + 5) l -= 2; // entli -> ent
             } else if (isValidLi(w[l - 3])) {
@@ -579,13 +610,31 @@ const stem = (word: string): string => {
       case 101: // e
         if (w[l - 2] === 122) {
           // ze
-          if (l >= r1 + 5 && w[l - 3] === 105 && w[l - 4] === 108 && w[l - 5] === 97) l -= 3; // alize -> al
+          if (
+            l >= r1 + 5 &&
+            w[l - 3] === 105 &&
+            w[l - 4] === 108 &&
+            w[l - 5] === 97
+          )
+            l -= 3; // alize -> al
         } else if (w[l - 2] === 116) {
           // te
-          if (l >= r1 + 5 && w[l - 3] === 97 && w[l - 4] === 99 && w[l - 5] === 105) l -= 3; // icate -> ic
+          if (
+            l >= r1 + 5 &&
+            w[l - 3] === 97 &&
+            w[l - 4] === 99 &&
+            w[l - 5] === 105
+          )
+            l -= 3; // icate -> ic
         } else if (w[l - 2] === 118) {
           // ve
-          if (l >= r2 + 5 && w[l - 3] === 105 && w[l - 4] === 116 && w[l - 5] === 97) l -= 5; // ative -> <delete> (if in R2)
+          if (
+            l >= r2 + 5 &&
+            w[l - 3] === 105 &&
+            w[l - 4] === 116 &&
+            w[l - 5] === 97
+          )
+            l -= 5; // ative -> <delete> (if in R2)
         }
         break;
       case 105: // i
@@ -599,7 +648,13 @@ const stem = (word: string): string => {
           l -= 3; // iciti -> ic
         break;
       case 115: // s
-        if (l >= r1 + 4 && w[l - 2] === 115 && w[l - 3] === 101 && w[l - 4] === 110) l -= 4; // ness -> <delete>
+        if (
+          l >= r1 + 4 &&
+          w[l - 2] === 115 &&
+          w[l - 3] === 101 &&
+          w[l - 4] === 110
+        )
+          l -= 4; // ness -> <delete>
     }
   }
   // Step_4
@@ -657,14 +712,28 @@ const stem = (word: string): string => {
       case 101: // e
         if (w[l - 2] === 99) {
           // ce
-          if (l >= r2 + 4 && w[l - 3] === 110 && (w[l - 4] === 97 || w[l - 4] === 101)) l -= 4; // ance  ence
+          if (
+            l >= r2 + 4 &&
+            w[l - 3] === 110 &&
+            (w[l - 4] === 97 || w[l - 4] === 101)
+          )
+            l -= 4; // ance  ence
         } else if (w[l - 2] === 108) {
           // le
-          if (l >= r2 + 4 && w[l - 3] === 98 && (w[l - 4] === 97 || w[l - 4] === 105)) l -= 4; // able  ible
+          if (
+            l >= r2 + 4 &&
+            w[l - 3] === 98 &&
+            (w[l - 4] === 97 || w[l - 4] === 105)
+          )
+            l -= 4; // able  ible
         } else if (w[l - 2] === 116) {
           // te
           if (l >= r2 + 3 && w[l - 3] === 97) l -= 3; // ate
-        } else if (l >= r2 + 3 && (w[l - 2] === 118 || w[l - 2] === 122) && w[l - 3] === 105) {
+        } else if (
+          l >= r2 + 3 &&
+          (w[l - 2] === 118 || w[l - 2] === 122) &&
+          w[l - 3] === 105
+        ) {
           // ive ize
           l -= 3; // ive  ize
         }
@@ -677,7 +746,7 @@ const stem = (word: string): string => {
       (w[l - 1] === 101 && (l >= r2 + 1 || !isShortV(w, l - 1)))) // e
   )
     --l;
-  let out = '';
+  let out = "";
   if (yFound) {
     for (let i = 0; i < l; ++i) {
       out += String.fromCharCode(w[i] === 89 ? 121 : w[i]); // Y -> y
@@ -696,31 +765,31 @@ const DEFAULT_OPTIONS = {
   b: 0.75,
   minLength: 2,
   stopWords: /* @__PURE__ */ new Set<string>([
-    'a',
-    'an',
-    'and',
-    'are',
-    'as',
-    'at',
-    'be',
-    'by',
-    'for',
-    'from',
-    'has',
-    'he',
-    'in',
-    'is',
-    'it',
-    'its',
-    'of',
-    'on',
-    'that',
-    'the',
-    'to',
-    'was',
-    'were',
-    'will',
-    'with',
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "has",
+    "he",
+    "in",
+    "is",
+    "it",
+    "its",
+    "of",
+    "on",
+    "that",
+    "the",
+    "to",
+    "was",
+    "were",
+    "will",
+    "with",
   ]),
   stemming: false,
   stemWords: (word: string): string => word,
@@ -814,7 +883,10 @@ class Tokenizer {
     // Ensure all rule patterns are RegExp objects
     this.stemmingRules = mergedOptions.stemmingRules.map((rule) => ({
       ...rule,
-      pattern: typeof rule.pattern === 'string' ? new RegExp(rule.pattern) : rule.pattern,
+      pattern:
+        typeof rule.pattern === "string"
+          ? new RegExp(rule.pattern)
+          : rule.pattern,
     }));
   }
 
@@ -834,7 +906,7 @@ class Tokenizer {
    */
   tokenize(text: string, includeStats = false): TokenizationResult {
     if (!text) {
-      throw new Error('Input text cannot be null or empty');
+      throw new Error("Input text cannot be null or empty");
     }
     const startTime = Date.now();
     const originalWords = text.split(/\s+/).filter((word) => word.length > 0);
@@ -885,14 +957,17 @@ class Tokenizer {
   cleanText(text: string): string {
     return text
       .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '') // Control characters & zero-width spaces
-      .replace(/[\u0300-\u036f]/g, '') // Diacritical marks
-      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '') // Emojis and pictographs
-      .replace(/[™®©℠‼]/g, '') // Common symbols
-      .replace(/[\p{P}]/gu, ' ') // Unicode punctuation to space
-      .replace(/[^a-z0-9\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF\s]/gu, ' ') // Keep only latin, cjk, hangul, numbers, whitespace
-      .replace(/\s+/g, ' ') // Collapse multiple spaces
+      .normalize("NFKD")
+      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "") // Control characters & zero-width spaces
+      .replace(/[\u0300-\u036f]/g, "") // Diacritical marks
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "") // Emojis and pictographs
+      .replace(/[™®©℠‼]/g, "") // Common symbols
+      .replace(/[\p{P}]/gu, " ") // Unicode punctuation to space
+      .replace(
+        /[^a-z0-9\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF\s]/gu,
+        " ",
+      ) // Keep only latin, cjk, hangul, numbers, whitespace
+      .replace(/\s+/g, " ") // Collapse multiple spaces
       .trim();
   }
 
@@ -904,7 +979,10 @@ class Tokenizer {
    */
   isValidToken(token: string): boolean {
     const isNumeric = /^\d+$/.test(token);
-    return (token.length >= this.minLength || isNumeric) && !this.stopWords.has(token);
+    return (
+      (token.length >= this.minLength || isNumeric) &&
+      !this.stopWords.has(token)
+    );
   }
 
   /**
@@ -927,13 +1005,13 @@ class Tokenizer {
           this.measure(stemmed.substring(0, match.index)) >= rule.minMeasure
         ) {
           // Apply replacement
-          if (typeof rule.replacement === 'string') {
+          if (typeof rule.replacement === "string") {
             stemmed = stemmed.replace(rule.pattern, rule.replacement);
           } else {
             // If replacement is a function, it might need more specific arguments based on its definition.
             // Assuming it takes the matched substring and potentially other match groups.
             stemmed = stemmed.replace(rule.pattern, (...args) =>
-              (rule.replacement as Function)(...args)
+              (rule.replacement as Function)(...args),
             );
           }
           customRuleApplied = true; // Mark that a custom rule was (potentially) applied
@@ -958,8 +1036,8 @@ class Tokenizer {
    */
   isConsonant(word: string, i: number): boolean {
     const char = word[i];
-    if ('aeiou'.includes(char)) return false;
-    return char !== 'y' || (i === 0 ? true : !this.isConsonant(word, i - 1));
+    if ("aeiou".includes(char)) return false;
+    return char !== "y" || (i === 0 ? true : !this.isConsonant(word, i - 1));
   }
 
   /**
@@ -1086,8 +1164,13 @@ export class BM25 {
     // Index initial documents if provided
     if (docs && docs.length > 0) {
       this.documents = [...docs]; // Store original documents
-      const { documentLengths, termToIndex, documentFrequency, averageDocLength, termFrequencies } =
-        this.processDocuments(docs);
+      const {
+        documentLengths,
+        termToIndex,
+        documentFrequency,
+        averageDocLength,
+        termFrequencies,
+      } = this.processDocuments(docs);
       // Assign processed data to instance properties
       this.documentLengths = documentLengths;
       this.termToIndex = termToIndex;
@@ -1125,7 +1208,7 @@ export class BM25 {
 
       // Iterate through fields of the document
       Object.entries(doc).forEach(([field, content]) => {
-        if (typeof content !== 'string') return; // Skip non-string fields
+        if (typeof content !== "string") return; // Skip non-string fields
 
         const fieldBoost = this.fieldBoosts[field] || 1;
         const { tokens } = this.tokenizer.tokenize(content);
@@ -1194,7 +1277,7 @@ export class BM25 {
     const totalLength = Array.prototype.reduce.call(
       this.documentLengths,
       (sum: number, len: number) => sum + len,
-      0
+      0,
     );
     this.averageDocLength = totalLength / this.documentLengths.length;
   }
@@ -1235,7 +1318,8 @@ export class BM25 {
           this.termFrequencySaturation *
             (1 -
               this.lengthNormalizationFactor +
-              (this.lengthNormalizationFactor * docLength) / this.averageDocLength);
+              (this.lengthNormalizationFactor * docLength) /
+                this.averageDocLength);
 
         // Add the weighted score (IDF * normalized TF) for this term to the document's total score
         scores[docIndex] += idf * (numerator / denominator);
@@ -1275,7 +1359,9 @@ export class BM25 {
       const termIndex = this.termToIndex.get(term);
       if (termIndex === undefined) return []; // Phrase cannot exist if any term is missing
 
-      const docsContainingTermIter = this.termFrequencies.get(termIndex)?.keys();
+      const docsContainingTermIter = this.termFrequencies
+        .get(termIndex)
+        ?.keys();
       if (!docsContainingTermIter) return []; // Should not happen, but check
 
       const currentTermDocs = new Set(docsContainingTermIter);
@@ -1285,7 +1371,9 @@ export class BM25 {
         candidateDocs = currentTermDocs;
       } else {
         // Intersect: Keep only documents present in both sets
-        candidateDocs = new Set([...candidateDocs].filter((docIdx) => currentTermDocs.has(docIdx)));
+        candidateDocs = new Set(
+          [...candidateDocs].filter((docIdx) => currentTermDocs.has(docIdx)),
+        );
       }
 
       // If intersection becomes empty, the phrase cannot exist
@@ -1303,7 +1391,7 @@ export class BM25 {
 
       // Check each field for the phrase
       Object.entries(doc).forEach(([field, content]) => {
-        if (typeof content !== 'string' || phraseFoundInDoc) return; // Skip non-strings or if already found
+        if (typeof content !== "string" || phraseFoundInDoc) return; // Skip non-strings or if already found
 
         const fieldBoost = this.fieldBoosts[field] || 1;
         // Tokenize the field content using the same settings
@@ -1320,7 +1408,8 @@ export class BM25 {
           }
           if (match) {
             // Phrase found! Calculate score for this document based on the phrase terms
-            const phraseScoreVal = this.calculatePhraseScore(phraseTokens, docIndex) * fieldBoost;
+            const phraseScoreVal =
+              this.calculatePhraseScore(phraseTokens, docIndex) * fieldBoost;
             scores.set(docIndex, (scores.get(docIndex) || 0) + phraseScoreVal);
             phraseFoundInDoc = true; // Only score once per doc even if phrase repeats
             break; // Move to next document once found in this one
@@ -1344,7 +1433,10 @@ export class BM25 {
    * @returns The calculated phrase score for the document.
    * @internal
    */
-  private calculatePhraseScore(phraseTokens: string[], docIndex: number): number {
+  private calculatePhraseScore(
+    phraseTokens: string[],
+    docIndex: number,
+  ): number {
     return phraseTokens.reduce((currentScore, term) => {
       const termIndex = this.termToIndex.get(term);
       // Ignore terms not in index (shouldn't happen if candidate selection worked)
@@ -1361,7 +1453,8 @@ export class BM25 {
         this.termFrequencySaturation *
           (1 -
             this.lengthNormalizationFactor +
-            (this.lengthNormalizationFactor * docLength) / this.averageDocLength);
+            (this.lengthNormalizationFactor * docLength) /
+              this.averageDocLength);
 
       // Add IDF * normalized TF to the total phrase score
       return currentScore + idf * (numerator / denominator);
@@ -1377,7 +1470,7 @@ export class BM25 {
    * @throws {Error} If the document is null or undefined.
    */
   async addDocument(doc: any): Promise<void> {
-    if (!doc) throw new Error('Document cannot be null');
+    if (!doc) throw new Error("Document cannot be null");
 
     const docIndex = this.documentLengths.length; // Index for the new document
 
@@ -1394,7 +1487,7 @@ export class BM25 {
 
     // --- Process Fields and Tokens ---
     Object.entries(doc).forEach(([field, content]) => {
-      if (typeof content !== 'string') return;
+      if (typeof content !== "string") return;
 
       const fieldBoost = this.fieldBoosts[field] || 1;
       const { tokens } = this.tokenizer.tokenize(content);
@@ -1447,7 +1540,7 @@ export class BM25 {
       } else {
         // This case should ideally not be reached if array was resized correctly
         console.error(
-          `Error: termIndexVal ${termIndexVal} is out of bounds for documentFrequency (length ${this.documentFrequency.length}). This indicates an issue with array resizing or term indexing.`
+          `Error: termIndexVal ${termIndexVal} is out of bounds for documentFrequency (length ${this.documentFrequency.length}). This indicates an issue with array resizing or term indexing.`,
         );
       }
     });
@@ -1504,7 +1597,9 @@ export class BM25 {
   getDocument(index: number): any {
     // Consider using a generic <T>
     if (index < 0 || index >= this.documents.length) {
-      throw new Error(`Document index ${index} out of bounds (0-${this.documents.length - 1})`);
+      throw new Error(
+        `Document index ${index} out of bounds (0-${this.documents.length - 1})`,
+      );
     }
     return this.documents[index];
   }

@@ -10,7 +10,7 @@ import {
   ModelType,
   parseJSONObjectFromText,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Task: Extract selected task and option from user message
@@ -120,14 +120,18 @@ Make sure to include the \`\`\`json\`\`\` tags around the JSON object.`;
  * @property {ActionExample[][]} examples - Examples demonstrating the usage of the action
  */
 export const choiceAction: Action = {
-  name: 'CHOOSE_OPTION',
-  similes: ['SELECT_OPTION', 'SELECT', 'PICK', 'CHOOSE'],
-  description: 'Selects an option for a pending task that has multiple options',
+  name: "CHOOSE_OPTION",
+  similes: ["SELECT_OPTION", "SELECT", "PICK", "CHOOSE"],
+  description: "Selects an option for a pending task that has multiple options",
 
-  validate: async (runtime: IAgentRuntime, message: Memory, state?: State): Promise<boolean> => {
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state?: State,
+  ): Promise<boolean> => {
     if (!state) {
-      logger.error('State is required for validating the action');
-      throw new Error('State is required for validating the action');
+      logger.error("State is required for validating the action");
+      throw new Error("State is required for validating the action");
     }
 
     const room = state.data.room ?? (await runtime.getRoom(message.roomId));
@@ -136,9 +140,13 @@ export const choiceAction: Action = {
       return false;
     }
 
-    const userRole = await getUserServerRole(runtime, message.entityId, room.serverId);
+    const userRole = await getUserServerRole(
+      runtime,
+      message.entityId,
+      room.serverId,
+    );
 
-    if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
+    if (userRole !== "OWNER" && userRole !== "ADMIN") {
       return false;
     }
 
@@ -146,14 +154,18 @@ export const choiceAction: Action = {
       // Get all tasks with options metadata
       const pendingTasks = await runtime.getTasks({
         roomId: message.roomId,
-        tags: ['AWAITING_CHOICE'],
+        tags: ["AWAITING_CHOICE"],
       });
 
       const room = state.data.room ?? (await runtime.getRoom(message.roomId));
 
-      const userRole = await getUserServerRole(runtime, message.entityId, room.serverId);
+      const userRole = await getUserServerRole(
+        runtime,
+        message.entityId,
+        room.serverId,
+      );
 
-      if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
+      if (userRole !== "OWNER" && userRole !== "ADMIN") {
         return false;
       }
 
@@ -164,7 +176,7 @@ export const choiceAction: Action = {
         pendingTasks.some((task) => task.metadata?.options)
       );
     } catch (error) {
-      logger.error('Error validating choice action:', error);
+      logger.error("Error validating choice action:", error);
       return false;
     }
   },
@@ -175,21 +187,23 @@ export const choiceAction: Action = {
     _state?: State,
     _options?: any,
     callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ): Promise<void> => {
     const pendingTasks = await runtime.getTasks({
       roomId: message.roomId,
-      tags: ['AWAITING_CHOICE'],
+      tags: ["AWAITING_CHOICE"],
     });
 
     if (!pendingTasks?.length) {
-      throw new Error('No pending tasks with options found');
+      throw new Error("No pending tasks with options found");
     }
 
-    const tasksWithOptions = pendingTasks.filter((task) => task.metadata?.options);
+    const tasksWithOptions = pendingTasks.filter(
+      (task) => task.metadata?.options,
+    );
 
     if (!tasksWithOptions.length) {
-      throw new Error('No tasks currently have options to select from.');
+      throw new Error("No tasks currently have options to select from.");
     }
 
     // Format tasks with their options for the LLM, using shortened UUIDs
@@ -202,8 +216,9 @@ export const choiceAction: Action = {
         fullId: task.id,
         name: task.name,
         options: task.metadata?.options?.map((opt) => ({
-          name: typeof opt === 'string' ? opt : opt.name,
-          description: typeof opt === 'string' ? opt : opt.description || opt.name,
+          name: typeof opt === "string" ? opt : opt.name,
+          description:
+            typeof opt === "string" ? opt : opt.description || opt.name,
         })),
       };
     });
@@ -211,14 +226,14 @@ export const choiceAction: Action = {
     // format tasks as a string
     const tasksString = formattedTasks
       .map((task) => {
-        return `Task ID: ${task.taskId} - ${task.name}\nAvailable options:\n${task.options?.map((opt) => `- ${opt.name}: ${opt.description}`).join('\n')}`;
+        return `Task ID: ${task.taskId} - ${task.name}\nAvailable options:\n${task.options?.map((opt) => `- ${opt.name}: ${opt.description}`).join("\n")}`;
       })
-      .join('\n');
+      .join("\n");
 
     const prompt = composePrompt({
       state: {
         tasks: tasksString,
-        recentMessages: message.content.text || '',
+        recentMessages: message.content.text || "",
       },
       template: optionExtractionTemplate,
     });
@@ -233,35 +248,39 @@ export const choiceAction: Action = {
 
     if (taskId && selectedOption) {
       // Find the task by matching the shortened UUID
-      const taskMap = new Map(formattedTasks.map((task) => [task.taskId, task]));
+      const taskMap = new Map(
+        formattedTasks.map((task) => [task.taskId, task]),
+      );
       const taskInfo = taskMap.get(taskId);
 
       if (!taskInfo) {
         await callback?.({
           text: `Could not find a task matching ID: ${taskId}. Please try again.`,
-          actions: ['SELECT_OPTION_ERROR'],
+          actions: ["SELECT_OPTION_ERROR"],
           source: message.content.source,
         });
         return;
       }
 
       // Find the actual task using the full UUID
-      const selectedTask = tasksWithOptions.find((task) => task.id === taskInfo.fullId);
+      const selectedTask = tasksWithOptions.find(
+        (task) => task.id === taskInfo.fullId,
+      );
 
       if (!selectedTask) {
         await callback?.({
-          text: 'Error locating the selected task. Please try again.',
-          actions: ['SELECT_OPTION_ERROR'],
+          text: "Error locating the selected task. Please try again.",
+          actions: ["SELECT_OPTION_ERROR"],
           source: message.content.source,
         });
         return;
       }
 
-      if (selectedOption === 'ABORT') {
+      if (selectedOption === "ABORT") {
         if (!selectedTask?.id) {
           await callback?.({
-            text: 'Error locating the selected task. Please try again.',
-            actions: ['SELECT_OPTION_ERROR'],
+            text: "Error locating the selected task. Please try again.",
+            actions: ["SELECT_OPTION_ERROR"],
             source: message.content.source,
           });
           return;
@@ -270,7 +289,7 @@ export const choiceAction: Action = {
         await runtime.deleteTask(selectedTask.id);
         await callback?.({
           text: `Task "${selectedTask.name}" has been cancelled.`,
-          actions: ['CHOOSE_OPTION_CANCELLED'],
+          actions: ["CHOOSE_OPTION_CANCELLED"],
           source: message.content.source,
         });
         return;
@@ -278,18 +297,22 @@ export const choiceAction: Action = {
 
       try {
         const taskWorker = runtime.getTaskWorker(selectedTask.name);
-        await taskWorker?.execute(runtime, { option: selectedOption }, selectedTask);
+        await taskWorker?.execute(
+          runtime,
+          { option: selectedOption },
+          selectedTask,
+        );
         await callback?.({
           text: `Selected option: ${selectedOption} for task: ${selectedTask.name}`,
-          actions: ['CHOOSE_OPTION'],
+          actions: ["CHOOSE_OPTION"],
           source: message.content.source,
         });
         return;
       } catch (error) {
-        logger.error('Error executing task with option:', error);
+        logger.error("Error executing task with option:", error);
         await callback?.({
-          text: 'There was an error processing your selection.',
-          actions: ['SELECT_OPTION_ERROR'],
+          text: "There was an error processing your selection.",
+          actions: ["SELECT_OPTION_ERROR"],
           source: message.content.source,
         });
         return;
@@ -297,7 +320,8 @@ export const choiceAction: Action = {
     }
 
     // If no task/option was selected, list available options
-    let optionsText = 'Please select a valid option from one of these tasks:\n\n';
+    let optionsText =
+      "Please select a valid option from one of these tasks:\n\n";
 
     tasksWithOptions.forEach((task) => {
       // Create a shortened UUID for display
@@ -305,16 +329,16 @@ export const choiceAction: Action = {
 
       optionsText += `**${task.name}** (ID: ${shortId}):\n`;
       const options = task.metadata?.options?.map((opt) =>
-        typeof opt === 'string' ? opt : opt.name
+        typeof opt === "string" ? opt : opt.name,
       );
-      options?.push('ABORT');
-      optionsText += options?.map((opt) => `- ${opt}`).join('\n');
-      optionsText += '\n\n';
+      options?.push("ABORT");
+      optionsText += options?.map((opt) => `- ${opt}`).join("\n");
+      optionsText += "\n\n";
     });
 
     await callback?.({
       text: optionsText,
-      actions: ['SELECT_OPTION_INVALID'],
+      actions: ["SELECT_OPTION_INVALID"],
       source: message.content.source,
     });
   },
@@ -322,31 +346,31 @@ export const choiceAction: Action = {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'post',
+          text: "post",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Selected option: post for task: Confirm Twitter Post',
-          actions: ['CHOOSE_OPTION'],
+          text: "Selected option: post for task: Confirm Twitter Post",
+          actions: ["CHOOSE_OPTION"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'I choose cancel',
+          text: "I choose cancel",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Selected option: cancel for task: Confirm Twitter Post',
-          actions: ['CHOOSE_OPTION'],
+          text: "Selected option: cancel for task: Confirm Twitter Post",
+          actions: ["CHOOSE_OPTION"],
         },
       },
     ],

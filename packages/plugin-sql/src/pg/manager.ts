@@ -1,6 +1,6 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool, type PoolClient } from 'pg';
-import { logger } from '@elizaos/core';
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool, type PoolClient } from "pg";
+import { logger } from "@elizaos/core";
 
 export class PostgresConnectionManager {
   private pool: Pool;
@@ -27,10 +27,10 @@ export class PostgresConnectionManager {
     let client: PoolClient | null = null;
     try {
       client = await this.pool.connect();
-      await client.query('SELECT 1');
+      await client.query("SELECT 1");
       return true;
     } catch (error) {
-      logger.error('Failed to connect to the database:', error);
+      logger.error("Failed to connect to the database:", error);
       return false;
     } finally {
       if (client) {

@@ -1,5 +1,5 @@
-import type { MemoryMetadata } from './memory';
-import type { Content, UUID } from './primitives';
+import type { MemoryMetadata } from "./memory";
+import type { Content, UUID } from "./primitives";
 
 /**
  * Represents a single item of knowledge that can be processed and stored by the agent.
@@ -24,8 +24,8 @@ export type KnowledgeItem = {
  * This enum is used to manage access and retrieval of knowledge items, often in conjunction with `AgentRuntime.addKnowledge` or `AgentRuntime.getKnowledge` scopes.
  */
 export enum KnowledgeScope {
-  SHARED = 'shared',
-  PRIVATE = 'private',
+  SHARED = "shared",
+  PRIVATE = "private",
 }
 
 /**
@@ -35,7 +35,7 @@ export enum KnowledgeScope {
  * Used internally by caching strategies, potentially within `IDatabaseAdapter` cache methods or runtime caching layers.
  */
 export enum CacheKeyPrefix {
-  KNOWLEDGE = 'knowledge',
+  KNOWLEDGE = "knowledge",
 }
 
 /**

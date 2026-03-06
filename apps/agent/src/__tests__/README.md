@@ -99,7 +99,7 @@ const simulator = new ConversationSimulatorV3({
   dataDir: "./test-data",
   useModelMockingService: true,
   testContext: {
-    suiteName: "My Test Suite", 
+    suiteName: "My Test Suite",
     testName: "multi-agent conversation",
   },
 });
@@ -126,12 +126,12 @@ try {
   const result = await simulator.sendMessage(
     "Alice",
     channelId,
-    "Hello everyone!"
+    "Hello everyone!",
   );
 
   // Wait for replies and observe messages
   await simulator.waitForChannelMessages(channelId, 3, 10000);
-  
+
   // Assert on results
   const messages = simulator.getChannelMessages(channelId);
   expect(messages.length).toBeGreaterThan(1);
@@ -144,24 +144,28 @@ try {
 #### V3 Key Improvements
 
 **🔧 AgentServer Integration**
+
 - Uses real AgentServer infrastructure instead of bypassing it
 - Proper channel creation via server API
 - Server-managed message storage and retrieval
 - Consistent with Discord plugin patterns
 
-**📡 Enhanced Message Flow** 
+**📡 Enhanced Message Flow**
+
 - Direct EVENT emission to agent runtimes (like Discord plugin)
 - Proper MESSAGE_RECEIVED event handling
 - Server-generated message IDs prevent duplication
 - Automatic connection and room/world setup
 
 **🏗️ Simplified Channel Model**
+
 - Implicit "group" channels - no more explicit message targeting
 - Role-based channel access with ParticipantModeV3
 - Observer pattern for real-time message listening
 - Channel exhaustion (message limits, timeouts)
 
 **🎮 Game State Integration**
+
 - Built-in GameStatePreloader integration
 - Explicit agent role assignment (house/player/host)
 - Automatic room/world creation for game state
@@ -186,12 +190,14 @@ const diaryRoomId = await simulator.createChannel({
 await simulator.sendMessage(
   "House",
   diaryRoomId,
-  "Welcome to your diary room. Share your strategic thoughts."
+  "Welcome to your diary room. Share your strategic thoughts.",
 );
 
 // Observe channel messages in real-time
 const unsubscribe = simulator.observeChannel(diaryRoomId, (message) => {
-  console.log(`New message in diary room: ${message.authorName}: ${message.content}`);
+  console.log(
+    `New message in diary room: ${message.authorName}: ${message.content}`,
+  );
 });
 
 // Get messages from specific channel
@@ -201,16 +207,19 @@ const diaryMessages = simulator.getChannelMessages(diaryRoomId);
 #### V3 Known Issues & Limitations
 
 **⚠️ Reply Synchronization**
+
 - Agents may respond 5-30 seconds after a message
 - No built-in observability for delayed responses
 - `waitForChannelMessages()` helps but requires manual timeout tuning
 
 **🔁 Limited Agent Interaction**
+
 - Agents typically reply only once to a message
 - They see "forced" messages but may not react to each other's replies
 - Conversation chains may require manual message injection
 
 **🐛 Message Polling**
+
 - Uses polling instead of real-time event streaming
 - 500ms intervals in record mode, 100ms in playback mode
 - May miss rapid message sequences
@@ -261,12 +270,12 @@ const channelId = await simulator.createChannel({
 
 // Alternative: Legacy role specification (deprecated)
 const channelId2 = await simulator.createChannel({
-  name: "legacy-channel", 
+  name: "legacy-channel",
   participants: ["House", "Alice", "Bob"],
   gameState: {
     phase: Phase.LOBBY,
     hostPlayerName: "Alice", // deprecated
-    houseAgentName: "House", // deprecated 
+    houseAgentName: "House", // deprecated
   },
 });
 ```
@@ -275,9 +284,9 @@ const channelId2 = await simulator.createChannel({
 
 ```typescript
 enum ParticipantModeV3 {
-  READ_WRITE = "read_write",        // Full participation (default)
+  READ_WRITE = "read_write", // Full participation (default)
   BROADCAST_ONLY = "broadcast_only", // Can send but doesn't receive replies
-  OBSERVE_ONLY = "observe_only",     // Can only observe, cannot send
+  OBSERVE_ONLY = "observe_only", // Can only observe, cannot send
 }
 ```
 
@@ -286,6 +295,7 @@ enum ParticipantModeV3 {
 **Key API Changes:**
 
 1. **Simplified sendMessage API**
+
    ```typescript
    // V2: Complex targeting
    await simulator.sendMessage(
@@ -293,36 +303,38 @@ enum ParticipantModeV3 {
      ["Bob", "Charlie"], // explicit targets
      "Hello!",
      { maxReplies: 2 },
-     channelId
+     channelId,
    );
-   
+
    // V3: Channel-based messaging
    await simulator.sendMessage(
-     "Alice", 
+     "Alice",
      channelId,
-     "Hello!" // all channel participants receive
+     "Hello!", // all channel participants receive
    );
    ```
 
 2. **No agentCount Configuration**
+
    ```typescript
    // V2: Pre-specify agent count
    const simulator = new ConversationSimulator({
      agentCount: 5,
-     dataDir: "./test-data"
+     dataDir: "./test-data",
    });
-   
+
    // V3: Add agents as needed
    const simulator = new ConversationSimulatorV3({
-     dataDir: "./test-data"
+     dataDir: "./test-data",
    });
    ```
 
 3. **Enhanced Channel Management**
+
    ```typescript
    // V2: Limited channel support
    const channelId = await simulator.createChannel(config);
-   
+
    // V3: Rich channel features + game state
    const channelId = await simulator.createChannel({
      ...config,
@@ -331,10 +343,11 @@ enum ParticipantModeV3 {
    ```
 
 4. **Improved Message Observation**
+
    ```typescript
    // V2: Basic message tracking
    const history = simulator.getConversationHistory();
-   
+
    // V3: Real-time observation + channel-specific messages
    simulator.observeChannel(channelId, (message) => {
      console.log(`${message.authorName}: ${message.content}`);
@@ -345,6 +358,7 @@ enum ParticipantModeV3 {
 #### V3 Key Methods
 
 **Core Methods**
+
 - **`initialize()`**: Set up AgentServer and test infrastructure
 - **`addAgent(name, character, plugins)`**: Add an agent and register with server
 - **`sendMessage(fromAgent, channelId, content, options?)`**: Send message to channel
@@ -352,17 +366,20 @@ enum ParticipantModeV3 {
 - **`getChannels()`**: Get all channels with metadata
 - **`cleanup()`**: Clean up resources and save recordings
 
-**Channel Management** 
+**Channel Management**
+
 - **`createChannel(config)`**: Create channel with participants, limits, and optional game state
 - **`createPrivateChannel(agent1, agent2)`**: Quick 1-on-1 channel creation
 - **`createBroadcastChannel(broadcaster, receivers, name?)`**: Broadcaster + receivers setup
 - **`isChannelExhausted(channelId)`**: Check if channel reached limits
 
 **Observability**
+
 - **`observeChannel(channelId, observer)`**: Subscribe to new messages (returns unsubscribe function)
 - **`waitForChannelMessages(channelId, count, timeout?)`**: Wait for specific number of messages in channel
 
 **Utilities**
+
 - **`getAgent(agentName)`**: Get agent runtime by name
 - **`getAgentNames()`**: Get all registered agent names
 - **`getServer()`**: Get AgentServer instance for debugging
@@ -371,6 +388,7 @@ enum ParticipantModeV3 {
 #### Legacy V2 Methods (for reference)
 
 **Core Methods (V2)**
+
 - **`initialize()`**: Set up test server and default channel
 - **`addAgent(name, character, plugins)`**: Add an agent to the conversation
 - **`sendMessage(fromAgent, toAgents, content, responseConfig?, channelId?)`**: Send a message with advanced options
@@ -379,10 +397,11 @@ enum ParticipantModeV3 {
 - **`cleanup()`**: Clean up resources and save recordings
 
 **Response Configuration (V2)**
+
 ```typescript
 interface ResponseConfig {
   maxReplies?: number; // undefined = no replies, Infinity = unlimited, number = max replies
-  timeoutMs?: number;  // Override default response timeout
+  timeoutMs?: number; // Override default response timeout
 }
 
 // Usage examples (V2):
@@ -669,7 +688,7 @@ it("should handle private diary room sessions", async () => {
   });
 
   const bobDiaryId = await simulator.createChannel({
-    name: "diary-room-bob", 
+    name: "diary-room-bob",
     participants: [
       { agentName: "House", mode: ParticipantMode.BROADCAST_ONLY },
       { agentName: "Bob", mode: ParticipantMode.READ_WRITE },
@@ -684,15 +703,15 @@ it("should handle private diary room sessions", async () => {
     ["Alice"],
     "Welcome to your diary room. Share your strategic thoughts.",
     { maxReplies: 1 },
-    aliceDiaryId
+    aliceDiaryId,
   );
 
   await simulator.sendMessage(
-    "House", 
+    "House",
     ["Bob"],
     "Welcome to your diary room. Share your strategic thoughts.",
     { maxReplies: 1 },
-    bobDiaryId
+    bobDiaryId,
   );
 
   // Wait for responses
@@ -703,12 +722,12 @@ it("should handle private diary room sessions", async () => {
   const aliceMessages = simulator.getChannelMessages(aliceDiaryId);
   const bobMessages = simulator.getChannelMessages(bobDiaryId);
 
-  expect(aliceMessages.some(m => m.authorName === "Bob")).toBe(false);
-  expect(bobMessages.some(m => m.authorName === "Alice")).toBe(false);
-  
+  expect(aliceMessages.some((m) => m.authorName === "Bob")).toBe(false);
+  expect(bobMessages.some((m) => m.authorName === "Alice")).toBe(false);
+
   // Verify each player responded in their own diary room
-  expect(aliceMessages.some(m => m.authorName === "Alice")).toBe(true);
-  expect(bobMessages.some(m => m.authorName === "Bob")).toBe(true);
+  expect(aliceMessages.some((m) => m.authorName === "Alice")).toBe(true);
+  expect(bobMessages.some((m) => m.authorName === "Bob")).toBe(true);
 });
 ```
 
@@ -959,7 +978,7 @@ it("should handle voting phase correctly", async () => {
   // Test vote collection via private messages to House
   await simulator.sendMessage("P2", ["House"], "!empower P3", undefined);
   await simulator.sendMessage("P2", ["House"], "!expose P1", undefined);
-  
+
   // Verify House processes votes correctly
   // ... test assertions
 });
@@ -968,21 +987,23 @@ it("should manage whisper phase interactions", async () => {
   // Create private channels for whisper phase
   const p1p2Channel = await simulator.createPrivateChannel("P1", "P2");
   const p3p4Channel = await simulator.createPrivateChannel("P3", "P4");
-  
+
   // Test private messaging, secret alliances, information sharing
   await simulator.sendMessage(
-    "P1", 
-    ["P2"], 
+    "P1",
+    ["P2"],
     "Let's form a secret alliance against P3",
     { maxReplies: 1 },
-    p1p2Channel
+    p1p2Channel,
   );
-  
+
   // Verify messages stay private
   const p1p2Messages = simulator.getChannelMessages(p1p2Channel);
   const p3p4Messages = simulator.getChannelMessages(p3p4Channel);
-  
-  expect(p3p4Messages.some(m => m.content.includes("secret alliance"))).toBe(false);
+
+  expect(p3p4Messages.some((m) => m.content.includes("secret alliance"))).toBe(
+    false,
+  );
 });
 ```
 
@@ -1018,9 +1039,9 @@ it("should moderate game phases correctly", async () => {
 
   // Create announcement channel where House broadcasts and players receive
   const announcementChannel = await simulator.createBroadcastChannel(
-    "House", 
-    ["P1", "P2"], 
-    "game-announcements"
+    "House",
+    ["P1", "P2"],
+    "game-announcements",
   );
 
   // House announces phase transition
@@ -1029,7 +1050,7 @@ it("should moderate game phases correctly", async () => {
     ["P1", "P2"],
     "🎮 PHASE TRANSITION: Moving to WHISPER phase. You have 10 minutes for private conversations.",
     undefined, // House announcements don't trigger automatic replies
-    announcementChannel
+    announcementChannel,
   );
 
   // Verify House can broadcast but players can't reply in announcement channel
@@ -1042,7 +1063,7 @@ it("should moderate game phases correctly", async () => {
     "P1",
     ["P2"],
     "Did you see that phase announcement?",
-    { maxReplies: 1 }
+    { maxReplies: 1 },
   );
 
   expect(responses.length).toBe(1);

@@ -112,7 +112,7 @@ export class ModelMockingService {
       this.recordings.set(recordingKey, []);
       if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(
-          `🧹 Cleared existing recordings for clean re-recording: ${testName}`
+          `🧹 Cleared existing recordings for clean re-recording: ${testName}`,
         );
       }
     }
@@ -149,7 +149,7 @@ export class ModelMockingService {
               callId,
               runtime.agentId,
               modelType,
-              options
+              options,
             );
 
           case "playback":
@@ -157,7 +157,7 @@ export class ModelMockingService {
               callId,
               runtime.agentId,
               modelType,
-              options
+              options,
             );
 
           case "verify":
@@ -166,7 +166,7 @@ export class ModelMockingService {
               callId,
               runtime.agentId,
               modelType,
-              options
+              options,
             );
 
           default:
@@ -186,11 +186,11 @@ export class ModelMockingService {
   getResponseStats(): { totalResponses: number; totalCalls: number } {
     const totalCalls = Array.from(this.callCounters.values()).reduce(
       (sum, count) => sum + count,
-      0
+      0,
     );
     const totalResponses = Array.from(this.recordings.values()).reduce(
       (sum, records) => sum + records.length,
-      0
+      0,
     );
 
     return { totalResponses, totalCalls };
@@ -232,14 +232,14 @@ export class ModelMockingService {
     writeFileSync(filePath, JSON.stringify(recordingFile, null, 2));
     if (process.env.TEST_LOG_LEVEL === "debug") {
       console.log(
-        `📹 Saved ${sortedRecords.length} deduplicated model call recordings to ${filePath}`
+        `📹 Saved ${sortedRecords.length} deduplicated model call recordings to ${filePath}`,
       );
     }
 
     if (records.length !== sortedRecords.length) {
       if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(
-          `🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`
+          `🧹 Removed ${records.length - sortedRecords.length} duplicate recordings`,
         );
       }
     }
@@ -302,7 +302,7 @@ export class ModelMockingService {
 
     const recordingKey = this.getRecordingKey(
       this.currentTest.suiteName,
-      this.currentTest.testName
+      this.currentTest.testName,
     );
     this.recordings.delete(recordingKey);
     this.callCounters.clear();
@@ -335,10 +335,10 @@ export class ModelMockingService {
     records: ModelCallRecord[],
     agentId: string,
     modelType: string,
-    promptContent: string
+    promptContent: string,
   ): ModelCallRecord | undefined {
     const agentModelRecords = records.filter(
-      (r) => r.agentId === agentId && r.modelType === modelType
+      (r) => r.agentId === agentId && r.modelType === modelType,
     );
 
     if (agentModelRecords.length === 0) return undefined;
@@ -350,7 +350,7 @@ export class ModelMockingService {
     for (const record of agentModelRecords) {
       const similarity = this.calculatePromptSimilarity(
         promptContent,
-        record.prompt
+        record.prompt,
       );
       if (similarity > bestScore && similarity > 0.8) {
         // 80% similarity threshold
@@ -401,7 +401,7 @@ export class ModelMockingService {
     return this.config.recordSpecificTests.some(
       (testPattern) =>
         this.currentTest!.testName.includes(testPattern) ||
-        this.currentTest!.suiteName.includes(testPattern)
+        this.currentTest!.suiteName.includes(testPattern),
     );
   }
 
@@ -422,7 +422,7 @@ export class ModelMockingService {
     const sanitizedTest = testName.replace(/[^a-zA-Z0-9-_]/g, "_");
     return join(
       this.config.recordingsDir,
-      `${sanitizedSuite}__${sanitizedTest}.json`
+      `${sanitizedSuite}__${sanitizedTest}.json`,
     );
   }
 
@@ -438,20 +438,20 @@ export class ModelMockingService {
         // Migrate and clean recordings on load
         const cleanedRecordings = this.migrateAndCleanRecordings(
           recordingFile.recordings,
-          recordingFile.metadata?.version
+          recordingFile.metadata?.version,
         );
 
         this.recordings.set(recordingKey, cleanedRecordings);
         if (process.env.TEST_LOG_LEVEL === "debug") {
           console.log(
-            `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || "legacy"})`
+            `📼 Loaded ${cleanedRecordings.length} model call recordings from ${filePath} (version: ${recordingFile.metadata?.version || "legacy"})`,
           );
         }
 
         if (cleanedRecordings.length !== recordingFile.recordings.length) {
           if (process.env.TEST_LOG_LEVEL === "debug") {
             console.log(
-              `🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`
+              `🧹 Cleaned ${recordingFile.recordings.length - cleanedRecordings.length} problematic recordings during load`,
             );
           }
         }
@@ -469,7 +469,7 @@ export class ModelMockingService {
    */
   private migrateAndCleanRecordings(
     recordings: ModelCallRecord[],
-    version?: string
+    version?: string,
   ): ModelCallRecord[] {
     let migratedRecordings = [...recordings];
 
@@ -488,7 +488,7 @@ export class ModelMockingService {
 
         if (Array.isArray(record.response)) {
           console.warn(
-            `🔧 Converting array response to JSON string for ${record.id}`
+            `🔧 Converting array response to JSON string for ${record.id}`,
           );
           updatedRecord.response = JSON.stringify(record.response);
         }
@@ -500,7 +500,7 @@ export class ModelMockingService {
 
         if (!record.contextHash) {
           updatedRecord.contextHash = this.hashContent(
-            `${record.agentId}-${record.modelType}-${index}`
+            `${record.agentId}-${record.modelType}-${index}`,
           );
         }
 
@@ -527,7 +527,7 @@ export class ModelMockingService {
     callId: string,
     agentId: string,
     modelType: string,
-    options: any
+    options: any,
   ) {
     if (!this.shouldRecordForCurrentTest()) {
       // If not recording this test, just pass through
@@ -572,7 +572,7 @@ export class ModelMockingService {
 
     const recordingKey = this.getRecordingKey(
       this.currentTest!.suiteName,
-      this.currentTest!.testName
+      this.currentTest!.testName,
     );
     const records = this.recordings.get(recordingKey) || [];
     records.push(record);
@@ -580,7 +580,7 @@ export class ModelMockingService {
 
     if (process.env.TEST_LOG_LEVEL === "debug") {
       console.log(
-        `🎬 Recorded model call ${callId} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
+        `🎬 Recorded model call ${callId} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`,
       );
     }
     return response;
@@ -590,7 +590,7 @@ export class ModelMockingService {
     callId: string,
     agentId: string,
     modelType: string,
-    options: any
+    options: any,
   ): Promise<any> {
     if (!this.currentTest) {
       throw new Error("No test context set for playback mode");
@@ -598,7 +598,7 @@ export class ModelMockingService {
 
     const recordingKey = this.getRecordingKey(
       this.currentTest.suiteName,
-      this.currentTest.testName
+      this.currentTest.testName,
     );
     const records = this.recordings.get(recordingKey) || [];
     const promptContent = options?.prompt || options?.text || "";
@@ -609,13 +609,13 @@ export class ModelMockingService {
       (r) =>
         r.agentId === agentId &&
         r.modelType === modelType &&
-        r.promptHash === promptHash
+        r.promptHash === promptHash,
     );
 
     if (matchingRecord) {
       if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(
-          `▶️ Content match: ${matchingRecord.id} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`
+          `▶️ Content match: ${matchingRecord.id} for ${agentId} (${modelType}) hash:${promptHash.substring(0, 8)}`,
         );
       }
       return this.queueOrderedPlayback(matchingRecord, callId);
@@ -626,13 +626,13 @@ export class ModelMockingService {
       records,
       agentId,
       modelType,
-      promptContent
+      promptContent,
     );
 
     if (matchingRecord) {
       if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(
-          `▶️ Fuzzy match: ${matchingRecord.id} for ${agentId} (${modelType}) similarity > 80%`
+          `▶️ Fuzzy match: ${matchingRecord.id} for ${agentId} (${modelType}) similarity > 80%`,
         );
       }
       return this.queueOrderedPlayback(matchingRecord, callId);
@@ -651,7 +651,7 @@ export class ModelMockingService {
       this.playbackCounters.set(playbackKey, callIndex + 1);
       if (process.env.TEST_LOG_LEVEL === "debug") {
         console.log(
-          `▶️ Sequential fallback: ${record.id} for ${agentId} (${modelType}) call ${callIndex + 1} (seq: ${record.globalSequence})`
+          `▶️ Sequential fallback: ${record.id} for ${agentId} (${modelType}) call ${callIndex + 1} (seq: ${record.globalSequence})`,
         );
       }
       return this.queueOrderedPlayback(record, callId);
@@ -665,7 +665,7 @@ export class ModelMockingService {
       promptHash,
       callIndex,
       sortedRecords,
-      records
+      records,
     );
   }
 
@@ -674,7 +674,7 @@ export class ModelMockingService {
    */
   private async queueOrderedPlayback(
     record: ModelCallRecord,
-    callId: string
+    callId: string,
   ): Promise<any> {
     return new Promise((resolve, reject) => {
       this.playbackQueue.push({
@@ -705,7 +705,7 @@ export class ModelMockingService {
       // Sort queue by global sequence to ensure original recording order
       this.playbackQueue.sort(
         (a, b) =>
-          (a.record.globalSequence || 0) - (b.record.globalSequence || 0)
+          (a.record.globalSequence || 0) - (b.record.globalSequence || 0),
       );
 
       while (this.playbackQueue.length > 0) {
@@ -714,7 +714,7 @@ export class ModelMockingService {
         try {
           if (process.env.TEST_LOG_LEVEL === "debug") {
             console.log(
-              `🎬 Ordered playback: ${callId} (seq: ${record.globalSequence})`
+              `🎬 Ordered playback: ${callId} (seq: ${record.globalSequence})`,
             );
           }
 
@@ -741,7 +741,7 @@ export class ModelMockingService {
    */
   private parseRecordedResponse(
     record: ModelCallRecord,
-    modelType: string
+    modelType: string,
   ): any {
     let response: any = record.response;
 
@@ -791,7 +791,7 @@ export class ModelMockingService {
         response = parsed; // Keep parsed object for text models
       } catch (e) {
         console.warn(
-          `Failed to parse JSON response for ${record.id}, using as string`
+          `Failed to parse JSON response for ${record.id}, using as string`,
         );
         // Keep as string if parsing fails
       }
@@ -810,7 +810,7 @@ export class ModelMockingService {
     promptHash: string,
     callIndex: number,
     agentModelCalls: ModelCallRecord[],
-    allRecords: ModelCallRecord[]
+    allRecords: ModelCallRecord[],
   ): never {
     const availableCalls = agentModelCalls.map((r, i) => ({
       index: i + 1,
@@ -821,7 +821,7 @@ export class ModelMockingService {
     }));
 
     const allAgentModelTypes = new Set(
-      allRecords.filter((r) => r.agentId === agentId).map((r) => r.modelType)
+      allRecords.filter((r) => r.agentId === agentId).map((r) => r.modelType),
     );
 
     const diagnostics = {
@@ -843,7 +843,7 @@ export class ModelMockingService {
       `\nAvailable recordings for ${agentId}:${modelType}:\n` +
       availableCalls
         .map(
-          (c) => `  ${c.index}: hash:${c.promptHash} "${c.promptPreview}..."`
+          (c) => `  ${c.index}: hash:${c.promptHash} "${c.promptPreview}..."`,
         )
         .join("\n") +
       `\n\nAll model types for ${agentId}: ${diagnostics.allModelTypes.join(", ")}\n` +
@@ -862,7 +862,7 @@ export class ModelMockingService {
     callId: string,
     agentId: string,
     modelType: string,
-    options: any
+    options: any,
   ): Promise<any> {
     // First try to get recorded response
     try {
@@ -870,7 +870,7 @@ export class ModelMockingService {
         callId,
         agentId,
         modelType,
-        options
+        options,
       );
 
       // Make new call with verification temperature
@@ -885,7 +885,7 @@ export class ModelMockingService {
         console.warn(
           `🔍 Response drift detected for ${agentId} ${callId}:\n` +
             `Recorded: ${recordedResponse.substring(0, 100)}...\n` +
-            `Current:  ${newResponse.substring(0, 100)}...`
+            `Current:  ${newResponse.substring(0, 100)}...`,
         );
       } else {
         if (process.env.TEST_LOG_LEVEL === "debug") {
@@ -897,7 +897,7 @@ export class ModelMockingService {
     } catch (error) {
       // If no recording exists, fall back to live call
       console.warn(
-        `⚠️ No recording for verification, using live call: ${error}`
+        `⚠️ No recording for verification, using live call: ${error}`,
       );
       return originalUseModel(modelType, options);
     }

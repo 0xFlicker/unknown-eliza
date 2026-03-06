@@ -53,7 +53,7 @@ describe("Validation Functions", () => {
       validateChannelId(invalidUuid, clientIp);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        `[SECURITY] Invalid channel ID attempted from ${clientIp}: ${invalidUuid}`
+        `[SECURITY] Invalid channel ID attempted from ${clientIp}: ${invalidUuid}`,
       );
     });
 
@@ -73,7 +73,7 @@ describe("Validation Functions", () => {
         expect(result).toBeNull();
         // These inputs are not valid UUIDs, so they get the "Invalid" message, not "Suspicious"
         expect(logger.warn).toHaveBeenCalledWith(
-          `[SECURITY] Invalid channel ID attempted from 192.168.1.100: ${input}`
+          `[SECURITY] Invalid channel ID attempted from 192.168.1.100: ${input}`,
         );
       });
     });
@@ -166,7 +166,7 @@ describe("Validation Functions", () => {
       const agents = new Map<UUID, IAgentRuntime>();
 
       expect(() => getRuntime(agents, agentId)).toThrow(
-        `Agent not found: ${agentId}`
+        `Agent not found: ${agentId}`,
       );
     });
 
@@ -175,7 +175,7 @@ describe("Validation Functions", () => {
       const agents = new Map<UUID, IAgentRuntime>();
 
       expect(() => getRuntime(agents, agentId)).toThrow(
-        `Agent not found: ${agentId}`
+        `Agent not found: ${agentId}`,
       );
     });
   });

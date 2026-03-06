@@ -24,7 +24,7 @@ describe("Version API", () => {
   // Helper for non-GET requests
   const makeRequest = async (
     method: string,
-    path: string = "/api/system/version"
+    path: string = "/api/system/version",
   ) => {
     const response = await fetch(`http://localhost:${port}${path}`, { method });
     return response;

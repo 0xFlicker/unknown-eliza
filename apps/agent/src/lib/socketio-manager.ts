@@ -237,7 +237,7 @@ export class SocketIOManager extends EventAdapter {
         this.socket.onAny((event, ...args) => {
           clientLogger.debug(
             `[SocketIO DEBUG] Received event '${event}':`,
-            args
+            args,
           );
         });
       }
@@ -278,7 +278,7 @@ export class SocketIOManager extends EventAdapter {
               "source",
               "thought",
               "actions",
-            ].includes(k)
+            ].includes(k),
         ),
       });
 
@@ -286,7 +286,7 @@ export class SocketIOManager extends EventAdapter {
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
         clientLogger.info(
-          `[SocketIO] Handling message for active channel ${channelId}`
+          `[SocketIO] Handling message for active channel ${channelId}`,
         );
         // Post the message to the event for UI updates
         this.emit("messageBroadcast", {
@@ -298,7 +298,7 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received message for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds)
+          Array.from(this.activeChannelIds),
         );
       }
     });
@@ -315,7 +315,7 @@ export class SocketIOManager extends EventAdapter {
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
         clientLogger.info(
-          `[SocketIO] Handling control message for active channel ${channelId}`
+          `[SocketIO] Handling control message for active channel ${channelId}`,
         );
 
         // Emit the control message event
@@ -327,7 +327,7 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received control message for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds)
+          Array.from(this.activeChannelIds),
         );
       }
     });
@@ -340,7 +340,7 @@ export class SocketIOManager extends EventAdapter {
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
         clientLogger.info(
-          `[SocketIO] Handling message deletion for active channel ${channelId}`
+          `[SocketIO] Handling message deletion for active channel ${channelId}`,
         );
 
         // Emit the message deleted event
@@ -352,7 +352,7 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received message deleted event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds)
+          Array.from(this.activeChannelIds),
         );
       }
     });
@@ -365,7 +365,7 @@ export class SocketIOManager extends EventAdapter {
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
         clientLogger.info(
-          `[SocketIO] Handling channel cleared for active channel ${channelId}`
+          `[SocketIO] Handling channel cleared for active channel ${channelId}`,
         );
 
         // Emit the channel cleared event
@@ -377,7 +377,7 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received channel cleared event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds)
+          Array.from(this.activeChannelIds),
         );
       }
     });
@@ -390,7 +390,7 @@ export class SocketIOManager extends EventAdapter {
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
         clientLogger.info(
-          `[SocketIO] Handling channel deleted for active channel ${channelId}`
+          `[SocketIO] Handling channel deleted for active channel ${channelId}`,
         );
 
         // Emit the channel deleted event (same as cleared for now)
@@ -402,7 +402,7 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received channel deleted event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds)
+          Array.from(this.activeChannelIds),
         );
       }
     });
@@ -468,7 +468,7 @@ export class SocketIOManager extends EventAdapter {
   public async joinChannel(channelId: string): Promise<void> {
     if (!this.socket) {
       clientLogger.error(
-        "[SocketIO] Cannot join channel: socket not initialized"
+        "[SocketIO] Cannot join channel: socket not initialized",
       );
       return;
     }
@@ -480,12 +480,12 @@ export class SocketIOManager extends EventAdapter {
 
     clientLogger.info(
       `[SocketIO] joinChannel: Attempting to join ${channelId}. Current activeChannelIds before add:`,
-      new Set(this.activeChannelIds)
+      new Set(this.activeChannelIds),
     );
     this.activeChannelIds.add(channelId);
     clientLogger.info(
       `[SocketIO] joinChannel: Joined ${channelId}. Current activeChannelIds after add:`,
-      new Set(this.activeChannelIds)
+      new Set(this.activeChannelIds),
     );
 
     const joinPayload = {
@@ -521,19 +521,19 @@ export class SocketIOManager extends EventAdapter {
   public leaveChannel(channelId: string): void {
     if (!this.socket || !this.isConnected) {
       clientLogger.warn(
-        `[SocketIO] Cannot leave channel ${channelId}: not connected`
+        `[SocketIO] Cannot leave channel ${channelId}: not connected`,
       );
       return;
     }
 
     clientLogger.info(
       `[SocketIO] leaveChannel: Attempting to leave ${channelId}. Current activeChannelIds before delete:`,
-      new Set(this.activeChannelIds)
+      new Set(this.activeChannelIds),
     );
     this.activeChannelIds.delete(channelId);
     clientLogger.info(
       `[SocketIO] leaveChannel: Left ${channelId}. Current activeChannelIds after delete:`,
-      new Set(this.activeChannelIds)
+      new Set(this.activeChannelIds),
     );
     // No server-side message for leaving a room in this client's protocol,
     // client just stops listening / tracking.
@@ -563,11 +563,11 @@ export class SocketIOManager extends EventAdapter {
     source: string,
     attachments?: any[],
     messageId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<void> {
     if (!this.socket) {
       clientLogger.error(
-        "[SocketIO] Cannot send message: socket not initialized"
+        "[SocketIO] Cannot send message: socket not initialized",
       );
       return;
     }
@@ -581,7 +581,7 @@ export class SocketIOManager extends EventAdapter {
     const finalMessageId = messageId || crypto.randomUUID();
 
     clientLogger.info(
-      `[SocketIO] Sending message to central channel ${channelId} on server ${serverId}`
+      `[SocketIO] Sending message to central channel ${channelId} on server ${serverId}`,
     );
 
     // Create the message payload (matching apps/www format exactly)
@@ -614,7 +614,7 @@ export class SocketIOManager extends EventAdapter {
   public async subscribeToLogStream(): Promise<void> {
     if (!this.socket) {
       clientLogger.error(
-        "[SocketIO] Cannot subscribe to logs: socket not initialized"
+        "[SocketIO] Cannot subscribe to logs: socket not initialized",
       );
       return;
     }
@@ -634,7 +634,7 @@ export class SocketIOManager extends EventAdapter {
   public async unsubscribeFromLogStream(): Promise<void> {
     if (!this.socket) {
       clientLogger.error(
-        "[SocketIO] Cannot unsubscribe from logs: socket not initialized"
+        "[SocketIO] Cannot unsubscribe from logs: socket not initialized",
       );
       return;
     }
@@ -657,7 +657,7 @@ export class SocketIOManager extends EventAdapter {
   }): Promise<void> {
     if (!this.socket) {
       clientLogger.error(
-        "[SocketIO] Cannot update log filters: socket not initialized"
+        "[SocketIO] Cannot update log filters: socket not initialized",
       );
       return;
     }

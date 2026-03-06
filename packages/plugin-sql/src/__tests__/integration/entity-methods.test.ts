@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { createIsolatedTestDatabase } from '../test-helpers';
-import { v4 as uuidv4 } from 'uuid';
-import type { Entity, UUID } from '@elizaos/core';
-import { PgDatabaseAdapter } from '../../pg/adapter';
-import { PgliteDatabaseAdapter } from '../../pglite/adapter';
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { createIsolatedTestDatabase } from "../test-helpers";
+import { v4 as uuidv4 } from "uuid";
+import type { Entity, UUID } from "@elizaos/core";
+import { PgDatabaseAdapter } from "../../pg/adapter";
+import { PgliteDatabaseAdapter } from "../../pglite/adapter";
 
-describe('Entity Methods Integration Tests', () => {
+describe("Entity Methods Integration Tests", () => {
   let adapter: PgliteDatabaseAdapter | PgDatabaseAdapter;
   let cleanup: () => Promise<void>;
   let testAgentId: UUID;
 
   beforeAll(async () => {
-    const setup = await createIsolatedTestDatabase('entity-methods');
+    const setup = await createIsolatedTestDatabase("entity-methods");
     adapter = setup.adapter;
     cleanup = setup.cleanup;
     testAgentId = setup.testAgentId;
@@ -23,13 +23,13 @@ describe('Entity Methods Integration Tests', () => {
     }
   });
 
-  describe('deleteEntity', () => {
-    it('should delete an entity by ID', async () => {
+  describe("deleteEntity", () => {
+    it("should delete an entity by ID", async () => {
       const entity: Entity = {
         id: uuidv4() as UUID,
         agentId: testAgentId,
-        names: ['Entity to Delete'],
-        metadata: { type: 'test' },
+        names: ["Entity to Delete"],
+        metadata: { type: "test" },
       };
 
       // Create entity
@@ -47,34 +47,34 @@ describe('Entity Methods Integration Tests', () => {
       expect(retrieved).toHaveLength(0);
     });
 
-    it('should not throw when deleting non-existent entity', async () => {
+    it("should not throw when deleting non-existent entity", async () => {
       const nonExistentId = uuidv4() as UUID;
       // Should not throw - deleteEntity should handle non-existent entities gracefully
       await adapter.deleteEntity(nonExistentId);
     });
   });
 
-  describe('getEntitiesByNames', () => {
-    it('should retrieve entities by names', async () => {
+  describe("getEntitiesByNames", () => {
+    it("should retrieve entities by names", async () => {
       const entity1: Entity = {
         id: uuidv4() as UUID,
         agentId: testAgentId,
-        names: ['John Doe', 'Johnny'],
-        metadata: { type: 'person' },
+        names: ["John Doe", "Johnny"],
+        metadata: { type: "person" },
       };
 
       const entity2: Entity = {
         id: uuidv4() as UUID,
         agentId: testAgentId,
-        names: ['Jane Doe', 'Janet'],
-        metadata: { type: 'person' },
+        names: ["Jane Doe", "Janet"],
+        metadata: { type: "person" },
       };
 
       const entity3: Entity = {
         id: uuidv4() as UUID,
         agentId: testAgentId,
-        names: ['Bob Smith'],
-        metadata: { type: 'person' },
+        names: ["Bob Smith"],
+        metadata: { type: "person" },
       };
 
       // Create entities
@@ -82,7 +82,7 @@ describe('Entity Methods Integration Tests', () => {
 
       // Search for entities with Doe names
       const doeEntities = await adapter.getEntitiesByNames({
-        names: ['John Doe', 'Jane Doe'],
+        names: ["John Doe", "Jane Doe"],
         agentId: testAgentId,
       });
 
@@ -91,9 +91,9 @@ describe('Entity Methods Integration Tests', () => {
       expect(doeEntities.map((e) => e.id)).toContain(entity2.id);
     });
 
-    it('should return empty array when no entities match', async () => {
+    it("should return empty array when no entities match", async () => {
       const result = await adapter.getEntitiesByNames({
-        names: ['Non Existent Name'],
+        names: ["Non Existent Name"],
         agentId: testAgentId,
       });
 
@@ -101,26 +101,26 @@ describe('Entity Methods Integration Tests', () => {
     });
   });
 
-  describe('searchEntitiesByName', () => {
-    it('should search entities by partial name match', async () => {
+  describe("searchEntitiesByName", () => {
+    it("should search entities by partial name match", async () => {
       const entities: Entity[] = [
         {
           id: uuidv4() as UUID,
           agentId: testAgentId,
-          names: ['Alice Smith', 'Alicia'],
-          metadata: { type: 'person' },
+          names: ["Alice Smith", "Alicia"],
+          metadata: { type: "person" },
         },
         {
           id: uuidv4() as UUID,
           agentId: testAgentId,
-          names: ['Bob Johnson'],
-          metadata: { type: 'person' },
+          names: ["Bob Johnson"],
+          metadata: { type: "person" },
         },
         {
           id: uuidv4() as UUID,
           agentId: testAgentId,
-          names: ['Alice Cooper', 'Al Cooper'],
-          metadata: { type: 'person' },
+          names: ["Alice Cooper", "Al Cooper"],
+          metadata: { type: "person" },
         },
       ];
 
@@ -131,18 +131,20 @@ describe('Entity Methods Integration Tests', () => {
 
       // Search for entities with 'Alice' in name
       const searchResults = await adapter.searchEntitiesByName({
-        query: 'Alice',
+        query: "Alice",
         agentId: testAgentId,
         limit: 10,
       });
 
       expect(searchResults).toHaveLength(2);
       expect(
-        searchResults.every((e) => e.names.some((name) => name.toLowerCase().includes('alice')))
+        searchResults.every((e) =>
+          e.names.some((name) => name.toLowerCase().includes("alice")),
+        ),
       ).toBe(true);
     });
 
-    it('should respect the limit parameter', async () => {
+    it("should respect the limit parameter", async () => {
       const entities: Entity[] = [];
       for (let i = 0; i < 5; i++) {
         entities.push({
@@ -158,7 +160,7 @@ describe('Entity Methods Integration Tests', () => {
 
       // Search with limit
       const results = await adapter.searchEntitiesByName({
-        query: 'Test',
+        query: "Test",
         agentId: testAgentId,
         limit: 2,
       });
@@ -166,18 +168,18 @@ describe('Entity Methods Integration Tests', () => {
       expect(results).toHaveLength(2);
     });
 
-    it('should return all entities when query is empty', async () => {
+    it("should return all entities when query is empty", async () => {
       const entities: Entity[] = [
         {
           id: uuidv4() as UUID,
           agentId: testAgentId,
-          names: ['Entity 1'],
+          names: ["Entity 1"],
           metadata: {},
         },
         {
           id: uuidv4() as UUID,
           agentId: testAgentId,
-          names: ['Entity 2'],
+          names: ["Entity 2"],
           metadata: {},
         },
       ];
@@ -185,7 +187,7 @@ describe('Entity Methods Integration Tests', () => {
       await adapter.createEntities(entities);
 
       const results = await adapter.searchEntitiesByName({
-        query: '',
+        query: "",
         agentId: testAgentId,
         limit: 10,
       });
@@ -193,11 +195,11 @@ describe('Entity Methods Integration Tests', () => {
       expect(results.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should perform case-insensitive search', async () => {
+    it("should perform case-insensitive search", async () => {
       const entity: Entity = {
         id: uuidv4() as UUID,
         agentId: testAgentId,
-        names: ['UPPERCASE NAME', 'MixedCase Name'],
+        names: ["UPPERCASE NAME", "MixedCase Name"],
         metadata: {},
       };
 
@@ -205,14 +207,14 @@ describe('Entity Methods Integration Tests', () => {
 
       // Search with lowercase
       let results = await adapter.searchEntitiesByName({
-        query: 'uppercase',
+        query: "uppercase",
         agentId: testAgentId,
       });
       expect(results).toHaveLength(1);
 
       // Search with different case
       results = await adapter.searchEntitiesByName({
-        query: 'MIXEDCASE',
+        query: "MIXEDCASE",
         agentId: testAgentId,
       });
       expect(results).toHaveLength(1);

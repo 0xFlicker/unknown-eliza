@@ -176,7 +176,7 @@ const fetcher = async <ResponseType = unknown>({
         clientLogger.error("JSON Parse Error:", error);
         clientLogger.error(
           "Response text:",
-          text.substring(0, 500) + (text.length > 500 ? "..." : "")
+          text.substring(0, 500) + (text.length > 500 ? "..." : ""),
         );
         throw new Error("Failed to parse JSON response");
       }
@@ -192,7 +192,7 @@ const fetcher = async <ResponseType = unknown>({
       clientLogger.error("Network Error:", error);
       // connectionStatusActions.setOfflineStatus(true); // Inform UI about network issue
       throw new Error(
-        "NetworkError: Unable to connect to the server. Please check if the server is running and your internet connection."
+        "NetworkError: Unable to connect to the server. Please check if the server is running and your internet connection.",
       );
     } else if (error instanceof Error && error.name === "AbortError") {
       clientLogger.error("Request Timeout:", error);
@@ -201,7 +201,7 @@ const fetcher = async <ResponseType = unknown>({
       clientLogger.error("Cross-Origin Error or Network Issue:", error);
       // connectionStatusActions.setOfflineStatus(true);
       throw new Error(
-        "NetworkError: A network issue occurred. This could be a CORS problem or a general network failure."
+        "NetworkError: A network issue occurred. This could be a CORS problem or a general network failure.",
       );
     } else {
       clientLogger.error("Fetch error:", error);
@@ -228,26 +228,26 @@ export const apiClient = {
     characterJson?: Character;
   }) => fetcher({ url: "/agents/", method: "POST", body: params }),
   startAgent: (
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{ data: { id: UUID; name: string; status: string } }> =>
     fetcher({ url: `/agents/${agentId}/start`, method: "POST" }),
   stopAgent: (agentId: string): Promise<{ data: { message: string } }> =>
     fetcher({ url: `/agents/${agentId}/stop`, method: "POST" }),
   getAgentPanels: (
-    agentId: string
+    agentId: string,
   ): Promise<{ success: boolean; data: AgentPanel[] }> =>
     fetcher({ url: `/agents/${agentId}/panels`, method: "GET" }),
 
   // Agent-perspective rooms and memories
   getAgentPerspectiveRooms: (
-    agentId: string
+    agentId: string,
   ): Promise<{ data: { rooms: CoreRoom[] } }> =>
     fetcher({ url: `/agents/${agentId}/rooms` }),
   getRawAgentMemoriesForRoom: (
     agentId: UUID,
     agentPerspectiveRoomId: UUID,
     tableName = "messages",
-    options?: { limit?: number; before?: number; includeEmbedding?: boolean }
+    options?: { limit?: number; before?: number; includeEmbedding?: boolean },
   ): Promise<{ data: { memories: CoreMemory[] } }> => {
     const queryParams = new URLSearchParams({ tableName });
     if (options?.limit) queryParams.append("limit", String(options.limit));
@@ -265,7 +265,7 @@ export const apiClient = {
     }),
   deleteAllAgentPerspectiveMemories: (
     agentId: UUID,
-    agentPerspectiveRoomId: UUID
+    agentPerspectiveRoomId: UUID,
   ) =>
     fetcher({
       url: `/agents/${agentId}/memories/all/${agentPerspectiveRoomId}`,
@@ -274,7 +274,7 @@ export const apiClient = {
   updateAgentPerspectiveMemory: (
     agentId: UUID,
     memoryId: string,
-    memoryData: Partial<CoreMemory>
+    memoryData: Partial<CoreMemory>,
   ) =>
     fetcher({
       url: `/agents/${agentId}/memories/${memoryId}`,
@@ -293,7 +293,7 @@ export const apiClient = {
   }): Promise<{ data: { server: MessageServer } }> =>
     fetcher({ url: "/messaging/servers", method: "POST", body: payload }),
   getChannelsForServer: (
-    serverId: UUID
+    serverId: UUID,
   ): Promise<{ data: { channels: MessageChannel[] } }> =>
     fetcher({ url: `/messaging/central-servers/${serverId}/channels` }),
   getChannelMessages: (
@@ -301,7 +301,7 @@ export const apiClient = {
     options?: {
       limit?: number;
       before?: number;
-    }
+    },
   ): Promise<{ data: { messages: ServerMessage[] } }> => {
     const queryParams = new URLSearchParams();
     if (options?.limit) queryParams.append("limit", String(options.limit));
@@ -320,7 +320,7 @@ export const apiClient = {
       raw_message?: any;
       metadata?: any;
       source_type?: string;
-    }
+    },
   ): Promise<{ success: boolean; data: ServerMessage }> =>
     fetcher({
       url: `/messaging/central-channels/${channelId}/messages`,
@@ -329,7 +329,7 @@ export const apiClient = {
     }),
   getOrCreateDmChannel: (
     targetCentralUserId: UUID,
-    currentUserId: UUID
+    currentUserId: UUID,
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
       url: `/messaging/dm-channel?targetUserId=${targetCentralUserId}&currentUserId=${currentUserId}`,
@@ -362,7 +362,7 @@ export const apiClient = {
     }),
   transcribeAudio: async (
     agentId: string,
-    audioBlob: Blob
+    audioBlob: Blob,
   ): Promise<{ success: boolean; data: { text: string } }> => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.wav");
@@ -374,7 +374,7 @@ export const apiClient = {
   },
   uploadAgentMedia: async (
     agentId: string,
-    file: File
+    file: File,
   ): Promise<{ success: boolean; data: { url: string; type: string } }> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -386,7 +386,7 @@ export const apiClient = {
   },
   uploadKnowledgeDocuments: async (
     agentId: string,
-    files: File[]
+    files: File[],
   ): Promise<any> => {
     const formData = new FormData();
     for (const file of files) formData.append("files", file);
@@ -398,12 +398,12 @@ export const apiClient = {
   },
   getKnowledgeDocuments: (
     agentId: string,
-    _options?: { limit?: number; before?: number; includeEmbedding?: boolean }
+    _options?: { limit?: number; before?: number; includeEmbedding?: boolean },
   ): Promise<any> =>
     fetcher({ url: `/agents/${agentId}/plugins/knowledge/documents` }),
   deleteKnowledgeDocument: (
     agentId: string,
-    knowledgeId: string
+    knowledgeId: string,
   ): Promise<void> =>
     fetcher({
       url: `/agents/${agentId}/plugins/knowledge/documents/${knowledgeId}`,
@@ -412,7 +412,7 @@ export const apiClient = {
 
   // Logs
   getGlobalLogs: (
-    params: { level?: string; agentName?: string; agentId?: string } = {}
+    params: { level?: string; agentName?: string; agentId?: string } = {},
   ): Promise<LogResponse> => {
     const queryParams = new URLSearchParams();
     if (params.level) queryParams.append("level", params.level);
@@ -434,7 +434,7 @@ export const apiClient = {
       count?: number;
       offset?: number;
       excludeTypes?: string[];
-    }
+    },
   ): Promise<{ success: boolean; data: AgentLog[] }> => {
     const queryParams = new URLSearchParams();
     if (options?.roomId) queryParams.append("roomId", options.roomId);
@@ -459,7 +459,7 @@ export const apiClient = {
     data: Record<string, string>;
   }> => fetcher({ url: `/system/env/local` }),
   updateLocalEnvs: (
-    envs: Record<string, string>
+    envs: Record<string, string>,
   ): Promise<{ success: boolean; message: string }> =>
     fetcher({
       url: `/system/env/local`,
@@ -472,7 +472,7 @@ export const apiClient = {
   // PLACEHOLDER - Implement actual backend and uncomment
   deleteChannelMessage: async (
     channelId: UUID,
-    messageId: UUID
+    messageId: UUID,
   ): Promise<void> => {
     await fetcher({
       url: `/messaging/central-channels/${channelId}/messages/${messageId}`,
@@ -501,7 +501,7 @@ export const apiClient = {
       name?: string;
       participantCentralUserIds?: UUID[];
       metadata?: any;
-    }
+    },
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
       url: `/messaging/central-channels/${channelId}`,
@@ -519,12 +519,12 @@ export const apiClient = {
     }),
 
   getChannelDetails: (
-    channelId: UUID
+    channelId: UUID,
   ): Promise<{ success: boolean; data: MessageChannel | null }> =>
     fetcher({ url: `/messaging/central-channels/${channelId}/details` }),
 
   getChannelParticipants: (
-    channelId: UUID
+    channelId: UUID,
   ): Promise<{ success: boolean; data: UUID[] }> => {
     return fetcher({
       url: `/messaging/central-channels/${channelId}/participants`,
@@ -533,7 +533,7 @@ export const apiClient = {
 
   addUserToChannel: async (
     channelId: UUID,
-    userId: UUID
+    userId: UUID,
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
       url: `/messaging/central-channels/${channelId}/agents`,
@@ -543,7 +543,7 @@ export const apiClient = {
 
   addUsersToChannel: async (
     channelId: UUID,
-    userIds: UUID[]
+    userIds: UUID[],
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
       url: `/messaging/central-channels/${channelId}/agents/bulk`,
@@ -553,7 +553,7 @@ export const apiClient = {
 
   removeUserFromChannel: async (
     channelId: UUID,
-    userId: UUID
+    userId: UUID,
   ): Promise<{ success: boolean; data: MessageChannel }> =>
     fetcher({
       url: `/messaging/central-channels/${channelId}/agents/${userId}`,
@@ -562,7 +562,7 @@ export const apiClient = {
 
   uploadChannelMedia: async (
     channelId: UUID,
-    file: File
+    file: File,
   ): Promise<{
     success: boolean;
     data: {
@@ -584,7 +584,7 @@ export const apiClient = {
 
   getChannelTitle: async (
     channelId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{
     success: boolean;
     data: { title: string; channelId: string };
@@ -601,7 +601,7 @@ export const apiClient = {
     agentId: UUID,
     channelId?: UUID,
     tableName?: string,
-    includeEmbedding = false
+    includeEmbedding = false,
   ): Promise<{ data: { memories: ClientMemory[] } }> => {
     const queryParams = new URLSearchParams();
     if (tableName) queryParams.append("tableName", tableName);
@@ -624,7 +624,7 @@ export const apiClient = {
   updateAgentMemory: (
     agentId: UUID,
     memoryId: string,
-    memoryData: Partial<ClientMemory>
+    memoryData: Partial<ClientMemory>,
   ) =>
     fetcher({
       url: `/agents/${agentId}/memories/${memoryId}`,
@@ -649,7 +649,7 @@ export const apiClient = {
     agentId: UUID,
     agentPerspectiveRoomId: UUID,
     tableName = "messages",
-    options?: { includeEmbedding?: boolean }
+    options?: { includeEmbedding?: boolean },
   ) =>
     fetcher({
       url: `/agents/${agentId}/rooms/${agentPerspectiveRoomId}/memories?tableName=${tableName}${options?.includeEmbedding ? "&includeEmbedding=true" : ""}`,
@@ -661,7 +661,7 @@ export const apiClient = {
     }),
   deleteAllAgentInternalMemories: (
     agentId: UUID,
-    agentPerspectiveRoomId: UUID
+    agentPerspectiveRoomId: UUID,
   ) =>
     fetcher({
       url: `/agents/${agentId}/memories/all/${agentPerspectiveRoomId}`,
@@ -670,7 +670,7 @@ export const apiClient = {
   updateAgentInternalMemory: (
     agentId: UUID,
     memoryId: string,
-    memoryData: Partial<CoreMemory>
+    memoryData: Partial<CoreMemory>,
   ) =>
     fetcher({
       url: `/agents/${agentId}/memories/${memoryId}`,
@@ -681,7 +681,7 @@ export const apiClient = {
   // Server-Agent Association Management
   addAgentToServer: (
     serverId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{
     success: boolean;
     data: { serverId: UUID; agentId: UUID; message: string };
@@ -694,7 +694,7 @@ export const apiClient = {
 
   removeAgentFromServer: (
     serverId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{
     success: boolean;
     data: { serverId: UUID; agentId: UUID; message: string };
@@ -705,19 +705,19 @@ export const apiClient = {
     }),
 
   getAgentsForServer: (
-    serverId: UUID
+    serverId: UUID,
   ): Promise<{ success: boolean; data: { serverId: UUID; agents: UUID[] } }> =>
     fetcher({ url: `/messaging/servers/${serverId}/agents` }),
 
   getServersForAgent: (
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{ success: boolean; data: { agentId: UUID; servers: UUID[] } }> =>
     fetcher({ url: `/messaging/agents/${agentId}/servers` }),
 
   // Channel-Agent Association Management
   addAgentToChannel: (
     channelId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{
     success: boolean;
     data: { channelId: UUID; agentId: UUID; message: string };
@@ -730,7 +730,7 @@ export const apiClient = {
 
   removeAgentFromChannel: (
     channelId: UUID,
-    agentId: UUID
+    agentId: UUID,
   ): Promise<{
     success: boolean;
     data: { channelId: UUID; agentId: UUID; message: string };
@@ -741,7 +741,7 @@ export const apiClient = {
     }),
 
   getAgentsForChannel: (
-    channelId: UUID
+    channelId: UUID,
   ): Promise<{
     success: boolean;
     data: { channelId: UUID; participants: UUID[] };
@@ -749,7 +749,7 @@ export const apiClient = {
 
   postWorldSettings: (
     agentId: UUID,
-    worldSettings: World
+    worldSettings: World,
   ): Promise<{
     success: boolean;
   }> => {

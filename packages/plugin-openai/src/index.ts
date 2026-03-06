@@ -38,7 +38,7 @@ import { fetch, FormData } from "undici";
 function getSetting(
   runtime: IAgentRuntime,
   key: string,
-  defaultValue?: string
+  defaultValue?: string,
 ): string | undefined {
   return runtime.getSetting(key) ?? process.env[key] ?? defaultValue;
 }
@@ -52,7 +52,7 @@ function getBaseURL(runtime: IAgentRuntime): string {
   const baseURL = getSetting(
     runtime,
     "OPENAI_BASE_URL",
-    "https://api.openai.com/v1"
+    "https://api.openai.com/v1",
   ) as string;
   logger.debug(`[OpenAI] Default base URL: ${baseURL}`);
   return baseURL;
@@ -93,7 +93,7 @@ function getEmbeddingApiKey(runtime: IAgentRuntime): string | undefined {
   const embeddingApiKey = getSetting(runtime, "OPENAI_EMBEDDING_API_KEY");
   if (embeddingApiKey) {
     logger.debug(
-      `[OpenAI] Using specific embedding API key: ${embeddingApiKey}`
+      `[OpenAI] Using specific embedding API key: ${embeddingApiKey}`,
     );
     return embeddingApiKey;
   }
@@ -197,7 +197,7 @@ async function generateObjectByModelType(
   runtime: IAgentRuntime,
   params: ObjectGenerationParams,
   modelType: string,
-  getModelFn: (runtime: IAgentRuntime) => string
+  getModelFn: (runtime: IAgentRuntime) => string,
 ): Promise<JSONValue> {
   const openai = createOpenAIClient(runtime);
   const modelName = getModelFn(runtime);
@@ -207,7 +207,7 @@ async function generateObjectByModelType(
 
   if (schemaPresent) {
     logger.info(
-      `Using ${modelType} without schema validation (schema provided but output=no-schema)`
+      `Using ${modelType} without schema validation (schema provided but output=no-schema)`,
     );
   }
 
@@ -225,7 +225,7 @@ async function generateObjectByModelType(
         runtime,
         modelType as ModelTypeName,
         params.prompt,
-        usage
+        usage,
       );
     }
     return object;
@@ -250,7 +250,7 @@ async function generateObjectByModelType(
               ? repairParseError.message
               : String(repairParseError);
           logger.error(
-            `[generateObject] Failed to parse repaired JSON: ${message}`
+            `[generateObject] Failed to parse repaired JSON: ${message}`,
           );
           throw repairParseError;
         }
@@ -301,7 +301,7 @@ function emitModelUsageEvent(
   runtime: IAgentRuntime,
   type: ModelTypeName,
   prompt: string,
-  usage: LanguageModelUsage
+  usage: LanguageModelUsage,
 ) {
   runtime.emitEvent(EventType.MODEL_USED, {
     provider: "openai",
@@ -381,7 +381,7 @@ export const openaiPlugin: Plugin = {
       try {
         if (!getApiKey(runtime)) {
           logger.warn(
-            "OPENAI_API_KEY is not set in environment - OpenAI functionality will be limited"
+            "OPENAI_API_KEY is not set in environment - OpenAI functionality will be limited",
           );
           return;
         }
@@ -392,10 +392,10 @@ export const openaiPlugin: Plugin = {
           });
           if (!response.ok) {
             logger.warn(
-              `OpenAI API key validation failed: ${response.statusText}`
+              `OpenAI API key validation failed: ${response.statusText}`,
             );
             logger.warn(
-              "OpenAI functionality will be limited until a valid API key is provided"
+              "OpenAI functionality will be limited until a valid API key is provided",
             );
           } else {
             logger.debug("OpenAI API key validated successfully");
@@ -407,7 +407,7 @@ export const openaiPlugin: Plugin = {
               : String(fetchError);
           logger.warn(`Error validating OpenAI API key: ${message}`);
           logger.warn(
-            "OpenAI functionality will be limited until a valid API key is provided"
+            "OpenAI functionality will be limited until a valid API key is provided",
           );
         }
       } catch (error: unknown) {
@@ -417,7 +417,7 @@ export const openaiPlugin: Plugin = {
             .join(", ") ||
           (error instanceof Error ? error.message : String(error));
         logger.warn(
-          `OpenAI plugin configuration issue: ${message} - You need to configure the OPENAI_API_KEY in your environment variables`
+          `OpenAI plugin configuration issue: ${message} - You need to configure the OPENAI_API_KEY in your environment variables`,
         );
       }
     });
@@ -425,21 +425,21 @@ export const openaiPlugin: Plugin = {
   models: {
     [ModelType.TEXT_EMBEDDING]: async (
       runtime: IAgentRuntime,
-      params: TextEmbeddingParams | string | null
+      params: TextEmbeddingParams | string | null,
     ): Promise<number[]> => {
       const embeddingModelName = getSetting(
         runtime,
         "OPENAI_EMBEDDING_MODEL",
-        "text-embedding-3-small"
+        "text-embedding-3-small",
       );
       const embeddingDimension = Number.parseInt(
         getSetting(runtime, "OPENAI_EMBEDDING_DIMENSIONS", "1536") || "1536",
-        10
+        10,
       ) as (typeof VECTOR_DIMS)[keyof typeof VECTOR_DIMS];
 
       // Added log for specific embedding model
       logger.debug(
-        `[OpenAI] Using embedding model: ${embeddingModelName} with dimension: ${embeddingDimension}`
+        `[OpenAI] Using embedding model: ${embeddingModelName} with dimension: ${embeddingDimension}`,
       );
 
       if (!Object.values(VECTOR_DIMS).includes(embeddingDimension)) {
@@ -496,7 +496,7 @@ export const openaiPlugin: Plugin = {
 
         if (!response.ok) {
           logger.error(
-            `OpenAI API error: ${response.status} - ${response.statusText}`
+            `OpenAI API error: ${response.status} - ${response.statusText}`,
           );
           const errorVector = Array(embeddingDimension).fill(0);
           errorVector[0] = 0.4;
@@ -539,19 +539,19 @@ export const openaiPlugin: Plugin = {
     },
     [ModelType.TEXT_TOKENIZER_ENCODE]: async (
       _runtime,
-      { prompt, modelType = ModelType.TEXT_LARGE }: TokenizeTextParams
+      { prompt, modelType = ModelType.TEXT_LARGE }: TokenizeTextParams,
     ) => {
       return await tokenizeText(modelType ?? ModelType.TEXT_LARGE, prompt);
     },
     [ModelType.TEXT_TOKENIZER_DECODE]: async (
       _runtime,
-      { tokens, modelType = ModelType.TEXT_LARGE }: DetokenizeTextParams
+      { tokens, modelType = ModelType.TEXT_LARGE }: DetokenizeTextParams,
     ) => {
       return await detokenizeText(modelType ?? ModelType.TEXT_LARGE, tokens);
     },
     [ModelType.TEXT_SMALL]: async (
       runtime: IAgentRuntime,
-      { prompt, stopSequences = [] }: GenerateTextParams
+      { prompt, stopSequences = [] }: GenerateTextParams,
     ) => {
       const temperature = 0.7;
       const frequency_penalty = 0.7;
@@ -590,7 +590,7 @@ export const openaiPlugin: Plugin = {
         temperature = 0.7,
         frequencyPenalty = 0.7,
         presencePenalty = 0.7,
-      }: GenerateTextParams
+      }: GenerateTextParams,
     ) => {
       const openai = createOpenAIClient(runtime);
       const modelName = getLargeModel(runtime);
@@ -621,7 +621,7 @@ export const openaiPlugin: Plugin = {
         prompt: string;
         n?: number;
         size?: string;
-      }
+      },
     ) => {
       const n = params.n || 1;
       const size = params.size || "1024x1024";
@@ -668,7 +668,7 @@ export const openaiPlugin: Plugin = {
     },
     [ModelType.IMAGE_DESCRIPTION]: async (
       runtime: IAgentRuntime,
-      params: ImageDescriptionParams | string
+      params: ImageDescriptionParams | string,
     ) => {
       let imageUrl: string;
       let promptText: string | undefined;
@@ -677,7 +677,7 @@ export const openaiPlugin: Plugin = {
       const maxTokens = Number.parseInt(
         getSetting(runtime, "OPENAI_IMAGE_DESCRIPTION_MAX_TOKENS", "8192") ||
           "8192",
-        10
+        10,
       );
 
       if (typeof params === "string") {
@@ -763,7 +763,7 @@ export const openaiPlugin: Plugin = {
               promptTokens: typedResult.usage.prompt_tokens,
               completionTokens: typedResult.usage.completion_tokens,
               totalTokens: typedResult.usage.total_tokens,
-            }
+            },
           );
         }
 
@@ -808,7 +808,7 @@ export const openaiPlugin: Plugin = {
     },
     [ModelType.TRANSCRIPTION]: async (
       runtime: IAgentRuntime,
-      audioBuffer: Buffer
+      audioBuffer: Buffer,
     ) => {
       // logger.log('audioBuffer', audioBuffer);
 
@@ -858,12 +858,12 @@ export const openaiPlugin: Plugin = {
     },
     [ModelType.TEXT_TO_SPEECH]: async (
       runtime: IAgentRuntime,
-      text: string
+      text: string,
     ) => {
       const ttsModelName = getSetting(
         runtime,
         "OPENAI_TTS_MODEL",
-        "gpt-4o-mini-tts"
+        "gpt-4o-mini-tts",
       );
       logger.debug(`[OpenAI] Using TEXT_TO_SPEECH model: ${ttsModelName}`);
       try {
@@ -876,24 +876,24 @@ export const openaiPlugin: Plugin = {
     },
     [ModelType.OBJECT_SMALL]: async (
       runtime: IAgentRuntime,
-      params: ObjectGenerationParams
+      params: ObjectGenerationParams,
     ) => {
       return generateObjectByModelType(
         runtime,
         params,
         ModelType.OBJECT_SMALL,
-        getSmallModel
+        getSmallModel,
       );
     },
     [ModelType.OBJECT_LARGE]: async (
       runtime: IAgentRuntime,
-      params: ObjectGenerationParams
+      params: ObjectGenerationParams,
     ) => {
       return generateObjectByModelType(
         runtime,
         params,
         ModelType.OBJECT_LARGE,
-        getLargeModel
+        getLargeModel,
       );
     },
   },
@@ -913,11 +913,11 @@ export const openaiPlugin: Plugin = {
             const data = await response.json();
             logger.log(
               "Models Available:",
-              (data as { data?: unknown[] })?.data?.length ?? "N/A"
+              (data as { data?: unknown[] })?.data?.length ?? "N/A",
             );
             if (!response.ok) {
               throw new Error(
-                `Failed to validate OpenAI API key: ${response.statusText}`
+                `Failed to validate OpenAI API key: ${response.statusText}`,
               );
             }
           },
@@ -930,7 +930,7 @@ export const openaiPlugin: Plugin = {
                 ModelType.TEXT_EMBEDDING,
                 {
                   text: "Hello, world!",
-                }
+                },
               );
               // logger.log('embedding', embedding);
             } catch (error: unknown) {
@@ -1006,7 +1006,7 @@ export const openaiPlugin: Plugin = {
               try {
                 const result = await runtime.useModel(
                   ModelType.IMAGE_DESCRIPTION,
-                  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg/537px-Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg"
+                  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg/537px-Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg",
                 );
 
                 if (
@@ -1019,7 +1019,7 @@ export const openaiPlugin: Plugin = {
                 } else {
                   logger.error(
                     "Invalid image description result format:",
-                    result
+                    result,
                   );
                 }
               } catch (e: unknown) {
@@ -1029,7 +1029,7 @@ export const openaiPlugin: Plugin = {
             } catch (e: unknown) {
               const message = e instanceof Error ? e.message : String(e);
               logger.error(
-                `Error in openai_test_image_description: ${message}`
+                `Error in openai_test_image_description: ${message}`,
               );
             }
           },
@@ -1040,12 +1040,12 @@ export const openaiPlugin: Plugin = {
             logger.info("openai_test_transcription");
             try {
               const response = await fetch(
-                "https://upload.wikimedia.org/wikipedia/en/4/40/Chris_Benoit_Voice_Message.ogg"
+                "https://upload.wikimedia.org/wikipedia/en/4/40/Chris_Benoit_Voice_Message.ogg",
               );
               const arrayBuffer = await response.arrayBuffer();
               const transcription = await runtime.useModel(
                 ModelType.TRANSCRIPTION,
-                Buffer.from(new Uint8Array(arrayBuffer))
+                Buffer.from(new Uint8Array(arrayBuffer)),
               );
               logger.log("generated with test_transcription:", transcription);
             } catch (error: unknown) {
@@ -1062,11 +1062,11 @@ export const openaiPlugin: Plugin = {
             const prompt = "Hello tokenizer encode!";
             const tokens = await runtime.useModel(
               ModelType.TEXT_TOKENIZER_ENCODE,
-              { prompt }
+              { prompt },
             );
             if (!Array.isArray(tokens) || tokens.length === 0) {
               throw new Error(
-                "Failed to tokenize text: expected non-empty array of tokens"
+                "Failed to tokenize text: expected non-empty array of tokens",
               );
             }
             logger.log("Tokenized output:", tokens);
@@ -1078,15 +1078,15 @@ export const openaiPlugin: Plugin = {
             const prompt = "Hello tokenizer decode!";
             const tokens = await runtime.useModel(
               ModelType.TEXT_TOKENIZER_ENCODE,
-              { prompt }
+              { prompt },
             );
             const decodedText = await runtime.useModel(
               ModelType.TEXT_TOKENIZER_DECODE,
-              { tokens }
+              { tokens },
             );
             if (decodedText !== prompt) {
               throw new Error(
-                `Decoded text does not match original. Expected "${prompt}", got "${decodedText}"`
+                `Decoded text does not match original. Expected "${prompt}", got "${decodedText}"`,
               );
             }
             logger.log("Decoded text:", decodedText);

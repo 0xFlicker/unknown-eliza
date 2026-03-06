@@ -1,5 +1,16 @@
-import type { Action, IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
-import { addHeader, composeActionExamples, formatActionNames, formatActions } from '@elizaos/core';
+import type {
+  Action,
+  IAgentRuntime,
+  Memory,
+  Provider,
+  State,
+} from "@elizaos/core";
+import {
+  addHeader,
+  composeActionExamples,
+  formatActionNames,
+  formatActions,
+} from "@elizaos/core";
 
 /**
  * A provider object that fetches possible response actions based on the provided runtime, message, and state.
@@ -34,8 +45,8 @@ import { addHeader, composeActionExamples, formatActionNames, formatActions } fr
  * @returns {Object} Object containing data, values, and text related to actions
  */
 export const actionsProvider: Provider = {
-  name: 'ACTIONS',
-  description: 'Possible response actions',
+  name: "ACTIONS",
+  description: "Possible response actions",
   position: -1,
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     // Get actions that validate for this message
@@ -46,7 +57,7 @@ export const actionsProvider: Provider = {
           return action;
         }
       } catch (e) {
-        console.error('ACTIONS GET -> validate err', action, e);
+        console.error("ACTIONS GET -> validate err", action, e);
       }
       return null;
     });
@@ -62,23 +73,25 @@ export const actionsProvider: Provider = {
     const actionsWithDescriptions =
       actionsData.length > 0
         ? addHeader(
-            '# Available Actions',
+            "# Available Actions",
             actionsData
               .map(
                 (action) =>
-                  `- **${action.name}**: ${action.description || 'No description available'}`
+                  `- **${action.name}**: ${action.description || "No description available"}`,
               )
-              .join('\n')
+              .join("\n"),
           )
-        : '';
+        : "";
 
     const actions =
-      actionsData.length > 0 ? addHeader('# Available Actions', formatActions(actionsData)) : '';
+      actionsData.length > 0
+        ? addHeader("# Available Actions", formatActions(actionsData))
+        : "";
 
     const actionExamples =
       actionsData.length > 0
-        ? addHeader('# Action Examples', composeActionExamples(actionsData, 10))
-        : '';
+        ? addHeader("# Action Examples", composeActionExamples(actionsData, 10))
+        : "";
 
     const data = {
       actionsData,
@@ -94,7 +107,7 @@ export const actionsProvider: Provider = {
     // Combine all text sections - now including actionsWithDescriptions
     const text = [actionNames, actionsWithDescriptions, actionExamples, actions]
       .filter(Boolean)
-      .join('\n\n');
+      .join("\n\n");
 
     return {
       data,

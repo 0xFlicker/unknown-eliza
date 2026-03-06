@@ -8,7 +8,7 @@ import {
   type ProviderResult,
   type State,
   type UUID,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Role provider that retrieves roles in the server based on the provided runtime, message, and state.
@@ -26,12 +26,17 @@ import {
  * @type {Provider}
  */
 export const roleProvider: Provider = {
-  name: 'ROLES',
-  description: 'Roles in the server, default are OWNER, ADMIN and MEMBER (as well as NONE)',
-  get: async (runtime: IAgentRuntime, message: Memory, state: State): Promise<ProviderResult> => {
+  name: "ROLES",
+  description:
+    "Roles in the server, default are OWNER, ADMIN and MEMBER (as well as NONE)",
+  get: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+  ): Promise<ProviderResult> => {
     const room = state.data.room ?? (await runtime.getRoom(message.roomId));
     if (!room) {
-      throw new Error('No room found');
+      throw new Error("No room found");
     }
 
     if (room.type !== ChannelType.GROUP) {
@@ -41,16 +46,16 @@ export const roleProvider: Provider = {
         },
         values: {
           roles:
-            'No access to role information in DMs, the role provider is only available in group scenarios.',
+            "No access to role information in DMs, the role provider is only available in group scenarios.",
         },
-        text: 'No access to role information in DMs, the role provider is only available in group scenarios.',
+        text: "No access to role information in DMs, the role provider is only available in group scenarios.",
       };
     }
 
     const serverId = room.serverId;
 
     if (!serverId) {
-      throw new Error('No server ID found');
+      throw new Error("No server ID found");
     }
 
     logger.info(`Using server ID: ${serverId}`);
@@ -61,16 +66,16 @@ export const roleProvider: Provider = {
 
     if (!world || !world.metadata?.ownership?.ownerId) {
       logger.info(
-        `No ownership data found for server ${serverId}, initializing empty role hierarchy`
+        `No ownership data found for server ${serverId}, initializing empty role hierarchy`,
       );
       return {
         data: {
           roles: [],
         },
         values: {
-          roles: 'No role information available for this server.',
+          roles: "No role information available for this server.",
         },
-        text: 'No role information available for this server.',
+        text: "No role information available for this server.",
       };
     }
     // Get roles from world metadata
@@ -83,9 +88,9 @@ export const roleProvider: Provider = {
           roles: [],
         },
         values: {
-          roles: 'No role information available for this server.',
+          roles: "No role information available for this server.",
         },
-        text: 'No role information available for this server.',
+        text: "No role information available for this server.",
       };
     }
 
@@ -123,10 +128,10 @@ export const roleProvider: Provider = {
 
       // Add to appropriate group
       switch (userRole) {
-        case 'OWNER':
+        case "OWNER":
           owners.push({ name, username, names });
           break;
-        case 'ADMIN':
+        case "ADMIN":
           admins.push({ name, username, names });
           break;
         default:
@@ -136,28 +141,28 @@ export const roleProvider: Provider = {
     }
 
     // Format the response
-    let response = '# Server Role Hierarchy\n\n';
+    let response = "# Server Role Hierarchy\n\n";
 
     if (owners.length > 0) {
-      response += '## Owners\n';
+      response += "## Owners\n";
       owners.forEach((owner) => {
-        response += `${owner.name} (${owner.names.join(', ')})\n`;
+        response += `${owner.name} (${owner.names.join(", ")})\n`;
       });
-      response += '\n';
+      response += "\n";
     }
 
     if (admins.length > 0) {
-      response += '## Administrators\n';
+      response += "## Administrators\n";
       admins.forEach((admin) => {
-        response += `${admin.name} (${admin.names.join(', ')}) (${admin.username})\n`;
+        response += `${admin.name} (${admin.names.join(", ")}) (${admin.username})\n`;
       });
-      response += '\n';
+      response += "\n";
     }
 
     if (members.length > 0) {
-      response += '## Members\n';
+      response += "## Members\n";
       members.forEach((member) => {
-        response += `${member.name} (${member.names.join(', ')}) (${member.username})\n`;
+        response += `${member.name} (${member.names.join(", ")}) (${member.username})\n`;
       });
     }
 
@@ -167,9 +172,9 @@ export const roleProvider: Provider = {
           roles: [],
         },
         values: {
-          roles: 'No role information available for this server.',
+          roles: "No role information available for this server.",
         },
-        text: 'No role information available for this server.',
+        text: "No role information available for this server.",
       };
     }
 

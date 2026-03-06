@@ -1,8 +1,11 @@
-import { type UUID, logger } from '@elizaos/core';
-import { drizzle } from 'drizzle-orm/pglite';
-import { BaseDrizzleAdapter } from '../base';
-import { DIMENSION_MAP, type EmbeddingDimensionColumn } from '../schema/embedding';
-import type { PGliteClientManager } from './manager';
+import { type UUID, logger } from "@elizaos/core";
+import { drizzle } from "drizzle-orm/pglite";
+import { BaseDrizzleAdapter } from "../base";
+import {
+  DIMENSION_MAP,
+  type EmbeddingDimensionColumn,
+} from "../schema/embedding";
+import type { PGliteClientManager } from "./manager";
 
 /**
  * PgliteDatabaseAdapter class represents an adapter for interacting with a PgliteDatabase.
@@ -43,7 +46,9 @@ export class PgliteDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>}
    */
   async runMigrations(): Promise<void> {
-    logger.debug('PgliteDatabaseAdapter: Migrations are handled by the migration service');
+    logger.debug(
+      "PgliteDatabaseAdapter: Migrations are handled by the migration service",
+    );
     // Migrations are handled by the migration service, not the adapter
   }
 
@@ -56,7 +61,7 @@ export class PgliteDatabaseAdapter extends BaseDrizzleAdapter {
    */
   protected async withDatabase<T>(operation: () => Promise<T>): Promise<T> {
     if (this.manager.isShuttingDown()) {
-      logger.warn('Database is shutting down');
+      logger.warn("Database is shutting down");
       return null as unknown as T;
     }
     return operation();
@@ -68,7 +73,9 @@ export class PgliteDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>} A Promise that resolves when the database initialization is complete.
    */
   async init(): Promise<void> {
-    logger.debug('PGliteDatabaseAdapter initialized, skipping automatic migrations.');
+    logger.debug(
+      "PGliteDatabaseAdapter initialized, skipping automatic migrations.",
+    );
   }
 
   /**

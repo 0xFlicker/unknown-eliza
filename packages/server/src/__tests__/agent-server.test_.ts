@@ -60,25 +60,25 @@ mock.module("@elizaos/plugin-sql", () => ({
     getMessageServers: jest.fn(() =>
       Promise.resolve([
         { id: "00000000-0000-0000-0000-000000000000", name: "Default Server" },
-      ])
+      ]),
     ),
     createMessageServer: jest
       .fn()
       .mockReturnValue(
-        Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" })
+        Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" }),
       ),
     getMessageServerById: jest.fn().mockReturnValue(
       Promise.resolve({
         id: "00000000-0000-0000-0000-000000000000",
         name: "Default Server",
-      })
+      }),
     ),
     addAgentToServer: jest.fn().mockReturnValue(Promise.resolve(undefined)),
     getChannelsForServer: jest.fn().mockReturnValue(Promise.resolve([])),
     createChannel: jest
       .fn()
       .mockReturnValue(
-        Promise.resolve({ id: "123e4567-e89b-12d3-a456-426614174000" })
+        Promise.resolve({ id: "123e4567-e89b-12d3-a456-426614174000" }),
       ),
     getAgentsForServer: jest.fn().mockReturnValue(Promise.resolve([])),
     db: { execute: jest.fn().mockReturnValue(Promise.resolve([])) },
@@ -219,7 +219,7 @@ describe("AgentServer Integration Tests", () => {
       await server.initialize();
 
       expect(loggerWarnSpy).toHaveBeenCalledWith(
-        "AgentServer is already initialized, skipping initialization"
+        "AgentServer is already initialized, skipping initialization",
       );
     });
 
@@ -236,7 +236,7 @@ describe("AgentServer Integration Tests", () => {
       }));
 
       await expect(server.initialize()).rejects.toThrow(
-        "Database connection failed"
+        "Database connection failed",
       );
     });
   });
@@ -253,17 +253,17 @@ describe("AgentServer Integration Tests", () => {
 
       expect(mockServer.listen).toHaveBeenCalledWith(
         port,
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(server["serverPort"]).toBe(port);
     });
 
     it("should throw error for invalid port", () => {
       expect(() => server.start(null as any)).toThrow(
-        "Invalid port number: null"
+        "Invalid port number: null",
       );
       expect(() => server.start("invalid" as any)).toThrow(
-        "Invalid port number: invalid"
+        "Invalid port number: invalid",
       );
     });
 
@@ -316,14 +316,14 @@ describe("AgentServer Integration Tests", () => {
 
     it("should throw error when registering null runtime", async () => {
       await expect(server.registerAgent(null as any)).rejects.toThrow(
-        "Attempted to register null/undefined runtime"
+        "Attempted to register null/undefined runtime",
       );
     });
 
     it("should throw error when runtime missing agentId", async () => {
       const invalidRuntime = { character: { name: "TestAgent" } };
       await expect(server.registerAgent(invalidRuntime as any)).rejects.toThrow(
-        "Runtime missing agentId"
+        "Runtime missing agentId",
       );
     });
 
@@ -332,7 +332,7 @@ describe("AgentServer Integration Tests", () => {
         agentId: "123e4567-e89b-12d3-a456-426614174000",
       };
       await expect(server.registerAgent(invalidRuntime as any)).rejects.toThrow(
-        "Runtime missing character configuration"
+        "Runtime missing character configuration",
       );
     });
 
@@ -383,7 +383,7 @@ describe("AgentServer Integration Tests", () => {
         createMessageServer: jest
           .fn()
           .mockReturnValue(
-            Promise.resolve({ id: "server-id", name: "Test Server" })
+            Promise.resolve({ id: "server-id", name: "Test Server" }),
           ),
         getMessageServers: jest.fn().mockReturnValue(Promise.resolve([])),
         getMessageServerById: jest
@@ -408,7 +408,7 @@ describe("AgentServer Integration Tests", () => {
       const result = await server.createServer(serverData);
 
       expect((server.database as any).createMessageServer).toHaveBeenCalledWith(
-        serverData
+        serverData,
       );
       expect(result).toEqual({
         id: "server-id" as UUID,
@@ -436,7 +436,7 @@ describe("AgentServer Integration Tests", () => {
 
       expect((server.database as any).createChannel).toHaveBeenCalledWith(
         channelData,
-        undefined
+        undefined,
       );
       expect(result).toEqual({
         id: "channel-id" as UUID,
@@ -455,11 +455,11 @@ describe("AgentServer Integration Tests", () => {
       await server.addAgentToServer(serverId, agentId);
 
       expect(
-        (server.database as any).getMessageServerById
+        (server.database as any).getMessageServerById,
       ).toHaveBeenCalledWith(serverId);
       expect((server.database as any).addAgentToServer).toHaveBeenCalledWith(
         serverId,
-        agentId
+        agentId,
       );
     });
 
@@ -472,7 +472,7 @@ describe("AgentServer Integration Tests", () => {
       const agentId = "agent-id" as any;
 
       await expect(server.addAgentToServer(serverId, agentId)).rejects.toThrow(
-        "Server non-existent-server not found"
+        "Server non-existent-server not found",
       );
     });
   });
@@ -502,11 +502,11 @@ describe("AgentServer Integration Tests", () => {
       const errorSpy = jest.spyOn(logger, "error");
 
       await expect(server.initialize()).rejects.toThrow(
-        "Initialization failed"
+        "Initialization failed",
       );
       expect(errorSpy).toHaveBeenCalledWith(
         "Failed to initialize AgentServer (async operations):",
-        mockError
+        mockError,
       );
     });
   });

@@ -97,7 +97,7 @@ describe("Memory Integration Tests", () => {
 
   const createTestMemory = (
     content: Record<string, any>,
-    embedding?: number[]
+    embedding?: number[],
   ): Memory & { metadata: MemoryMetadata } => ({
     id: v4() as UUID,
     agentId: testAgentId,
@@ -116,7 +116,7 @@ describe("Memory Integration Tests", () => {
   it("should create and retrieve a memory with an embedding", async () => {
     const memory = createTestMemory(
       { text: "test" },
-      Array.from({ length: 384 }, () => Math.random())
+      Array.from({ length: 384 }, () => Math.random()),
     );
     const memoryId = await adapter.createMemory(memory, "test");
     const retrieved = await adapter.getMemoryById(memoryId);
@@ -211,10 +211,10 @@ describe("Memory Integration Tests", () => {
       // Verify only content changed, embedding and metadata preserved
       const afterContentUpdate = await adapter.getMemoryById(memoryId);
       expect(afterContentUpdate?.content.text).toBe(
-        "This is updated content only"
+        "This is updated content only",
       );
       expect(afterContentUpdate?.embedding).toEqual(
-        memory.embedding as number[]
+        memory.embedding as number[],
       );
       expect(afterContentUpdate?.metadata).toEqual(memory.metadata);
 
@@ -234,7 +234,7 @@ describe("Memory Integration Tests", () => {
       // Verify partial metadata update behaves as expected
       const afterMetadataUpdate = await adapter.getMemoryById(memoryId);
       expect(afterMetadataUpdate?.content.text).toBe(
-        "This is updated content only"
+        "This is updated content only",
       );
       expect(afterMetadataUpdate?.metadata?.type).toBe("test-original");
       expect(afterMetadataUpdate?.metadata?.source).toBe("updated-source");
@@ -283,7 +283,7 @@ describe("Memory Integration Tests", () => {
       expect(afterContentTextUpdate?.content.text).toBe("Updated text only");
       expect(afterContentTextUpdate?.content.type).toBe("text");
       expect(afterContentTextUpdate?.content.additionalInfo).toBe(
-        "This should be preserved"
+        "This should be preserved",
       );
       expect(afterContentTextUpdate?.metadata).toEqual(originalMemory.metadata);
 
@@ -304,7 +304,7 @@ describe("Memory Integration Tests", () => {
       // Verify metadata was updated and content preserved
       const afterSourceUpdate = await adapter.getMemoryById(memoryId);
       expect(afterSourceUpdate?.content).toEqual(
-        afterContentTextUpdate?.content as Content
+        afterContentTextUpdate?.content as Content,
       );
       expect(afterSourceUpdate?.metadata?.type).toBe("test-original");
       expect(afterSourceUpdate?.metadata?.source).toBe("updated-source");
@@ -317,11 +317,11 @@ describe("Memory Integration Tests", () => {
     it("should retrieve memories by room ID", async () => {
       await adapter.createMemory(
         createTestMemory({ text: "mem1" }),
-        "messages"
+        "messages",
       );
       await adapter.createMemory(
         createTestMemory({ text: "mem2" }),
-        "messages"
+        "messages",
       );
       const memories = await adapter.getMemories({
         roomId: testRoomId,
@@ -333,11 +333,11 @@ describe("Memory Integration Tests", () => {
     it("should count memories in a room", async () => {
       await adapter.createMemory(
         createTestMemory({ text: "mem1" }),
-        "memories"
+        "memories",
       );
       await adapter.createMemory(
         createTestMemory({ text: "mem2" }),
-        "memories"
+        "memories",
       );
       const count = await adapter.countMemories(testRoomId, false, "memories");
       expect(count).toBe(2);
@@ -364,7 +364,7 @@ describe("Memory Integration Tests", () => {
 
       expect(memories).toHaveLength(2);
       expect(memories.map((m) => m.id)).toEqual(
-        expect.arrayContaining(memoryIds)
+        expect.arrayContaining(memoryIds),
       );
     });
 
@@ -398,7 +398,7 @@ describe("Memory Integration Tests", () => {
 
       // There should be at least 3 memories total
       expect(secondPage.length).toBeGreaterThanOrEqual(
-        memoryTestMemories.length
+        memoryTestMemories.length,
       );
     });
   });
@@ -512,7 +512,7 @@ describe("Memory Integration Tests", () => {
 
       // Retrieve it from database
       const retrievedMemory = await adapter.getMemoryById(
-        testMemory.id as UUID
+        testMemory.id as UUID,
       );
       expect(retrievedMemory).not.toBeNull();
 
@@ -522,10 +522,10 @@ describe("Memory Integration Tests", () => {
       expect(retrievedMemory!.roomId).toBe(testMemory.roomId);
       expect(retrievedMemory!.agentId).toBe(testMemory.agentId);
       expect(retrievedMemory!.content.text).toBe(
-        testMemory.content.text as string
+        testMemory.content.text as string,
       );
       expect(retrievedMemory!.metadata?.type).toBe(
-        testMemory.metadata?.type as string
+        testMemory.metadata?.type as string,
       );
     });
 
@@ -556,7 +556,7 @@ describe("Memory Integration Tests", () => {
 
       // Retrieve it from database
       const retrievedMemory = await adapter.getMemoryById(
-        partialMemory.id as UUID
+        partialMemory.id as UUID,
       );
       expect(retrievedMemory).not.toBeNull();
 
@@ -596,7 +596,7 @@ describe("Memory Integration Tests", () => {
       const countBefore = await adapter.countMemories(
         testRoomId,
         true,
-        "memories"
+        "memories",
       );
       expect(countBefore).toBeGreaterThan(0);
 
@@ -607,7 +607,7 @@ describe("Memory Integration Tests", () => {
       const countAfter = await adapter.countMemories(
         testRoomId,
         true,
-        "memories"
+        "memories",
       );
       expect(countAfter).toBe(0);
     });
@@ -628,17 +628,17 @@ describe("Memory Integration Tests", () => {
       // Create memories in the first room
       await adapter.createMemory(
         createTestMemory({ text: "mem1-room1" }),
-        "memories"
+        "memories",
       );
       await adapter.createMemory(
         createTestMemory({ text: "mem2-room1" }),
-        "memories"
+        "memories",
       );
 
       // Create memories in the second room
       await adapter.createMemory(
         { ...createTestMemory({ text: "mem3-room2" }), roomId: secondRoomId },
-        "memories"
+        "memories",
       );
 
       // Retrieve memories from both rooms

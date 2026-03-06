@@ -49,7 +49,7 @@ export class AssociationManager {
    */
   getAssociation(
     agentId: UUID,
-    channelId: UUID
+    channelId: UUID,
   ): AgentChannelAssociation | undefined {
     const agentAssociations = this.agentToChannelAssociations.get(agentId);
     if (!agentAssociations) return undefined;
@@ -131,12 +131,12 @@ export class AssociationManager {
   updateParticipantState(
     agentId: UUID,
     channelId: UUID,
-    state: ChannelParticipant["state"]
+    state: ChannelParticipant["state"],
   ): void {
     const association = this.getAssociation(agentId, channelId);
     if (!association) {
       throw new Error(
-        `No association found for agent ${agentId} in channel ${channelId}`
+        `No association found for agent ${agentId} in channel ${channelId}`,
       );
     }
 
@@ -149,12 +149,12 @@ export class AssociationManager {
   updateParticipantMode(
     agentId: UUID,
     channelId: UUID,
-    mode: ChannelParticipant["mode"]
+    mode: ChannelParticipant["mode"],
   ): void {
     const association = this.getAssociation(agentId, channelId);
     if (!association) {
       throw new Error(
-        `No association found for agent ${agentId} in channel ${channelId}`
+        `No association found for agent ${agentId} in channel ${channelId}`,
       );
     }
 
@@ -180,7 +180,7 @@ export class AssociationManager {
    */
   getParticipant(
     agentId: UUID,
-    channelId: UUID
+    channelId: UUID,
   ): ChannelParticipant | undefined {
     const association = this.getAssociation(agentId, channelId);
     return association?.participant;
@@ -194,7 +194,7 @@ export class AssociationManager {
       .filter(
         (assoc) =>
           assoc.participant.state === "FOLLOWED" &&
-          assoc.participant.mode !== "observe_only"
+          assoc.participant.mode !== "observe_only",
       )
       .map((assoc) => assoc.agentId);
   }

@@ -1,8 +1,18 @@
-import { type UUID, logger, Agent, Entity, Memory, Component } from '@elizaos/core';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { BaseDrizzleAdapter } from '../base';
-import { DIMENSION_MAP, type EmbeddingDimensionColumn } from '../schema/embedding';
-import type { PostgresConnectionManager } from './manager';
+import {
+  type UUID,
+  logger,
+  Agent,
+  Entity,
+  Memory,
+  Component,
+} from "@elizaos/core";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { BaseDrizzleAdapter } from "../base";
+import {
+  DIMENSION_MAP,
+  type EmbeddingDimensionColumn,
+} from "../schema/embedding";
+import type { PostgresConnectionManager } from "./manager";
 
 /**
  * Adapter class for interacting with a PostgreSQL database.
@@ -12,7 +22,11 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
   protected embeddingDimension: EmbeddingDimensionColumn = DIMENSION_MAP[384];
   private manager: PostgresConnectionManager;
 
-  constructor(agentId: UUID, manager: PostgresConnectionManager, _schema?: any) {
+  constructor(
+    agentId: UUID,
+    manager: PostgresConnectionManager,
+    _schema?: any,
+  ) {
     super(agentId);
     this.manager = manager;
     this.db = manager.getDatabase();
@@ -24,7 +38,7 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>}
    */
   async runMigrations(): Promise<void> {
-    logger.debug('PgDatabaseAdapter: Migrations should be handled externally');
+    logger.debug("PgDatabaseAdapter: Migrations should be handled externally");
     // Migrations are handled by the migration service, not the adapter
   }
 
@@ -57,7 +71,9 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>} A promise that resolves when initialization is complete.
    */
   async init(): Promise<void> {
-    logger.debug('PgDatabaseAdapter initialized, skipping automatic migrations.');
+    logger.debug(
+      "PgDatabaseAdapter initialized, skipping automatic migrations.",
+    );
   }
 
   /**
@@ -142,7 +158,7 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID
+    sourceEntityId?: UUID,
   ): Promise<Component | null> {
     return super.getComponent(entityId, type, worldId, sourceEntityId);
   }

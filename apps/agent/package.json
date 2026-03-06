@@ -44,7 +44,16 @@
     "@elizaos/plugin-video-generation": "^0.25.6-alpha.1",
     "@elizaos/server": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.17.0",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.19",
+    "evt": "^2.5.9",
+    "express": "^5.2.1",
+    "node-fetch": "^3.3.2",
     "rxjs": "^7.8.2",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^3.5.0",
+    "unique-names-generator": "^4.7.1",
+    "uuid": "^13.0.0",
     "xstate": "^5.20.1",
     "zod": "^4.0.10"
   },
@@ -57,19 +66,19 @@
     "vitest": "3.1.4"
   },
   "scripts": {
-    "start": "elizaos start",
-    "dev": "rm -rf .elizaos .eliza && bun src/server/dev.ts",
+    "start": "doppler run -- elizaos start",
+    "dev": "rm -rf .elizaos .eliza && doppler run -- bun src/server/dev.ts",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "prettier --write ./src",
-    "test": "bun test",
-    "test:coverage": "bun test --coverage",
-    "test:watch": "bun test --watch",
-    "test:record": "MODEL_RECORD_MODE=true bun test",
-    "test:record:soft": "MODEL_RECORD_MODE=true SOFT=true bun test",
+    "test": "doppler run -- bun test",
+    "test:coverage": "doppler run -- bun test --coverage",
+    "test:watch": "doppler run -- bun test --watch",
+    "test:record": "doppler run -- MODEL_RECORD_MODE=true bun test",
+    "test:record:soft": "doppler run -- MODEL_RECORD_MODE=true SOFT=true bun test",
     "format": "prettier --write ./src",
     "format:check": "prettier --check ./src",
-    "dev:debug": "bun run --inspect-brk src/server/dev.ts"
+    "dev:debug": "doppler run -- bun run --inspect-brk src/server/dev.ts"
   },
   "publishConfig": {
     "access": "public"

@@ -253,7 +253,7 @@ const options = {
   hooks: {
     logMethod(
       inputArgs: [string | Record<string, unknown>, ...unknown[]],
-      method: LogFn
+      method: LogFn,
     ): void {
       const [arg1, ...rest] = inputArgs;
       if (process.env.SENTRY_LOGGING !== "false") {
@@ -282,7 +282,7 @@ const options = {
           ]);
         } else {
           const messageParts = rest.map((arg) =>
-            typeof arg === "string" ? arg : JSON.stringify(arg)
+            typeof arg === "string" ? arg : JSON.stringify(arg),
           );
           const message = messageParts.join(" ");
           method.apply(this, [arg1, message]);
@@ -299,7 +299,7 @@ const options = {
           .filter((part) => typeof part === "string")
           .join(" ");
         const jsonParts = messageParts.filter(
-          (part) => typeof part === "object"
+          (part) => typeof part === "object",
         );
 
         Object.assign(context, ...jsonParts);
@@ -327,7 +327,7 @@ const createLogger = (bindings: any | boolean = false) => {
         stream = pretty.default ? pretty.default(createPrettyConfig()) : null;
       } catch (e) {
         console.warn(
-          "pino-pretty failed to load in createLogger, using fallback logging"
+          "pino-pretty failed to load in createLogger, using fallback logging",
         );
       }
     }

@@ -35,7 +35,7 @@ const getRecentInteractions = async (
   runtime: IAgentRuntime,
   sourceEntityId: UUID,
   targetEntityId: UUID,
-  excludeRoomId: UUID
+  excludeRoomId: UUID,
 ): Promise<Memory[]> => {
   // Find all rooms where sourceEntityId and targetEntityId are participants
   const rooms = await runtime.getRoomsForParticipants([
@@ -88,7 +88,7 @@ export const recentMessagesProvider: Provider = {
                 runtime,
                 message.entityId,
                 runtime.agentId,
-                roomId
+                roomId,
               )
             : Promise.resolve([]),
         ]);
@@ -110,7 +110,7 @@ export const recentMessagesProvider: Provider = {
             entities: entitiesData,
             conversationHeader: false,
           }),
-        ]
+        ],
       );
 
       // Create formatted text with headers
@@ -163,14 +163,14 @@ export const recentMessagesProvider: Provider = {
       const receivedMessageHeader = hasReceivedMessage
         ? addHeader(
             "# Received Message",
-            `${senderName}: ${receivedMessageContent}`
+            `${senderName}: ${receivedMessageContent}`,
           )
         : "";
 
       const focusHeader = hasReceivedMessage
         ? addHeader(
             "# Focus your response",
-            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message. Do not repeat earlier replies unless the sender asks again.`
+            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message. Do not repeat earlier replies unless the sender asks again.`,
           )
         : "";
 
@@ -184,7 +184,7 @@ export const recentMessagesProvider: Provider = {
           ...new Set(
             recentInteractionsData
               .map((message) => message.entityId)
-              .filter((id) => id !== runtime.agentId)
+              .filter((id) => id !== runtime.agentId),
           ),
         ];
 
@@ -203,15 +203,15 @@ export const recentMessagesProvider: Provider = {
         // Get the remaining entities that weren't already loaded
         // Use Set difference for efficient filtering
         const remainingEntityIds = uniqueEntityIds.filter(
-          (id) => !entitiesDataIdSet.has(id)
+          (id) => !entitiesDataIdSet.has(id),
         );
 
         // Only fetch the entities we don't already have
         if (remainingEntityIds.length > 0) {
           const entities = await Promise.all(
             remainingEntityIds.map((entityId) =>
-              runtime.getEntityById(entityId)
-            )
+              runtime.getEntityById(entityId),
+            ),
           );
 
           entities.forEach((entity, index) => {
@@ -224,7 +224,7 @@ export const recentMessagesProvider: Provider = {
 
       // Format recent message interactions
       const getRecentMessageInteractions = async (
-        recentInteractionsData: Memory[]
+        recentInteractionsData: Memory[],
       ): Promise<string> => {
         // Format messages using the pre-fetched entities
         const formattedInteractions = recentInteractionsData.map((message) => {
@@ -248,7 +248,7 @@ export const recentMessagesProvider: Provider = {
       // Format recent post interactions
       const getRecentPostInteractions = async (
         recentInteractionsData: Memory[],
-        entities: Entity[]
+        entities: Entity[],
       ): Promise<string> => {
         // Combine pre-loaded entities with any other entities
         const combinedEntities = [...entities];

@@ -67,15 +67,17 @@ async function findDatabaseAdapter(runtime: IAgentRuntime) {
   let adapter = runtime;
 
   if (!adapter) {
-    const drizzleAdapterPlugin = await import('@elizaos/plugin-sql');
+    const drizzleAdapterPlugin = await import("@elizaos/plugin-sql");
     const drizzleAdapterPluginDefault = drizzleAdapterPlugin.default;
     adapter = drizzleAdapterPluginDefault.adapter;
     if (!adapter) {
-      throw new Error('Internal error: No database adapter found for default plugin-sql');
+      throw new Error(
+        "Internal error: No database adapter found for default plugin-sql",
+      );
     }
   } else if (!adapter) {
     throw new Error(
-      'Multiple database adapters found. You must have no more than one. Adjust your plugins configuration.'
+      "Multiple database adapters found. You must have no more than one. Adjust your plugins configuration.",
     );
   }
 
@@ -158,15 +160,15 @@ bun add -D drizzle-kit
 2. Create or update your schema files (e.g., `schema/account.ts`):
 
 ```typescript
-import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
-export const accountTable = pgTable('accounts', {
-  id: uuid('id').primaryKey().notNull(),
-  name: text('name'),
-  email: text('email').notNull(),
+export const accountTable = pgTable("accounts", {
+  id: uuid("id").primaryKey().notNull(),
+  name: text("name"),
+  email: text("email").notNull(),
   // Add new fields here
-  newField: text('newField'),
+  newField: text("newField"),
 });
 ```
 
@@ -189,9 +191,9 @@ npx drizzle-kit push:pg
 b. Through your application code:
 
 ```typescript
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 
-await migrate(db, { migrationsFolder: './drizzle' });
+await migrate(db, { migrationsFolder: "./drizzle" });
 ```
 
 c. Using the provided migration script:
@@ -215,17 +217,17 @@ This command will read the configuration from `drizzle.config.ts` and pull the P
 The plugin uses a `drizzle.config.ts` file to configure migrations:
 
 ```typescript
-import { config } from 'dotenv';
-import { defineConfig } from 'drizzle-kit';
+import { config } from "dotenv";
+import { defineConfig } from "drizzle-kit";
 
-config({ path: '../../.env' });
+config({ path: "../../.env" });
 
 export default defineConfig({
-  dialect: 'postgresql',
-  schema: './src/schema/index.ts',
-  out: './drizzle/migrations',
+  dialect: "postgresql",
+  schema: "./src/schema/index.ts",
+  out: "./drizzle/migrations",
   dbCredentials: {
-    url: process.env.POSTGRES_URL || 'file:../../.elizadb',
+    url: process.env.POSTGRES_URL || "file:../../.elizadb",
   },
   breakpoints: true,
 });
@@ -272,7 +274,7 @@ This pattern is particularly important in monorepo setups or when the package is
 
 ```typescript
 // Example of the singleton pattern implementation
-const GLOBAL_SINGLETONS = Symbol.for('@elizaos/plugin-sql/global-singletons');
+const GLOBAL_SINGLETONS = Symbol.for("@elizaos/plugin-sql/global-singletons");
 
 // Store managers in a global symbol registry
 if (!globalSymbols[GLOBAL_SINGLETONS]) {
@@ -281,7 +283,9 @@ if (!globalSymbols[GLOBAL_SINGLETONS]) {
 
 // Reuse existing managers or create new ones when needed
 if (!globalSingletons.postgresConnectionManager) {
-  globalSingletons.postgresConnectionManager = new PostgresConnectionManager(config.postgresUrl);
+  globalSingletons.postgresConnectionManager = new PostgresConnectionManager(
+    config.postgresUrl,
+  );
 }
 ```
 

@@ -9,7 +9,7 @@ import {
   type Memory,
   ModelType,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Template for determining if an agent should unmute a previously muted room.
@@ -45,13 +45,22 @@ ${booleanFooter}`;
  * @returns {Promise<boolean>} A boolean value indicating if the room was successfully unmuted.
  */
 export const unmuteRoomAction: Action = {
-  name: 'UNMUTE_ROOM',
-  similes: ['UNMUTE_CHAT', 'UNMUTE_CONVERSATION', 'UNMUTE_ROOM', 'UNMUTE_THREAD'],
-  description: 'Unmutes a room, allowing the agent to consider responding to messages again.',
+  name: "UNMUTE_ROOM",
+  similes: [
+    "UNMUTE_CHAT",
+    "UNMUTE_CONVERSATION",
+    "UNMUTE_ROOM",
+    "UNMUTE_THREAD",
+  ],
+  description:
+    "Unmutes a room, allowing the agent to consider responding to messages again.",
   validate: async (runtime: IAgentRuntime, message: Memory) => {
     const roomId = message.roomId;
-    const roomState = await runtime.getParticipantUserState(roomId, runtime.agentId);
-    return roomState === 'MUTED';
+    const roomState = await runtime.getParticipantUserState(
+      roomId,
+      runtime.agentId,
+    );
+    return roomState === "MUTED";
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -59,7 +68,7 @@ export const unmuteRoomAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     _callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ) => {
     async function _shouldUnmute(state: State): Promise<boolean> {
       const shouldUnmutePrompt = composePromptFromState({
@@ -77,11 +86,11 @@ export const unmuteRoomAction: Action = {
 
       // Handle various affirmative responses
       if (
-        cleanedResponse === 'true' ||
-        cleanedResponse === 'yes' ||
-        cleanedResponse === 'y' ||
-        cleanedResponse.includes('true') ||
-        cleanedResponse.includes('yes')
+        cleanedResponse === "true" ||
+        cleanedResponse === "yes" ||
+        cleanedResponse === "y" ||
+        cleanedResponse.includes("true") ||
+        cleanedResponse.includes("yes")
       ) {
         await runtime.createMemory(
           {
@@ -90,25 +99,26 @@ export const unmuteRoomAction: Action = {
             roomId: message.roomId,
             content: {
               source: message.content.source,
-              thought: 'I will now unmute this room and start considering it for responses again',
-              actions: ['UNMUTE_ROOM_STARTED'],
+              thought:
+                "I will now unmute this room and start considering it for responses again",
+              actions: ["UNMUTE_ROOM_STARTED"],
             },
             metadata: {
-              type: 'UNMUTE_ROOM',
+              type: "UNMUTE_ROOM",
             },
           },
-          'messages'
+          "messages",
         );
         return true;
       }
 
       // Handle various negative responses
       if (
-        cleanedResponse === 'false' ||
-        cleanedResponse === 'no' ||
-        cleanedResponse === 'n' ||
-        cleanedResponse.includes('false') ||
-        cleanedResponse.includes('no')
+        cleanedResponse === "false" ||
+        cleanedResponse === "no" ||
+        cleanedResponse === "n" ||
+        cleanedResponse.includes("false") ||
+        cleanedResponse.includes("no")
       ) {
         await runtime.createMemory(
           {
@@ -117,14 +127,14 @@ export const unmuteRoomAction: Action = {
             roomId: message.roomId,
             content: {
               source: message.content.source,
-              thought: 'I tried to unmute a room but I decided not to',
-              actions: ['UNMUTE_ROOM_FAILED'],
+              thought: "I tried to unmute a room but I decided not to",
+              actions: ["UNMUTE_ROOM_FAILED"],
             },
             metadata: {
-              type: 'UNMUTE_ROOM',
+              type: "UNMUTE_ROOM",
             },
           },
-          'messages'
+          "messages",
         );
         return false;
       }
@@ -135,7 +145,11 @@ export const unmuteRoomAction: Action = {
     }
 
     if (state && (await _shouldUnmute(state))) {
-      await runtime.setParticipantUserState(message.roomId, runtime.agentId, null);
+      await runtime.setParticipantUserState(
+        message.roomId,
+        runtime.agentId,
+        null,
+      );
     }
 
     const room = await runtime.getRoom(message.roomId);
@@ -152,97 +166,97 @@ export const unmuteRoomAction: Action = {
         roomId: message.roomId,
         content: {
           thought: `I unmuted the room ${room.name}`,
-          actions: ['UNMUTE_ROOM_START'],
+          actions: ["UNMUTE_ROOM_START"],
         },
       },
-      'messages'
+      "messages",
     );
   },
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: '{{name3}}, you can unmute this channel now',
+          text: "{{name3}}, you can unmute this channel now",
         },
       },
       {
-        name: '{{name3}}',
+        name: "{{name3}}",
         content: {
-          text: 'Done',
-          actions: ['UNMUTE_ROOM'],
+          text: "Done",
+          actions: ["UNMUTE_ROOM"],
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'I could use some help troubleshooting this bug.',
+          text: "I could use some help troubleshooting this bug.",
         },
       },
       {
-        name: '{{name3}}',
+        name: "{{name3}}",
         content: {
-          text: 'Can you post the specific error message',
-        },
-      },
-    ],
-    [
-      {
-        name: '{{name1}}',
-        content: {
-          text: '{{name2}}, please unmute this room. We could use your input again.',
-        },
-      },
-      {
-        name: '{{name2}}',
-        content: {
-          text: 'Sounds good',
-          actions: ['UNMUTE_ROOM'],
+          text: "Can you post the specific error message",
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: '{{name2}} wait you should come back and chat in here',
+          text: "{{name2}}, please unmute this room. We could use your input again.",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'im back',
-          actions: ['UNMUTE_ROOM'],
-        },
-      },
-    ],
-    [
-      {
-        name: '{{name1}}',
-        content: {
-          text: 'unmute urself {{name2}}',
-        },
-      },
-      {
-        name: '{{name2}}',
-        content: {
-          text: 'unmuted',
-          actions: ['UNMUTE_ROOM'],
+          text: "Sounds good",
+          actions: ["UNMUTE_ROOM"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'ay {{name2}} get back in here',
+          text: "{{name2}} wait you should come back and chat in here",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'sup yall',
-          actions: ['UNMUTE_ROOM'],
+          text: "im back",
+          actions: ["UNMUTE_ROOM"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "unmute urself {{name2}}",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "unmuted",
+          actions: ["UNMUTE_ROOM"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "ay {{name2}} get back in here",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "sup yall",
+          actions: ["UNMUTE_ROOM"],
         },
       },
     ],

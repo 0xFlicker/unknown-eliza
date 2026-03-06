@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql } from "drizzle-orm";
 import {
   boolean as pgBoolean,
   check as pgCheck,
@@ -12,9 +12,9 @@ import {
   uuid as pgUuid,
   vector as pgVector,
   type PgTableFn,
-} from 'drizzle-orm/pg-core';
+} from "drizzle-orm/pg-core";
 
-export type DatabaseType = 'postgres' | 'pglite';
+export type DatabaseType = "postgres" | "pglite";
 
 // Type helpers for cross-database compatibility
 // Since Pglite uses PostgreSQL dialect, we use the same types for both
@@ -56,7 +56,10 @@ export class SchemaFactory {
     return pgBoolean(name);
   }
 
-  timestamp(name: string, options?: { withTimezone?: boolean; mode?: 'date' | 'string' }) {
+  timestamp(
+    name: string,
+    options?: { withTimezone?: boolean; mode?: "date" | "string" },
+  ) {
     return pgTimestamp(name, options);
   }
 
@@ -67,7 +70,7 @@ export class SchemaFactory {
   vector(name: string, dimensions: number) {
     // Pglite may not support pgvector extension yet
     // For compatibility, we'll store as JSONB for pglite
-    if (this.dbType === 'pglite') {
+    if (this.dbType === "pglite") {
       return pgJsonb(name);
     }
     return pgVector(name, { dimensions });
@@ -100,7 +103,7 @@ export class SchemaFactory {
   // Helper for random UUID generation
   defaultRandomUuid() {
     // Pglite may not have gen_random_uuid() extension
-    if (this.dbType === 'pglite') {
+    if (this.dbType === "pglite") {
       // Will use application-level UUID generation
       return undefined;
     }
@@ -118,7 +121,7 @@ export function setDatabaseType(dbType: DatabaseType) {
 export function getSchemaFactory(): SchemaFactory {
   if (!globalFactory) {
     // Default to postgres for backward compatibility
-    globalFactory = new SchemaFactory('postgres');
+    globalFactory = new SchemaFactory("postgres");
   }
   return globalFactory;
 }

@@ -1,5 +1,5 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { PgliteDatabase } from 'drizzle-orm/pglite';
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { PgliteDatabase } from "drizzle-orm/pglite";
 
 /**
  * Represents a type that can be either a NodePgDatabase or a PgliteDatabase.

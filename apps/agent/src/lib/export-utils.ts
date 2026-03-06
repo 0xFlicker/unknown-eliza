@@ -56,8 +56,8 @@ export function agentToCharacterData(agent: Agent): Record<string, any> {
   // Remove undefined/null fields to keep JSON clean
   return Object.fromEntries(
     Object.entries(characterData).filter(
-      ([_, value]) => value !== undefined && value !== null
-    )
+      ([_, value]) => value !== undefined && value !== null,
+    ),
   );
 }
 

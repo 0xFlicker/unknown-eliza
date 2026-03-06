@@ -15,6 +15,8 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
+      "bun": "./src/index.ts",
+      "types": "./src/index.ts",
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -28,9 +30,11 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.3",
     "@elizaos/core": "workspace:*",
+    "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.44.2",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

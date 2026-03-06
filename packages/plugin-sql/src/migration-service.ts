@@ -27,7 +27,7 @@ export class DatabaseMigrationService {
       }
     }
     logger.info(
-      `Discovered ${this.registeredSchemas.size} plugin schemas out of ${plugins.length} plugins`
+      `Discovered ${this.registeredSchemas.size} plugin schemas out of ${plugins.length} plugins`,
     );
   }
 
@@ -37,7 +37,7 @@ export class DatabaseMigrationService {
     }
 
     logger.info(
-      `Running migrations for ${this.registeredSchemas.size} plugins...`
+      `Running migrations for ${this.registeredSchemas.size} plugins...`,
     );
 
     for (const [pluginName, schema] of this.registeredSchemas) {
@@ -48,7 +48,7 @@ export class DatabaseMigrationService {
       await runPluginMigrations(this.db!, pluginName, schema);
 
       console.log(
-        `[MIGRATION DEBUG] Completed migration for plugin: ${pluginName}`
+        `[MIGRATION DEBUG] Completed migration for plugin: ${pluginName}`,
       );
     }
 

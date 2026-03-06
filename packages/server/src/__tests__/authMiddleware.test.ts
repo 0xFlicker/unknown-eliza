@@ -68,7 +68,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
@@ -83,7 +83,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
@@ -117,13 +117,13 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.send).toHaveBeenCalledWith(
-        "Unauthorized: Invalid or missing X-API-KEY"
+        "Unauthorized: Invalid or missing X-API-KEY",
       );
     });
 
@@ -133,13 +133,13 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.send).toHaveBeenCalledWith(
-        "Unauthorized: Invalid or missing X-API-KEY"
+        "Unauthorized: Invalid or missing X-API-KEY",
       );
     });
 
@@ -149,13 +149,13 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.send).toHaveBeenCalledWith(
-        "Unauthorized: Invalid or missing X-API-KEY"
+        "Unauthorized: Invalid or missing X-API-KEY",
       );
     });
 
@@ -166,7 +166,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Should reject because Express converts to lowercase 'x-api-key'
@@ -213,7 +213,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
     });
   });
@@ -226,14 +226,14 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Should reject with 401 when headers is undefined
       expect(mockNext).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.send).toHaveBeenCalledWith(
-        "Unauthorized: Invalid or missing X-API-KEY"
+        "Unauthorized: Invalid or missing X-API-KEY",
       );
     });
 
@@ -244,7 +244,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -257,7 +257,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Empty string is falsy, so auth should be bypassed
@@ -272,7 +272,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       // Whitespace is truthy, so exact match should work
@@ -294,7 +294,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -307,7 +307,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -320,7 +320,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).not.toHaveBeenCalled();
@@ -346,7 +346,7 @@ describe("API Key Auth Middleware", () => {
       apiKeyAuthMiddleware(
         mockRequest as Request,
         mockResponse as Response,
-        mockNext
+        mockNext,
       );
 
       expect(mockNext).toHaveBeenCalled();

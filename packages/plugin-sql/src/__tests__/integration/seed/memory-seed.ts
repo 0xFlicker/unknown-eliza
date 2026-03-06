@@ -1,5 +1,13 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Memory, Entity, Room, Agent, World, UUID, ChannelType } from '@elizaos/core';
+import { v4 as uuidv4 } from "uuid";
+import {
+  Memory,
+  Entity,
+  Room,
+  Agent,
+  World,
+  UUID,
+  ChannelType,
+} from "@elizaos/core";
 
 // Test IDs
 export const memoryTestAgentId = uuidv4() as UUID;
@@ -10,11 +18,11 @@ export const memoryTestWorldId = uuidv4() as UUID;
 // Test data for memory integration tests
 export const memoryTestAgent: Agent = {
   id: memoryTestAgentId,
-  name: 'Memory Test Agent',
-  bio: 'Test agent for memory integration tests',
+  name: "Memory Test Agent",
+  bio: "Test agent for memory integration tests",
   settings: {
     profile: {
-      short_description: 'Test agent for memory integration tests',
+      short_description: "Test agent for memory integration tests",
     },
   },
   createdAt: new Date().getTime(),
@@ -23,11 +31,11 @@ export const memoryTestAgent: Agent = {
 
 export const memoryTestEntity: Entity = {
   id: memoryTestEntityId,
-  names: ['Memory Test Entity'],
+  names: ["Memory Test Entity"],
   agentId: memoryTestAgentId,
   components: [],
   metadata: {
-    type: 'user',
+    type: "user",
     worldId: memoryTestWorldId,
   },
 };
@@ -35,16 +43,16 @@ export const memoryTestEntity: Entity = {
 export const memoryTestWorld: World = {
   id: memoryTestWorldId,
   agentId: memoryTestAgentId,
-  name: 'Memory Test World',
-  serverId: 'test-server',
+  name: "Memory Test World",
+  serverId: "test-server",
   metadata: {},
 };
 
 export const memoryTestRoom: Room = {
   id: memoryTestRoomId,
-  name: 'Memory Test Room',
+  name: "Memory Test Room",
   agentId: memoryTestAgentId,
-  source: 'test',
+  source: "test",
   type: ChannelType.GROUP,
   worldId: memoryTestWorldId,
   metadata: {},
@@ -70,12 +78,12 @@ export const memoryTestMemories: Memory[] = [
     createdAt: new Date().getTime() - 3600000, // 1 hour ago
     unique: true,
     content: {
-      text: 'This is a test memory for integration testing #1',
-      type: 'text',
+      text: "This is a test memory for integration testing #1",
+      type: "text",
     },
     metadata: {
-      type: 'chat',
-      source: 'integration-test',
+      type: "chat",
+      source: "integration-test",
     },
   },
   {
@@ -86,12 +94,12 @@ export const memoryTestMemories: Memory[] = [
     createdAt: new Date().getTime() - 7200000, // 2 hours ago
     unique: true,
     content: {
-      text: 'This is a test memory for integration testing #2',
-      type: 'text',
+      text: "This is a test memory for integration testing #2",
+      type: "text",
     },
     metadata: {
-      type: 'chat',
-      source: 'integration-test',
+      type: "chat",
+      source: "integration-test",
     },
   },
   {
@@ -102,12 +110,12 @@ export const memoryTestMemories: Memory[] = [
     createdAt: new Date().getTime() - 10800000, // 3 hours ago
     unique: true,
     content: {
-      text: 'This is a test memory for integration testing #3',
-      type: 'text',
+      text: "This is a test memory for integration testing #3",
+      type: "text",
     },
     metadata: {
-      type: 'chat',
-      source: 'integration-test',
+      type: "chat",
+      source: "integration-test",
     },
   },
 ];
@@ -119,8 +127,8 @@ export const memoryTestMemoriesWithEmbedding: Memory[] = [
     id: uuidv4() as UUID,
     embedding: generateEmbedding(384),
     content: {
-      text: 'This is a test memory with embedding dimension 384',
-      type: 'text',
+      text: "This is a test memory with embedding dimension 384",
+      type: "text",
     },
   },
   {
@@ -128,8 +136,8 @@ export const memoryTestMemoriesWithEmbedding: Memory[] = [
     id: uuidv4() as UUID,
     embedding: generateEmbedding(384),
     content: {
-      text: 'This is a test memory with embedding dimension 384',
-      type: 'text',
+      text: "This is a test memory with embedding dimension 384",
+      type: "text",
     },
   },
   {
@@ -137,8 +145,8 @@ export const memoryTestMemoriesWithEmbedding: Memory[] = [
     id: uuidv4() as UUID,
     embedding: generateEmbedding(384),
     content: {
-      text: 'This is a test memory with embedding dimension 384',
-      type: 'text',
+      text: "This is a test memory with embedding dimension 384",
+      type: "text",
     },
   },
 ];
@@ -153,15 +161,15 @@ export const memoryTestDocument: Memory = {
   createdAt: new Date().getTime(),
   unique: true,
   content: {
-    text: 'This is a test document memory',
-    type: 'text',
+    text: "This is a test document memory",
+    type: "text",
   },
   metadata: {
-    type: 'document',
+    type: "document",
     documentId: documentMemoryId,
     timestamp: Date.now(),
-    title: 'Test Document',
-    source: 'integration-test',
+    title: "Test Document",
+    source: "integration-test",
   },
 };
 
@@ -177,22 +185,25 @@ export const memoryTestFragments: Memory[] = Array(3)
     unique: true,
     content: {
       text: `This is fragment ${index + 1} of the test document`,
-      type: 'text',
+      type: "text",
     },
     embedding: generateEmbedding(384),
     metadata: {
-      type: 'fragment',
+      type: "fragment",
       documentId: documentMemoryId,
       position: index,
-      source: 'integration-test',
+      source: "integration-test",
     },
   }));
 
 // Helper function to create similar memory for vector similarity testing
-export const createSimilarMemoryVector = (baseMemory: Memory, similarity: number): Memory => {
+export const createSimilarMemoryVector = (
+  baseMemory: Memory,
+  similarity: number,
+): Memory => {
   // Only works if baseMemory has an embedding
   if (!baseMemory.embedding || !Array.isArray(baseMemory.embedding)) {
-    throw new Error('Base memory must have an embedding');
+    throw new Error("Base memory must have an embedding");
   }
 
   // Create a somewhat similar vector (higher similarity means more similar)
@@ -205,8 +216,12 @@ export const createSimilarMemoryVector = (baseMemory: Memory, similarity: number
   });
 
   // Normalize the resulting vector
-  const magnitude = Math.sqrt(blendedVector.reduce((sum, val) => sum + val * val, 0));
-  const normalizedVector = blendedVector.map((val) => Number((val / magnitude).toFixed(6)));
+  const magnitude = Math.sqrt(
+    blendedVector.reduce((sum, val) => sum + val * val, 0),
+  );
+  const normalizedVector = blendedVector.map((val) =>
+    Number((val / magnitude).toFixed(6)),
+  );
 
   return {
     ...baseMemory,

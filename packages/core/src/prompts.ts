@@ -127,7 +127,7 @@ Go directly to the XML response format without any preamble or explanation.
 
 IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.`;
 
-export const booleanFooter = 'Respond with only a YES or a NO.';
+export const booleanFooter = "Respond with only a YES or a NO.";
 
 export const imageDescriptionTemplate = `<task>Analyze the provided image and generate a comprehensive description with multiple levels of detail.</task>
 

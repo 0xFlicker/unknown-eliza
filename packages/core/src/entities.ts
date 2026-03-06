@@ -73,7 +73,7 @@ async function getRecentInteractions(
   sourceEntityId: UUID,
   candidateEntities: Entity[],
   roomId: UUID,
-  relationships: Relationship[]
+  relationships: Relationship[],
 ): Promise<{ entity: Entity; interactions: Memory[]; count: number }[]> {
   const results = [];
 
@@ -93,7 +93,8 @@ async function getRecentInteractions(
       (msg) =>
         (msg.entityId === sourceEntityId &&
           msg.content.inReplyTo === entity.id) ||
-        (msg.entityId === entity.id && msg.content.inReplyTo === sourceEntityId)
+        (msg.entityId === entity.id &&
+          msg.content.inReplyTo === sourceEntityId),
     );
 
     interactions.push(...directReplies);
@@ -104,7 +105,7 @@ async function getRecentInteractions(
         (rel.sourceEntityId === sourceEntityId &&
           rel.targetEntityId === entity.id) ||
         (rel.targetEntityId === sourceEntityId &&
-          rel.sourceEntityId === entity.id)
+          rel.sourceEntityId === entity.id),
     );
 
     if (relationship?.metadata?.interactions) {
@@ -138,7 +139,7 @@ async function getRecentInteractions(
 export async function findEntityByName(
   runtime: IAgentRuntime,
   message: Memory,
-  state: State
+  state: State,
 ): Promise<Entity | null> {
   const room = state.data.room ?? (await runtime.getRoom(message.roomId));
   if (!room) {
@@ -178,7 +179,7 @@ export async function findEntityByName(
       });
 
       return entity;
-    })
+    }),
   );
 
   // Get relationships for the message sender
@@ -194,7 +195,7 @@ export async function findEntityByName(
           ? rel.targetEntityId
           : rel.sourceEntityId;
       return runtime.getEntityById(entityId);
-    })
+    }),
   );
 
   // Filter out nulls and combine with room entities
@@ -209,7 +210,7 @@ export async function findEntityByName(
     message.entityId,
     allEntities,
     room.id,
-    relationships
+    relationships,
   );
 
   // Compose context for LLM
@@ -271,7 +272,7 @@ export async function findEntityByName(
       return entity.components?.some(
         (c) =>
           (c.data.username as string)?.toLowerCase() === matchName ||
-          (c.data.handle as string)?.toLowerCase() === matchName
+          (c.data.handle as string)?.toLowerCase() === matchName,
       );
     });
 
@@ -279,7 +280,7 @@ export async function findEntityByName(
       // If this is a relationship match, sort by interaction strength
       if (resolution.type === "RELATIONSHIP_MATCH") {
         const interactionInfo = interactionData.find(
-          (d) => d.entity.id === matchingEntity.id
+          (d) => d.entity.id === matchingEntity.id,
         );
         if (interactionInfo && interactionInfo.count > 0) {
           return matchingEntity;

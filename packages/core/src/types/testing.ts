@@ -1,4 +1,4 @@
-import type { IAgentRuntime } from './runtime';
+import type { IAgentRuntime } from "./runtime";
 
 /**
  * Represents a test case for evaluating agent or plugin functionality.

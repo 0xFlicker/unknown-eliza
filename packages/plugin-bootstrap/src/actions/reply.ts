@@ -7,7 +7,7 @@ import {
   type Memory,
   ModelType,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Template for generating dialog and actions for a character.
@@ -49,10 +49,10 @@ Your response should include the valid JSON block and nothing else.`;
  * @property {ActionExample[][]} examples - An array of example scenarios for the action.
  */
 export const replyAction = {
-  name: 'REPLY',
-  similes: ['GREET', 'REPLY_TO_MESSAGE', 'SEND_REPLY', 'RESPOND', 'RESPONSE'],
+  name: "REPLY",
+  similes: ["GREET", "REPLY_TO_MESSAGE", "SEND_REPLY", "RESPOND", "RESPONSE"],
   description:
-    'Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.',
+    "Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.",
   validate: async (_runtime: IAgentRuntime) => {
     return true;
   },
@@ -62,13 +62,17 @@ export const replyAction = {
     state: State,
     _options: any,
     callback: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ) => {
     // Check if any responses had providers associated with them
-    const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+    const allProviders =
+      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
     // Only generate response using LLM if no suitable response was found
-    state = await runtime.composeState(message, [...(allProviders ?? []), 'RECENT_MESSAGES']);
+    state = await runtime.composeState(message, [
+      ...(allProviders ?? []),
+      "RECENT_MESSAGES",
+    ]);
 
     const prompt = composePromptFromState({
       state,
@@ -81,8 +85,8 @@ export const replyAction = {
 
     const responseContent = {
       thought: response.thought,
-      text: (response.message as string) || '',
-      actions: ['REPLY'],
+      text: (response.message as string) || "",
+      actions: ["REPLY"],
     };
 
     await callback(responseContent);
@@ -92,61 +96,61 @@ export const replyAction = {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Hello there!',
+          text: "Hello there!",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Hi! How can I help you today?',
-          actions: ['REPLY'],
+          text: "Hi! How can I help you today?",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
           text: "What's your favorite color?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'I really like deep shades of blue. They remind me of the ocean and the night sky.',
-          actions: ['REPLY'],
+          text: "I really like deep shades of blue. They remind me of the ocean and the night sky.",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Can you explain how neural networks work?',
+          text: "Can you explain how neural networks work?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Let me break that down for you in simple terms...',
-          actions: ['REPLY'],
+          text: "Let me break that down for you in simple terms...",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Could you help me solve this math problem?',
+          text: "Could you help me solve this math problem?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
           text: "Of course! Let's work through it step by step.",
-          actions: ['REPLY'],
+          actions: ["REPLY"],
         },
       },
     ],

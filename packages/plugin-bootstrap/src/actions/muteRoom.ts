@@ -9,7 +9,7 @@ import {
   type Memory,
   ModelType,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Template string for deciding if the agent should mute a room and stop responding unless explicitly mentioned.
@@ -50,14 +50,23 @@ ${booleanFooter}`;
  * @property {ActionExample[][]} examples - Examples of using the action
  */
 export const muteRoomAction: Action = {
-  name: 'MUTE_ROOM',
-  similes: ['MUTE_CHAT', 'MUTE_CONVERSATION', 'MUTE_ROOM', 'MUTE_THREAD', 'MUTE_CHANNEL'],
+  name: "MUTE_ROOM",
+  similes: [
+    "MUTE_CHAT",
+    "MUTE_CONVERSATION",
+    "MUTE_ROOM",
+    "MUTE_THREAD",
+    "MUTE_CHANNEL",
+  ],
   description:
     "Mutes a room, ignoring all messages unless explicitly mentioned. Only do this if explicitly asked to, or if you're annoying people.",
   validate: async (runtime: IAgentRuntime, message: Memory) => {
     const roomId = message.roomId;
-    const roomState = await runtime.getParticipantUserState(roomId, runtime.agentId);
-    return roomState !== 'MUTED';
+    const roomState = await runtime.getParticipantUserState(
+      roomId,
+      runtime.agentId,
+    );
+    return roomState !== "MUTED";
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -65,11 +74,11 @@ export const muteRoomAction: Action = {
     state?: State,
     _options?: { [key: string]: unknown },
     _callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ) => {
     if (!state) {
-      logger.error('State is required for muting a room');
-      throw new Error('State is required for muting a room');
+      logger.error("State is required for muting a room");
+      throw new Error("State is required for muting a room");
     }
 
     async function _shouldMute(state: State): Promise<boolean> {
@@ -88,11 +97,11 @@ export const muteRoomAction: Action = {
 
       // Handle various affirmative responses
       if (
-        cleanedResponse === 'true' ||
-        cleanedResponse === 'yes' ||
-        cleanedResponse === 'y' ||
-        cleanedResponse.includes('true') ||
-        cleanedResponse.includes('yes')
+        cleanedResponse === "true" ||
+        cleanedResponse === "yes" ||
+        cleanedResponse === "y" ||
+        cleanedResponse.includes("true") ||
+        cleanedResponse.includes("yes")
       ) {
         await runtime.createMemory(
           {
@@ -101,25 +110,25 @@ export const muteRoomAction: Action = {
             roomId: message.roomId,
             content: {
               source: message.content.source,
-              thought: 'I will now mute this room',
-              actions: ['MUTE_ROOM_STARTED'],
+              thought: "I will now mute this room",
+              actions: ["MUTE_ROOM_STARTED"],
             },
             metadata: {
-              type: 'MUTE_ROOM',
+              type: "MUTE_ROOM",
             },
           },
-          'messages'
+          "messages",
         );
         return true;
       }
 
       // Handle various negative responses
       if (
-        cleanedResponse === 'false' ||
-        cleanedResponse === 'no' ||
-        cleanedResponse === 'n' ||
-        cleanedResponse.includes('false') ||
-        cleanedResponse.includes('no')
+        cleanedResponse === "false" ||
+        cleanedResponse === "no" ||
+        cleanedResponse === "n" ||
+        cleanedResponse.includes("false") ||
+        cleanedResponse.includes("no")
       ) {
         await runtime.createMemory(
           {
@@ -128,14 +137,14 @@ export const muteRoomAction: Action = {
             roomId: message.roomId,
             content: {
               source: message.content.source,
-              thought: 'I decided to not mute this room',
-              actions: ['MUTE_ROOM_FAILED'],
+              thought: "I decided to not mute this room",
+              actions: ["MUTE_ROOM_FAILED"],
             },
             metadata: {
-              type: 'MUTE_ROOM',
+              type: "MUTE_ROOM",
             },
           },
-          'messages'
+          "messages",
         );
       }
 
@@ -145,7 +154,11 @@ export const muteRoomAction: Action = {
     }
 
     if (await _shouldMute(state)) {
-      await runtime.setParticipantUserState(message.roomId, runtime.agentId, 'MUTED');
+      await runtime.setParticipantUserState(
+        message.roomId,
+        runtime.agentId,
+        "MUTED",
+      );
     }
 
     const room = state.data.room ?? (await runtime.getRoom(message.roomId));
@@ -157,117 +170,117 @@ export const muteRoomAction: Action = {
         roomId: message.roomId,
         content: {
           thought: `I muted the room ${room.name}`,
-          actions: ['MUTE_ROOM_START'],
+          actions: ["MUTE_ROOM_START"],
         },
       },
-      'messages'
+      "messages",
     );
   },
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: '{{name3}}, please mute this channel. No need to respond here for now.',
+          text: "{{name3}}, please mute this channel. No need to respond here for now.",
         },
       },
       {
-        name: '{{name3}}',
+        name: "{{name3}}",
         content: {
-          text: 'Got it',
-          actions: ['MUTE_ROOM'],
+          text: "Got it",
+          actions: ["MUTE_ROOM"],
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: '@{{name1}} we could really use your input on this',
-        },
-      },
-    ],
-    [
-      {
-        name: '{{name1}}',
-        content: {
-          text: '{{name3}}, please mute this channel for the time being',
-        },
-      },
-      {
-        name: '{{name3}}',
-        content: {
-          text: 'Understood',
-          actions: ['MUTE_ROOM'],
-        },
-      },
-      {
-        name: '{{name2}}',
-        content: {
-          text: 'Hey what do you think about this new design',
-        },
-      },
-      {
-        name: '{{name3}}',
-        content: {
-          text: '',
-          actions: ['IGNORE'],
+          text: "@{{name1}} we could really use your input on this",
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: '{{name2}} plz mute this room',
+          text: "{{name3}}, please mute this channel for the time being",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name3}}",
         content: {
-          text: 'np going silent',
-          actions: ['MUTE_ROOM'],
+          text: "Understood",
+          actions: ["MUTE_ROOM"],
         },
       },
       {
-        name: '{{name1}}',
+        name: "{{name2}}",
         content: {
-          text: 'whos going to the webxr meetup in an hour btw',
+          text: "Hey what do you think about this new design",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name3}}",
         content: {
-          text: '',
-          actions: ['IGNORE'],
-        },
-      },
-    ],
-    [
-      {
-        name: '{{name1}}',
-        content: {
-          text: 'too many messages here {{name2}}',
-        },
-      },
-      {
-        name: '{{name1}}',
-        content: {
-          text: 'my bad ill mute',
-          actions: ['MUTE_ROOM'],
+          text: "",
+          actions: ["IGNORE"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'yo {{name2}} dont talk in here',
+          text: "{{name2}} plz mute this room",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'sry',
-          actions: ['MUTE_ROOM'],
+          text: "np going silent",
+          actions: ["MUTE_ROOM"],
+        },
+      },
+      {
+        name: "{{name1}}",
+        content: {
+          text: "whos going to the webxr meetup in an hour btw",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "",
+          actions: ["IGNORE"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "too many messages here {{name2}}",
+        },
+      },
+      {
+        name: "{{name1}}",
+        content: {
+          text: "my bad ill mute",
+          actions: ["MUTE_ROOM"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "yo {{name2}} dont talk in here",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "sry",
+          actions: ["MUTE_ROOM"],
         },
       },
     ],

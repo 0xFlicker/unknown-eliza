@@ -17,7 +17,7 @@ describe("Database Operations Integration Tests", () => {
     // Use a test database with unique path
     testDbPath = path.join(
       __dirname,
-      `test-db-ops-${Date.now()}-${Math.random().toString(36).substring(7)}`
+      `test-db-ops-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     );
     process.env.PGLITE_DATA_DIR = testDbPath;
 
@@ -90,7 +90,7 @@ describe("Database Operations Integration Tests", () => {
             sourceId: `concurrent-${i}`,
             sourceType: "test",
             metadata: {},
-          })
+          }),
         );
       }
 
@@ -105,7 +105,7 @@ describe("Database Operations Integration Tests", () => {
       // Verify database integrity
       const retrievedMessages = await agentServer.getMessagesForChannel(
         channelId,
-        20
+        20,
       );
       expect(retrievedMessages).toHaveLength(10);
     });
@@ -177,7 +177,7 @@ describe("Database Operations Integration Tests", () => {
           messageServerId: serverId,
           metadata: {},
         },
-        participants.slice(0, 2) // First two participants
+        participants.slice(0, 2), // First two participants
       );
 
       // Verify initial participants
@@ -232,7 +232,7 @@ describe("Database Operations Integration Tests", () => {
       const page2 = await agentServer.getMessagesForChannel(
         channelId,
         5,
-        page1[page1.length - 1].createdAt
+        page1[page1.length - 1].createdAt,
       );
       expect(page2).toHaveLength(5);
 
@@ -278,20 +278,20 @@ describe("Database Operations Integration Tests", () => {
 
       // Verify channel is associated with server
       const serverChannels = await agentServer.getChannelsForServer(
-        newServer.id
+        newServer.id,
       );
       expect(serverChannels.some((c) => c.id === channel.id)).toBe(true);
 
       // Remove agent from server
       await agentServer.removeAgentFromServer(newServer.id, agentId);
       const agentsAfterRemoval = await agentServer.getAgentsForServer(
-        newServer.id
+        newServer.id,
       );
       expect(agentsAfterRemoval).not.toContain(agentId);
 
       // Channel should still exist
       const channelStillExists = await agentServer.getChannelDetails(
-        channel.id
+        channel.id,
       );
       expect(channelStillExists).toBeDefined();
     });
@@ -339,7 +339,7 @@ describe("Database Operations Integration Tests", () => {
             sourceId: `bulk-${i}`,
             sourceType: "test",
             metadata: { index: i },
-          }) as never
+          }) as never,
         );
       }
 
@@ -366,7 +366,7 @@ describe("Database Operations Integration Tests", () => {
             type: ChannelType.GROUP,
             messageServerId: serverId,
             metadata: { index: i },
-          }) as never
+          }) as never,
         );
       }
 
@@ -388,7 +388,7 @@ describe("Database Operations Integration Tests", () => {
       const dm1 = await agentServer.findOrCreateCentralDmChannel(
         user1,
         user2,
-        serverId
+        serverId,
       );
       expect(dm1).toBeDefined();
       expect(dm1.type).toBe(ChannelType.DM);

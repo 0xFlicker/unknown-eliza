@@ -1,4 +1,4 @@
-import type { Content, UUID } from './primitives';
+import type { Content, UUID } from "./primitives";
 
 /**
  * Memory type enumeration for built-in memory types
@@ -15,11 +15,11 @@ export type MemoryTypeAlias = string;
  * This enum is used in `MemoryMetadata` to categorize memories and influences how they are processed or queried.
  */
 export enum MemoryType {
-  DOCUMENT = 'document',
-  FRAGMENT = 'fragment',
-  MESSAGE = 'message',
-  DESCRIPTION = 'description',
-  CUSTOM = 'custom',
+  DOCUMENT = "document",
+  FRAGMENT = "fragment",
+  MESSAGE = "message",
+  DESCRIPTION = "description",
+  CUSTOM = "custom",
 }
 /**
  * Defines the scope of a memory, indicating its visibility and accessibility.
@@ -28,7 +28,7 @@ export enum MemoryType {
  * - `room`: The memory is scoped to a specific room or channel.
  * This is used in `MemoryMetadata` to control how memories are stored and retrieved based on context.
  */
-export type MemoryScope = 'shared' | 'private' | 'room';
+export type MemoryScope = "shared" | "private" | "room";
 
 /**
  * Base interface for all memory metadata types.
@@ -144,7 +144,7 @@ export function createMessageMemory(params: {
     metadata: {
       type: MemoryType.MESSAGE,
       timestamp: Date.now(),
-      scope: params.agentId ? 'private' : 'shared',
+      scope: params.agentId ? "private" : "shared",
     },
   };
 }
@@ -154,7 +154,9 @@ export function createMessageMemory(params: {
  * @param metadata The metadata to check
  * @returns True if the metadata is a DocumentMetadata
  */
-export function isDocumentMetadata(metadata: MemoryMetadata): metadata is DocumentMetadata {
+export function isDocumentMetadata(
+  metadata: MemoryMetadata,
+): metadata is DocumentMetadata {
   return metadata.type === MemoryType.DOCUMENT;
 }
 
@@ -163,7 +165,9 @@ export function isDocumentMetadata(metadata: MemoryMetadata): metadata is Docume
  * @param metadata The metadata to check
  * @returns True if the metadata is a FragmentMetadata
  */
-export function isFragmentMetadata(metadata: MemoryMetadata): metadata is FragmentMetadata {
+export function isFragmentMetadata(
+  metadata: MemoryMetadata,
+): metadata is FragmentMetadata {
   return metadata.type === MemoryType.FRAGMENT;
 }
 
@@ -172,7 +176,9 @@ export function isFragmentMetadata(metadata: MemoryMetadata): metadata is Fragme
  * @param metadata The metadata to check
  * @returns True if the metadata is a MessageMetadata
  */
-export function isMessageMetadata(metadata: MemoryMetadata): metadata is MessageMetadata {
+export function isMessageMetadata(
+  metadata: MemoryMetadata,
+): metadata is MessageMetadata {
   return metadata.type === MemoryType.MESSAGE;
 }
 
@@ -181,7 +187,9 @@ export function isMessageMetadata(metadata: MemoryMetadata): metadata is Message
  * @param metadata The metadata to check
  * @returns True if the metadata is a DescriptionMetadata
  */
-export function isDescriptionMetadata(metadata: MemoryMetadata): metadata is DescriptionMetadata {
+export function isDescriptionMetadata(
+  metadata: MemoryMetadata,
+): metadata is DescriptionMetadata {
   return metadata.type === MemoryType.DESCRIPTION;
 }
 
@@ -190,7 +198,9 @@ export function isDescriptionMetadata(metadata: MemoryMetadata): metadata is Des
  * @param metadata The metadata to check
  * @returns True if the metadata is a CustomMetadata
  */
-export function isCustomMetadata(metadata: MemoryMetadata): metadata is CustomMetadata {
+export function isCustomMetadata(
+  metadata: MemoryMetadata,
+): metadata is CustomMetadata {
   return (
     metadata.type !== MemoryType.DOCUMENT &&
     metadata.type !== MemoryType.FRAGMENT &&
@@ -203,7 +213,7 @@ export function isCustomMetadata(metadata: MemoryMetadata): metadata is CustomMe
  * Memory type guard for document memories
  */
 export function isDocumentMemory(
-  memory: Memory
+  memory: Memory,
 ): memory is Memory & { metadata: DocumentMetadata } {
   return memory.metadata?.type === MemoryType.DOCUMENT;
 }
@@ -212,7 +222,7 @@ export function isDocumentMemory(
  * Memory type guard for fragment memories
  */
 export function isFragmentMemory(
-  memory: Memory
+  memory: Memory,
 ): memory is Memory & { metadata: FragmentMetadata } {
   return memory.metadata?.type === MemoryType.FRAGMENT;
 }
@@ -223,6 +233,6 @@ export function isFragmentMemory(
  * @param defaultValue Optional default value if no text is found
  * @returns The text content or default value
  */
-export function getMemoryText(memory: Memory, defaultValue = ''): string {
+export function getMemoryText(memory: Memory, defaultValue = ""): string {
   return memory.content.text ?? defaultValue;
 }

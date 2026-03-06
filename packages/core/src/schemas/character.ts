@@ -1,10 +1,13 @@
-import { z } from 'zod';
-import type { Character } from '../types/agent';
+import { z } from "zod";
+import type { Character } from "../types/agent";
 
 // UUID validation schema
 const uuidSchema = z
   .string()
-  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'Invalid UUID format');
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    "Invalid UUID format",
+  );
 
 // Message content schema matching the Content interface
 const contentSchema = z
@@ -60,16 +63,20 @@ const styleSchema = z
   .optional();
 
 // Settings schema - flexible object
-const settingsSchema = z.record(z.union([z.string(), z.boolean(), z.number(), z.any()])).optional();
+const settingsSchema = z
+  .record(z.union([z.string(), z.boolean(), z.number(), z.any()]))
+  .optional();
 
 // Secrets schema
-const secretsSchema = z.record(z.union([z.string(), z.boolean(), z.number()])).optional();
+const secretsSchema = z
+  .record(z.union([z.string(), z.boolean(), z.number()]))
+  .optional();
 
 // Main Character schema
 export const characterSchema = z
   .object({
     id: uuidSchema.optional(),
-    name: z.string().min(1, 'Character name is required'),
+    name: z.string().min(1, "Character name is required"),
     username: z.string().optional(),
     system: z.string().optional(),
     templates: z.record(templateTypeSchema).optional(),
@@ -125,7 +132,9 @@ export function validateCharacter(data: unknown): CharacterValidationResult {
  * @param jsonString - JSON string to parse and validate
  * @returns Validation result with success flag and either data or error
  */
-export function parseAndValidateCharacter(jsonString: string): CharacterValidationResult {
+export function parseAndValidateCharacter(
+  jsonString: string,
+): CharacterValidationResult {
   try {
     const parsed = JSON.parse(jsonString);
     return validateCharacter(parsed);
@@ -133,7 +142,7 @@ export function parseAndValidateCharacter(jsonString: string): CharacterValidati
     return {
       success: false,
       error: {
-        message: `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown JSON parsing error'}`,
+        message: `Invalid JSON: ${error instanceof Error ? error.message : "Unknown JSON parsing error"}`,
       },
     };
   }

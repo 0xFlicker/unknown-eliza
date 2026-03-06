@@ -23,8 +23,10 @@ export class ChannelCapacityTracker {
       totalMessageCount: 0,
       isExhausted: false,
     });
-    
-    logger.debug(`[CapacityTracker] Configured channel ${channelId} with limits: participant=${config.maxRepliesPerParticipant}, total=${config.maxTotalMessages}`);
+
+    logger.debug(
+      `[CapacityTracker] Configured channel ${channelId} with limits: participant=${config.maxRepliesPerParticipant}, total=${config.maxTotalMessages}`,
+    );
   }
 
   /**
@@ -62,9 +64,11 @@ export class ChannelCapacityTracker {
       // Channel not configured for capacity tracking
       return;
     }
-    
+
     if (state.isExhausted) {
-      logger.debug(`[CapacityTracker] Attempted to track message in exhausted channel ${channelId}`);
+      logger.debug(
+        `[CapacityTracker] Attempted to track message in exhausted channel ${channelId}`,
+      );
       return;
     }
 
@@ -73,21 +77,28 @@ export class ChannelCapacityTracker {
     state.participantCounts.set(authorId, currentCount + 1);
     state.totalMessageCount++;
 
-    logger.debug(`[CapacityTracker] Tracked message in channel ${channelId}: author=${authorId}, count=${currentCount + 1}, total=${state.totalMessageCount}`);
+    logger.debug(
+      `[CapacityTracker] Tracked message in channel ${channelId}: author=${authorId}, count=${currentCount + 1}, total=${state.totalMessageCount}`,
+    );
 
     // Check for GLOBAL channel exhaustion (not individual participant limits)
-    const totalExceeded = state.maxTotalMessages && 
+    const totalExceeded =
+      state.maxTotalMessages &&
       state.totalMessageCount >= state.maxTotalMessages;
-    
+
     // Check if ALL participants have exhausted their individual budgets
     const allParticipantsExhausted = this.checkAllParticipantsExhausted(state);
 
     if (totalExceeded || allParticipantsExhausted) {
       state.isExhausted = true;
       state.exhaustedAt = Date.now();
-      state.exhaustionReason = totalExceeded ? 'total_limit' : 'participant_limit';
-      
-      logger.info(`[CapacityTracker] Channel ${channelId} exhausted due to ${state.exhaustionReason}`);
+      state.exhaustionReason = totalExceeded
+        ? "total_limit"
+        : "participant_limit";
+
+      logger.info(
+        `[CapacityTracker] Channel ${channelId} exhausted due to ${state.exhaustionReason}`,
+      );
     }
   }
 
@@ -116,7 +127,9 @@ export class ChannelCapacityTracker {
   /**
    * Get exhaustion reason for a channel
    */
-  getExhaustionReason(channelId: UUID): 'participant_limit' | 'total_limit' | undefined {
+  getExhaustionReason(
+    channelId: UUID,
+  ): "participant_limit" | "total_limit" | undefined {
     const state = this.capacityStates.get(channelId);
     return state?.exhaustionReason;
   }
@@ -128,23 +141,25 @@ export class ChannelCapacityTracker {
     const state = this.capacityStates.get(channelId);
     if (!state) {
       // Channel not configured for capacity tracking - unlimited
-      return { 
-        responsesRemaining: Infinity, 
+      return {
+        responsesRemaining: Infinity,
         totalMessagesRemaining: Infinity,
-        isExhausted: false
+        isExhausted: false,
       };
     }
 
     const agentMessages = state.participantCounts.get(agentId) || 0;
-    const responsesRemaining = state.maxRepliesPerParticipant ? 
-      Math.max(0, state.maxRepliesPerParticipant - agentMessages) : Infinity;
-    const totalMessagesRemaining = state.maxTotalMessages ?
-      Math.max(0, state.maxTotalMessages - state.totalMessageCount) : Infinity;
+    const responsesRemaining = state.maxRepliesPerParticipant
+      ? Math.max(0, state.maxRepliesPerParticipant - agentMessages)
+      : Infinity;
+    const totalMessagesRemaining = state.maxTotalMessages
+      ? Math.max(0, state.maxTotalMessages - state.totalMessageCount)
+      : Infinity;
 
-    return { 
-      responsesRemaining, 
-      totalMessagesRemaining, 
-      isExhausted: state.isExhausted 
+    return {
+      responsesRemaining,
+      totalMessagesRemaining,
+      isExhausted: state.isExhausted,
     };
   }
 
@@ -160,7 +175,9 @@ export class ChannelCapacityTracker {
    */
   removeChannel(channelId: UUID): void {
     this.capacityStates.delete(channelId);
-    logger.debug(`[CapacityTracker] Removed capacity tracking for channel ${channelId}`);
+    logger.debug(
+      `[CapacityTracker] Removed capacity tracking for channel ${channelId}`,
+    );
   }
 
   /**
@@ -174,8 +191,11 @@ export class ChannelCapacityTracker {
     const states = Array.from(this.capacityStates.values());
     return {
       trackedChannels: states.length,
-      exhaustedChannels: states.filter(s => s.isExhausted).length,
-      totalMessagesTracked: states.reduce((sum, s) => sum + s.totalMessageCount, 0)
+      exhaustedChannels: states.filter((s) => s.isExhausted).length,
+      totalMessagesTracked: states.reduce(
+        (sum, s) => sum + s.totalMessageCount,
+        0,
+      ),
     };
   }
 }

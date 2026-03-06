@@ -1,6 +1,6 @@
-import dotenv from 'dotenv';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
+import dotenv from "dotenv";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 /**
  * Expands a file path starting with `~` to the project directory.
@@ -9,7 +9,7 @@ import path from 'node:path';
  * @returns The expanded path.
  */
 export function expandTildePath(filepath: string): string {
-  if (filepath && filepath.startsWith('~')) {
+  if (filepath && filepath.startsWith("~")) {
     return path.join(process.cwd(), filepath.slice(1));
   }
   return filepath;
@@ -29,7 +29,7 @@ export function resolveEnvFile(startDir: string = process.cwd()): string {
   let currentDir = startDir;
 
   while (true) {
-    const candidate = path.join(currentDir, '.env');
+    const candidate = path.join(currentDir, ".env");
     if (existsSync(candidate)) {
       return candidate;
     }
@@ -41,7 +41,7 @@ export function resolveEnvFile(startDir: string = process.cwd()): string {
     currentDir = parentDir;
   }
 
-  return path.join(startDir, '.env');
+  return path.join(startDir, ".env");
 }
 
 /**
@@ -67,13 +67,13 @@ export function resolvePgliteDir(dir?: string, fallbackDir?: string): string {
     dir ??
     process.env.PGLITE_DATA_DIR ??
     fallbackDir ??
-    path.join(process.cwd(), '.eliza', '.elizadb');
+    path.join(process.cwd(), ".eliza", ".elizadb");
 
   // Automatically migrate legacy path (<cwd>/.elizadb) to new location (<cwd>/.eliza/.elizadb)
   const resolved = expandTildePath(base);
-  const legacyPath = path.join(process.cwd(), '.elizadb');
+  const legacyPath = path.join(process.cwd(), ".elizadb");
   if (resolved === legacyPath) {
-    const newPath = path.join(process.cwd(), '.eliza', '.elizadb');
+    const newPath = path.join(process.cwd(), ".eliza", ".elizadb");
     process.env.PGLITE_DATA_DIR = newPath;
     return newPath;
   }

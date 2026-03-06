@@ -25,7 +25,13 @@ export interface State {
  * This type is used to provide more specific typing for properties within `StateObject` and `StateArray`,
  * moving away from a generic 'any' type for better type safety and clarity in state management.
  */
-export type StateValue = string | number | boolean | null | StateObject | StateArray;
+export type StateValue =
+  | string
+  | number
+  | boolean
+  | null
+  | StateObject
+  | StateArray;
 /**
  * Represents a generic object structure within the agent's state, where keys are strings
  * and values can be any `StateValue`. This allows for nested objects within the state.

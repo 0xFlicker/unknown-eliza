@@ -1,17 +1,17 @@
-import type { Plugin, UUID } from '@elizaos/core';
-import { AgentRuntime } from '@elizaos/core';
-import { sql } from 'drizzle-orm';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { v4 } from 'uuid';
-import { plugin as sqlPlugin } from '../index';
-import { DatabaseMigrationService } from '../migration-service';
-import { PgDatabaseAdapter } from '../pg/adapter';
-import { PostgresConnectionManager } from '../pg/manager';
-import { PgliteDatabaseAdapter } from '../pglite/adapter';
-import { PGliteClientManager } from '../pglite/manager';
-import { mockCharacter } from './fixtures';
+import type { Plugin, UUID } from "@elizaos/core";
+import { AgentRuntime } from "@elizaos/core";
+import { sql } from "drizzle-orm";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { v4 } from "uuid";
+import { plugin as sqlPlugin } from "../index";
+import { DatabaseMigrationService } from "../migration-service";
+import { PgDatabaseAdapter } from "../pg/adapter";
+import { PostgresConnectionManager } from "../pg/manager";
+import { PgliteDatabaseAdapter } from "../pglite/adapter";
+import { PGliteClientManager } from "../pglite/manager";
+import { mockCharacter } from "./fixtures";
 
 /**
  * Creates a fully initialized, in-memory PGlite database adapter and a corresponding
@@ -26,7 +26,7 @@ import { mockCharacter } from './fixtures';
  */
 export async function createTestDatabase(
   testAgentId: UUID,
-  testPlugins: Plugin[] = []
+  testPlugins: Plugin[] = [],
 ): Promise<{
   adapter: PgliteDatabaseAdapter | PgDatabaseAdapter;
   runtime: AgentRuntime;
@@ -34,8 +34,10 @@ export async function createTestDatabase(
 }> {
   if (process.env.POSTGRES_URL) {
     // PostgreSQL testing
-    console.log('[TEST] Using PostgreSQL for test database');
-    const connectionManager = new PostgresConnectionManager(process.env.POSTGRES_URL);
+    console.log("[TEST] Using PostgreSQL for test database");
+    const connectionManager = new PostgresConnectionManager(
+      process.env.POSTGRES_URL,
+    );
     const adapter = new PgDatabaseAdapter(testAgentId, connectionManager);
     await adapter.init();
 
@@ -46,7 +48,7 @@ export async function createTestDatabase(
     });
     runtime.registerDatabaseAdapter(adapter);
 
-    const schemaName = `test_${testAgentId.replace(/-/g, '_')}`;
+    const schemaName = `test_${testAgentId.replace(/-/g, "_")}`;
     const db = connectionManager.getDatabase();
 
     // Drop schema if it exists to ensure clean state
@@ -56,7 +58,10 @@ export async function createTestDatabase(
 
     const migrationService = new DatabaseMigrationService();
     await migrationService.initializeWithDatabase(db);
-    migrationService.discoverAndRegisterPluginSchemas([sqlPlugin, ...testPlugins]);
+    migrationService.discoverAndRegisterPluginSchemas([
+      sqlPlugin,
+      ...testPlugins,
+    ]);
     await migrationService.runAllPluginMigrations();
 
     await adapter.createAgent({
@@ -72,7 +77,7 @@ export async function createTestDatabase(
     return { adapter, runtime, cleanup };
   } else {
     // PGlite testing
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eliza-test-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "eliza-test-"));
     const connectionManager = new PGliteClientManager({ dataDir: tempDir });
     await connectionManager.initialize();
     const adapter = new PgliteDatabaseAdapter(testAgentId, connectionManager);
@@ -87,7 +92,10 @@ export async function createTestDatabase(
 
     const migrationService = new DatabaseMigrationService();
     await migrationService.initializeWithDatabase(adapter.getDatabase());
-    migrationService.discoverAndRegisterPluginSchemas([sqlPlugin, ...testPlugins]);
+    migrationService.discoverAndRegisterPluginSchemas([
+      sqlPlugin,
+      ...testPlugins,
+    ]);
     await migrationService.runAllPluginMigrations();
 
     await adapter.createAgent({
@@ -114,7 +122,7 @@ export async function createTestDatabase(
  */
 export async function createIsolatedTestDatabase(
   testName: string,
-  testPlugins: Plugin[] = []
+  testPlugins: Plugin[] = [],
 ): Promise<{
   adapter: PgliteDatabaseAdapter | PgDatabaseAdapter;
   runtime: AgentRuntime;
@@ -123,14 +131,16 @@ export async function createIsolatedTestDatabase(
 }> {
   // Generate a unique agent ID for this test
   const testAgentId = v4() as UUID;
-  const testId = testName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  const testId = testName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
   if (process.env.POSTGRES_URL) {
     // PostgreSQL - use unique schema per test
     const schemaName = `test_${testId}_${Date.now()}`;
     console.log(`[TEST] Creating isolated PostgreSQL schema: ${schemaName}`);
 
-    const connectionManager = new PostgresConnectionManager(process.env.POSTGRES_URL);
+    const connectionManager = new PostgresConnectionManager(
+      process.env.POSTGRES_URL,
+    );
     const adapter = new PgDatabaseAdapter(testAgentId, connectionManager);
     await adapter.init();
 
@@ -151,7 +161,10 @@ export async function createIsolatedTestDatabase(
     // Run migrations in isolated schema
     const migrationService = new DatabaseMigrationService();
     await migrationService.initializeWithDatabase(db);
-    migrationService.discoverAndRegisterPluginSchemas([sqlPlugin, ...testPlugins]);
+    migrationService.discoverAndRegisterPluginSchemas([
+      sqlPlugin,
+      ...testPlugins,
+    ]);
     await migrationService.runAllPluginMigrations();
 
     // Create test agent
@@ -162,7 +175,9 @@ export async function createIsolatedTestDatabase(
 
     const cleanup = async () => {
       try {
-        await db.execute(sql.raw(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`));
+        await db.execute(
+          sql.raw(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`),
+        );
       } catch (error) {
         console.error(`[TEST] Failed to drop schema ${schemaName}:`, error);
       }
@@ -172,7 +187,10 @@ export async function createIsolatedTestDatabase(
     return { adapter, runtime, cleanup, testAgentId };
   } else {
     // PGLite - use unique directory per test
-    const tempDir = path.join(os.tmpdir(), `eliza-test-${testId}-${Date.now()}`);
+    const tempDir = path.join(
+      os.tmpdir(),
+      `eliza-test-${testId}-${Date.now()}`,
+    );
     console.log(`[TEST] Creating isolated PGLite database: ${tempDir}`);
 
     const connectionManager = new PGliteClientManager({ dataDir: tempDir });
@@ -190,7 +208,10 @@ export async function createIsolatedTestDatabase(
     // Run migrations
     const migrationService = new DatabaseMigrationService();
     await migrationService.initializeWithDatabase(adapter.getDatabase());
-    migrationService.discoverAndRegisterPluginSchemas([sqlPlugin, ...testPlugins]);
+    migrationService.discoverAndRegisterPluginSchemas([
+      sqlPlugin,
+      ...testPlugins,
+    ]);
     await migrationService.runAllPluginMigrations();
 
     // Create test agent
@@ -204,7 +225,10 @@ export async function createIsolatedTestDatabase(
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch (error) {
-        console.error(`[TEST] Failed to remove temp directory ${tempDir}:`, error);
+        console.error(
+          `[TEST] Failed to remove temp directory ${tempDir}:`,
+          error,
+        );
       }
     };
 

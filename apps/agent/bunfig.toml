@@ -4,4 +4,4 @@ timeout = 180000
 
 # Coverage configuration
 coverage = false
-coverageSkipTestFiles = true  
+coverageSkipTestFiles = true

@@ -133,12 +133,10 @@ export function createMessagingCoreRouter(
           "[Messages Router /notify-complete] Error notifying message complete:",
           error,
         );
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Failed to notify message completion",
-          });
+        res.status(500).json({
+          success: false,
+          error: "Failed to notify message completion",
+        });
       }
     },
   );

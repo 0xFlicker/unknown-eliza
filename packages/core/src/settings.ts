@@ -1,6 +1,6 @@
-import crypto from 'crypto-browserify';
-import { createUniqueUuid } from './entities';
-import { logger } from './logger';
+import crypto from "crypto-browserify";
+import { createUniqueUuid } from "./entities";
+import { logger } from "./logger";
 import type {
   Character,
   IAgentRuntime,
@@ -8,7 +8,7 @@ import type {
   Setting,
   World,
   WorldSettings,
-} from './types';
+} from "./types";
 
 /**
  * Creates a new Setting object based on provided config settings.
@@ -21,11 +21,13 @@ import type {
  * @param {Omit<Setting, 'value'>} configSetting - The configSetting object to create the Setting from.
  * @returns {Setting} A new Setting object created from the provided configSetting object.
  */
-export function createSettingFromConfig(configSetting: Omit<Setting, 'value'>): Setting {
+export function createSettingFromConfig(
+  configSetting: Omit<Setting, "value">,
+): Setting {
   return {
     name: configSetting.name,
     description: configSetting.description,
-    usageDescription: configSetting.usageDescription || '',
+    usageDescription: configSetting.usageDescription || "",
     value: null,
     required: configSetting.required,
     validation: configSetting.validation || null,
@@ -44,17 +46,19 @@ export function createSettingFromConfig(configSetting: Omit<Setting, 'value'>): 
  */
 export function getSalt(): string {
   const secretSalt =
-    (typeof process !== 'undefined'
+    (typeof process !== "undefined"
       ? process.env.SECRET_SALT
-      : (import.meta as any).env.SECRET_SALT) || 'secretsalt';
+      : (import.meta as any).env.SECRET_SALT) || "secretsalt";
 
   if (!secretSalt) {
-    logger.error('SECRET_SALT is not set');
+    logger.error("SECRET_SALT is not set");
   }
 
   const salt = secretSalt;
 
-  logger.debug(`Generated salt with length: ${salt.length} (truncated for security)`);
+  logger.debug(
+    `Generated salt with length: ${salt.length} (truncated for security)`,
+  );
   return salt;
 }
 
@@ -67,29 +71,33 @@ export function getSalt(): string {
 export function encryptStringValue(value: string, salt: string): string {
   // Check if value is undefined or null
   if (value === undefined || value === null) {
-    logger.debug('Attempted to encrypt undefined or null value');
+    logger.debug("Attempted to encrypt undefined or null value");
     return value; // Return the value as is (undefined or null)
   }
 
-  if (typeof value === 'boolean' || typeof value === 'number') {
-    logger.debug('Value is a boolean or number, returning as is');
+  if (typeof value === "boolean" || typeof value === "number") {
+    logger.debug("Value is a boolean or number, returning as is");
     return value;
   }
 
-  if (typeof value !== 'string') {
-    logger.debug(`Value is not a string (type: ${typeof value}), returning as is`);
+  if (typeof value !== "string") {
+    logger.debug(
+      `Value is not a string (type: ${typeof value}), returning as is`,
+    );
     return value;
   }
 
   // Check if value is already encrypted (has the format "iv:encrypted")
-  const parts = value.split(':');
+  const parts = value.split(":");
   if (parts.length === 2) {
     try {
       // Try to parse the first part as hex to see if it's already encrypted
-      const possibleIv = Buffer.from(parts[0], 'hex');
+      const possibleIv = Buffer.from(parts[0], "hex");
       if (possibleIv.length === 16) {
         // Value is likely already encrypted, return as is
-        logger.debug('Value appears to be already encrypted, skipping re-encryption');
+        logger.debug(
+          "Value appears to be already encrypted, skipping re-encryption",
+        );
         return value;
       }
     } catch (e) {
@@ -98,16 +106,16 @@ export function encryptStringValue(value: string, salt: string): string {
   }
 
   // Create key and iv from the salt
-  const key = crypto.createHash('sha256').update(salt).digest().slice(0, 32);
+  const key = crypto.createHash("sha256").update(salt).digest().slice(0, 32);
   const iv = crypto.randomBytes(16);
 
   // Encrypt the value
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  let encrypted = cipher.update(value, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
+  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+  let encrypted = cipher.update(value, "utf8", "hex");
+  encrypted += cipher.final("hex");
 
   // Store IV with the encrypted value so we can decrypt it later
-  return `${iv.toString('hex')}:${encrypted}`;
+  return `${iv.toString("hex")}:${encrypted}`;
 }
 
 /**
@@ -124,17 +132,19 @@ export function decryptStringValue(value: string, salt: string): string {
       return value; // Return the value as is (undefined or null)
     }
 
-    if (typeof value === 'boolean' || typeof value === 'number') {
+    if (typeof value === "boolean" || typeof value === "number") {
       //logger.debug('Value is a boolean or number, returning as is');
       return value;
     }
-    if (typeof value !== 'string') {
-      logger.debug(`Value is not a string (type: ${typeof value}), returning as is`);
+    if (typeof value !== "string") {
+      logger.debug(
+        `Value is not a string (type: ${typeof value}), returning as is`,
+      );
       return value;
     }
 
     // Split the IV and encrypted value
-    const parts = value.split(':');
+    const parts = value.split(":");
     if (parts.length !== 2) {
       /*
       logger.debug(
@@ -144,7 +154,7 @@ export function decryptStringValue(value: string, salt: string): string {
       return value; // Return the original value without decryption
     }
 
-    const iv = Buffer.from(parts[0], 'hex');
+    const iv = Buffer.from(parts[0], "hex");
     const encrypted = parts[1];
 
     // Verify IV length
@@ -156,12 +166,12 @@ export function decryptStringValue(value: string, salt: string): string {
     }
 
     // Create key from the salt
-    const key = crypto.createHash('sha256').update(salt).digest().slice(0, 32);
+    const key = crypto.createHash("sha256").update(salt).digest().slice(0, 32);
 
     // Decrypt the value
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+    let decrypted = decipher.update(encrypted, "hex", "utf8");
+    decrypted += decipher.final("utf8");
 
     return decrypted;
   } catch (error) {
@@ -179,7 +189,11 @@ export function saltSettingValue(setting: Setting, salt: string): Setting {
   const settingCopy = { ...setting };
 
   // Only encrypt string values in secret settings
-  if (setting.secret === true && typeof setting.value === 'string' && setting.value) {
+  if (
+    setting.secret === true &&
+    typeof setting.value === "string" &&
+    setting.value
+  ) {
     settingCopy.value = encryptStringValue(setting.value, salt);
   }
 
@@ -194,7 +208,11 @@ export function unsaltSettingValue(setting: Setting, salt: string): Setting {
   const settingCopy = { ...setting };
 
   // Only decrypt string values in secret settings
-  if (setting.secret === true && typeof setting.value === 'string' && setting.value) {
+  if (
+    setting.secret === true &&
+    typeof setting.value === "string" &&
+    setting.value
+  ) {
     settingCopy.value = decryptStringValue(setting.value, salt);
   }
 
@@ -204,7 +222,10 @@ export function unsaltSettingValue(setting: Setting, salt: string): Setting {
 /**
  * Applies salt to all settings in a WorldSettings object
  */
-export function saltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
+export function saltWorldSettings(
+  worldSettings: WorldSettings,
+  salt: string,
+): WorldSettings {
   const saltedSettings: WorldSettings = {};
 
   for (const [key, setting] of Object.entries(worldSettings)) {
@@ -217,7 +238,10 @@ export function saltWorldSettings(worldSettings: WorldSettings, salt: string): W
 /**
  * Removes salt from all settings in a WorldSettings object
  */
-export function unsaltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
+export function unsaltWorldSettings(
+  worldSettings: WorldSettings,
+  salt: string,
+): WorldSettings {
   const unsaltedSettings: WorldSettings = {};
 
   for (const [key, setting] of Object.entries(worldSettings)) {
@@ -233,7 +257,7 @@ export function unsaltWorldSettings(worldSettings: WorldSettings, salt: string):
 export async function updateWorldSettings(
   runtime: IAgentRuntime,
   serverId: string,
-  worldSettings: WorldSettings
+  worldSettings: WorldSettings,
 ): Promise<boolean> {
   const worldId = createUniqueUuid(runtime, serverId);
   const world = await runtime.getWorld(worldId);
@@ -266,7 +290,7 @@ export async function updateWorldSettings(
  */
 export async function getWorldSettings(
   runtime: IAgentRuntime,
-  serverId: string
+  serverId: string,
 ): Promise<WorldSettings | null> {
   const worldId = createUniqueUuid(runtime, serverId);
   const world = await runtime.getWorld(worldId);
@@ -289,7 +313,7 @@ export async function getWorldSettings(
 export async function initializeOnboarding(
   runtime: IAgentRuntime,
   world: World,
-  config: OnboardingConfig
+  config: OnboardingConfig,
 ): Promise<WorldSettings | null> {
   // Check if settings state already exists
   if (world.metadata?.settings) {
@@ -336,7 +360,10 @@ export function encryptedCharacter(character: Character): Character {
 
   // Encrypt character.settings.secrets if it exists
   if (encryptedChar.settings?.secrets) {
-    encryptedChar.settings.secrets = encryptObjectValues(encryptedChar.settings.secrets, salt);
+    encryptedChar.settings.secrets = encryptObjectValues(
+      encryptedChar.settings.secrets,
+      salt,
+    );
   }
 
   // Encrypt character.secrets if it exists
@@ -353,14 +380,20 @@ export function encryptedCharacter(character: Character): Character {
  * @param {IAgentRuntime} runtime - The runtime information needed for salt generation
  * @returns {Character} - A copy of the character with decrypted secrets
  */
-export function decryptedCharacter(character: Character, _runtime: IAgentRuntime): Character {
+export function decryptedCharacter(
+  character: Character,
+  _runtime: IAgentRuntime,
+): Character {
   // Create a deep copy to avoid modifying the original
   const decryptedChar = JSON.parse(JSON.stringify(character));
   const salt = getSalt();
 
   // Decrypt character.settings.secrets if it exists
   if (decryptedChar.settings?.secrets) {
-    decryptedChar.settings.secrets = decryptObjectValues(decryptedChar.settings.secrets, salt);
+    decryptedChar.settings.secrets = decryptObjectValues(
+      decryptedChar.settings.secrets,
+      salt,
+    );
   }
 
   // Decrypt character.secrets if it exists
@@ -377,11 +410,14 @@ export function decryptedCharacter(character: Character, _runtime: IAgentRuntime
  * @param {string} salt - The salt to use for encryption
  * @returns {Record<string, any>} - Object with encrypted values
  */
-export function encryptObjectValues(obj: Record<string, any>, salt: string): Record<string, any> {
+export function encryptObjectValues(
+  obj: Record<string, any>,
+  salt: string,
+): Record<string, any> {
   const result: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string' && value) {
+    if (typeof value === "string" && value) {
       result[key] = encryptStringValue(value, salt);
     } else {
       result[key] = value;
@@ -397,11 +433,14 @@ export function encryptObjectValues(obj: Record<string, any>, salt: string): Rec
  * @param {string} salt - The salt to use for decryption
  * @returns {Record<string, any>} - Object with decrypted values
  */
-export function decryptObjectValues(obj: Record<string, any>, salt: string): Record<string, any> {
+export function decryptObjectValues(
+  obj: Record<string, any>,
+  salt: string,
+): Record<string, any> {
   const result: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string' && value) {
+    if (typeof value === "string" && value) {
       result[key] = decryptStringValue(value, salt);
     } else {
       result[key] = value;

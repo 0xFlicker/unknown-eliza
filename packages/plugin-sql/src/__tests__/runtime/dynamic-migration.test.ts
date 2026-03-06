@@ -97,7 +97,7 @@ describe.skip("Dynamic Migration Tests", () => {
     it("should create tables for the core sql plugin in the public schema", async () => {
       const db = adapter.getDatabase();
       const tables = await db.execute(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`,
       );
       const tableNames = tables.rows.map((r: any) => r.table_name);
       expect(tableNames).toContain("agents");
@@ -107,7 +107,7 @@ describe.skip("Dynamic Migration Tests", () => {
     it("should create tables for the hello-world plugin in a dedicated schema", async () => {
       const db = adapter.getDatabase();
       const tables = await db.execute(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'test_hello_world'`
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'test_hello_world'`,
       );
       const tableNames = tables.rows.map((r: any) => r.table_name);
       expect(tableNames).toContain("hello_world");
@@ -171,7 +171,7 @@ describe.skip("Dynamic Migration Tests", () => {
 
       const db = complexAdapter.getDatabase();
       const tables = await db.execute(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'test_complex_plugin'`
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'test_complex_plugin'`,
       );
       const tableNames = tables.rows.map((r: any) => r.table_name);
       expect(tableNames).toContain("users");

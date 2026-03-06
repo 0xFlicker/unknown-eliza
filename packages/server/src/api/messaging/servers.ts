@@ -160,12 +160,10 @@ export function createServersRouter(
           `[MessagesRouter] Error removing agent ${agentId} from server ${serverId}:`,
           error,
         );
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Failed to remove agent from server",
-          });
+        res.status(500).json({
+          success: false,
+          error: "Failed to remove agent from server",
+        });
       }
     },
   );

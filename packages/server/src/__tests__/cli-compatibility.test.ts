@@ -53,18 +53,18 @@ mock.module("@elizaos/plugin-sql", () => ({
     getMessageServers: jest.fn(() =>
       Promise.resolve([
         { id: "00000000-0000-0000-0000-000000000000", name: "Default Server" },
-      ])
+      ]),
     ),
     createMessageServer: jest
       .fn()
       .mockReturnValue(
-        Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" })
+        Promise.resolve({ id: "00000000-0000-0000-0000-000000000000" }),
       ),
     getMessageServerById: jest.fn().mockReturnValue(
       Promise.resolve({
         id: "00000000-0000-0000-0000-000000000000",
         name: "Default Server",
-      })
+      }),
     ),
     addAgentToServer: jest.fn().mockReturnValue(Promise.resolve(undefined)),
     db: { execute: jest.fn().mockReturnValue(Promise.resolve([])) },
@@ -137,7 +137,7 @@ describe("CLI Compatibility Tests", () => {
       expect((server as any).startAgent).toBe(mockStartAgent);
       expect((server as any).stopAgent).toBe(mockStopAgent);
       expect((server as any).loadCharacterTryPath).toBe(
-        mockLoadCharacterTryPath
+        mockLoadCharacterTryPath,
       );
       expect((server as any).jsonToCharacter).toBe(mockJsonToCharacter);
     });
@@ -284,10 +284,10 @@ describe("CLI Compatibility Tests", () => {
 
       // Test CLI error handling patterns
       await expect(server.registerAgent(null as any)).rejects.toThrow(
-        "Attempted to register null/undefined runtime"
+        "Attempted to register null/undefined runtime",
       );
       await expect(server.registerAgent({} as any)).rejects.toThrow(
-        "Runtime missing agentId"
+        "Runtime missing agentId",
       );
     });
 
@@ -300,7 +300,7 @@ describe("CLI Compatibility Tests", () => {
       // Test CLI error handling for invalid ports
       expect(() => server.start(null as any)).toThrow("Invalid port number");
       expect(() => server.start("invalid" as any)).toThrow(
-        "Invalid port number"
+        "Invalid port number",
       );
     });
   });

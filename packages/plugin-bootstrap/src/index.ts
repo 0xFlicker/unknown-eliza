@@ -115,7 +115,7 @@ function sanitizeJson(rawJson: string): string {
  * @returns {Promise<MediaData[]>} - A Promise that resolves with an array of MediaData objects.
  */
 export async function fetchMediaData(
-  attachments: Media[]
+  attachments: Media[],
 ): Promise<MediaData[]> {
   return Promise.all(
     attachments.map(async (attachment: Media) => {
@@ -136,9 +136,9 @@ export async function fetchMediaData(
       //   return { data: mediaBuffer, mediaType };
       // }
       throw new Error(
-        `File not found: ${attachment.url}. Make sure the path is correct.`
+        `File not found: ${attachment.url}. Make sure the path is correct.`,
       );
-    })
+    }),
   );
 }
 
@@ -152,7 +152,7 @@ export async function fetchMediaData(
  */
 export async function processAttachments(
   attachments: Media[],
-  runtime: IAgentRuntime
+  runtime: IAgentRuntime,
 ): Promise<Media[]> {
   if (!attachments || attachments.length === 0) {
     return [];
@@ -174,7 +174,7 @@ export async function processAttachments(
         !attachment.description
       ) {
         logger.debug(
-          `[Bootstrap] Generating description for image: ${attachment.url}`
+          `[Bootstrap] Generating description for image: ${attachment.url}`,
         );
 
         let imageUrl = url;
@@ -207,11 +207,11 @@ export async function processAttachments(
               processedAttachment.text = parsedXml.text;
 
               logger.debug(
-                `[Bootstrap] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
+                `[Bootstrap] Generated description: ${processedAttachment.description?.substring(0, 100)}...`,
               );
             } else {
               logger.warn(
-                `[Bootstrap] Failed to parse XML response for image description`
+                `[Bootstrap] Failed to parse XML response for image description`,
               );
             }
           } else if (
@@ -225,17 +225,17 @@ export async function processAttachments(
             processedAttachment.text = response.description;
 
             logger.debug(
-              `[Bootstrap] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
+              `[Bootstrap] Generated description: ${processedAttachment.description?.substring(0, 100)}...`,
             );
           } else {
             logger.warn(
-              `[Bootstrap] Unexpected response format for image description`
+              `[Bootstrap] Unexpected response format for image description`,
             );
           }
         } catch (error) {
           logger.error(
             `[Bootstrap] Error generating image description:`,
-            error
+            error,
           );
           // Continue processing without description
         }
@@ -252,7 +252,7 @@ export async function processAttachments(
 
         if (isPlainText) {
           logger.debug(
-            `[Bootstrap] Processing plain text document: ${attachment.url}`
+            `[Bootstrap] Processing plain text document: ${attachment.url}`,
           );
 
           const textContent = await res.text();
@@ -260,11 +260,11 @@ export async function processAttachments(
           processedAttachment.title = processedAttachment.title || "Text File";
 
           logger.debug(
-            `[Bootstrap] Extracted text content (first 100 chars): ${processedAttachment.text?.substring(0, 100)}...`
+            `[Bootstrap] Extracted text content (first 100 chars): ${processedAttachment.text?.substring(0, 100)}...`,
           );
         } else {
           logger.warn(
-            `[Bootstrap] Skipping non-plain-text document: ${contentType}`
+            `[Bootstrap] Skipping non-plain-text document: ${contentType}`,
           );
         }
       }
@@ -273,7 +273,7 @@ export async function processAttachments(
     } catch (error) {
       logger.error(
         `[Bootstrap] Failed to process attachment ${attachment.url}:`,
-        error
+        error,
       );
       // Add the original attachment if processing fails
       processedAttachments.push(attachment);
@@ -290,7 +290,7 @@ export async function processAttachments(
 export function shouldBypassShouldRespond(
   runtime: IAgentRuntime,
   room?: Room,
-  source?: string
+  source?: string,
 ): boolean {
   if (!room) return false;
 
@@ -314,20 +314,20 @@ export function shouldBypassShouldRespond(
   const defaultBypassSources = ["client_chat"];
 
   const bypassTypesSetting = normalizeEnvList(
-    runtime.getSetting("SHOULD_RESPOND_BYPASS_TYPES")
+    runtime.getSetting("SHOULD_RESPOND_BYPASS_TYPES"),
   );
   const bypassSourcesSetting = normalizeEnvList(
-    runtime.getSetting("SHOULD_RESPOND_BYPASS_SOURCES")
+    runtime.getSetting("SHOULD_RESPOND_BYPASS_SOURCES"),
   );
 
   const bypassTypes = new Set(
     [...defaultBypassTypes.map((t) => t.toString()), ...bypassTypesSetting].map(
-      (s: string) => s.trim().toLowerCase()
-    )
+      (s: string) => s.trim().toLowerCase(),
+    ),
   );
 
   const bypassSources = [...defaultBypassSources, ...bypassSourcesSetting].map(
-    (s: string) => s.trim().toLowerCase()
+    (s: string) => s.trim().toLowerCase(),
   );
 
   const roomType = room.type?.toString().toLowerCase();
@@ -357,7 +357,7 @@ const messageReceivedHandler = async ({
 
   try {
     logger.info(
-      `[Bootstrap] Message received from ${message.entityId} in room ${message.roomId}`
+      `[Bootstrap] Message received from ${message.entityId} in room ${message.roomId}`,
     );
     // Generate a new response ID
     const responseId = v4();
@@ -412,13 +412,13 @@ const messageReceivedHandler = async ({
       try {
         if (message.entityId === runtime.agentId) {
           logger.debug(
-            `[Bootstrap] Skipping message from self (${runtime.agentId})`
+            `[Bootstrap] Skipping message from self (${runtime.agentId})`,
           );
           throw new Error("Message is from the agent itself");
         }
 
         logger.debug(
-          `[Bootstrap] Processing message: ${truncateToCompleteSentence(message.content.text || "", 50)}...`
+          `[Bootstrap] Processing message: ${truncateToCompleteSentence(message.content.text || "", 50)}...`,
         );
 
         // First, save the incoming message
@@ -430,7 +430,7 @@ const messageReceivedHandler = async ({
 
         const agentUserState = await runtime.getParticipantUserState(
           message.roomId,
-          runtime.agentId
+          runtime.agentId,
         );
 
         if (
@@ -453,7 +453,7 @@ const messageReceivedHandler = async ({
             "RECENT_MESSAGES",
             "ACTIONS",
           ],
-          true
+          true,
         );
 
         // Skip shouldRespond check for DM and VOICE_DM channels
@@ -462,7 +462,7 @@ const messageReceivedHandler = async ({
         const shouldSkipShouldRespond = shouldBypassShouldRespond(
           runtime,
           room ?? undefined,
-          message.content.source
+          message.content.source,
         );
 
         if (
@@ -471,7 +471,7 @@ const messageReceivedHandler = async ({
         ) {
           message.content.attachments = await processAttachments(
             message.content.attachments,
-            runtime
+            runtime,
           );
           if (message.id) {
             await runtime.updateMemory({
@@ -493,7 +493,7 @@ const messageReceivedHandler = async ({
           });
 
           logger.debug(
-            `[Bootstrap] Evaluating response for ${runtime.character.name}\nPrompt: ${shouldRespondPrompt}`
+            `[Bootstrap] Evaluating response for ${runtime.character.name}\nPrompt: ${shouldRespondPrompt}`,
           );
 
           const response = await runtime.useModel(ModelType.TEXT_SMALL, {
@@ -501,7 +501,7 @@ const messageReceivedHandler = async ({
           });
 
           logger.debug(
-            `[Bootstrap] Response evaluation for ${runtime.character.name}:\n${response}`
+            `[Bootstrap] Response evaluation for ${runtime.character.name}:\n${response}`,
           );
           logger.debug(`[Bootstrap] Response type: ${typeof response}`);
 
@@ -519,7 +519,7 @@ const messageReceivedHandler = async ({
             !nonResponseActions.includes(responseObject.action.toUpperCase());
         } else {
           logger.debug(
-            `[Bootstrap] Skipping shouldRespond check for ${runtime.character.name} because ${room?.type} ${room?.source}`
+            `[Bootstrap] Skipping shouldRespond check for ${runtime.character.name} because ${room?.type} ${room?.source}`,
           );
           shouldRespond = true;
         }
@@ -533,7 +533,7 @@ const messageReceivedHandler = async ({
           state = await runtime.composeState(message, ["ACTIONS"]);
           if (!state.values.actionNames) {
             logger.warn(
-              "actionNames data missing from state, even though it was requested"
+              "actionNames data missing from state, even though it was requested",
             );
           }
 
@@ -584,7 +584,7 @@ const messageReceivedHandler = async ({
                 "[Bootstrap] *** Missing required fields (thought or actions), retrying... ***\n",
                 response,
                 parsedXml,
-                responseContent
+                responseContent,
               );
             }
           }
@@ -593,7 +593,7 @@ const messageReceivedHandler = async ({
           const currentResponseId = agentResponses.get(message.roomId);
           if (currentResponseId !== responseId) {
             logger.info(
-              `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`
+              `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`,
             );
             return;
           }
@@ -635,7 +635,7 @@ const messageReceivedHandler = async ({
           ) {
             state = await runtime.composeState(
               message,
-              responseContent?.providers || []
+              responseContent?.providers || [],
             );
           }
 
@@ -651,7 +651,7 @@ const messageReceivedHandler = async ({
             ) {
               logger.debug(
                 "[Bootstrap] Simple response used providers",
-                responseContent.providers
+                responseContent.providers,
               );
             }
 
@@ -662,7 +662,7 @@ const messageReceivedHandler = async ({
               message,
               responseMessages,
               state,
-              callback
+              callback,
             );
           }
           await runtime.evaluate(
@@ -670,26 +670,26 @@ const messageReceivedHandler = async ({
             state,
             shouldRespond,
             callback,
-            responseMessages
+            responseMessages,
           );
         } else {
           // Handle the case where the agent decided not to respond
           logger.debug(
-            "[Bootstrap] Agent decided not to respond (shouldRespond is false)."
+            "[Bootstrap] Agent decided not to respond (shouldRespond is false).",
           );
 
           // Check if we still have the latest response ID
           const currentResponseId = agentResponses.get(message.roomId);
           if (currentResponseId !== responseId) {
             logger.info(
-              `Ignore response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`
+              `Ignore response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`,
             );
             return; // Stop processing if a newer message took over
           }
 
           if (!message.id) {
             logger.error(
-              "[Bootstrap] Message ID is missing, cannot create ignore response."
+              "[Bootstrap] Message ID is missing, cannot create ignore response.",
             );
             return;
           }
@@ -819,12 +819,12 @@ const messageDeletedHandler = async ({
       "[Bootstrap] Deleting memory for message",
       message.id,
       "from room",
-      message.roomId
+      message.roomId,
     );
     await runtime.deleteMemory(message.id);
     logger.debug(
       "[Bootstrap] Successfully deleted memory for message",
-      message.id
+      message.id,
     );
   } catch (error: unknown) {
     logger.error("[Bootstrap] Error in message deleted handler:", error);
@@ -854,7 +854,7 @@ const channelClearedHandler = async ({
 }) => {
   try {
     logger.info(
-      `[Bootstrap] Clearing ${memoryCount} message memories from channel ${channelId} -> room ${roomId}`
+      `[Bootstrap] Clearing ${memoryCount} message memories from channel ${channelId} -> room ${roomId}`,
     );
 
     // Get all message memories for this room
@@ -873,14 +873,14 @@ const channelClearedHandler = async ({
         } catch (error) {
           logger.warn(
             `[Bootstrap] Failed to delete message memory ${memory.id}:`,
-            error
+            error,
           );
         }
       }
     }
 
     logger.info(
-      `[Bootstrap] Successfully cleared ${deletedCount}/${memories.length} message memories from channel ${channelId}`
+      `[Bootstrap] Successfully cleared ${deletedCount}/${memories.length} message memories from channel ${channelId}`,
     );
   } catch (error: unknown) {
     logger.error("[Bootstrap] Error in channel cleared handler:", error);
@@ -1000,7 +1000,7 @@ const postGeneratedHandler = async ({
         "[Bootstrap] *** Missing required fields, retrying... ***\n",
         response,
         parsedXml,
-        responseContent
+        responseContent,
       );
     }
   }
@@ -1026,7 +1026,7 @@ const postGeneratedHandler = async ({
   if (!parsedXmlResponse) {
     logger.error(
       "[Bootstrap] Failed to parse XML response for post creation. Raw response:",
-      xmlResponseText
+      xmlResponseText,
     );
     // Handle the error appropriately, maybe retry or return an error state
     return;
@@ -1069,14 +1069,14 @@ const postGeneratedHandler = async ({
 
   // have we posted it before?
   const RM = state.providerData?.find(
-    (pd) => pd.providerName === "RECENT_MESSAGES"
+    (pd) => pd.providerName === "RECENT_MESSAGES",
   );
   if (RM) {
     for (const m of RM.data.recentMessages) {
       if (cleanedText === m.content.text) {
         logger.log(
           "[Bootstrap] Already recently posted that, retrying",
-          cleanedText
+          cleanedText,
         );
         postGeneratedHandler({
           runtime,
@@ -1110,7 +1110,7 @@ const postGeneratedHandler = async ({
   ) {
     logger.log(
       "[Bootstrap] Got prompt moderation refusal, retrying",
-      cleanedText
+      cleanedText,
     );
     postGeneratedHandler({
       runtime,
@@ -1179,18 +1179,18 @@ const syncSingleUser = async (
   serverId: string,
   channelId: string,
   metadata: EntityPayload["metadata"],
-  source: string
+  source: string,
 ) => {
   try {
     const entity = await runtime.getEntityById(entityId);
     logger.info(
-      `[Bootstrap] Syncing user: ${entity?.metadata?.username || entityId}`
+      `[Bootstrap] Syncing user: ${entity?.metadata?.username || entityId}`,
     );
 
     // Ensure we're not using WORLD type and that we have a valid channelId
     if (!channelId) {
       logger.warn(
-        `[Bootstrap] Cannot sync user ${entity?.id} without a valid channelId`
+        `[Bootstrap] Cannot sync user ${entity?.id} without a valid channelId`,
       );
       return;
     }
@@ -1213,7 +1213,7 @@ const syncSingleUser = async (
         : undefined;
 
     logger.info(
-      `[Bootstrap] syncSingleUser - type: ${metadata?.type}, isDM: ${metadata?.type === ChannelType.DM}, worldMetadata: ${JSON.stringify(worldMetadata)}`
+      `[Bootstrap] syncSingleUser - type: ${metadata?.type}, isDM: ${metadata?.type === ChannelType.DM}, worldMetadata: ${JSON.stringify(worldMetadata)}`,
     );
 
     const name = (entity?.metadata?.name ||
@@ -1238,7 +1238,7 @@ const syncSingleUser = async (
     try {
       const createdWorld = await runtime.getWorld(worldId);
       logger.info(
-        `[Bootstrap] Created world check - ID: ${worldId}, metadata: ${JSON.stringify(createdWorld?.metadata)}`
+        `[Bootstrap] Created world check - ID: ${worldId}, metadata: ${JSON.stringify(createdWorld?.metadata)}`,
       );
     } catch (error) {
       logger.error(`[Bootstrap] Failed to verify created world: ${error}`);
@@ -1247,7 +1247,7 @@ const syncSingleUser = async (
     logger.success(`[Bootstrap] Successfully synced user: ${entity?.id}`);
   } catch (error) {
     logger.error(
-      `[Bootstrap] Error syncing user: ${error instanceof Error ? error.message : String(error)}`
+      `[Bootstrap] Error syncing user: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };
@@ -1264,17 +1264,17 @@ const handleServerSync = async ({
   onComplete,
 }: WorldPayload) => {
   logger.debug(
-    `[Bootstrap] Handling server sync event for server: ${world.name}`
+    `[Bootstrap] Handling server sync event for server: ${world.name}`,
   );
   try {
     await runtime.ensureConnections(entities, rooms, source, world);
     logger.debug(
-      `Successfully synced standardized world structure for ${world.name}`
+      `Successfully synced standardized world structure for ${world.name}`,
     );
     onComplete?.();
   } catch (error) {
     logger.error(
-      `Error processing standardized server data: ${error instanceof Error ? error.message : String(error)}`
+      `Error processing standardized server data: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 };
@@ -1303,7 +1303,7 @@ const controlMessageHandler = async ({
 }) => {
   try {
     logger.debug(
-      `[controlMessageHandler] Processing control message: ${message.payload.action} for room ${message.roomId}`
+      `[controlMessageHandler] Processing control message: ${message.payload.action} for room ${message.roomId}`,
     );
 
     // Here we would use a WebSocket service to send the control message to the frontend
@@ -1311,12 +1311,12 @@ const controlMessageHandler = async ({
 
     // Get any registered WebSocket service
     const serviceNames = Array.from(
-      runtime.getAllServices().keys()
+      runtime.getAllServices().keys(),
     ) as string[];
     const websocketServiceName = serviceNames.find(
       (name: string) =>
         name.toLowerCase().includes("websocket") ||
-        name.toLowerCase().includes("socket")
+        name.toLowerCase().includes("socket"),
     );
 
     if (websocketServiceName) {
@@ -1333,21 +1333,21 @@ const controlMessageHandler = async ({
         });
 
         logger.debug(
-          `[controlMessageHandler] Control message ${message.payload.action} sent successfully`
+          `[controlMessageHandler] Control message ${message.payload.action} sent successfully`,
         );
       } else {
         logger.error(
-          "[controlMessageHandler] WebSocket service does not have sendMessage method"
+          "[controlMessageHandler] WebSocket service does not have sendMessage method",
         );
       }
     } else {
       logger.error(
-        "[controlMessageHandler] No WebSocket service found to send control message"
+        "[controlMessageHandler] No WebSocket service found to send control message",
       );
     }
   } catch (error) {
     logger.error(
-      `[controlMessageHandler] Error processing control message: ${error}`
+      `[controlMessageHandler] Error processing control message: ${error}`,
     );
   }
 };
@@ -1419,7 +1419,7 @@ const events = {
         roomId: UUID;
         channelId: string;
         memoryCount: number;
-      }
+      },
     ) => {
       await channelClearedHandler({
         runtime: payload.runtime,
@@ -1445,7 +1445,7 @@ const events = {
   [EventType.ENTITY_JOINED]: [
     async (payload: EntityPayload) => {
       logger.debug(
-        `[Bootstrap] ENTITY_JOINED event received for entity ${payload.entityId}`
+        `[Bootstrap] ENTITY_JOINED event received for entity ${payload.entityId}`,
       );
 
       if (!payload.worldId) {
@@ -1467,7 +1467,7 @@ const events = {
         payload.worldId,
         payload.roomId,
         payload.metadata,
-        payload.source
+        payload.source,
       );
     },
   ],
@@ -1486,7 +1486,7 @@ const events = {
           await payload.runtime.updateEntity(entity);
         }
         logger.info(
-          `[Bootstrap] User ${payload.entityId} left world ${payload.worldId}`
+          `[Bootstrap] User ${payload.entityId} left world ${payload.worldId}`,
         );
       } catch (error: any) {
         logger.error(`[Bootstrap] Error handling user left: ${error.message}`);
@@ -1497,7 +1497,7 @@ const events = {
   [EventType.ACTION_STARTED]: [
     async (payload: ActionEventPayload) => {
       logger.debug(
-        `[Bootstrap] Action started: ${payload.actionName} (${payload.actionId})`
+        `[Bootstrap] Action started: ${payload.actionName} (${payload.actionId})`,
       );
     },
   ],
@@ -1508,7 +1508,7 @@ const events = {
         ? `failed: ${payload.error.message}`
         : "completed";
       logger.debug(
-        `[Bootstrap] Action ${status}: ${payload.actionName} (${payload.actionId})`
+        `[Bootstrap] Action ${status}: ${payload.actionName} (${payload.actionId})`,
       );
     },
   ],
@@ -1516,7 +1516,7 @@ const events = {
   [EventType.EVALUATOR_STARTED]: [
     async (payload: EvaluatorEventPayload) => {
       logger.debug(
-        `[Bootstrap] Evaluator started: ${payload.evaluatorName} (${payload.evaluatorId})`
+        `[Bootstrap] Evaluator started: ${payload.evaluatorName} (${payload.evaluatorId})`,
       );
     },
   ],
@@ -1527,7 +1527,7 @@ const events = {
         ? `failed: ${payload.error.message}`
         : "completed";
       logger.debug(
-        `[Bootstrap] Evaluator ${status}: ${payload.evaluatorName} (${payload.evaluatorId})`
+        `[Bootstrap] Evaluator ${status}: ${payload.evaluatorName} (${payload.evaluatorId})`,
       );
     },
   ],

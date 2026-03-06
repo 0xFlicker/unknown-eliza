@@ -1,7 +1,7 @@
-import type { Memory } from './memory';
-import type { UUID } from './primitives';
-import type { IAgentRuntime } from './runtime';
-import type { State } from './state';
+import type { Memory } from "./memory";
+import type { UUID } from "./primitives";
+import type { IAgentRuntime } from "./runtime";
+import type { State } from "./state";
 
 /**
  * Defines the contract for a Task Worker, which is responsible for executing a specific type of task.
@@ -18,14 +18,18 @@ export interface TaskWorker {
   execute: (
     runtime: IAgentRuntime,
     options: { [key: string]: unknown },
-    task: Task
+    task: Task,
   ) => Promise<void>;
   /**
    * Optional validation function that can be used to determine if a task is valid or should be executed,
    * often based on the current message and state. This might be used by an action or evaluator
    * before creating or queueing a task.
    */
-  validate?: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<boolean>;
+  validate?: (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+  ) => Promise<boolean>;
 }
 
 /**

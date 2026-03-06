@@ -1,9 +1,9 @@
-import type { Entity, Memory, State, TemplateType } from './types';
+import type { Entity, Memory, State, TemplateType } from "./types";
 
-import { UUID } from './types';
+import { UUID } from "./types";
 
 // Import core IAgentRuntime for compatibility with core functions
-import type { IAgentRuntime as CoreIAgentRuntime } from '../../types';
+import type { IAgentRuntime as CoreIAgentRuntime } from "../../types";
 
 import {
   addHeader as coreAddHeader,
@@ -20,7 +20,7 @@ import {
   trimTokens as coreTrimTokens,
   truncateToCompleteSentence as coreTruncateToCompleteSentence,
   validateUuid as coreValidateUuid,
-} from '../../utils';
+} from "../../utils";
 
 // Text Utils
 
@@ -159,7 +159,10 @@ export function stringToUuid(target: string | number): UUID {
 }
 
 // Add the new exports, wrapping the core functions
-export function truncateToCompleteSentence(text: string, maxLength: number): string {
+export function truncateToCompleteSentence(
+  text: string,
+  maxLength: number,
+): string {
   return coreTruncateToCompleteSentence(text, maxLength);
 }
 
@@ -167,7 +170,9 @@ export function parseKeyValueXml(text: string): Record<string, any> | null {
   return coreParseKeyValueXml(text);
 }
 
-export function parseJSONObjectFromText(text: string): Record<string, any> | null {
+export function parseJSONObjectFromText(
+  text: string,
+): Record<string, any> | null {
   return coreParseJSONObjectFromText(text);
 }
 
@@ -182,7 +187,7 @@ export function safeReplacer(): (key: string, value: any) => any {
 export function trimTokens(
   text: string,
   maxTokens: number,
-  runtime: CoreIAgentRuntime
+  runtime: CoreIAgentRuntime,
 ): Promise<string> {
   return coreTrimTokens(text, maxTokens, runtime);
 }
