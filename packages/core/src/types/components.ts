@@ -1,7 +1,7 @@
-import type { Memory } from "./memory";
-import type { Content } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
-import type { State } from "./state";
+import type { Memory } from './memory';
+import type { Content } from './primitives';
+import type { IAgentRuntime } from './runtime';
+import type { State } from './state';
 
 /**
  * Example content with associated user for demonstration purposes
@@ -17,10 +17,7 @@ export interface ActionExample {
 /**
  * Callback function type for handlers
  */
-export type HandlerCallback = (
-  response: Content,
-  files?: any,
-) => Promise<Memory[]>;
+export type HandlerCallback = (response: Content) => Promise<Memory[]>;
 
 /**
  * Handler function type for processing messages
@@ -29,10 +26,10 @@ export type Handler = (
   runtime: IAgentRuntime,
   message: Memory,
   state?: State,
-  options?: { [key: string]: unknown },
+  options?: HandlerOptions,
   callback?: HandlerCallback,
-  responses?: Memory[],
-) => Promise<unknown>;
+  responses?: Memory[]
+) => Promise<ActionResult | void | undefined>;
 
 /**
  * Validator function type for actions/evaluators
@@ -40,7 +37,7 @@ export type Handler = (
 export type Validator = (
   runtime: IAgentRuntime,
   message: Memory,
-  state?: State,
+  state?: State
 ) => Promise<boolean>;
 
 /**
@@ -64,6 +61,9 @@ export interface Action {
 
   /** Validation function */
   validate: Validator;
+
+  /** Allow extensions and custom options */
+  [key: string]: unknown;
 }
 
 /**
@@ -107,13 +107,14 @@ export interface Evaluator {
 }
 
 export interface ProviderResult {
-  values?: {
-    [key: string]: any;
-  };
-  data?: {
-    [key: string]: any;
-  };
+  /** Human-readable text for LLM prompt inclusion */
   text?: string;
+
+  /** Key-value pairs for template variable substitution */
+  values?: Record<string, unknown>;
+
+  /** Structured data for programmatic access by other components */
+  data?: Record<string, unknown>;
 }
 
 /**
@@ -140,9 +141,67 @@ export interface Provider {
   private?: boolean;
 
   /** Data retrieval function */
-  get: (
-    runtime: IAgentRuntime,
-    message: Memory,
-    state: State,
-  ) => Promise<ProviderResult>;
+  get: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<ProviderResult>;
+}
+
+/**
+ * Result returned by an action after execution
+ * Used for action chaining and state management
+ */
+export interface ActionResult {
+  /** Optional text description of the result */
+  text?: string;
+
+  /** Values to merge into the state */
+  values?: Record<string, unknown>;
+
+  /** Data payload containing action-specific results */
+  data?: Record<string, unknown>;
+
+  /** Whether the action succeeded - defaults to true */
+  success: boolean;
+
+  /** Error information if the action failed */
+  error?: string | Error;
+}
+
+/**
+ * Context provided to actions during execution
+ * Allows actions to access previous results and execution state
+ */
+export interface ActionContext {
+  /** Results from previously executed actions in this run */
+  previousResults: ActionResult[];
+
+  /** Get a specific previous result by action name */
+  getPreviousResult?: (actionName: string) => ActionResult | undefined;
+}
+
+/**
+ * Options passed to action handlers during execution
+ * Provides context about the current execution and multi-step plans
+ */
+export interface HandlerOptions {
+  /** Context with previous action results and utilities */
+  actionContext?: ActionContext;
+
+  /** Multi-step action plan information */
+  actionPlan?: {
+    /** Total number of steps in the plan */
+    totalSteps: number;
+    /** Current step being executed (1-based) */
+    currentStep: number;
+    /** Array of action steps with status tracking */
+    steps: Array<{
+      action: string;
+      status: 'pending' | 'completed' | 'failed';
+      result?: ActionResult;
+      error?: string;
+    }>;
+    /** AI's reasoning for this execution plan */
+    thought: string;
+  };
+
+  /** Allow plugin extensions and custom options */
+  [key: string]: unknown;
 }

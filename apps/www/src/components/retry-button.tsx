@@ -1,10 +1,6 @@
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { RotateCcw } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { RefreshCcw } from 'lucide-react';
 
 interface RetryButtonProps {
   onClick: () => void;
@@ -21,7 +17,7 @@ export default function RetryButton({ onClick, className }: RetryButtonProps) {
           className={`text-muted-foreground ${className}`}
           onClick={onClick}
         >
-          <RotateCcw className="size-3" />
+          <RefreshCcw className="size-3" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">

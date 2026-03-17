@@ -13,9 +13,7 @@
     "baseUrl": ".",
     "paths": {
       "@elizaos/core": ["packages/core/src"],
-      "@elizaos/*": [
-        "packages/*/src"
-      ],
+      "@elizaos/*": ["packages/*/src"],
       "src/*": ["apps/agent/src/*"]
     }
   },
@@ -26,7 +24,7 @@
     },
     {
       "path": "packages/plugin-bootstrap"
-    }, 
+    },
     {
       "path": "packages/plugin-sql"
     }

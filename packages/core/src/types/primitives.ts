@@ -1,3 +1,5 @@
+import type { ChannelType } from './environment';
+
 /**
  * Defines a custom type UUID representing a universally unique identifier
  */
@@ -9,10 +11,7 @@ export type UUID = `${string}-${string}-${string}-${string}-${string}`;
  * @returns The same UUID with branded type information
  */
 export function asUUID(id: string): UUID {
-  if (
-    !id ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-  ) {
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     throw new Error(`Invalid UUID format: ${id}`);
   }
   return id as UUID;
@@ -50,13 +49,43 @@ export interface Content {
   attachments?: Media[];
 
   /** room type */
-  channelType?: string;
+  channelType?: ChannelType;
+
+  /** Platform-provided metadata about mentions */
+  mentionContext?: MentionContext;
+
+  /**
+   * Internal message ID used for streaming coordination.
+   * Set during response generation to ensure streaming chunks and
+   * final broadcast use the same message ID.
+   */
+  responseMessageId?: UUID;
 
   /**
    * Additional dynamic properties
    * Use specific properties above instead of this when possible
    */
   [key: string]: unknown;
+}
+
+/**
+ * Platform-provided metadata about mentions.
+ * Contains ONLY technical facts from the platform API.
+ * This allows bootstrap to make intelligent decisions about responding
+ * while keeping platform-specific logic isolated.
+ */
+export interface MentionContext {
+  /** Platform native mention (@Discord, @Telegram, etc.) */
+  isMention: boolean;
+
+  /** Reply to agent's message */
+  isReply: boolean;
+
+  /** In a thread with agent */
+  isThread: boolean;
+
+  /** Platform-specific mention type for debugging/logging */
+  mentionType?: 'platform_mention' | 'reply' | 'thread' | 'none';
 }
 
 /**
@@ -86,11 +115,11 @@ export type Media = {
 };
 
 export enum ContentType {
-  IMAGE = "image",
-  VIDEO = "video",
-  AUDIO = "audio",
-  DOCUMENT = "document",
-  LINK = "link",
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+  LINK = 'link',
 }
 
 /**

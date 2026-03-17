@@ -1,20 +1,15 @@
-import ArrayInput from "@/components/array-input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  AVATAR_IMAGE_MAX_SIZE,
-  FIELD_REQUIREMENT_TYPE,
-  FIELD_REQUIREMENTS,
-} from "@/constants";
-import { useToast } from "@/hooks/use-toast";
-import { exportCharacterAsJson } from "@/lib/export-utils";
-import { compressImage } from "@/lib/utils";
-import type { Agent } from "@elizaos/core";
-import type React from "react";
+import ArrayInput from '@/components/array-input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { AVATAR_IMAGE_MAX_SIZE, FIELD_REQUIREMENT_TYPE, FIELD_REQUIREMENTS } from '@/constants';
+import { useToast } from '@/hooks/use-toast';
+import { exportCharacterAsJson } from '@/lib/export-utils';
+import { compressImage } from '@/lib/utils';
+import type { Agent, Character } from '@elizaos/core';
+import type React from 'react';
 import {
   type FormEvent,
   type ReactNode,
@@ -23,45 +18,58 @@ import {
   useCallback,
   useRef,
   useEffect,
-} from "react";
+} from 'react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
+} from '@/components/ui/select';
 import {
   getAllVoiceModels,
   getVoiceModelByValue,
   providerPluginMap,
-} from "../config/voice-models";
-import { useElevenLabsVoices } from "@/hooks/use-elevenlabs-voices";
+  openAIVoiceModels,
+  elevenLabsVoiceModels,
+} from '../config/voice-models';
+import { useElevenLabsVoices } from '@/hooks/use-elevenlabs-voices';
 import {
   Trash,
   Loader2,
   RotateCcw,
-  Download,
-  Upload,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   Save,
   StopCircle,
-} from "lucide-react";
+  MoreVertical,
+} from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { agentTemplates, getTemplateById } from "@/config/agent-templates";
-import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { SplitButton } from "@/components/ui/split-button";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { agentTemplates, getTemplateById } from '@/config/agent-templates';
+import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+import type { SecretPanelRef } from './secret-panel';
+import { MissingSecretsDialog } from './missing-secrets-dialog';
+import { useRequiredSecrets } from '@/hooks/use-plugin-details';
+import { getElizaClient } from '@/lib/api-client-config';
+import { V1Character, useConvertCharacter } from '@/hooks/use-character-convert';
 
 export type InputField = {
   name: string;
   title: string;
   description?: string;
-  fieldType: "text" | "textarea" | "email" | "url" | "checkbox" | "select";
+  fieldType: 'text' | 'textarea' | 'email' | 'url' | 'checkbox' | 'select';
   getValue: (agent: Agent) => string;
   options?: { value: string; label: string }[];
   tooltip?: string;
@@ -76,8 +84,8 @@ export type ArrayField = {
 };
 
 enum SECTION_TYPE {
-  INPUT = "input",
-  ARRAY = "array",
+  INPUT = 'input',
+  ARRAY = 'array',
 }
 
 type customComponent = {
@@ -102,34 +110,71 @@ export type CharacterFormProps = {
     addArrayItem?: <T>(path: string, item: T) => void;
     removeArrayItem?: (path: string, index: number) => void;
     updateSetting?: (path: string, value: any) => void;
-    importAgent?: (value: Agent) => void;
+    importAgent?: (value: Character) => void;
     [key: string]: any;
   };
+  onTemplateChange?: () => void;
+  secretPanelRef?: React.RefObject<SecretPanelRef | null>;
 };
 
 // Custom hook to detect container width and determine if labels should be shown
 const useContainerWidth = (threshold: number = 768) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showLabels, setShowLabels] = useState(true);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentWidthRef = useRef<number>(0);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    // Debounced resize handler
+    const handleResize = (width: number) => {
+      // Clear existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Set new timer
+      debounceTimerRef.current = setTimeout(() => {
+        const shouldShowLabels = width >= threshold;
+        // Only update if the value actually changes
+        setShowLabels((prev) => {
+          if (prev !== shouldShowLabels) {
+            return shouldShowLabels;
+          }
+          return prev;
+        });
+        currentWidthRef.current = width;
+      }, 150); // 150ms debounce
+    };
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width } = entry.contentRect;
-        setShowLabels(width >= threshold);
+        // Only trigger if width actually changed significantly (more than 5px)
+        if (Math.abs(width - currentWidthRef.current) > 5) {
+          handleResize(width);
+        }
       }
     });
 
     resizeObserver.observe(container);
 
-    // Initial check
-    const { width } = container.getBoundingClientRect();
-    setShowLabels(width >= threshold);
+    // Initial check with delay to avoid race conditions
+    setTimeout(() => {
+      const { width } = container.getBoundingClientRect();
+      currentWidthRef.current = width;
+      setShowLabels(width >= threshold);
+    }, 0);
 
-    return () => resizeObserver.disconnect();
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [threshold]);
 
   return { containerRef, showLabels };
@@ -147,16 +192,42 @@ export default function CharacterForm({
   isDeleting = false,
   isStopping = false,
   customComponents = [],
+  onTemplateChange,
+  secretPanelRef,
 }: CharacterFormProps) {
   const { toast } = useToast();
-  const { data: elevenlabsVoices, isLoading: isLoadingVoices } =
-    useElevenLabsVoices();
+  const { data: elevenlabsVoices, isLoading: isLoadingVoices } = useElevenLabsVoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("none");
-  const [activeTab, setActiveTab] = useState("basic");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('none');
+  const [activeTab, setActiveTab] = useState('basic');
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftScroll, setShowLeftScroll] = useState(false);
   const [showRightScroll, setShowRightScroll] = useState(false);
+  const [showMissingSecretsDialog, setShowMissingSecretsDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<Agent | null>(null);
+  const [globalEnvs, setGlobalEnvs] = useState<Record<string, string>>({});
+
+  // Get required secrets based on enabled plugins
+  const enabledPlugins = useMemo(() => characterValue?.plugins || [], [characterValue?.plugins]);
+  const { requiredSecrets } = useRequiredSecrets(enabledPlugins);
+
+  const { convertCharacter } = useConvertCharacter();
+
+  // Fetch global environment variables
+  useEffect(() => {
+    const fetchGlobalEnvs = async () => {
+      try {
+        const elizaClient = getElizaClient();
+        const data = await elizaClient.system.getEnvironment();
+        setGlobalEnvs(data || {});
+      } catch (error) {
+        console.error('Failed to fetch global environment variables:', error);
+        setGlobalEnvs({});
+      }
+    };
+
+    fetchGlobalEnvs();
+  }, []);
 
   // Use the custom hook to detect container width
   const { containerRef, showLabels } = useContainerWidth(640); // Adjust threshold as needed
@@ -176,23 +247,23 @@ export default function CharacterForm({
     if (!container) return;
 
     checkScrollButtons();
-    container.addEventListener("scroll", checkScrollButtons);
-    window.addEventListener("resize", checkScrollButtons);
+    container.addEventListener('scroll', checkScrollButtons);
+    window.addEventListener('resize', checkScrollButtons);
 
     return () => {
-      container.removeEventListener("scroll", checkScrollButtons);
-      window.removeEventListener("resize", checkScrollButtons);
+      container.removeEventListener('scroll', checkScrollButtons);
+      window.removeEventListener('resize', checkScrollButtons);
     };
   }, [checkScrollButtons, customComponents.length]);
 
-  const scrollTabs = (direction: "left" | "right") => {
+  const scrollTabs = (direction: 'left' | 'right') => {
     const container = tabsContainerRef.current;
     if (!container) return;
 
     const scrollAmount = container.clientWidth * 0.8;
     container.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
-      behavior: "smooth",
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
     });
   };
 
@@ -203,9 +274,7 @@ export default function CharacterForm({
     // If we have dynamically loaded ElevenLabs voices, replace the static ones
     if (elevenlabsVoices && !isLoadingVoices) {
       // Filter out the static ElevenLabs voices
-      const nonElevenLabsModels = staticModels.filter(
-        (model) => model.provider !== "elevenlabs",
-      );
+      const nonElevenLabsModels = staticModels.filter((model) => model.provider !== 'elevenlabs');
       // Return combined models with dynamic ElevenLabs voices
       return [...nonElevenLabsModels, ...elevenlabsVoices];
     }
@@ -218,125 +287,117 @@ export default function CharacterForm({
   const AGENT_FORM_SCHEMA = useMemo(
     () => [
       {
-        sectionTitle: "Basic Info",
-        sectionValue: "basic",
+        sectionTitle: 'Basic Info',
+        sectionValue: 'basic',
         sectionType: SECTION_TYPE.INPUT,
         fields: [
           {
-            title: "Name",
-            name: "name",
-            description: "The primary identifier for this agent",
-            fieldType: "text",
-            getValue: (char) => char.name || "",
+            title: 'Name',
+            name: 'name',
+            description: 'The primary identifier for this agent',
+            fieldType: 'text',
+            getValue: (char) => char.name || '',
             tooltip:
-              "Display name that will be visible to users. Required for identification purposes.",
+              'Display name that will be visible to users. Required for identification purposes.',
           },
           {
-            title: "Username",
-            name: "username",
-            description: "Used in URLs and API endpoints",
-            fieldType: "text",
-            getValue: (char) => char.username || "",
-            tooltip:
-              "Unique identifier for your agent. Used in APIs/URLs and Rooms.",
+            title: 'Username',
+            name: 'username',
+            description: 'Used in URLs and API endpoints',
+            fieldType: 'text',
+            getValue: (char) => char.username || '',
+            tooltip: 'Unique identifier for your agent. Used in APIs/URLs and Rooms.',
           },
           {
-            title: "System",
-            name: "system",
-            description: "System prompt defining agent behavior",
-            fieldType: "textarea",
-            getValue: (char) => char.system || "",
+            title: 'System',
+            name: 'system',
+            description: 'System prompt defining agent behavior',
+            fieldType: 'textarea',
+            getValue: (char) => char.system || '',
             tooltip:
-              "Instructions for the AI model that establish core behavior patterns and personality traits.",
+              'Instructions for the AI model that establish core behavior patterns and personality traits.',
           },
           {
-            title: "Voice Model",
-            name: "settings.voice.model",
-            description: "Voice model for audio synthesis",
-            fieldType: "select",
-            getValue: (char) => char.settings?.voice?.model || "",
+            title: 'Voice Model',
+            name: 'settings.voice.model',
+            description: 'Voice model for audio synthesis',
+            fieldType: 'select',
+            getValue: (char) => (char.settings as Record<string, any>)?.voice?.model || '',
             options: allVoiceModels.map((model) => ({
               value: model.value,
               label: model.label,
             })),
-            tooltip:
-              "Select a voice that aligns with the agent's intended persona.",
+            tooltip: "Select a voice that aligns with the agent's intended persona.",
           },
         ] as InputField[],
       },
       {
-        sectionTitle: "Content",
-        sectionValue: "content",
+        sectionTitle: 'Content',
+        sectionValue: 'content',
         sectionType: SECTION_TYPE.ARRAY,
         fields: [
           {
-            title: "Bio",
-            description: "Bio data for this agent",
-            path: "bio",
+            title: 'Bio',
+            description: 'Bio data for this agent',
+            path: 'bio',
             getData: (char) => (Array.isArray(char.bio) ? char.bio : []),
-            tooltip:
-              "Biographical details that establish the agent's background and context.",
+            tooltip: "Biographical details that establish the agent's background and context.",
           },
           {
-            title: "Topics",
-            description: "Topics this agent can talk about",
-            path: "topics",
+            title: 'Topics',
+            description: 'Topics this agent can talk about',
+            path: 'topics',
             getData: (char) => char.topics || [],
-            tooltip: "Subject domains the agent can discuss with confidence.",
+            tooltip: 'Subject domains the agent can discuss with confidence.',
           },
           {
-            title: "Adjectives",
-            description: "Descriptive personality traits",
-            path: "adjectives",
+            title: 'Adjectives',
+            description: 'Descriptive personality traits',
+            path: 'adjectives',
             getData: (char) => char.adjectives || [],
-            tooltip:
-              "Key personality attributes that define the agent's character.",
+            tooltip: "Key personality attributes that define the agent's character.",
           },
         ] as ArrayField[],
       },
       {
-        sectionTitle: "Style",
-        sectionValue: "style",
+        sectionTitle: 'Style',
+        sectionValue: 'style',
         sectionType: SECTION_TYPE.ARRAY,
         fields: [
           {
-            title: "All Styles",
-            description: "Writing style for all content types",
-            path: "style.all",
+            title: 'All Styles',
+            description: 'Writing style for all content types',
+            path: 'style.all',
             getData: (char) => char.style?.all || [],
-            tooltip:
-              "Core writing style guidelines applied across all content formats.",
+            tooltip: 'Core writing style guidelines applied across all content formats.',
           },
           {
-            title: "Chat Style",
-            description: "Style specific to chat interactions",
-            path: "style.chat",
+            title: 'Chat Style',
+            description: 'Style specific to chat interactions',
+            path: 'style.chat',
             getData: (char) => char.style?.chat || [],
-            tooltip: "Writing style specific to conversational exchanges.",
+            tooltip: 'Writing style specific to conversational exchanges.',
           },
           {
-            title: "Post Style",
-            description: "Style for long-form content",
-            path: "style.post",
+            title: 'Post Style',
+            description: 'Style for long-form content',
+            path: 'style.post',
             getData: (char) => char.style?.post || [],
-            tooltip:
-              "Writing style for structured content such as articles or posts.",
+            tooltip: 'Writing style for structured content such as articles or posts.',
           },
         ] as ArrayField[],
       },
     ],
-    [allVoiceModels],
+    [allVoiceModels]
   );
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
-    if (type === "checkbox") {
+    if (type === 'checkbox') {
       setCharacterValue.updateField(name, checked);
-    } else if (name.startsWith("settings.")) {
+    } else if (name.startsWith('settings.')) {
       // Handle nested settings fields like settings.voice.model
       const path = name.substring(9); // Remove 'settings.' prefix
 
@@ -353,7 +414,7 @@ export default function CharacterForm({
   };
 
   const handleVoiceModelChange = (value: string, name: string) => {
-    if (name.startsWith("settings.")) {
+    if (name.startsWith('settings.')) {
       const path = name.substring(9); // Remove 'settings.' prefix
 
       if (setCharacterValue.updateSetting) {
@@ -361,14 +422,14 @@ export default function CharacterForm({
         setCharacterValue.updateSetting(path, value);
 
         // Handle voice model change and required plugins
-        if (path === "voice.model" && value) {
+        if (path === 'voice.model' && value) {
           const voiceModel = getVoiceModelByValue(value);
           if (voiceModel) {
             const currentPlugins = Array.isArray(characterValue.plugins)
               ? [...characterValue.plugins]
               : [];
             const previousVoiceModel = getVoiceModelByValue(
-              characterValue.settings?.voice?.model,
+              (characterValue.settings as Record<string, any>)?.voice?.model
             );
 
             // Get the required plugin for the new voice model
@@ -384,13 +445,13 @@ export default function CharacterForm({
             if (setCharacterValue.setPlugins) {
               setCharacterValue.setPlugins(newPlugins);
             } else if (setCharacterValue.updateField) {
-              setCharacterValue.updateField("plugins", newPlugins);
+              setCharacterValue.updateField('plugins', newPlugins);
             }
 
             // Show toast notification
             if (previousVoiceModel?.provider !== voiceModel.provider) {
               toast({
-                title: "Plugin Updated",
+                title: 'Plugin Updated',
                 description: `${requiredPlugin} plugin has been set for the selected voice model.`,
               });
             }
@@ -407,20 +468,17 @@ export default function CharacterForm({
 
   const updateArray = (path: string, newData: string[]) => {
     // If the path is a simple field name
-    if (!path.includes(".")) {
+    if (!path.includes('.')) {
       setCharacterValue.updateField(path, newData);
       return;
     }
 
     // Handle nested paths (e.g. style.all)
-    const parts = path.split(".");
-    if (parts.length === 2 && parts[0] === "style") {
+    const parts = path.split('.');
+    if (parts.length === 2 && parts[0] === 'style') {
       // For style arrays, use the setStyleArray method if available
       if (setCharacterValue.setStyleArray) {
-        setCharacterValue.setStyleArray(
-          parts[1] as "all" | "chat" | "post",
-          newData,
-        );
+        setCharacterValue.setStyleArray(parts[1] as 'all' | 'chat' | 'post', newData);
       } else {
         setCharacterValue.updateField(path, newData);
       }
@@ -434,16 +492,13 @@ export default function CharacterForm({
   const ensureAvatarSize = async (char: Agent): Promise<Agent> => {
     if (char.settings?.avatar) {
       const img = new Image();
-      img.src = char.settings.avatar;
+      img.src = char.settings.avatar as string;
       await new Promise((resolve) => (img.onload = resolve));
 
-      if (
-        img.width > AVATAR_IMAGE_MAX_SIZE ||
-        img.height > AVATAR_IMAGE_MAX_SIZE
-      ) {
-        const response = await fetch(char.settings.avatar);
+      if (img.width > AVATAR_IMAGE_MAX_SIZE || img.height > AVATAR_IMAGE_MAX_SIZE) {
+        const response = await fetch(char.settings.avatar as string);
         const blob = await response.blob();
-        const file = new File([blob], "avatar.jpg", { type: blob.type });
+        const file = new File([blob], 'avatar.jpg', { type: blob.type });
         const compressedImage = await compressImage(file);
         return {
           ...char,
@@ -463,52 +518,100 @@ export default function CharacterForm({
 
     try {
       const updatedCharacter = await ensureAvatarSize(characterValue);
+
+      // Validate required secrets
+      let missingSecrets: string[] = [];
+
+      // If secret panel is mounted, use it for validation (has most up-to-date data)
+      if (secretPanelRef?.current) {
+        const secretValidation = secretPanelRef.current.validateSecrets();
+        missingSecrets = secretValidation.missingSecrets;
+      } else {
+        // Secret panel not mounted - validate based on current character settings
+        const secretsObj = updatedCharacter.settings?.secrets;
+        const currentSecrets =
+          secretsObj && typeof secretsObj === 'object' && !Array.isArray(secretsObj)
+            ? (secretsObj as Record<string, any>)
+            : {};
+
+        missingSecrets = requiredSecrets
+          .filter((secret) => {
+            const value = currentSecrets[secret.name];
+            // Check agent-specific secret
+            if (value && typeof value === 'string' && value.trim() !== '') {
+              return false;
+            }
+            // Check global environment
+            const globalValue = globalEnvs[secret.name];
+            if (globalValue && globalValue.trim() !== '') {
+              return false;
+            }
+            return true;
+          })
+          .map((secret) => secret.name);
+      }
+
+      if (missingSecrets.length > 0) {
+        // Show the warning dialog
+        setIsSubmitting(false);
+        setPendingSubmit(updatedCharacter);
+        setShowMissingSecretsDialog(true);
+        return;
+      }
+
       await onSubmit(updatedCharacter);
     } catch (error) {
       toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to update agent",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update agent',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Handle confirmation from missing secrets dialog
+  const handleConfirmSaveWithMissingSecrets = async () => {
+    setShowMissingSecretsDialog(false);
+    if (pendingSubmit) {
+      setIsSubmitting(true);
+      try {
+        await onSubmit(pendingSubmit);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to update agent',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSubmitting(false);
+        setPendingSubmit(null);
+      }
+    }
+  };
+
+  // Handle cancellation from missing secrets dialog
+  const handleCancelSaveWithMissingSecrets = () => {
+    setShowMissingSecretsDialog(false);
+    setPendingSubmit(null);
+    // Switch to the Secret tab to show the user what's missing
+    setActiveTab('custom-Secret');
+  };
+
   const renderInputField = (field: InputField) => (
     <div
       key={field.name}
-      className={`space-y-2 w-full ${field.name === "name" ? "agent-form-name" : ""} ${field.name === "system" ? "agent-form-system-prompt" : ""}`}
+      className={`w-full ${field.name === 'name' ? 'agent-form-name' : ''} ${field.name === 'system' ? 'agent-form-system-prompt' : ''}`}
     >
-      <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Label htmlFor={field.name} className="flex items-center gap-1">
-                {field.title}
-                {field.name in FIELD_REQUIREMENTS &&
-                  (
-                    FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>
-                  )[field.name] === FIELD_REQUIREMENT_TYPE.REQUIRED && (
-                    <p className="text-red-500">*</p>
-                  )}
-              </Label>
-            </TooltipTrigger>
-            {field.tooltip && (
-              <TooltipContent>
-                <p>{field.tooltip}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <Label htmlFor={field.name} className="text-sm font-normal block mb-2">
+        {field.title}
+        {field.name in FIELD_REQUIREMENTS &&
+          (FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>)[field.name] ===
+            FIELD_REQUIREMENT_TYPE.REQUIRED && <span className="text-destructive ml-1">*</span>}
+      </Label>
 
-      {field.description && (
-        <p className="text-sm text-muted-foreground">{field.description}</p>
-      )}
-
-      {field.fieldType === "textarea" ? (
+      {field.fieldType === 'textarea' ? (
         <Textarea
           id={field.name}
           name={field.name}
@@ -516,17 +619,15 @@ export default function CharacterForm({
           onChange={handleChange}
           className="min-h-[120px] resize-y"
         />
-      ) : field.fieldType === "checkbox" ? (
+      ) : field.fieldType === 'checkbox' ? (
         <Input
           id={field.name}
           name={field.name}
           type="checkbox"
-          checked={
-            (characterValue as Record<string, any>)[field.name] === "true"
-          }
+          checked={(characterValue as Record<string, any>)[field.name] === 'true'}
           onChange={handleChange}
         />
-      ) : field.fieldType === "select" ? (
+      ) : field.fieldType === 'select' ? (
         <Select
           name={field.name}
           value={field.getValue(characterValue)}
@@ -535,18 +636,57 @@ export default function CharacterForm({
           <SelectTrigger>
             <SelectValue
               placeholder={
-                field.name.includes("voice.model") && isLoadingVoices
-                  ? "Loading voice models..."
-                  : "Select a voice model"
+                field.name.includes('voice.model') && isLoadingVoices
+                  ? 'Loading voice models...'
+                  : 'Select a voice model'
               }
             />
           </SelectTrigger>
           <SelectContent>
-            {field.options?.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
+            {field.name === 'settings.voice.model' ? (
+              <>
+                <SelectGroup>
+                  <SelectItem value="none">No Voice</SelectItem>
+                </SelectGroup>
+
+                <SelectSeparator />
+
+                <SelectGroup>
+                  <SelectLabel>OpenAI Voices</SelectLabel>
+                  {openAIVoiceModels.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label.replace('OpenAI - ', '')}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+
+                <SelectSeparator />
+
+                <SelectGroup>
+                  <SelectLabel>ElevenLabs Voices</SelectLabel>
+                  {/* Show default ElevenLabs voices from config */}
+                  {elevenLabsVoiceModels.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label.replace('ElevenLabs - ', '')}
+                    </SelectItem>
+                  ))}
+                  {/* Show custom ElevenLabs voices if available */}
+                  {elevenlabsVoices &&
+                    elevenlabsVoices.length > 0 &&
+                    elevenlabsVoices.map((voice) => (
+                      <SelectItem key={voice.value} value={voice.value}>
+                        {voice.label.replace('ElevenLabs - ', '')}
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              </>
+            ) : (
+              field.options?.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
       ) : (
@@ -558,40 +698,30 @@ export default function CharacterForm({
           onChange={handleChange}
         />
       )}
+
+      {field.description && (
+        <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
+      )}
     </div>
   );
 
   const renderArrayField = (field: ArrayField) => (
-    <div key={field.path} className="space-y-2">
-      <div className="flex items-center gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Label htmlFor={field.path} className="flex items-center gap-1">
-                {field.title}
-                {field.path in FIELD_REQUIREMENTS &&
-                  (
-                    FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>
-                  )[field.path] === FIELD_REQUIREMENT_TYPE.REQUIRED && (
-                    <p className="text-red-500">*</p>
-                  )}
-              </Label>
-            </TooltipTrigger>
-            {field.tooltip && (
-              <TooltipContent>
-                <p>{field.tooltip}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-      {field.description && (
-        <p className="text-sm text-muted-foreground">{field.description}</p>
-      )}
+    <div key={field.path} className="w-full">
+      <Label htmlFor={field.path} className="text-sm font-normal block mb-2">
+        {field.title}
+        {field.path in FIELD_REQUIREMENTS &&
+          (FIELD_REQUIREMENTS as Record<string, FIELD_REQUIREMENT_TYPE>)[field.path] ===
+            FIELD_REQUIREMENT_TYPE.REQUIRED && <span className="text-destructive ml-1">*</span>}
+      </Label>
+
       <ArrayInput
         data={field.getData(characterValue)}
         onChange={(newData) => updateArray(field.path, newData)}
       />
+
+      {field.description && (
+        <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
+      )}
     </div>
   );
 
@@ -599,27 +729,34 @@ export default function CharacterForm({
     exportCharacterAsJson(characterValue, toast);
   };
 
-  const handleImportJSON = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  function isV1Character(char: unknown): char is V1Character {
+    return (
+      typeof char === 'object' &&
+      char !== null &&
+      ('lore' in char || 'clients' in char || 'modelProvider' in char)
+    );
+  }
+
+  const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
       const text = await file.text();
-      const json: Agent = JSON.parse(text);
+      let json: Character = JSON.parse(text);
+
+      if (isV1Character(json)) {
+        json = convertCharacter(json);
+      }
 
       // Check for required fields using FIELD_REQUIREMENTS
       const missingFields = (
-        Object.keys(FIELD_REQUIREMENTS) as Array<
-          keyof typeof FIELD_REQUIREMENTS
-        >
+        Object.keys(FIELD_REQUIREMENTS) as Array<keyof typeof FIELD_REQUIREMENTS>
       ).filter((field) => {
-        if (FIELD_REQUIREMENTS[field] !== FIELD_REQUIREMENT_TYPE.REQUIRED)
-          return false;
+        if (FIELD_REQUIREMENTS[field] !== FIELD_REQUIREMENT_TYPE.REQUIRED) return false;
 
         // Handle nested fields like style.all
-        const parts = field.split(".");
+        const parts = field.split('.');
         let current: any = json;
 
         for (const part of parts) {
@@ -632,9 +769,9 @@ export default function CharacterForm({
 
       if (missingFields.length > 0) {
         toast({
-          title: "Import Failed",
-          description: `Missing required fields: ${missingFields.join(", ")}`,
-          variant: "destructive",
+          title: 'Import Failed',
+          description: `Missing required fields: ${missingFields.join(', ')}`,
+          variant: 'destructive',
         });
         return;
       }
@@ -642,22 +779,21 @@ export default function CharacterForm({
       if (setCharacterValue.importAgent) {
         setCharacterValue.importAgent(json);
       } else {
-        console.warn("Missing importAgent method");
+        console.warn('Missing importAgent method');
       }
 
       toast({
-        title: "Agent Imported",
-        description: "Agent data has been successfully loaded.",
+        title: 'Agent Imported',
+        description: 'Agent data has been successfully loaded.',
       });
     } catch (error) {
       toast({
-        title: "Import Failed",
-        description:
-          error instanceof Error ? error.message : "Invalid JSON file",
-        variant: "destructive",
+        title: 'Import Failed',
+        description: error instanceof Error ? error.message : 'Invalid JSON file',
+        variant: 'destructive',
       });
     } finally {
-      event.target.value = "";
+      event.target.value = '';
     }
   };
 
@@ -674,16 +810,16 @@ export default function CharacterForm({
 
     if (onStopAgent) {
       options.push({
-        label: "Stop Agent",
-        description: "Stop running",
+        label: 'Stop Agent',
+        description: 'Stop running',
         onClick: onStopAgent,
       });
     }
 
     if (onDelete) {
       options.push({
-        label: "Delete Agent",
-        description: "Delete permanently",
+        label: 'Delete Agent',
+        description: 'Delete permanently',
         onClick: () => onDelete(),
       });
     }
@@ -699,7 +835,7 @@ export default function CharacterForm({
       setSelectedTemplate(templateId);
 
       // If "None" is selected, reset to blank form if reset function is available
-      if (templateId === "none" && onReset) {
+      if (templateId === 'none' && onReset) {
         onReset();
         return;
       }
@@ -708,10 +844,12 @@ export default function CharacterForm({
       const template = getTemplateById(templateId);
       if (template && setCharacterValue.importAgent) {
         // Use the importAgent function to set all template values at once
-        setCharacterValue.importAgent(template.template as Agent);
+        setCharacterValue.importAgent(template.template as Character);
+        // Notify parent of template change
+        onTemplateChange?.();
       }
     },
-    [onReset, setCharacterValue],
+    [onReset, setCharacterValue, onTemplateChange]
   );
 
   // Create all tabs data with better short labels
@@ -719,34 +857,34 @@ export default function CharacterForm({
     ...AGENT_FORM_SCHEMA.map((section) => ({
       value: section.sectionValue,
       label: section.sectionTitle,
-      shortLabel: section.sectionTitle.split(" ")[0], // Use first word for mobile
+      shortLabel: section.sectionTitle.split(' ')[0], // Use first word for mobile
     })),
     ...customComponents.map((component) => ({
       value: `custom-${component.name}`,
       label: component.name,
-      shortLabel: (component as any).shortLabel || component.name.split(" ")[0], // Use first word
+      shortLabel: (component as { shortLabel?: string }).shortLabel || component.name.split(' ')[0], // Use first word
     })),
   ];
 
   return (
-    <div ref={containerRef} className="w-full max-w-full mx-auto p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">{title || "Agent Settings"}</h1>
-          <p className="text-muted-foreground mt-1">
-            {description || "Configure your agent settings"}
-          </p>
+    <div ref={containerRef} className="w-full max-w-full mx-auto p-6 sm:p-8 h-full overflow-y-auto">
+      {(title || description) && (
+        <div className="mb-8">
+          {title && <h1 className="text-2xl font-semibold mb-2">{title}</h1>}
+          {description && (
+            <p className="text-sm text-muted-foreground whitespace-pre-line">{description}</p>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Template Selector */}
-      <div className="mb-6">
-        <Label htmlFor="template-selector" className="text-base font-medium">
-          Start with Template:
+      <div className="mb-8">
+        <Label htmlFor="template-selector" className="text-sm">
+          Start with a template
         </Label>
         <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
-          <SelectTrigger className="w-full mt-2">
-            <SelectValue placeholder="Select a template" />
+          <SelectTrigger className="w-full mt-1">
+            <SelectValue placeholder="None (blank start)" />
           </SelectTrigger>
           <SelectContent>
             {agentTemplates.map((template) => (
@@ -769,7 +907,7 @@ export default function CharacterForm({
 
       <form onSubmit={handleFormSubmit}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="relative mb-6">
+          <div className="relative mb-4">
             {/* Scroll button left */}
             {showLeftScroll && (
               <Button
@@ -777,25 +915,22 @@ export default function CharacterForm({
                 variant="ghost"
                 size="sm"
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-background/80 backdrop-blur-sm shadow-md"
-                onClick={() => scrollTabs("left")}
+                onClick={() => scrollTabs('left')}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
 
             {/* Tabs container */}
-            <div
-              ref={tabsContainerRef}
-              className="overflow-x-auto scrollbar-hide"
-            >
-              <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-full">
+            <div ref={tabsContainerRef} className="overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex h-10 items-center justify-start text-muted-foreground w-full">
                 {allTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
                     className={cn(
-                      "whitespace-nowrap px-3 py-1.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:rounded-md data-[state=active]:border-0",
-                      !showLabels && "px-2 text-xs", // Smaller padding and text on mobile
+                      'whitespace-nowrap',
+                      !showLabels && 'px-2 text-xs' // Smaller padding and text on mobile
                     )}
                   >
                     {showLabels ? tab.label : tab.shortLabel}
@@ -811,153 +946,132 @@ export default function CharacterForm({
                 variant="ghost"
                 size="sm"
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-background/80 backdrop-blur-sm shadow-md"
-                onClick={() => scrollTabs("right")}
+                onClick={() => scrollTabs('right')}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             )}
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              {AGENT_FORM_SCHEMA.map((section) => (
-                <TabsContent
-                  key={section.sectionValue}
-                  value={section.sectionValue}
-                  className="space-y-6"
-                >
-                  {section.sectionType === SECTION_TYPE.INPUT
-                    ? (section.fields as InputField[]).map(renderInputField)
-                    : (section.fields as ArrayField[]).map(renderArrayField)}
-                </TabsContent>
-              ))}
-              {customComponents.map((component) => (
-                <TabsContent
-                  key={`custom-${component.name}`}
-                  value={`custom-${component.name}`}
-                >
-                  {component.component}
-                </TabsContent>
-              ))}
-            </CardContent>
-          </Card>
+          <div className="max-h-[100vh] overflow-y-auto pb-4 px-1">
+            {AGENT_FORM_SCHEMA.map((section) => (
+              <TabsContent
+                key={section.sectionValue}
+                value={section.sectionValue}
+                className="space-y-6 mt-0 focus:outline-none"
+              >
+                {section.sectionType === SECTION_TYPE.INPUT
+                  ? (section.fields as InputField[]).map(renderInputField)
+                  : (section.fields as ArrayField[]).map(renderArrayField)}
+              </TabsContent>
+            ))}
+            {customComponents.map((component) => (
+              <TabsContent
+                key={`custom-${component.name}`}
+                value={`custom-${component.name}`}
+                className="mt-0 focus:outline-none"
+              >
+                <div className="h-full">{component.component}</div>
+              </TabsContent>
+            ))}
+          </div>
         </Tabs>
 
-        <div className="flex flex-col gap-3 mt-6">
-          {/* Stop/Delete Split Button - only show if we have options */}
-          {stopDeleteOptions.length > 0 && (
-            <SplitButton
-              mainAction={{
-                label:
-                  stopDeleteOptions[0].label === "Stop Agent" && isStopping
-                    ? "Stopping..."
-                    : stopDeleteOptions[0].label,
-                onClick: stopDeleteOptions[0].onClick,
-                icon:
-                  stopDeleteOptions[0].label === "Stop Agent" ? (
-                    isStopping ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+        <div className="flex items-center justify-between w-full mt-6">
+          {/* Three-dot menu button on the left */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="icon" className="flex-shrink-0 p-2.5">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">More options</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top">
+              <DropdownMenuItem onClick={handleImportClick}>
+                <ArrowDownToLine className="h-4 w-4 mr-2" />
+                Import
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportJSON}>
+                <ArrowUpFromLine className="h-4 w-4 mr-2" />
+                Export
+              </DropdownMenuItem>
+              {stopDeleteOptions.length > 0 && <DropdownMenuSeparator />}
+              {stopDeleteOptions.length > 0 &&
+                stopDeleteOptions.map((option) => {
+                  const isStopAction = option.label === 'Stop Agent';
+                  const isDeleteAction = option.label === 'Delete Agent';
+                  const isLoading = isStopAction ? isStopping : isDeleteAction ? isDeleting : false;
+
+                  return (
+                    <DropdownMenuItem
+                      key={option.label}
+                      onClick={option.onClick}
+                      disabled={isLoading}
+                      className={
+                        isDeleteAction
+                          ? 'text-destructive focus:text-destructive hover:bg-red-50 dark:hover:bg-red-950/50'
+                          : ''
+                      }
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : isStopAction ? (
+                        <StopCircle className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Trash className="h-4 w-4 mr-2" />
+                      )}
+                      {isLoading ? `${isStopAction ? 'Stopping' : 'Deleting'}...` : option.label}
+                    </DropdownMenuItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Reset and Save buttons on the right with gap */}
+          <div className="flex items-center gap-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      onReset?.();
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span className="ml-2">Reset</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reset all form fields to their original values</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" disabled={isSubmitting} className="agent-form-submit">
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="ml-2">Saving...</span>
+                      </>
                     ) : (
-                      <StopCircle className="h-4 w-4" />
-                    )
-                  ) : (
-                    <Trash className="h-4 w-4" />
-                  ),
-                disabled:
-                  stopDeleteOptions[0].label === "Stop Agent"
-                    ? isStopping
-                    : false,
-              }}
-              actions={stopDeleteOptions.slice(1).map((option) => ({
-                label:
-                  option.label === "Stop Agent" && isStopping
-                    ? "Stopping..."
-                    : option.label,
-                onClick: option.onClick,
-                icon:
-                  option.label === "Stop Agent" ? (
-                    isStopping ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <StopCircle className="h-4 w-4" />
-                    )
-                  ) : (
-                    <Trash className="h-4 w-4" />
-                  ),
-                variant: "destructive" as const,
-                disabled: option.label === "Stop Agent" ? isStopping : false,
-              }))}
-              variant="destructive"
-              disabled={isDeleting}
-              className="w-full"
-            />
-          )}
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    onReset?.();
-                  }}
-                  className="w-full"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span className="ml-2">Reset Changes</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Reset all form fields to their original values</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Import/Export Split Button */}
-          <SplitButton
-            mainAction={{
-              label: "Export JSON",
-              onClick: handleExportJSON,
-              icon: <Download className="h-4 w-4" />,
-            }}
-            actions={[
-              {
-                label: "Import JSON",
-                onClick: handleImportClick,
-                icon: <Upload className="h-4 w-4" />,
-              },
-            ]}
-            variant="outline"
-            className="w-full"
-          />
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="agent-form-submit w-full"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="ml-2">Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      <span className="ml-2">Save Changes</span>
-                    </>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Save all changes to the agent configuration</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                      <>
+                        <Save className="h-4 w-4" />
+                        <span className="ml-2">Save</span>
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save all changes to the agent configuration</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
           {/* Hidden file input for import */}
           <input
@@ -969,6 +1083,56 @@ export default function CharacterForm({
           />
         </div>
       </form>
+
+      {/* Missing Secrets Warning Dialog */}
+      <MissingSecretsDialog
+        open={showMissingSecretsDialog}
+        onOpenChange={setShowMissingSecretsDialog}
+        missingSecrets={(() => {
+          let missingSecretNames: string[] = [];
+
+          // If secret panel is mounted, use it (has most up-to-date data)
+          if (secretPanelRef?.current) {
+            const validation = secretPanelRef.current.validateSecrets();
+            missingSecretNames = validation.missingSecrets;
+          } else {
+            // Secret panel not mounted - calculate based on character value
+            const secretsObj = characterValue.settings?.secrets;
+            const currentSecrets =
+              secretsObj && typeof secretsObj === 'object' && !Array.isArray(secretsObj)
+                ? (secretsObj as Record<string, any>)
+                : {};
+
+            missingSecretNames = requiredSecrets
+              .filter((secret) => {
+                const value = currentSecrets[secret.name];
+                // Check agent-specific secret
+                if (value && typeof value === 'string' && value.trim() !== '') {
+                  return false;
+                }
+                // Check global environment
+                const globalValue = globalEnvs[secret.name];
+                if (globalValue && globalValue.trim() !== '') {
+                  return false;
+                }
+                return true;
+              })
+              .map((secret) => secret.name);
+          }
+
+          // Map secret names to full details
+          return missingSecretNames.map((secretName) => {
+            const reqSecret = requiredSecrets.find((s) => s.name === secretName);
+            return {
+              name: secretName,
+              plugin: reqSecret?.plugin,
+              description: reqSecret?.description,
+            };
+          });
+        })()}
+        onConfirm={handleConfirmSaveWithMissingSecrets}
+        onCancel={handleCancelSaveWithMissingSecrets}
+      />
     </div>
   );
 }

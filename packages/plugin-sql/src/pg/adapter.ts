@@ -1,18 +1,8 @@
-import {
-  type UUID,
-  logger,
-  Agent,
-  Entity,
-  Memory,
-  Component,
-} from "@elizaos/core";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { BaseDrizzleAdapter } from "../base";
-import {
-  DIMENSION_MAP,
-  type EmbeddingDimensionColumn,
-} from "../schema/embedding";
-import type { PostgresConnectionManager } from "./manager";
+import { type UUID, logger, type Agent, type Entity, type Memory } from '@elizaos/core';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { BaseDrizzleAdapter } from '../base';
+import { DIMENSION_MAP, type EmbeddingDimensionColumn } from '../schema/embedding';
+import type { PostgresConnectionManager } from './manager';
 
 /**
  * Adapter class for interacting with a PostgreSQL database.
@@ -25,25 +15,76 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
   constructor(
     agentId: UUID,
     manager: PostgresConnectionManager,
-    _schema?: any,
+    _schema?: Record<string, unknown>
   ) {
     super(agentId);
     this.manager = manager;
     this.db = manager.getDatabase();
+    this.initStores();
+  }
+
+  getManager(): PostgresConnectionManager {
+    return this.manager;
   }
 
   /**
-   * Runs database migrations. For PostgreSQL, migrations should be handled
-   * externally or during deployment, so this is a no-op.
-   * @returns {Promise<void>}
+   * Execute a callback with full isolation context (Server RLS + Entity RLS).
    */
-  async runMigrations(): Promise<void> {
-    logger.debug("PgDatabaseAdapter: Migrations should be handled externally");
-    // Migrations are handled by the migration service, not the adapter
+  public async withIsolationContext<T>(
+    entityId: UUID | null,
+    callback: (tx: NodePgDatabase) => Promise<T>
+  ): Promise<T> {
+    return await this.manager.withIsolationContext(entityId, callback);
+  }
+
+  // Methods required by TypeScript but not in base class
+  async getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null> {
+    // Delegate to the correct method name
+    return this.getEntitiesByIds(entityIds);
+  }
+
+  async getMemoriesByServerId(_params: { serverId: UUID; count?: number }): Promise<Memory[]> {
+    // This method doesn't seem to exist in the base implementation
+    // Provide a basic implementation that returns empty array
+    logger.warn({ src: 'plugin:sql' }, 'getMemoriesByServerId called but not implemented');
+    return [];
+  }
+
+  async ensureAgentExists(agent: Partial<Agent>): Promise<Agent> {
+    // Check if agent exists, create if not
+    const existingAgent = await this.getAgent(this.agentId);
+    if (existingAgent) {
+      return existingAgent;
+    }
+
+    // Create the agent with required fields
+    const newAgent: Agent = {
+      id: this.agentId,
+      name: agent.name || 'Unknown Agent',
+      username: agent.username,
+      bio: agent.bio || 'An AI agent',
+      createdAt: agent.createdAt || Date.now(),
+      updatedAt: agent.updatedAt || Date.now(),
+    };
+
+    await this.createAgent(newAgent);
+    const createdAgent = await this.getAgent(this.agentId);
+    if (!createdAgent) {
+      throw new Error('Failed to create agent');
+    }
+    return createdAgent;
   }
 
   /**
    * Executes the provided operation with a database connection.
+   *
+   * This method uses the shared pool-based database instance from the manager.
+   * The pg Pool handles connection management internally, automatically acquiring
+   * and releasing connections for each query. This avoids race conditions that
+   * could occur with manual client management and shared state.
+   *
+   * Note: The this.db instance is set once in the constructor from manager.getDatabase()
+   * and is backed by a connection pool, so concurrent operations are safe.
    *
    * @template T
    * @param {() => Promise<T>} operation - The operation to be executed with the database connection.
@@ -51,16 +92,10 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
    */
   protected async withDatabase<T>(operation: () => Promise<T>): Promise<T> {
     return await this.withRetry(async () => {
-      const client = await this.manager.getClient();
-      try {
-        // Cast to any to avoid type conflicts between different pg versions
-        const db = drizzle(client as any);
-        this.db = db;
-
-        return await operation();
-      } finally {
-        client.release();
-      }
+      // Use the pool-based database instance from the manager
+      // The pool handles connection acquisition/release internally for each query
+      // This avoids the race condition of manually managing this.db state
+      return await operation();
     });
   }
 
@@ -71,9 +106,7 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>} A promise that resolves when initialization is complete.
    */
   async init(): Promise<void> {
-    logger.debug(
-      "PgDatabaseAdapter initialized, skipping automatic migrations.",
-    );
+    logger.debug({ src: 'plugin:sql' }, 'PgDatabaseAdapter initialized');
   }
 
   /**
@@ -100,74 +133,5 @@ export class PgDatabaseAdapter extends BaseDrizzleAdapter {
    */
   async getConnection() {
     return this.manager.getConnection();
-  }
-
-  async createAgent(agent: Agent): Promise<boolean> {
-    return super.createAgent(agent);
-  }
-
-  getAgent(agentId: UUID): Promise<Agent | null> {
-    return super.getAgent(agentId);
-  }
-
-  updateAgent(agentId: UUID, agent: Partial<Agent>): Promise<boolean> {
-    return super.updateAgent(agentId, agent);
-  }
-
-  deleteAgent(agentId: UUID): Promise<boolean> {
-    return super.deleteAgent(agentId);
-  }
-
-  createEntities(entities: Entity[]): Promise<boolean> {
-    return super.createEntities(entities);
-  }
-
-  getEntityByIds(entityIds: UUID[]): Promise<Entity[]> {
-    return super.getEntityByIds(entityIds).then((result) => result || []);
-  }
-
-  updateEntity(entity: Entity): Promise<void> {
-    return super.updateEntity(entity);
-  }
-
-  createMemory(memory: Memory, tableName: string): Promise<UUID> {
-    return super.createMemory(memory, tableName);
-  }
-
-  getMemoryById(memoryId: UUID): Promise<Memory | null> {
-    return super.getMemoryById(memoryId);
-  }
-
-  searchMemories(params: any): Promise<any[]> {
-    return super.searchMemories(params);
-  }
-
-  updateMemory(memory: Partial<Memory> & { id: UUID }): Promise<boolean> {
-    return super.updateMemory(memory);
-  }
-
-  deleteMemory(memoryId: UUID): Promise<void> {
-    return super.deleteMemory(memoryId);
-  }
-
-  createComponent(component: Component): Promise<boolean> {
-    return super.createComponent(component);
-  }
-
-  getComponent(
-    entityId: UUID,
-    type: string,
-    worldId?: UUID,
-    sourceEntityId?: UUID,
-  ): Promise<Component | null> {
-    return super.getComponent(entityId, type, worldId, sourceEntityId);
-  }
-
-  updateComponent(component: Component): Promise<void> {
-    return super.updateComponent(component);
-  }
-
-  deleteComponent(componentId: UUID): Promise<void> {
-    return super.deleteComponent(componentId);
   }
 }

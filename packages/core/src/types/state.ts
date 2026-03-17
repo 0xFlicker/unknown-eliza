@@ -1,66 +1,60 @@
+import type { ActionResult } from './components';
+import type { Entity, Room, World } from './environment';
+
+/** Single step in an action plan */
+export interface ActionPlanStep {
+  action: string;
+  status: 'pending' | 'completed' | 'failed';
+  error?: string;
+  result?: ActionResult;
+}
+
+/** Multi-step action plan */
+export interface ActionPlan {
+  thought: string;
+  totalSteps: number;
+  currentStep: number;
+  steps: ActionPlanStep[];
+}
+
+/**
+ * Structured data cached in state by providers and actions.
+ * Common properties are typed for better DX while allowing dynamic extension.
+ */
+export interface StateData {
+  /** Cached room data from providers */
+  room?: Room;
+  /** Cached world data from providers */
+  world?: World;
+  /** Cached entity data from providers */
+  entity?: Entity;
+  /** Provider results cache keyed by provider name */
+  providers?: Record<string, Record<string, unknown>>;
+  /** Current action plan for multi-step actions */
+  actionPlan?: ActionPlan;
+  /** Results from previous action executions */
+  actionResults?: ActionResult[];
+  /** Allow additional dynamic properties */
+  [key: string]: unknown;
+}
+
 /**
  * Represents the current state or context of a conversation or agent interaction.
  * This interface is a flexible container for various pieces of information that define the agent's
  * understanding at a point in time. It includes:
  * - `values`: A key-value store for general state variables, often populated by providers.
- * - `data`: Another key-value store, potentially for more structured or internal data.
+ * - `data`: Structured data cache with typed common properties for room, world, entity, etc.
  * - `text`: A string representation of the current context, often a summary or concatenated history.
- * The `[key: string]: any;` allows for dynamic properties, though `EnhancedState` offers better typing.
+ * The `[key: string]: unknown;` allows for dynamic properties to be added as needed.
  * This state object is passed to handlers for actions, evaluators, and providers.
  */
 export interface State {
   /** Additional dynamic properties */
-  [key: string]: any;
+  [key: string]: unknown;
   values: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  data: {
-    [key: string]: any;
-  };
+  /** Structured data cache with typed properties */
+  data: StateData;
   text: string;
-}
-
-/**
- * Defines the possible primitive types or structured types for a value within the agent's state.
- * This type is used to provide more specific typing for properties within `StateObject` and `StateArray`,
- * moving away from a generic 'any' type for better type safety and clarity in state management.
- */
-export type StateValue =
-  | string
-  | number
-  | boolean
-  | null
-  | StateObject
-  | StateArray;
-/**
- * Represents a generic object structure within the agent's state, where keys are strings
- * and values can be any `StateValue`. This allows for nested objects within the state.
- * It's a fundamental part of the `EnhancedState` interface.
- */
-export interface StateObject {
-  [key: string]: StateValue;
-}
-/**
- * Represents an array of `StateValue` types within the agent's state.
- * This allows for lists of mixed or uniform types to be stored in the state,
- * contributing to the structured definition of `EnhancedState`.
- */
-export type StateArray = StateValue[];
-
-/**
- * Enhanced State interface with more specific types for its core properties.
- * This interface provides a more structured representation of an agent's conversational state,
- * building upon the base `State` by typing `values` and `data` as `StateObject`.
- * The `text` property typically holds a textual summary or context derived from the state.
- * Additional dynamic properties are still allowed via the index signature `[key: string]: StateValue;`.
- */
-export interface EnhancedState {
-  /** Holds directly accessible state values, often used for template rendering or quick lookups. */
-  values: StateObject;
-  /** Stores more complex or structured data, potentially namespaced by providers or internal systems. */
-  data: StateObject;
-  /** A textual representation or summary of the current state, often used as context for models. */
-  text: string;
-  /** Allows for additional dynamic properties to be added to the state object. */
-  [key: string]: StateValue;
 }

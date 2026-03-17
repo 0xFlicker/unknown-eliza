@@ -1,31 +1,36 @@
-import type { IAgentRuntime, UUID } from "@elizaos/core";
-import express from "express";
-import type { AgentServer } from "../../index";
-import { createMessagingCoreRouter } from "./core";
-import { createServersRouter } from "./servers";
-import { createChannelsRouter } from "./channels";
+import type { ElizaOS } from '@elizaos/core';
+import express from 'express';
+import type { AgentServer } from '../../index';
+import { createMessagingCoreRouter } from './core';
+import { createMessageServersRouter } from './messageServers';
+import { createChannelsRouter } from './channels';
+import { createSessionsRouter } from './sessions';
+import { createJobsRouter } from './jobs';
 
 /**
  * Creates the messaging router for all communication functionality
  */
-export function messagingRouter(
-  agents: Map<UUID, IAgentRuntime>,
-  serverInstance: AgentServer,
-): express.Router {
+export function messagingRouter(elizaOS: ElizaOS, serverInstance: AgentServer): express.Router {
   const router = express.Router();
 
   if (!serverInstance) {
-    throw new Error("ServerInstance is required for messaging router");
+    throw new Error('ServerInstance is required for messaging router');
   }
 
   // Mount core messaging functionality at root level
-  router.use("/", createMessagingCoreRouter(serverInstance));
+  router.use('/', createMessagingCoreRouter(serverInstance));
 
   // Mount server management functionality
-  router.use("/", createServersRouter(serverInstance));
+  router.use('/', createMessageServersRouter(serverInstance));
 
   // Mount channel management functionality
-  router.use("/", createChannelsRouter(agents, serverInstance));
+  router.use('/', createChannelsRouter(elizaOS, serverInstance));
+
+  // Mount unified sessions API for simplified messaging
+  router.use('/', createSessionsRouter(elizaOS, serverInstance));
+
+  // Mount jobs API for one-off messaging
+  router.use('/', createJobsRouter(elizaOS, serverInstance));
 
   return router;
 }

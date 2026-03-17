@@ -140,14 +140,17 @@ export const strategicContextProvider: Provider = {
       // Format context as text for prompt injection
       const contextText = formatStrategicContext(contextData);
 
-      logger.debug("[StrategicContext] Generated strategic context", {
-        phase: strategyState.currentPhase,
-        alivePlayers,
-        allies: allies.length,
-        threats: threats.length,
-        neutrals: neutrals.length,
-        confidence: strategyState.analysis.confidenceLevel,
-      });
+      logger.debug(
+        {
+          phase: strategyState.currentPhase,
+          alivePlayers,
+          allies: allies.length,
+          threats: threats.length,
+          neutrals: neutrals.length,
+          confidence: strategyState.analysis.confidenceLevel,
+        },
+        "[StrategicContext] Generated strategic context",
+      );
 
       return {
         text: contextText,
@@ -159,7 +162,7 @@ export const strategicContextProvider: Provider = {
         },
       };
     } catch (error) {
-      logger.error("[StrategicContext] Error generating context:", error);
+      logger.error({ error }, "[StrategicContext] Error generating context");
       return {
         text: "Strategic context temporarily unavailable",
         values: { error: true },

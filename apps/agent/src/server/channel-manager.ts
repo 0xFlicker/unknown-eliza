@@ -281,7 +281,7 @@ export class ChannelManager<
         roomId: channel.id,
         source: "channel-manager",
         metadata: {
-          orginalId: otherParticipant.agentId,
+          originalId: otherParticipant.agentId,
           type: channel.type,
           isDm: channel.type === ChannelType.DM,
           username: otherRuntime.character.name,
@@ -350,7 +350,7 @@ export class ChannelManager<
           roomId: channel.id,
           source: "channel-manager",
           metadata: {
-            orginalId: otherParticipant.agentId,
+            originalId: otherParticipant.agentId,
             type: channel.type,
             isDm: channel.type === ChannelType.DM,
             username: otherRuntime.character.name,
@@ -369,7 +369,7 @@ export class ChannelManager<
         roomId: channel.id,
         source: "channel-manager",
         metadata: {
-          orginalId: houseClientId,
+          originalId: houseClientId,
           type: channel.type,
           isDm: channel.type === ChannelType.DM,
           username: "The House",
@@ -578,7 +578,7 @@ export class ChannelManager<
 
     const cleanupPromises = Array.from(this.channels.keys()).map((channelId) =>
       this.removeChannel(channelId).catch((error) => {
-        logger.error(`Failed to cleanup channel ${channelId}:`, error);
+        logger.error({ error, channelId }, "Failed to cleanup channel");
       }),
     );
 

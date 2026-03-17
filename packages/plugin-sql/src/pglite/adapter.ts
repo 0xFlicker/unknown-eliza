@@ -1,11 +1,8 @@
-import { type UUID, logger } from "@elizaos/core";
-import { drizzle } from "drizzle-orm/pglite";
-import { BaseDrizzleAdapter } from "../base";
-import {
-  DIMENSION_MAP,
-  type EmbeddingDimensionColumn,
-} from "../schema/embedding";
-import type { PGliteClientManager } from "./manager";
+import { type UUID, logger, type Agent, type Entity, type Memory } from '@elizaos/core';
+import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite';
+import { BaseDrizzleAdapter } from '../base';
+import { DIMENSION_MAP, type EmbeddingDimensionColumn } from '../schema/embedding';
+import type { PGliteClientManager } from './manager';
 
 /**
  * PgliteDatabaseAdapter class represents an adapter for interacting with a PgliteDatabase.
@@ -37,32 +34,78 @@ export class PgliteDatabaseAdapter extends BaseDrizzleAdapter {
   constructor(agentId: UUID, manager: PGliteClientManager) {
     super(agentId);
     this.manager = manager;
-    this.db = drizzle(this.manager.getConnection() as any);
+    // drizzle-orm/pglite expects PGlite instance directly
+    this.db = drizzle(this.manager.getConnection());
+    this.initStores();
   }
 
   /**
-   * Runs database migrations. For PGLite, migrations are handled by the
-   * migration service, not the adapter itself.
-   * @returns {Promise<void>}
+   * Execute a callback with isolation context.
+   * PGLite: No RLS support, execute callback directly.
+   * We avoid db.transaction() because drizzle's transaction handling blocks on PGLite.
+   * PGLite handles async operations internally with its own queue.
    */
-  async runMigrations(): Promise<void> {
-    logger.debug(
-      "PgliteDatabaseAdapter: Migrations are handled by the migration service",
-    );
-    // Migrations are handled by the migration service, not the adapter
+  public async withIsolationContext<T>(
+    _entityId: UUID | null,
+    callback: (tx: PgliteDatabase) => Promise<T>
+  ): Promise<T> {
+    return callback(this.db);
+  }
+
+  // Methods required by TypeScript but not in base class
+  async getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null> {
+    // Delegate to the correct method name
+    return this.getEntitiesByIds(entityIds);
+  }
+
+  async getMemoriesByServerId(_params: { serverId: UUID; count?: number }): Promise<Memory[]> {
+    // This method doesn't seem to exist in the base implementation
+    // Provide a basic implementation that returns empty array
+    logger.warn({ src: 'plugin:sql' }, 'getMemoriesByServerId called but not implemented');
+    return [];
+  }
+
+  async ensureAgentExists(agent: Partial<Agent>): Promise<Agent> {
+    // Check if agent exists, create if not
+    const existingAgent = await this.getAgent(this.agentId);
+    if (existingAgent) {
+      return existingAgent;
+    }
+
+    // Create the agent with required fields
+    const newAgent: Agent = {
+      id: this.agentId,
+      name: agent.name || 'Unknown Agent',
+      username: agent.username,
+      bio: agent.bio || 'An AI agent',
+      createdAt: agent.createdAt || Date.now(),
+      updatedAt: agent.updatedAt || Date.now(),
+    };
+
+    await this.createAgent(newAgent);
+    const createdAgent = await this.getAgent(this.agentId);
+    if (!createdAgent) {
+      throw new Error('Failed to create agent');
+    }
+    return createdAgent;
   }
 
   /**
    * Asynchronously runs the provided database operation while checking if the database is currently shutting down.
-   * If the database is shutting down, a warning is logged and null is returned.
+   * If the database is shutting down, an error is thrown to prevent operations on a closing database.
    *
    * @param {Function} operation - The database operation to be performed.
    * @returns {Promise<T>} A promise that resolves with the result of the database operation.
+   * @throws {Error} If the database is shutting down.
    */
   protected async withDatabase<T>(operation: () => Promise<T>): Promise<T> {
     if (this.manager.isShuttingDown()) {
-      logger.warn("Database is shutting down");
-      return null as unknown as T;
+      const error = new Error('Database is shutting down - operation rejected');
+      logger.warn(
+        { src: 'plugin:sql', error: error.message },
+        'Database operation rejected during shutdown'
+      );
+      throw error;
     }
     return operation();
   }
@@ -73,9 +116,7 @@ export class PgliteDatabaseAdapter extends BaseDrizzleAdapter {
    * @returns {Promise<void>} A Promise that resolves when the database initialization is complete.
    */
   async init(): Promise<void> {
-    logger.debug(
-      "PGliteDatabaseAdapter initialized, skipping automatic migrations.",
-    );
+    logger.debug({ src: 'plugin:sql' }, 'PGliteDatabaseAdapter initialized');
   }
 
   /**

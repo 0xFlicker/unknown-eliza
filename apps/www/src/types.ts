@@ -1,13 +1,5 @@
-// Update the IAttachment interface
-
-import { Agent, UUID } from "@elizaos/core";
-import type {
-  Agent as CoreAgent,
-  Character as CoreCharacter,
-  Room as CoreRoom,
-  AgentStatus as CoreAgentStatus,
-  ChannelType as CoreChannelType,
-} from "@elizaos/core";
+import type { UUID, Content, ChannelType as CoreChannelType } from '@elizaos/core';
+import type { MessageServerMetadata, ChannelMetadata, MessageMetadata } from '@elizaos/api-client';
 
 /**
  * Interface representing an attachment.
@@ -22,17 +14,20 @@ export interface IAttachment {
   title: string;
 }
 
-// Agent type for client-side display, extending core Agent with a string status for UI flexibility if needed,
-// but ideally aligns with CoreAgentStatus enum.
-export interface AgentWithStatus extends Partial<CoreAgent> {
-  id: UUID;
-  name: string;
-  characterName?: string; // From core Agent, which extends Character
-  bio?: string | string[];
-  status: CoreAgentStatus; // Use the enum from @elizaos/core
-  settings?: CoreCharacter["settings"]; // From core Character
-  // any other client-specific properties
-}
+// Type for UI message list items
+export type UiMessage = Content & {
+  id: UUID; // Message ID
+  name: string; // Display name of sender (USER_NAME or agent name)
+  senderId: UUID; // Central ID of the sender
+  isAgent: boolean;
+  createdAt: number; // Timestamp ms
+  isLoading?: boolean;
+  isStreaming?: boolean; // Whether the message is currently being streamed
+  channelId: UUID; // Central Channel ID
+  serverId?: UUID; // Server ID (optional in some contexts, but good for full context)
+  prompt?: string; // The LLM prompt used to generate this message (for agents)
+  // attachments and other Content props are inherited
+};
 
 // Interface for agent panels (public routes)
 export interface AgentPanel {
@@ -40,13 +35,13 @@ export interface AgentPanel {
   path: string;
 }
 
-// Represents a server/guild in the central messaging system for the client
+// Represents a message server/guild in the central messaging system for the client
 export interface MessageServer {
-  id: UUID; // Global serverId
+  id: UUID; // Global messageServerId
   name: string;
   sourceType: string;
   sourceId?: string;
-  metadata?: Record<string, any>;
+  metadata?: MessageServerMetadata;
   createdAt: string; // ISO Date string from server, or Date object
   updatedAt: string; // ISO Date string from server, or Date object
 }
@@ -60,7 +55,7 @@ export interface MessageChannel {
   sourceType?: string;
   sourceId?: string;
   topic?: string;
-  metadata?: Record<string, any>;
+  metadata?: ChannelMetadata;
   createdAt: string; // ISO Date string from server, or Date object
   updatedAt: string; // ISO Date string from server, or Date object
 }
@@ -70,23 +65,14 @@ export interface MessageChannel {
 export interface ServerMessage {
   id: UUID;
   channelId: UUID;
-  serverId?: UUID; // Optional: May be added during client-side processing or be in metadata
+  messageServerId?: UUID; // Optional: May be added during client-side processing or be in metadata
   authorId: UUID;
   authorDisplayName?: string; // Optional: May be in metadata or fetched separately
   content: string;
   createdAt: number; // Expecting timestamp MS for UI sorting/display
-  rawMessage?: any;
+  rawMessage?: unknown;
   inReplyToRootMessageId?: UUID;
   sourceType?: string;
   sourceId?: string;
-  metadata?: {
-    agentName?: string;
-    thought?: string;
-    actions?: string[];
-    attachments?: any[];
-    authorDisplayName?: string; // If API puts it here
-    serverId?: UUID; // If API puts it here
-    prompt?: string; // Add prompt field to store the LLM prompt
-    [key: string]: any;
-  };
+  metadata?: MessageMetadata;
 }

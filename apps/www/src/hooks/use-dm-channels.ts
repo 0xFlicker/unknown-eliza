@@ -1,12 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
-import { type UUID, ChannelType } from "@elizaos/core";
-import type { MessageChannel } from "@/types";
-import clientLogger from "@/lib/logger";
-import { STALE_TIMES } from "./use-query-hooks";
-import { getEntityId } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getElizaClient } from '@/lib/api-client-config';
+import { useToast } from '@/hooks/use-toast';
+import { type UUID, ChannelType } from '@elizaos/core';
+import type { MessageChannel } from '@/types';
+import { mapApiChannelToClient } from '@/lib/api-type-mappers';
+import clientLogger from '@/lib/logger';
+import { STALE_TIMES } from './use-query-hooks';
+import { getEntityId } from '@/lib/utils';
 
 /**
  * Hook to get or create a DM channel between current user and target user (agent)
@@ -20,44 +20,34 @@ export function useGetOrCreateDmChannel() {
   return useMutation({
     mutationFn: async (targetUserId: UUID) => {
       clientLogger.info(
-        "[useGetOrCreateDmChannel] Getting or creating canonical DM channel with target:",
-        targetUserId,
+        '[useGetOrCreateDmChannel] Getting or creating canonical DM channel with target:',
+        targetUserId
       );
-      const response = await apiClient.getOrCreateDmChannel(
-        targetUserId,
-        currentUserId,
-      );
-      return response.data;
+      const elizaClient = getElizaClient();
+      const result = await elizaClient.messaging.getOrCreateDmChannel({
+        participantIds: [currentUserId, targetUserId],
+      });
+      return result;
     },
     onSuccess: (data) => {
-      clientLogger.info(
-        "[useGetOrCreateDmChannel] Canonical DM channel created/found:",
-        data,
-      );
-      queryClient.invalidateQueries({ queryKey: ["channels"] });
-      queryClient.invalidateQueries({ queryKey: ["dmChannels"] });
+      clientLogger.info('[useGetOrCreateDmChannel] Canonical DM channel created/found:', data);
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['dmChannels'] });
       const agentId =
-        data.metadata?.user1 === currentUserId
-          ? data.metadata?.user2
-          : data.metadata?.user1;
+        data.metadata?.user1 === currentUserId ? data.metadata?.user2 : data.metadata?.user1;
       if (agentId) {
-        queryClient.invalidateQueries({
-          queryKey: ["dmChannels", agentId, currentUserId],
-        });
+        queryClient.invalidateQueries({ queryKey: ['dmChannels', agentId, currentUserId] });
       }
     },
     onError: (error) => {
       clientLogger.error(
-        "[useGetOrCreateDmChannel] Error creating/finding canonical DM channel:",
-        error,
+        '[useGetOrCreateDmChannel] Error creating/finding canonical DM channel:',
+        error
       );
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to process DM channel",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to process DM channel',
+        variant: 'destructive',
       });
     },
   });
@@ -68,21 +58,25 @@ export function useGetOrCreateDmChannel() {
  */
 export function useDmChannelsForAgent(
   agentId: UUID | undefined,
-  serverId: UUID = "00000000-0000-0000-0000-000000000000" as UUID,
+  messageServerId: UUID = '00000000-0000-0000-0000-000000000000' as UUID
 ) {
   const currentUserId = getEntityId();
 
   return useQuery<MessageChannel[]>({
-    queryKey: ["dmChannels", agentId, currentUserId], // This key will be invalidated by useCreateDmChannel
+    queryKey: ['dmChannels', agentId, currentUserId, messageServerId], // Include messageServerId in the key
     queryFn: async () => {
       if (!agentId) return [];
       clientLogger.info(
-        "[useDmChannelsForAgent] Fetching distinct DM channels for agent:",
-        agentId,
+        '[useDmChannelsForAgent] Fetching distinct DM channels for agent:',
+        agentId
       );
 
-      const response = await apiClient.getChannelsForServer(serverId);
-      const allChannels = response.data?.channels || [];
+      const elizaClient = getElizaClient();
+      const result = await elizaClient.messaging.getMessageServerChannels(messageServerId);
+      const apiChannels = result.channels || [];
+
+      // Map API channels to client type
+      const allChannels = apiChannels.map(mapApiChannelToClient);
 
       const dmChannels = allChannels.filter((channel) => {
         const metadata = channel.metadata || {};
@@ -96,35 +90,23 @@ export function useDmChannelsForAgent(
           (metadata.user1 === agentId && metadata.user2 === currentUserId);
 
         // Primary filter for new-style distinct DMs
-        if (
-          isCorrectType &&
-          isMarkedAsDm &&
-          isForThisAgentContext &&
-          isParticipant
-        ) {
+        if (isCorrectType && isMarkedAsDm && isForThisAgentContext && isParticipant) {
           return true;
         }
 
         // Fallback for older, canonical DM channels that might be named DM-UserA-UserB
         // This ensures existing single DMs are still listed if they haven't been migrated to new metadata.
         // This part of the filter might become less relevant as new distinct DMs are created.
-        if (
-          channel.type === ChannelType.DM &&
-          !metadata.isDm &&
-          !metadata.forAgent
-        ) {
+        if (channel.type === ChannelType.DM && !metadata.isDm && !metadata.forAgent) {
           const channelName = channel.name.toLowerCase();
           // Check if name follows the old convention: DM-currentUserId-agentId or DM-agentId-currentUserId
           const defaultDmName1 = `dm-${currentUserId}-${agentId}`.toLowerCase();
           const defaultDmName2 = `dm-${agentId}-${currentUserId}`.toLowerCase();
-          if (
-            channelName === defaultDmName1 ||
-            channelName === defaultDmName2
-          ) {
+          if (channelName === defaultDmName1 || channelName === defaultDmName2) {
             clientLogger.warn(
-              "[useDmChannelsForAgent] Matched a canonical DM channel by name convention:",
+              '[useDmChannelsForAgent] Matched a canonical DM channel by name convention:',
               channel.id,
-              channel.name,
+              channel.name
             );
             return true;
           }
@@ -134,13 +116,9 @@ export function useDmChannelsForAgent(
       });
 
       clientLogger.info(
-        "[useDmChannelsForAgent] Found distinct DM channels:",
+        '[useDmChannelsForAgent] Found distinct DM channels:',
         dmChannels.length,
-        dmChannels.map((c) => ({
-          id: c.id,
-          name: c.name,
-          metadata: c.metadata,
-        })),
+        dmChannels.map((c) => ({ id: c.id, name: c.name, metadata: c.metadata }))
       );
 
       return dmChannels.sort((a, b) => {
@@ -162,37 +140,35 @@ export function useCreateDmChannel() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentUserId = getEntityId();
-  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async ({
       agentId,
       channelName,
+      messageServerId = '00000000-0000-0000-0000-000000000000' as UUID,
     }: {
       agentId: UUID;
       channelName: string;
+      messageServerId?: UUID;
     }) => {
-      clientLogger.info(
-        "[useCreateDmChannel] Creating new distinct DM channel with agent:",
-        {
-          agentId,
-          channelName,
-        },
-      );
+      clientLogger.info('[useCreateDmChannel] Creating new distinct DM channel with agent:', {
+        agentId,
+        channelName,
+        messageServerId,
+      });
 
       if (!channelName || !channelName.trim()) {
         // This should ideally be caught before calling the mutation, but good to have a check.
-        throw new Error(
-          "Channel name cannot be empty for a new DM conversation.",
-        );
+        throw new Error('Channel name cannot be empty for a new DM conversation.');
       }
 
-      const newChannelResponse = await apiClient.createCentralGroupChat({
+      const elizaClient = getElizaClient();
+      const result = await elizaClient.messaging.createGroupChannel({
         name: channelName.trim(),
-        participantCentralUserIds: [currentUserId, agentId],
-        type: ChannelType.DM, // Set type to DM
-        server_id: "00000000-0000-0000-0000-000000000000" as UUID, // Use the default server
+        participantIds: [currentUserId, agentId],
         metadata: {
+          type: ChannelType.DM, // Set type to DM
+          message_server_id: messageServerId, // Use the provided messageServerId
           isDm: true, // Mark it as a DM type conversation
           user1: currentUserId, // Explicitly store participants for filtering
           user2: agentId,
@@ -201,38 +177,28 @@ export function useCreateDmChannel() {
         },
       });
 
-      return newChannelResponse.data; // createCentralGroupChat returns { data: MessageChannel }
+      return result; // Direct result from ElizaClient
     },
     onSuccess: (data, variables) => {
-      clientLogger.info(
-        "[useCreateDmChannel] Distinct DM channel created successfully:",
-        data,
-      );
+      clientLogger.info('[useCreateDmChannel] Distinct DM channel created successfully:', data);
       toast({
-        title: "New Chat Started",
+        title: 'New Chat Started',
         description: `Conversation "${data.name}" created.`,
       });
       // Invalidate queries to refresh the DM channel list for this agent
+      // Include serverId in the invalidation to match the query key
       queryClient.invalidateQueries({
-        queryKey: ["dmChannels", variables.agentId, currentUserId],
+        queryKey: ['dmChannels', variables.agentId, currentUserId, variables.messageServerId],
       });
       // Also invalidate general channels list if it might show DMs (though less likely)
-      queryClient.invalidateQueries({ queryKey: ["channels"] });
-
-      // Navigate to the new DM chat
-      // data.id is the channelId, variables.agentId is the agentId (target user for DM)
-      navigate(`/chat/${variables.agentId}/${data.id}`);
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
     },
     onError: (error) => {
-      clientLogger.error(
-        "[useCreateDmChannel] Error creating distinct DM channel:",
-        error,
-      );
+      clientLogger.error('[useCreateDmChannel] Error creating distinct DM channel:', error);
       toast({
-        title: "Error Creating Chat",
-        description:
-          error instanceof Error ? error.message : "Could not start new chat.",
-        variant: "destructive",
+        title: 'Error Creating Chat',
+        description: error instanceof Error ? error.message : 'Could not start new chat.',
+        variant: 'destructive',
       });
     },
   });

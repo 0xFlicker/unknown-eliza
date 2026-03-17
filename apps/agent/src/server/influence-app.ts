@@ -16,7 +16,6 @@ import {
   RuntimeDecorator,
   StreamedMessage,
 } from "./types";
-import EventEmitter from "node:events";
 import { housePlugin } from "../../src/plugins/house";
 import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import openaiPlugin from "@elizaos/plugin-openai";
@@ -45,7 +44,7 @@ export class InfluenceApp<
   private server?: AgentServer;
   private messageServer?: MessageServer & { metadata: AppContext };
   private serverPort?: number;
-  private bus: EventEmitter;
+  private bus: typeof internalMessageBus;
 
   // Managers
   private associationManager?: AssociationManager;
@@ -212,7 +211,9 @@ export class InfluenceApp<
     if (!this.serverPort) {
       throw new Error("Server port not initialized");
     }
-    this.server.start(this.serverPort);
+    this.server.start({
+      port: this.serverPort,
+    });
   }
 
   getHouseAgent(): IAgentRuntime {
@@ -513,7 +514,7 @@ export class InfluenceApp<
 
       logger.info(`House message sent to channel ${channel.name}`);
     } catch (error) {
-      logger.error("Failed to send House message:", error);
+      logger.error({ error, channelId }, "Failed to send House message");
       throw error;
     }
   }

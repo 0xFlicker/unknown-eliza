@@ -1,223 +1,109 @@
-import react from "@vitejs/plugin-react-swc";
-import path from "node:path";
-import fs from "node:fs";
-import { type Plugin, type UserConfig, defineConfig, loadEnv } from "vite";
-import viteCompression from "vite-plugin-compression";
-import tailwindcss from "@tailwindcss/vite";
-// @ts-ignore:next-line
-import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { defineConfig, type PluginOption } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+// @ts-ignore
+import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
-
-// Define custom config interface
-interface CustomUserConfig extends UserConfig {}
-
-// Function to get version and write info.json
-const getVersionAndWriteInfo = () => {
-  const lernaPath = path.resolve(__dirname, "../../lerna.json");
-  const packageJsonPath = path.resolve(__dirname, "../../package.json");
-  const infoJsonDir = path.resolve(__dirname, "src/lib");
-  const infoJsonPath = path.resolve(infoJsonDir, "info.json");
-  let version = "0.0.0-error"; // Default/fallback version
-
-  try {
-    // First try to get version from lerna.json
-    if (fs.existsSync(lernaPath)) {
-      const lernaContent = fs.readFileSync(lernaPath, "utf-8");
-      const lernaConfig = JSON.parse(lernaContent);
-      version = lernaConfig.version || version;
-    } else {
-      console.warn(
-        `Warning: ${lernaPath} does not exist. Trying package.json...`
-      );
-
-      // Fallback to main package.json if lerna.json doesn't exist
-      if (fs.existsSync(packageJsonPath)) {
-        const packageContent = fs.readFileSync(packageJsonPath, "utf-8");
-        const packageConfig = JSON.parse(packageContent);
-        version = packageConfig.version || version;
-      }
-    }
-
-    if (!fs.existsSync(infoJsonDir)) {
-      fs.mkdirSync(infoJsonDir, { recursive: true });
-    }
-    fs.writeFileSync(infoJsonPath, JSON.stringify({ version }));
-    console.log(`Version ${version} written to ${infoJsonPath}`);
-    return version;
-  } catch (error) {
-    console.error("Error processing version:", error);
-    // Attempt to write info.json even if there was an error reading lerna.json
-    if (!fs.existsSync(infoJsonDir)) {
-      fs.mkdirSync(infoJsonDir, { recursive: true });
-    }
-    fs.writeFileSync(infoJsonPath, JSON.stringify({ version })); // Writes the fallback version
-    console.warn(
-      `Fallback version ${version} written to ${infoJsonPath} due to error.`
-    );
-    return version;
-  }
-};
-
-// Custom plugin to generate version info
-const versionPlugin = (): Plugin => {
-  let appVersion: string;
-  return {
-    name: "eliza-version-plugin",
-    // config hook runs before server starts and build
-    config: () => {
-      appVersion = getVersionAndWriteInfo();
-      return {
-        define: {
-          "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
-        },
-      };
-    },
-    // buildStart is good too, but config ensures define is set early
-    // buildStart: () => {
-    //   getVersionAndWriteInfo();
-    // },
-  };
-};
-
-export default defineConfig(({ mode }): CustomUserConfig => {
-  const envDir = path.resolve(__dirname, "../..");
-  const env = loadEnv(mode, envDir, "");
-
-  // Custom plugin to filter out unnecessary warnings
-  const filterWarnings: Plugin = {
-    name: "filter-warnings",
-    apply: "build", // Only apply during build
-    configResolved(config) {
-      const originalWarnFn = config.logger.warn;
-      config.logger.warn = (msg, options) => {
-        if (typeof msg !== "string") return originalWarnFn(msg, options);
-        if (msg.includes("has been externalized for browser compatibility")) {
-          return;
-        }
-        originalWarnFn(msg, options);
-      };
-    },
-  };
+export default defineConfig(({ mode, command }) => {
+  const isDev = mode === 'development';
+  const isBuild = command === 'build';
 
   return {
-    plugins: [
-      versionPlugin(),
-      tailwindcss(),
-      react() as unknown as Plugin,
-      nodePolyfills() as unknown as Plugin,
-      viteCompression({
-        algorithm: "brotliCompress",
-        ext: ".br",
-        threshold: 1024,
-      }) as Plugin,
-      filterWarnings,
-    ],
-    clearScreen: false,
-    envDir,
+    // Type assertion needed because plugin types may not exactly match PluginOption but are compatible
+    plugins: [tailwindcss() as PluginOption, react() as PluginOption],
     server: {
       port: 5173,
-      host: "0.0.0.0",
       strictPort: true,
-      hmr: {
-        port: 5174,
-        host: "0.0.0.0",
-      },
+      host: true,
+      // Include sourcemaps for dependencies during development to improve stack traces
+      sourcemapIgnoreList: false,
+      // Reduce watcher pressure to avoid EMFILE on large workspaces
       watch: {
-        usePolling: false,
-        interval: 100,
+        ignored: [
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/.turbo/**',
+          '**/dist/**',
+          '**/coverage/**',
+          'cypress/screenshots/**',
+          'cypress/videos/**',
+        ],
+        usePolling: true,
+        interval: 150,
       },
-      cors: true,
       proxy: {
-        // Proxy all API calls to backend server
-        "/api": {
-          target: "http://localhost:3333",
-          changeOrigin: true,
-          secure: false,
-        },
-        // Proxy WebSocket connections for real-time features
-        "/socket.io": {
-          target: "http://localhost:3333",
-          changeOrigin: true,
+        '/api': 'http://localhost:3000',
+        '/socket.io': {
+          target: 'http://localhost:3000',
           ws: true,
-        },
-        // Proxy any other backend endpoints that might exist
-        "/v1": {
-          target: "http://localhost:3333",
-          changeOrigin: true,
-          secure: false,
-        },
-        // Proxy health check and ping endpoints
-        "/ping": {
-          target: "http://localhost:3333",
-          changeOrigin: true,
-          secure: false,
-        },
-        // Proxy any direct server endpoints
-        "/server": {
-          target: "http://localhost:3333",
-          changeOrigin: true,
-          secure: false,
-        },
-      },
-    },
-    define: {
-      "import.meta.env.VITE_SERVER_PORT": JSON.stringify(
-        env.SERVER_PORT || "3000"
-      ),
-      // Add empty shims for Node.js globals
-      global: "globalThis",
-    },
-    optimizeDeps: {
-      esbuildOptions: {
-        define: {
-          global: "globalThis",
-        },
-      },
-    },
-    build: {
-      target: "esnext",
-      outDir: "dist",
-      emptyOutDir: true,
-      minify: false,
-      cssMinify: true,
-      sourcemap: true,
-      rollupOptions: {
-        external: ["cloudflare:sockets"],
-        output: {
-          manualChunks: {
-            vendor: ["react", "react-dom", "react-router-dom"],
-            // Also chunk node_modules into vendor
-            ...(id: string) =>
-              id.includes("node_modules") ? { vendor: [id] } : undefined,
-          },
-        },
-        onwarn(warning, warn) {
-          // Suppress circular dependencies and externalized warnings
-          if (
-            warning.code === "CIRCULAR_DEPENDENCY" ||
-            (typeof warning.message === "string" &&
-              (warning.message.includes(
-                "has been externalized for browser compatibility"
-              ) ||
-                warning.message.includes(
-                  "The 'this' keyword is equivalent to 'undefined'"
-                ) ||
-                /node:|fs|path|crypto|stream|tty|worker_threads|assert/.test(
-                  warning.message
-                )))
-          ) {
-            return;
-          }
-          warn(warning);
         },
       },
     },
     resolve: {
       alias: {
-        "@": "/src",
+        '@': path.resolve(__dirname, './src'),
+        // Prevent node Sentry code from entering the browser bundle
+        '@sentry/node': path.resolve(__dirname, './src/mocks/empty-module.ts'),
+        '@sentry/node-core': path.resolve(__dirname, './src/mocks/empty-module.ts'),
+      },
+      // Ensure a single React instance to avoid "older version of React" element errors
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        // Generate sourcemaps for pre-bundled deps to unminify vendor stack traces
+        sourcemap: true,
+        keepNames: true,
+        define: {
+          global: 'globalThis',
+        },
+      },
+      entries: ['./src/entry.tsx'],
+      include: ['buffer', 'process', '@elizaos/core', '@elizaos/api-client'],
+    },
+    build: {
+      target: 'esnext',
+      // Enable full sourcemaps in production builds for better error stacks
+      sourcemap: true,
+      reportCompressedSize: false,
+      minify: 'esbuild',
+      chunkSizeWarningLimit: 2200, // Increase chunk size warning limit to accommodate large chunks
+      cssMinify: false, // Disable CSS minification to avoid :is() syntax errors in webkit scrollbar styles
+      rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+        },
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'react-vendor';
+              }
+              if (id.includes('@radix-ui')) {
+                return 'ui-vendor';
+              }
+              if (id.includes('@elizaos')) {
+                return 'elizaos-vendor';
+              }
+            }
+          },
+        },
+      },
+      commonjsOptions: {
+        transformMixedEsModules: true,
+        ignoreTryCatch: false,
       },
     },
-    logLevel: mode === "development" ? "info" : "error",
+    // Preserve function/class names to improve stack trace readability
+    esbuild: {
+      keepNames: true,
+    },
+    define: {
+      // Define globals for browser compatibility
+      'process.env': JSON.stringify({}),
+      'process.browser': true,
+      global: 'globalThis',
+    },
   };
 });

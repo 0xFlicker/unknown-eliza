@@ -305,7 +305,7 @@ export class TTSManager {
     // Guard against concurrent calls: if an initialization is already in progress, return its promise.
     if (this.initializingPromise) {
       logger.debug(
-        "TTS initialization already in progress, awaiting existing promise."
+        "TTS initialization already in progress, awaiting existing promise.",
       );
       return this.initializingPromise;
     }
@@ -325,7 +325,7 @@ export class TTSManager {
         const ttsModelSpec = MODEL_SPECS.tts.default;
         if (!ttsModelSpec) {
           throw new Error(
-            "Default TTS model specification not found in MODEL_SPECS."
+            "Default TTS model specification not found in MODEL_SPECS.",
           );
         }
         const modelName = ttsModelSpec.modelId;
@@ -335,13 +335,13 @@ export class TTSManager {
         logger.info(`Loading TTS pipeline for model: ${modelName}`);
         this.synthesizer = await pipeline("text-to-audio", modelName);
         logger.success(
-          `TTS pipeline loaded successfully for model: ${modelName}`
+          `TTS pipeline loaded successfully for model: ${modelName}`,
         );
 
         // 2. Load Default Speaker Embedding (if specified)
         if (speakerEmbeddingUrl) {
           const embeddingFilename = path.basename(
-            new URL(speakerEmbeddingUrl).pathname
+            new URL(speakerEmbeddingUrl).pathname,
           );
           const embeddingPath = path.join(this.cacheDir, embeddingFilename);
 
@@ -351,17 +351,17 @@ export class TTSManager {
             this.defaultSpeakerEmbedding = new Float32Array(
               buffer.buffer,
               buffer.byteOffset,
-              buffer.length / Float32Array.BYTES_PER_ELEMENT
+              buffer.length / Float32Array.BYTES_PER_ELEMENT,
             );
             logger.success("Default speaker embedding loaded from cache.");
           } else {
             logger.info(
-              `Downloading default speaker embedding from: ${speakerEmbeddingUrl}`
+              `Downloading default speaker embedding from: ${speakerEmbeddingUrl}`,
             );
             const response = await fetch(speakerEmbeddingUrl);
             if (!response.ok) {
               throw new Error(
-                `Failed to download speaker embedding: ${response.statusText}`
+                `Failed to download speaker embedding: ${response.statusText}`,
               );
             }
             const buffer = await response.arrayBuffer();
@@ -371,7 +371,7 @@ export class TTSManager {
           }
         } else {
           logger.warn(
-            `No default speaker embedding URL specified for model ${modelName}. Speaker control may be limited.`
+            `No default speaker embedding URL specified for model ${modelName}. Speaker control may be limited.`,
           );
           this.defaultSpeakerEmbedding = null;
         }
@@ -396,7 +396,7 @@ export class TTSManager {
         // Clear the promise once initialization is complete (successfully or not)
         this.initializingPromise = null;
         logger.debug(
-          "TTS initializingPromise cleared after completion/failure."
+          "TTS initializingPromise cleared after completion/failure.",
         );
       }
     })();
@@ -463,7 +463,7 @@ export class TTSManager {
         audioBuffer.length, // Pass buffer length in bytes
         samplingRate,
         1, // Number of channels (assuming mono)
-        16 // Bit depth
+        16, // Bit depth
       );
 
       logger.success("Speech generation complete (Transformers.js)");
@@ -550,7 +550,7 @@ export class TokenizerManager {
         const cachedTokenizer = this.tokenizers.get(tokenizerKey);
         if (!cachedTokenizer) {
           throw new Error(
-            `Tokenizer ${tokenizerKey} exists in map but returned undefined`
+            `Tokenizer ${tokenizerKey} exists in map but returned undefined`,
           );
         }
         return cachedTokenizer;
@@ -561,14 +561,14 @@ export class TokenizerManager {
       if (!fs.existsSync(this.modelsDir)) {
         logger.warn(
           "Models directory does not exist, creating it:",
-          this.modelsDir
+          this.modelsDir,
         );
         fs.mkdirSync(this.modelsDir, { recursive: true });
       }
 
       logger.info(
         "Initializing new tokenizer from HuggingFace with models directory:",
-        this.modelsDir
+        this.modelsDir,
       );
 
       try {
@@ -577,7 +577,7 @@ export class TokenizerManager {
           {
             cache_dir: this.modelsDir,
             local_files_only: false,
-          }
+          },
         );
 
         this.tokenizers.set(tokenizerKey, tokenizer);
@@ -602,7 +602,7 @@ export class TokenizerManager {
           {
             cache_dir: this.modelsDir,
             local_files_only: false,
-          }
+          },
         );
 
         this.tokenizers.set(tokenizerKey, tokenizer);
@@ -905,7 +905,7 @@ export class PlatformManager {
 
       // For Intel Macs with discrete GPU
       const { stdout: gpuInfo } = await execAsync(
-        "system_profiler SPDisplaysDataType"
+        "system_profiler SPDisplaysDataType",
       );
       return {
         name:
@@ -932,14 +932,14 @@ export class PlatformManager {
   private async detectWindowsGPU(): Promise<SystemGPU | null> {
     try {
       const { stdout } = await execAsync(
-        "wmic path win32_VideoController get name"
+        "wmic path win32_VideoController get name",
       );
       const gpuName = stdout.split("\n")[1].trim();
 
       // Check for NVIDIA GPU
       if (gpuName.toLowerCase().includes("nvidia")) {
         const { stdout: nvidiaInfo } = await execAsync(
-          "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
+          "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader",
         );
         const [name, memoryStr] = nvidiaInfo.split(",").map((s) => s.trim());
         const memory = Number.parseInt(memoryStr);
@@ -976,7 +976,7 @@ export class PlatformManager {
     try {
       // Try NVIDIA first
       const { stdout } = await execAsync(
-        "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
+        "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader",
       );
       if (stdout) {
         const [name, memoryStr] = stdout.split(",").map((s) => s.trim());
@@ -1013,7 +1013,7 @@ export class PlatformManager {
   private async getNvidiaDriverVersion(): Promise<string> {
     try {
       const { stdout } = await execAsync(
-        "nvidia-smi --query-gpu=driver_version --format=csv,noheader"
+        "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
       );
       return stdout.trim();
     } catch {
@@ -1029,7 +1029,7 @@ export class PlatformManager {
    */
   private async getSupportedBackends(
     platform: NodeJS.Platform,
-    gpu: SystemGPU | null
+    gpu: SystemGPU | null,
   ): Promise<Array<"cuda" | "metal" | "directml" | "cpu">> {
     const backends: Array<"cuda" | "metal" | "directml" | "cpu"> = ["cpu"];
 
@@ -1063,7 +1063,7 @@ export class PlatformManager {
    */
   private getRecommendedModelSize(
     cpu: SystemCPU,
-    gpu: SystemGPU | null
+    gpu: SystemGPU | null,
   ): "small" | "medium" | "large" {
     // For Apple Silicon
     if (gpu?.isAppleSilicon) {
@@ -1266,7 +1266,7 @@ export class VisionManager {
     this.ensureModelsDirExists();
     this.downloadManager = DownloadManager.getInstance(
       this.cacheDir,
-      this.modelsDir
+      this.modelsDir,
     );
     this.platformConfig = this.getPlatformConfig();
     logger.debug("VisionManager initialized");
@@ -1341,12 +1341,12 @@ export class VisionManager {
    */
   private checkCacheExists(
     modelId: string,
-    type: "model" | "tokenizer" | "processor"
+    type: "model" | "tokenizer" | "processor",
   ): boolean {
     const modelPath = path.join(
       this.modelsDir,
       modelId.replace("/", "--"),
-      type
+      type,
     );
     if (existsSync(modelPath)) {
       logger.info(`${type} found at: ${modelPath}`);
@@ -1399,7 +1399,7 @@ export class VisionManager {
    */
   private getModelConfig(componentName: string) {
     const component = this.modelComponents.find(
-      (c) => c.name === componentName
+      (c) => c.name === componentName,
     );
     return {
       device: this.platformConfig.device,
@@ -1418,7 +1418,7 @@ export class VisionManager {
     try {
       if (this.initialized) {
         logger.info(
-          "Vision model already initialized, skipping initialization"
+          "Vision model already initialized, skipping initialization",
         );
         return;
       }
@@ -1472,18 +1472,18 @@ export class VisionManager {
                 lastProgress = currentProgress;
                 const barLength = 30;
                 const filledLength = Math.floor(
-                  (currentProgress / 100) * barLength
+                  (currentProgress / 100) * barLength,
                 );
                 const progressBar =
                   "▰".repeat(filledLength) +
                   "▱".repeat(barLength - filledLength);
                 logger.info(
-                  `Downloading vision model: ${progressBar} ${currentProgress}%`
+                  `Downloading vision model: ${progressBar} ${currentProgress}%`,
                 );
                 if (currentProgress === 100) this.modelDownloaded = true;
               }
             }) as ProgressCallback,
-          }
+          },
         );
 
         this.model = model as unknown as Florence2ForConditionalGeneration;
@@ -1502,7 +1502,7 @@ export class VisionManager {
       try {
         const tokenizerCached = this.checkCacheExists(
           modelSpec.modelId,
-          "tokenizer"
+          "tokenizer",
         );
         let tokenizerProgress = -1;
 
@@ -1522,18 +1522,18 @@ export class VisionManager {
                 tokenizerProgress = currentProgress;
                 const barLength = 30;
                 const filledLength = Math.floor(
-                  (currentProgress / 100) * barLength
+                  (currentProgress / 100) * barLength,
                 );
                 const progressBar =
                   "▰".repeat(filledLength) +
                   "▱".repeat(barLength - filledLength);
                 logger.info(
-                  `Downloading vision tokenizer: ${progressBar} ${currentProgress}%`
+                  `Downloading vision tokenizer: ${progressBar} ${currentProgress}%`,
                 );
                 if (currentProgress === 100) this.tokenizerDownloaded = true;
               }
             }) as ProgressCallback,
-          }
+          },
         );
         logger.success("Vision tokenizer loaded successfully");
       } catch (error) {
@@ -1550,7 +1550,7 @@ export class VisionManager {
       try {
         const processorCached = this.checkCacheExists(
           modelSpec.modelId,
-          "processor"
+          "processor",
         );
         let processorProgress = -1;
 
@@ -1571,18 +1571,18 @@ export class VisionManager {
                 processorProgress = currentProgress;
                 const barLength = 30;
                 const filledLength = Math.floor(
-                  (currentProgress / 100) * barLength
+                  (currentProgress / 100) * barLength,
                 );
                 const progressBar =
                   "▰".repeat(filledLength) +
                   "▱".repeat(barLength - filledLength);
                 logger.info(
-                  `Downloading vision processor: ${progressBar} ${currentProgress}%`
+                  `Downloading vision processor: ${progressBar} ${currentProgress}%`,
                 );
                 if (currentProgress === 100) this.processorDownloaded = true;
               }
             }) as ProgressCallback,
-          }
+          },
         )) as Florence2Processor;
         logger.success("Vision processor loaded successfully");
       } catch (error) {
@@ -1613,7 +1613,7 @@ export class VisionManager {
    * @returns {Promise<{ buffer: Buffer; mimeType: string }>} Object containing the image data as a Buffer and its MIME type.
    */
   private async fetchImage(
-    url: string
+    url: string,
   ): Promise<{ buffer: Buffer; mimeType: string }> {
     try {
       logger.info(`Fetching image from URL: ${url.slice(0, 100)}...`);
@@ -1663,7 +1663,7 @@ export class VisionManager {
    * @returns {Promise<{ title: string; description: string }>} An object containing the title and description of the processed image.
    */
   public async processImage(
-    imageUrl: string
+    imageUrl: string,
   ): Promise<{ title: string; description: string }> {
     try {
       logger.info("Starting image processing...");
@@ -1713,7 +1713,7 @@ export class VisionManager {
       const result = this.processor.post_process_generation(
         generatedText,
         "<DETAILED_CAPTION>",
-        image.size
+        image.size,
       );
 
       const detailedCaption = result["<DETAILED_CAPTION>"] as string;
@@ -1916,7 +1916,7 @@ export class TranscribeManager {
   private async checkFFmpegAvailability(): Promise<void> {
     try {
       const { stdout, stderr } = await execAsync(
-        "which ffmpeg || where ffmpeg"
+        "which ffmpeg || where ffmpeg",
       );
       this.ffmpegPath = stdout.trim();
       this.ffmpegAvailable = true;
@@ -1953,7 +1953,7 @@ export class TranscribeManager {
 
       if (!hasRequiredCodecs) {
         throw new Error(
-          "FFmpeg installation missing required codecs (pcm_s16le, wav)"
+          "FFmpeg installation missing required codecs (pcm_s16le, wav)",
         );
       }
 
@@ -1986,7 +1986,7 @@ export class TranscribeManager {
         requiredVersion: "4.0 or later",
         requiredCodecs: ["pcm_s16le", "wav"],
         timestamp: new Date().toISOString(),
-      }
+      },
     );
   }
 
@@ -2025,18 +2025,18 @@ export class TranscribeManager {
    */
   private async convertToWav(
     inputPath: string,
-    outputPath: string
+    outputPath: string,
   ): Promise<void> {
     if (!this.ffmpegAvailable) {
       throw new Error(
-        "FFmpeg is not installed or not properly configured. Please install FFmpeg to use audio transcription."
+        "FFmpeg is not installed or not properly configured. Please install FFmpeg to use audio transcription.",
       );
     }
 
     try {
       // Add -loglevel error to suppress FFmpeg output unless there's an error
       const { stderr } = await execAsync(
-        `ffmpeg -y -loglevel error -i "${inputPath}" -acodec pcm_s16le -ar 16000 -ac 1 "${outputPath}"`
+        `ffmpeg -y -loglevel error -i "${inputPath}" -acodec pcm_s16le -ar 16000 -ac 1 "${outputPath}"`,
       );
 
       if (stderr) {
@@ -2062,7 +2062,7 @@ export class TranscribeManager {
         timestamp: new Date().toISOString(),
       });
       throw new Error(
-        `Failed to convert audio to WAV format: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to convert audio to WAV format: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -2078,14 +2078,14 @@ export class TranscribeManager {
   private async preprocessAudio(audioBuffer: Buffer): Promise<string> {
     if (!this.ffmpegAvailable) {
       throw new Error(
-        "FFmpeg is not installed. Please install FFmpeg to use audio transcription."
+        "FFmpeg is not installed. Please install FFmpeg to use audio transcription.",
       );
     }
 
     try {
       const tempInputFile = path.join(
         this.cacheDir,
-        `temp_input_${Date.now()}`
+        `temp_input_${Date.now()}`,
       );
       const tempWavFile = path.join(this.cacheDir, `temp_${Date.now()}.wav`);
 
@@ -2125,7 +2125,7 @@ export class TranscribeManager {
         timestamp: new Date().toISOString(),
       });
       throw new Error(
-        `Failed to preprocess audio: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to preprocess audio: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -2143,7 +2143,7 @@ export class TranscribeManager {
 
     if (!this.ffmpegAvailable) {
       throw new Error(
-        "FFmpeg is not installed or not properly configured. Please install FFmpeg to use audio transcription."
+        "FFmpeg is not installed or not properly configured. Please install FFmpeg to use audio transcription.",
       );
     }
 
@@ -2259,7 +2259,7 @@ export class DownloadManager {
    */
   public static getInstance(
     cacheDir: string,
-    modelsDir: string
+    modelsDir: string,
   ): DownloadManager {
     if (!DownloadManager.instance) {
       DownloadManager.instance = new DownloadManager(cacheDir, modelsDir);
@@ -2297,7 +2297,7 @@ export class DownloadManager {
    */
   private async downloadFileInternal(
     url: string,
-    destPath: string
+    destPath: string,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       logger.info(`Starting download to: ${destPath}`);
@@ -2312,7 +2312,7 @@ export class DownloadManager {
           fs.unlinkSync(tempPath);
         } catch (err) {
           logger.error(
-            `Failed to remove existing temporary file: ${err instanceof Error ? err.message : String(err)}`
+            `Failed to remove existing temporary file: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
@@ -2349,7 +2349,7 @@ export class DownloadManager {
 
           const totalSize = Number.parseInt(
             response.headers["content-length"] || "0",
-            10
+            10,
           );
           let downloadedSize = 0;
           let lastLoggedPercent = 0;
@@ -2368,12 +2368,12 @@ export class DownloadManager {
             // Only update progress bar when percentage changes significantly (every 5%)
             if (percent >= lastLoggedPercent + 5) {
               const filledLength = Math.floor(
-                (downloadedSize / totalSize) * barLength
+                (downloadedSize / totalSize) * barLength,
               );
               const progressBar =
                 "▰".repeat(filledLength) + "▱".repeat(barLength - filledLength);
               logger.info(
-                `Downloading ${fileName}: ${progressBar} ${percent}%`
+                `Downloading ${fileName}: ${progressBar} ${percent}%`,
               );
               lastLoggedPercent = percent;
             }
@@ -2397,7 +2397,7 @@ export class DownloadManager {
                 // Check if temp file exists before proceeding
                 if (!fs.existsSync(tempPath)) {
                   reject(
-                    new Error(`Temporary file ${tempPath} does not exist`)
+                    new Error(`Temporary file ${tempPath} does not exist`),
                   );
                   return;
                 }
@@ -2409,7 +2409,7 @@ export class DownloadManager {
                     const backupPath = `${destPath}.bak`;
                     fs.renameSync(destPath, backupPath);
                     logger.info(
-                      `Created backup of existing file: ${backupPath}`
+                      `Created backup of existing file: ${backupPath}`,
                     );
 
                     // Move temp file to destination
@@ -2419,12 +2419,12 @@ export class DownloadManager {
                     if (fs.existsSync(backupPath)) {
                       fs.unlinkSync(backupPath);
                       logger.info(
-                        `Removed backup file after successful update: ${backupPath}`
+                        `Removed backup file after successful update: ${backupPath}`,
                       );
                     }
                   } catch (moveErr) {
                     logger.error(
-                      `Error replacing file: ${moveErr instanceof Error ? moveErr.message : String(moveErr)}`
+                      `Error replacing file: ${moveErr instanceof Error ? moveErr.message : String(moveErr)}`,
                     );
 
                     // Try to restore from backup if the move failed
@@ -2433,11 +2433,11 @@ export class DownloadManager {
                       try {
                         fs.renameSync(backupPath, destPath);
                         logger.info(
-                          `Restored from backup after failed update: ${backupPath}`
+                          `Restored from backup after failed update: ${backupPath}`,
                         );
                       } catch (restoreErr) {
                         logger.error(
-                          `Failed to restore from backup: ${restoreErr instanceof Error ? restoreErr.message : String(restoreErr)}`
+                          `Failed to restore from backup: ${restoreErr instanceof Error ? restoreErr.message : String(restoreErr)}`,
                         );
                       }
                     }
@@ -2448,7 +2448,7 @@ export class DownloadManager {
                         fs.unlinkSync(tempPath);
                       } catch (unlinkErr) {
                         logger.error(
-                          `Failed to clean up temp file: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
+                          `Failed to clean up temp file: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
                         );
                       }
                     }
@@ -2462,7 +2462,7 @@ export class DownloadManager {
                 }
 
                 logger.success(
-                  `Download of ${fileName} completed successfully`
+                  `Download of ${fileName} completed successfully`,
                 );
 
                 // Remove from active downloads
@@ -2470,7 +2470,7 @@ export class DownloadManager {
                 resolve();
               } catch (err) {
                 logger.error(
-                  `Error finalizing download: ${err instanceof Error ? err.message : String(err)}`
+                  `Error finalizing download: ${err instanceof Error ? err.message : String(err)}`,
                 );
                 // Clean up temp file if it exists
                 if (fs.existsSync(tempPath)) {
@@ -2478,7 +2478,7 @@ export class DownloadManager {
                     fs.unlinkSync(tempPath);
                   } catch (unlinkErr) {
                     logger.error(
-                      `Failed to clean up temp file: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
+                      `Failed to clean up temp file: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
                     );
                   }
                 }
@@ -2491,7 +2491,7 @@ export class DownloadManager {
 
           file.on("error", (err) => {
             logger.error(
-              `File write error: ${err instanceof Error ? err.message : String(err)}`
+              `File write error: ${err instanceof Error ? err.message : String(err)}`,
             );
             file.close(() => {
               if (fs.existsSync(tempPath)) {
@@ -2499,7 +2499,7 @@ export class DownloadManager {
                   fs.unlinkSync(tempPath);
                 } catch (unlinkErr) {
                   logger.error(
-                    `Failed to clean up temp file after error: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
+                    `Failed to clean up temp file after error: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
                   );
                 }
               }
@@ -2508,19 +2508,19 @@ export class DownloadManager {
               reject(err);
             });
           });
-        }
+        },
       );
 
       request.on("error", (err) => {
         logger.error(
-          `Request error: ${err instanceof Error ? err.message : String(err)}`
+          `Request error: ${err instanceof Error ? err.message : String(err)}`,
         );
         if (fs.existsSync(tempPath)) {
           try {
             fs.unlinkSync(tempPath);
           } catch (unlinkErr) {
             logger.error(
-              `Failed to clean up temp file after request error: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
+              `Failed to clean up temp file after request error: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
             );
           }
         }
@@ -2537,7 +2537,7 @@ export class DownloadManager {
             fs.unlinkSync(tempPath);
           } catch (unlinkErr) {
             logger.error(
-              `Failed to clean up temp file after timeout: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
+              `Failed to clean up temp file after timeout: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
             );
           }
         }
@@ -2559,7 +2559,7 @@ export class DownloadManager {
     // Check if this file is already being downloaded
     if (this.activeDownloads.has(destPath)) {
       logger.info(
-        `Download for ${destPath} already in progress, waiting for it to complete...`
+        `Download for ${destPath} already in progress, waiting for it to complete...`,
       );
       const existingDownload = this.activeDownloads.get(destPath);
       if (existingDownload) {
@@ -2567,7 +2567,7 @@ export class DownloadManager {
       }
       // If somehow the download was removed from the map but the key still exists
       logger.warn(
-        `Download for ${destPath} was marked as in progress but not found in tracking map`
+        `Download for ${destPath} was marked as in progress but not found in tracking map`,
       );
     }
 
@@ -2594,7 +2594,7 @@ export class DownloadManager {
    */
   public async downloadModel(
     modelSpec: ModelSpec,
-    modelPath: string
+    modelPath: string,
   ): Promise<boolean> {
     try {
       logger.info("Starting local model download...");
@@ -2650,7 +2650,7 @@ export class DownloadManager {
             await this.downloadFile(attempt.url, modelPath);
 
             logger.success(
-              `Model download complete: ${modelSpec.name} using ${attempt.description}`
+              `Model download complete: ${modelSpec.name} using ${attempt.description}`,
             );
             downloadSuccess = true;
             break;
@@ -3116,11 +3116,11 @@ class LocalAIManager {
     // Initialize managers that depend on modelsDir
     this.downloadManager = DownloadManager.getInstance(
       this.cacheDir,
-      this.modelsDir
+      this.modelsDir,
     );
     this.tokenizerManager = TokenizerManager.getInstance(
       this.cacheDir,
-      this.modelsDir
+      this.modelsDir,
     );
     this.visionManager = VisionManager.getInstance(this.cacheDir);
     this.transcribeManager = TranscribeManager.getInstance(this.cacheDir);
@@ -3139,13 +3139,13 @@ class LocalAIManager {
       this.modelsDir = path.resolve(modelsDirEnv);
       logger.info(
         "Using models directory from MODELS_DIR environment variable:",
-        this.modelsDir
+        this.modelsDir,
       );
     } else {
       this.modelsDir = path.join(os.homedir(), ".eliza", "models");
       logger.info(
         "MODELS_DIR environment variable not set, using default models directory:",
-        this.modelsDir
+        this.modelsDir,
       );
     }
 
@@ -3154,7 +3154,7 @@ class LocalAIManager {
       fs.mkdirSync(this.modelsDir, { recursive: true });
       logger.debug(
         "Ensured models directory exists (created):",
-        this.modelsDir
+        this.modelsDir,
       );
     } else {
       logger.debug("Models directory already exists:", this.modelsDir);
@@ -3173,7 +3173,7 @@ class LocalAIManager {
       this.cacheDir = path.resolve(cacheDirEnv);
       logger.info(
         "Using cache directory from CACHE_DIR environment variable:",
-        this.cacheDir
+        this.cacheDir,
       );
     } else {
       const cacheDir = path.join(os.homedir(), ".eliza", "cache");
@@ -3185,7 +3185,7 @@ class LocalAIManager {
       this.cacheDir = cacheDir;
       logger.info(
         "CACHE_DIR environment variable not set, using default cache directory:",
-        this.cacheDir
+        this.cacheDir,
       );
     }
     // Ensure cache directory exists if specified via env var but not yet created
@@ -3235,22 +3235,22 @@ class LocalAIManager {
         // Set model paths based on validated config
         this.modelPath = path.join(
           this.modelsDir,
-          this.config.LOCAL_SMALL_MODEL
+          this.config.LOCAL_SMALL_MODEL,
         );
         this.mediumModelPath = path.join(
           this.modelsDir,
-          this.config.LOCAL_LARGE_MODEL
+          this.config.LOCAL_LARGE_MODEL,
         );
         this.embeddingModelPath = path.join(
           this.modelsDir,
-          this.config.LOCAL_EMBEDDING_MODEL
+          this.config.LOCAL_EMBEDDING_MODEL,
         ); // Set embedding path
 
         logger.info("Using small model path:", basename(this.modelPath));
         logger.info("Using medium model path:", basename(this.mediumModelPath));
         logger.info(
           "Using embedding model path:",
-          basename(this.embeddingModelPath)
+          basename(this.embeddingModelPath),
         );
 
         logger.info("Environment configuration validated and model paths set");
@@ -3280,7 +3280,7 @@ class LocalAIManager {
    */
   private async downloadModel(
     modelType: ModelTypeName,
-    customModelSpec?: ModelSpec
+    customModelSpec?: ModelSpec,
   ): Promise<boolean> {
     let modelSpec: ModelSpec;
     let modelPathToDownload: string;
@@ -3315,7 +3315,7 @@ class LocalAIManager {
       // Pass the determined path to the download manager
       return await this.downloadManager.downloadModel(
         modelSpec,
-        modelPathToDownload
+        modelPathToDownload,
       );
     } catch (error) {
       logger.error("Model download failed:", {
@@ -3356,7 +3356,7 @@ class LocalAIManager {
    * @returns {Promise<void>} A promise that resolves when initialization is complete or rejects if an error occurs
    */
   async initialize(
-    modelType: ModelTypeName = ModelType.TEXT_SMALL
+    modelType: ModelTypeName = ModelType.TEXT_SMALL,
   ): Promise<void> {
     await this.initializeEnvironment(); // Ensure environment is initialized first
     if (modelType === ModelType.TEXT_LARGE) {
@@ -3381,7 +3381,7 @@ class LocalAIManager {
       if (!fs.existsSync(this.modelsDir)) {
         logger.warn(
           "Models directory does not exist, creating it:",
-          this.modelsDir
+          this.modelsDir,
         );
         fs.mkdirSync(this.modelsDir, { recursive: true });
       }
@@ -3601,7 +3601,7 @@ class LocalAIManager {
 
       const tokens = await this.tokenizerManager.encode(
         params.prompt,
-        this.activeModelConfig
+        this.activeModelConfig,
       );
       logger.info("Input tokens:", { count: tokens.length });
 
@@ -3655,7 +3655,7 @@ class LocalAIManager {
    */
   public async describeImage(
     imageData: Buffer,
-    mimeType: string
+    mimeType: string,
   ): Promise<{ title: string; description: string }> {
     try {
       // Lazy initialize vision model
@@ -3855,7 +3855,7 @@ class LocalAIManager {
           // Initialize TranscribeManager if not already done
           if (!this.transcribeManager) {
             this.transcribeManager = TranscribeManager.getInstance(
-              this.cacheDir
+              this.cacheDir,
             );
           }
 
@@ -3865,11 +3865,11 @@ class LocalAIManager {
             // FFmpeg is not available, log instructions and throw
             // The TranscribeManager's ensureFFmpeg or initializeFFmpeg would have already logged instructions.
             logger.error(
-              "FFmpeg is not available or not configured correctly. Cannot proceed with transcription."
+              "FFmpeg is not available or not configured correctly. Cannot proceed with transcription.",
             );
             // No need to call logFFmpegInstallInstructions here as ensureFFmpeg/initializeFFmpeg already does.
             throw new Error(
-              "FFmpeg is required for transcription but is not available. Please see server logs for installation instructions."
+              "FFmpeg is required for transcription but is not available. Please see server logs for installation instructions.",
             );
           }
 
@@ -3878,7 +3878,7 @@ class LocalAIManager {
           // or that nodewhisper handles it internally)
           this.transcriptionInitialized = true;
           logger.info(
-            "Transcription prerequisites (FFmpeg) checked and ready."
+            "Transcription prerequisites (FFmpeg) checked and ready.",
           );
           logger.info("Transcription model initialized successfully");
         } catch (error) {
@@ -3950,7 +3950,7 @@ export const localAiPlugin: Plugin = {
   models: {
     [ModelType.TEXT_SMALL]: async (
       runtime: IAgentRuntime,
-      { prompt, stopSequences = [] }: GenerateTextParams
+      { prompt, stopSequences = [] }: GenerateTextParams,
     ) => {
       try {
         // Ensure environment is initialized before generating text (now public)
@@ -3969,7 +3969,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TEXT_LARGE]: async (
       runtime: IAgentRuntime,
-      { prompt, stopSequences = [] }: GenerateTextParams
+      { prompt, stopSequences = [] }: GenerateTextParams,
     ) => {
       try {
         // Ensure environment is initialized before generating text (now public)
@@ -3988,14 +3988,14 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TEXT_EMBEDDING]: async (
       _runtime: IAgentRuntime,
-      params: TextEmbeddingParams
+      params: TextEmbeddingParams,
     ) => {
       const text = params?.text;
       try {
         // Handle null/undefined/empty text
         if (!text) {
           logger.debug(
-            "Null or empty text input for embedding, returning zero vector"
+            "Null or empty text input for embedding, returning zero vector",
           );
           return new Array(384).fill(0);
         }
@@ -4015,7 +4015,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.OBJECT_SMALL]: async (
       runtime: IAgentRuntime,
-      params: ObjectGenerationParams
+      params: ObjectGenerationParams,
     ) => {
       try {
         // Ensure environment is initialized (now public)
@@ -4078,7 +4078,7 @@ export const localAiPlugin: Plugin = {
           } catch (parseError) {
             // Try fixing common JSON issues
             logger.debug(
-              "Initial JSON parse failed, attempting to fix common issues"
+              "Initial JSON parse failed, attempting to fix common issues",
             );
 
             // Replace any unescaped newlines in string values
@@ -4087,7 +4087,7 @@ export const localAiPlugin: Plugin = {
               // Remove any non-JSON text that might have gotten mixed into string values
               .replace(
                 /"([^"]*?)[^a-zA-Z0-9\s\.,;:\-_\(\)"'\[\]{}]([^"]*?)"/g,
-                '"$1$2"'
+                '"$1$2"',
               )
               // Fix missing quotes around property names
               .replace(/(\s*)(\w+)(\s*):/g, '$1"$2"$3:')
@@ -4130,7 +4130,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.OBJECT_LARGE]: async (
       runtime: IAgentRuntime,
-      params: ObjectGenerationParams
+      params: ObjectGenerationParams,
     ) => {
       try {
         // Ensure environment is initialized (now public)
@@ -4206,7 +4206,7 @@ export const localAiPlugin: Plugin = {
           } catch (parseError) {
             // Try fixing common JSON issues
             logger.debug(
-              "Initial JSON parse failed, attempting to fix common issues"
+              "Initial JSON parse failed, attempting to fix common issues",
             );
 
             // Replace any unescaped newlines in string values
@@ -4215,7 +4215,7 @@ export const localAiPlugin: Plugin = {
               // Remove any non-JSON text that might have gotten mixed into string values
               .replace(
                 /"([^"]*?)[^a-zA-Z0-9\s\.,;:\-_\(\)"'\[\]{}]([^"]*?)"/g,
-                '"$1$2"'
+                '"$1$2"',
               )
               // Fix missing quotes around property names
               .replace(/(\s*)(\w+)(\s*):/g, '$1"$2"$3:')
@@ -4258,7 +4258,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TEXT_TOKENIZER_ENCODE]: async (
       _runtime: IAgentRuntime,
-      { text }: { text: string }
+      { text }: { text: string },
     ) => {
       try {
         const manager = localAIManager.getTokenizerManager();
@@ -4272,7 +4272,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TEXT_TOKENIZER_DECODE]: async (
       _runtime: IAgentRuntime,
-      { tokens }: { tokens: number[] }
+      { tokens }: { tokens: number[] },
     ) => {
       try {
         const manager = localAIManager.getTokenizerManager();
@@ -4286,7 +4286,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.IMAGE_DESCRIPTION]: async (
       _runtime: IAgentRuntime,
-      imageUrl: string
+      imageUrl: string,
     ) => {
       try {
         logger.info("Processing image from URL:", imageUrl);
@@ -4312,7 +4312,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TRANSCRIPTION]: async (
       _runtime: IAgentRuntime,
-      audioBuffer: Buffer
+      audioBuffer: Buffer,
     ) => {
       try {
         logger.info("Processing audio transcription:", {
@@ -4331,7 +4331,7 @@ export const localAiPlugin: Plugin = {
 
     [ModelType.TEXT_TO_SPEECH]: async (
       _runtime: IAgentRuntime,
-      text: string
+      text: string,
     ) => {
       try {
         return await localAIManager.generateSpeech(text);
@@ -4424,12 +4424,12 @@ export const localAiPlugin: Plugin = {
                 ModelType.TEXT_EMBEDDING,
                 {
                   text: "This is a test of the text embedding model.",
-                }
+                },
               );
 
               logger.info(
                 "Embedding generated with dimensions:",
-                embedding.length
+                embedding.length,
               );
 
               if (!Array.isArray(embedding)) {
@@ -4447,7 +4447,7 @@ export const localAiPlugin: Plugin = {
               // Test with null input (should return zero vector)
               const nullEmbedding = await runtime.useModel(
                 ModelType.TEXT_EMBEDDING,
-                null
+                null,
               );
               if (
                 !Array.isArray(nullEmbedding) ||
@@ -4475,7 +4475,7 @@ export const localAiPlugin: Plugin = {
 
               const tokens = await runtime.useModel(
                 ModelType.TEXT_TOKENIZER_ENCODE,
-                { text }
+                { text },
               );
               logger.info("Encoded tokens:", { count: tokens.length });
 
@@ -4492,7 +4492,7 @@ export const localAiPlugin: Plugin = {
               }
 
               logger.success(
-                "TEXT_TOKENIZER_ENCODE test completed successfully"
+                "TEXT_TOKENIZER_ENCODE test completed successfully",
               );
             } catch (error) {
               logger.error("TEXT_TOKENIZER_ENCODE test failed:", {
@@ -4515,7 +4515,7 @@ export const localAiPlugin: Plugin = {
                 ModelType.TEXT_TOKENIZER_ENCODE,
                 {
                   text: originalText,
-                }
+                },
               );
 
               // Then decode it back
@@ -4523,7 +4523,7 @@ export const localAiPlugin: Plugin = {
                 ModelType.TEXT_TOKENIZER_DECODE,
                 {
                   tokens,
-                }
+                },
               );
               logger.info("Round trip tokenization:", {
                 original: originalText,
@@ -4535,7 +4535,7 @@ export const localAiPlugin: Plugin = {
               }
 
               logger.success(
-                "TEXT_TOKENIZER_DECODE test completed successfully"
+                "TEXT_TOKENIZER_DECODE test completed successfully",
               );
             } catch (error) {
               logger.error("TEXT_TOKENIZER_DECODE test failed:", {
@@ -4556,7 +4556,7 @@ export const localAiPlugin: Plugin = {
                 "https://raw.githubusercontent.com/microsoft/FLAML/main/website/static/img/flaml.png";
               const result = await runtime.useModel(
                 ModelType.IMAGE_DESCRIPTION,
-                imageUrl
+                imageUrl,
               );
 
               logger.info("Image description result:", result);
@@ -4615,7 +4615,7 @@ export const localAiPlugin: Plugin = {
 
               const transcription = await runtime.useModel(
                 ModelType.TRANSCRIPTION,
-                audioBuffer
+                audioBuffer,
               );
               logger.info("Transcription result:", transcription);
 
@@ -4642,7 +4642,7 @@ export const localAiPlugin: Plugin = {
               const testText = "This is a test of the text to speech system.";
               const audioStream = await runtime.useModel(
                 ModelType.TEXT_TO_SPEECH,
-                testText
+                testText,
               );
 
               if (!(audioStream instanceof Readable)) {

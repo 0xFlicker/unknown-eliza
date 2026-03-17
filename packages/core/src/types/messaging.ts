@@ -1,5 +1,6 @@
-import type { Content, UUID } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
+import type { Content, UUID } from './primitives';
+import type { IAgentRuntime } from './runtime';
+import type { Memory } from './memory';
 
 /**
  * Information describing the target of a message.
@@ -20,7 +21,7 @@ export interface TargetInfo {
 export type SendHandlerFunction = (
   runtime: IAgentRuntime,
   target: TargetInfo,
-  content: Content,
+  content: Content
 ) => Promise<void>;
 
 export enum SOCKET_MESSAGE_TYPE {
@@ -33,17 +34,73 @@ export enum SOCKET_MESSAGE_TYPE {
 }
 
 /**
+ * WebSocket/SSE event names for message streaming.
+ * Used for real-time streaming of agent responses to clients.
+ *
+ * Event flow:
+ * 1. First `messageStreamChunk` indicates stream start
+ * 2. Multiple `messageStreamChunk` events with text chunks
+ * 3. `messageBroadcast` event with complete message (indicates stream end)
+ * 4. `messageStreamError` if an error occurs during streaming
+ */
+export const MESSAGE_STREAM_EVENT = {
+  /** Text chunk during streaming. First chunk indicates stream start. */
+  messageStreamChunk: 'messageStreamChunk',
+  /** Error occurred during streaming */
+  messageStreamError: 'messageStreamError',
+  /** Complete message broadcast (existing event, indicates stream end) */
+  messageBroadcast: 'messageBroadcast',
+} as const;
+
+export type MessageStreamEventType =
+  (typeof MESSAGE_STREAM_EVENT)[keyof typeof MESSAGE_STREAM_EVENT];
+
+/**
+ * Payload for messageStreamChunk event
+ * Uses camelCase for client-facing WebSocket events (JS convention)
+ */
+export interface MessageStreamChunkPayload {
+  /** ID of the message being streamed */
+  messageId: UUID;
+  /** The text chunk */
+  chunk: string;
+  /** Chunk index (0-based) */
+  index: number;
+  /** Channel ID where the message is being sent */
+  channelId: string;
+  /** Agent ID that is responding */
+  agentId: UUID;
+}
+
+/**
+ * Payload for messageStreamError event
+ * Uses camelCase for client-facing WebSocket events (JS convention)
+ */
+export interface MessageStreamErrorPayload {
+  /** ID of the message that failed */
+  messageId: UUID;
+  /** Channel ID */
+  channelId: string;
+  /** Agent ID */
+  agentId: UUID;
+  /** Error message */
+  error: string;
+  /** Partial text generated before the error (if any) */
+  partialText?: string;
+}
+
+/**
  * Interface for control messages sent from the backend to the frontend
  * to manage UI state and interaction capabilities
  */
 export interface ControlMessage {
   /** Message type identifier */
-  type: "control";
+  type: 'control';
 
   /** Control message payload */
   payload: {
     /** Action to perform */
-    action: "disable_input" | "enable_input";
+    action: 'disable_input' | 'enable_input';
 
     /** Optional target element identifier */
     target?: string;
@@ -54,4 +111,52 @@ export interface ControlMessage {
 
   /** Room ID to ensure signal is directed to the correct chat window */
   roomId: UUID;
+}
+
+/**
+ * Handler options for async message processing (User → Agent)
+ * Follows the core pattern: HandlerOptions, HandlerCallback, etc.
+ */
+export interface MessageHandlerOptions {
+  /**
+   * Called when the agent generates a response
+   * If provided, method returns immediately (async mode)
+   * If not provided, method waits for response (sync mode)
+   */
+  onResponse?: (content: Content) => Promise<void>;
+
+  /**
+   * Called if an error occurs during processing
+   */
+  onError?: (error: Error) => Promise<void>;
+
+  /**
+   * Called when processing is complete
+   */
+  onComplete?: () => Promise<void>;
+}
+
+/**
+ * Result of sending a message to an agent (User → Agent)
+ * Follows the core pattern: ActionResult, ProviderResult, GenerateTextResult, etc.
+ */
+export interface MessageResult {
+  /** ID of the user message */
+  messageId: UUID;
+
+  /** The user message that was created (only in sync mode) */
+  userMessage?: Memory;
+
+  /**
+   * Agent responses (only in sync mode)
+   * Empty in async mode - use onResponse callback instead
+   */
+  agentResponses?: Content[];
+
+  /** Usage information for billing (only in sync mode) */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    model: string;
+  };
 }

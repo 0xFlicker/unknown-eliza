@@ -7,7 +7,7 @@ import {
   stringToUuid,
   logger,
   ChannelType,
-} from "@elizaos/core";
+} from '@elizaos/core';
 
 export interface UserProfile {
   name: string;
@@ -45,7 +45,7 @@ export class ConversationSimulator {
 
   constructor(runtime: IAgentRuntime) {
     this.runtime = runtime;
-    this.world = stringToUuid("test-world-" + runtime.agentId);
+    this.world = stringToUuid('test-world-' + runtime.agentId);
   }
 
   /**
@@ -62,7 +62,7 @@ export class ConversationSimulator {
         ...profile.metadata,
         roles: profile.roles || [],
         isTestUser: true,
-        createdBy: "ConversationSimulator",
+        createdBy: 'ConversationSimulator',
       },
     };
 
@@ -73,10 +73,7 @@ export class ConversationSimulator {
       profile,
     });
 
-    logger.info("[ConversationSimulator] Created test user", {
-      name: profile.name,
-      entityId: entity.id,
-    });
+    logger.info(`[ConversationSimulator] Created test user: ${profile.name} (${entity.id})`);
 
     return entity;
   }
@@ -84,10 +81,7 @@ export class ConversationSimulator {
   /**
    * Creates or gets a test room
    */
-  async getOrCreateRoom(roomConfig: {
-    name: string;
-    type: ChannelType;
-  }): Promise<Room> {
+  async getOrCreateRoom(roomConfig: { name: string; type: ChannelType }): Promise<Room> {
     const existing = this.rooms.get(roomConfig.name);
     if (existing) return existing;
 
@@ -97,22 +91,19 @@ export class ConversationSimulator {
       id: roomId,
       agentId: this.runtime.agentId,
       name: roomConfig.name,
-      source: "test",
+      source: 'test',
       type: roomConfig.type,
       worldId: this.world,
       metadata: {
         isTestRoom: true,
-        createdBy: "ConversationSimulator",
+        createdBy: 'ConversationSimulator',
       },
     };
 
     await this.runtime.createRoom(room);
     this.rooms.set(roomConfig.name, room);
 
-    logger.info("[ConversationSimulator] Created test room", {
-      name: roomConfig.name,
-      roomId: room.id,
-    });
+    logger.info(`[ConversationSimulator] Created test room: ${roomConfig.name} (${room.id})`);
 
     return room;
   }
@@ -120,11 +111,7 @@ export class ConversationSimulator {
   /**
    * Simulates sending a message from a user
    */
-  async sendMessage(
-    from: Entity,
-    content: string,
-    room: Room,
-  ): Promise<Memory> {
+  async sendMessage(from: Entity, content: string, room: Room): Promise<Memory> {
     const messageId = stringToUuid(`msg-${from.id}-${Date.now()}`);
 
     const memory: Memory = {
@@ -134,22 +121,18 @@ export class ConversationSimulator {
       roomId: room.id,
       content: {
         text: content,
-        type: "text",
+        type: 'text',
       },
       createdAt: Date.now(),
     };
 
     // Save the memory
-    await this.runtime.createMemory(memory, "messages");
+    await this.runtime.createMemory(memory, 'messages');
 
     // Ensure the user is a participant in the room
     await this.runtime.ensureParticipantInRoom(from.id as UUID, room.id);
 
-    logger.info("[ConversationSimulator] Message sent", {
-      from: from.names[0],
-      roomId: room.id,
-      content: content.substring(0, 50),
-    });
+    logger.info(`[ConversationSimulator] Message sent from ${from.names[0]} in room ${room.id}: ${content.substring(0, 50)}...`);
 
     return memory;
   }
@@ -158,11 +141,7 @@ export class ConversationSimulator {
    * Executes a multi-turn conversation script
    */
   async runConversation(script: ConversationScript): Promise<void> {
-    logger.info("[ConversationSimulator] Starting conversation", {
-      scriptName: script.name,
-      participants: script.participants.length,
-      steps: script.steps.length,
-    });
+    logger.info(`[ConversationSimulator] Starting conversation: ${script.name} with ${script.participants.length} participants, ${script.steps.length} steps`);
 
     // Create all participants
     for (const participant of script.participants) {
@@ -194,9 +173,7 @@ export class ConversationSimulator {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    logger.info("[ConversationSimulator] Conversation completed", {
-      scriptName: script.name,
-    });
+    logger.info(`[ConversationSimulator] Conversation completed: ${script.name}`);
   }
 
   /**
@@ -210,14 +187,9 @@ export class ConversationSimulator {
       // Run evaluators
       await this.runtime.evaluate(message, state, false);
 
-      logger.debug(
-        "[ConversationSimulator] Message processed through evaluators",
-        {
-          messageId: message.id,
-        },
-      );
+      logger.debug(`[ConversationSimulator] Message processed through evaluators: ${message.id}`);
     } catch (error) {
-      logger.error("[ConversationSimulator] Error processing message", error);
+      logger.error(`[ConversationSimulator] Error processing message: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -228,7 +200,7 @@ export class ConversationSimulator {
     // Give evaluators time to process
     await new Promise((resolve) => setTimeout(resolve, timeout));
 
-    logger.info("[ConversationSimulator] Evaluators processing complete");
+    logger.info('[ConversationSimulator] Evaluators processing complete');
   }
 
   /**
@@ -249,7 +221,7 @@ export class ConversationSimulator {
    * Cleans up test data
    */
   async cleanup(): Promise<void> {
-    logger.info("[ConversationSimulator] Cleaning up test data");
+    logger.info('[ConversationSimulator] Cleaning up test data');
 
     // Delete test entities
     for (const [name, user] of this.users) {
@@ -258,9 +230,7 @@ export class ConversationSimulator {
         for (const room of this.rooms.values()) {
           // Rooms track participants through the database, not in the room object
           // Just log that we're cleaning up this entity from the room
-          logger.debug(
-            `[ConversationSimulator] Removing entity ${user.entity.id} from room ${room.id}`,
-          );
+          logger.debug(`[ConversationSimulator] Removing entity ${user.entity.id} from room ${room.id}`);
         }
 
         // Delete associated components
@@ -271,29 +241,23 @@ export class ConversationSimulator {
 
         logger.info(`[ConversationSimulator] Cleaned up test user: ${name}`);
       } catch (error) {
-        logger.warn(
-          `[ConversationSimulator] Failed to cleanup user ${name}:`,
-          error,
-        );
+        logger.warn(`[ConversationSimulator] Failed to cleanup user ${name}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
-    // Delete test rooms
+    // Delete test rooms  
     for (const [name, room] of this.rooms) {
       try {
         // Delete room messages
         const messages = await this.runtime.getMemories({
           roomId: room.id,
-          tableName: "messages",
+          tableName: 'messages',
           count: 1000,
         });
 
         logger.info(`[ConversationSimulator] Cleaned up test room: ${name}`);
       } catch (error) {
-        logger.warn(
-          `[ConversationSimulator] Failed to cleanup room ${name}:`,
-          error,
-        );
+        logger.warn(`[ConversationSimulator] Failed to cleanup room ${name}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 

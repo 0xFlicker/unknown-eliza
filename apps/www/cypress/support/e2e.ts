@@ -18,11 +18,85 @@
 
 // Import commands.js using ES2015 syntax:
 import './commands';
+import { registerAuthCommands } from './auth-commands';
 import 'cypress-real-events/support';
 import '@testing-library/cypress/add-commands';
 
+// Register authentication commands
+registerAuthCommands();
+
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
+
+/**
+ * Visit a page with onboarding tour disabled
+ * Useful for authentication tests to avoid the onboarding overlay blocking UI elements
+ */
+Cypress.Commands.add('visitWithoutOnboarding', (url = '/') => {
+  cy.visit(url, {
+    onBeforeLoad(win) {
+      // Disable onboarding tour before the app loads
+      win.localStorage.setItem('eliza-onboarding-completed', 'true');
+    },
+  });
+});
+
+/**
+ * Setup API mocks for E2E tests
+ * Call this explicitly in tests that need mocked API responses
+ * DO NOT call this in authentication tests - they need real API calls
+ */
+Cypress.Commands.add('setupApiMocks', () => {
+  // Mock system environment endpoint
+  cy.intercept('GET', '/api/system/env/local', {
+    statusCode: 200,
+    body: {
+      NODE_ENV: 'test',
+      VERSION: '0.0.0-test',
+    },
+  }).as('getEnvLocal');
+
+  // Mock messaging central servers endpoint
+  cy.intercept('GET', '/api/messaging/central-servers', {
+    statusCode: 200,
+    body: [],
+  }).as('getCentralServers');
+
+  // Mock server logs endpoint
+  cy.intercept('GET', '/api/server/logs*', {
+    statusCode: 200,
+    body: { events: [] },
+  }).as('getServerLogs');
+
+  // Mock agents list endpoint
+  cy.intercept('GET', '/api/agents*', {
+    statusCode: 200,
+    body: { data: [] },
+  }).as('getAgents');
+
+  // Mock ping/health check endpoint
+  cy.intercept('GET', '/api/system/ping', {
+    statusCode: 200,
+    body: { status: 'ok' },
+  }).as('getPing');
+
+  // Mock any other API calls to prevent failures
+  cy.intercept('GET', '/api/**', (req) => {
+    console.log('Mocking unhandled GET request:', req.url);
+    req.reply({
+      statusCode: 200,
+      body: {},
+    });
+  }).as('mockGetRequests');
+
+  cy.intercept('POST', '/api/**', (req) => {
+    console.log('Mocking unhandled POST request:', req.url);
+    req.reply({
+      statusCode: 200,
+      body: { success: true },
+    });
+  }).as('mockPostRequests');
+});
 
 // Hide fetch/XHR requests from command log to reduce noise
 const app = window.top;

@@ -11,7 +11,7 @@ import {
   type Provider,
   type UUID,
   logger,
-} from "@elizaos/core";
+} from '@elizaos/core';
 
 // Move getRecentInteractions outside the provider
 /**
@@ -35,17 +35,14 @@ const getRecentInteractions = async (
   runtime: IAgentRuntime,
   sourceEntityId: UUID,
   targetEntityId: UUID,
-  excludeRoomId: UUID,
+  excludeRoomId: UUID
 ): Promise<Memory[]> => {
   // Find all rooms where sourceEntityId and targetEntityId are participants
-  const rooms = await runtime.getRoomsForParticipants([
-    sourceEntityId,
-    targetEntityId,
-  ]);
+  const rooms = await runtime.getRoomsForParticipants([sourceEntityId, targetEntityId]);
 
   // Check the existing memories in the database
   return runtime.getMemoriesByRoomIds({
-    tableName: "messages",
+    tableName: 'messages',
     // filter out the current room id from rooms
     roomIds: rooms.filter((room) => room !== excludeRoomId),
     limit: 20,
@@ -64,8 +61,8 @@ const getRecentInteractions = async (
  * @returns {object} An object containing data, values, and text sections.
  */
 export const recentMessagesProvider: Provider = {
-  name: "RECENT_MESSAGES",
-  description: "Recent messages, interactions and other memories",
+  name: 'RECENT_MESSAGES',
+  description: 'Recent messages, interactions and other memories',
   position: 100,
   get: async (runtime: IAgentRuntime, message: Memory) => {
     try {
@@ -73,106 +70,178 @@ export const recentMessagesProvider: Provider = {
       const conversationLength = runtime.getConversationLength();
 
       // Parallelize initial data fetching operations including recentInteractions
-      const [entitiesData, room, recentMessagesData, recentInteractionsData] =
-        await Promise.all([
-          getEntityDetails({ runtime, roomId }),
-          runtime.getRoom(roomId),
-          runtime.getMemories({
-            tableName: "messages",
-            roomId,
-            count: conversationLength,
-            unique: false,
-          }),
-          message.entityId !== runtime.agentId
-            ? getRecentInteractions(
-                runtime,
-                message.entityId,
-                runtime.agentId,
-                roomId,
-              )
-            : Promise.resolve([]),
-        ]);
+      const [entitiesData, room, recentMessagesData, recentInteractionsData] = await Promise.all([
+        getEntityDetails({ runtime, roomId }),
+        runtime.getRoom(roomId),
+        runtime.getMemories({
+          tableName: 'messages',
+          roomId,
+          count: conversationLength,
+          unique: false,
+        }),
+        message.entityId !== runtime.agentId
+          ? getRecentInteractions(runtime, message.entityId, runtime.agentId, roomId)
+          : Promise.resolve([]),
+      ]);
+
+      // Separate action results from regular messages
+      const actionResultMessages = recentMessagesData.filter(
+        (msg) => msg.content?.type === 'action_result' && msg.metadata?.type === 'action_result'
+      );
+
+      const dialogueMessages = recentMessagesData.filter(
+        (msg) => !(msg.content?.type === 'action_result' && msg.metadata?.type === 'action_result')
+      );
 
       // Default to message format if room is not found or type is undefined
       const isPostFormat = room?.type
         ? room.type === ChannelType.FEED || room.type === ChannelType.THREAD
         : false;
 
-      // Format recent messages and posts in parallel
-      const [formattedRecentMessages, formattedRecentPosts] = await Promise.all(
-        [
-          formatMessages({
-            messages: recentMessagesData,
-            entities: entitiesData,
-          }),
-          formatPosts({
-            messages: recentMessagesData,
-            entities: entitiesData,
-            conversationHeader: false,
-          }),
-        ],
-      );
+      // Format recent messages and posts in parallel, using only dialogue messages
+      const [formattedRecentMessages, formattedRecentPosts] = await Promise.all([
+        formatMessages({
+          messages: dialogueMessages,
+          entities: entitiesData,
+        }),
+        formatPosts({
+          messages: dialogueMessages,
+          entities: entitiesData,
+          conversationHeader: false,
+        }),
+      ]);
+
+      // Format action results separately
+      let actionResultsText = '';
+      if (actionResultMessages.length > 0) {
+        // Group by runId using Map
+        const groupedByRun = new Map<string, Memory[]>();
+
+        for (const mem of actionResultMessages) {
+          const runId: string = String(mem.content?.runId || 'unknown');
+          if (!groupedByRun.has(runId)) {
+            groupedByRun.set(runId, []);
+          }
+          const memories = groupedByRun.get(runId);
+          if (memories) {
+            memories.push(mem);
+          }
+        }
+
+        const formattedActionResults = Array.from(groupedByRun.entries())
+          .slice(-3) // Show last 3 runs
+          .map(([runId, memories]) => {
+            const sortedMemories = memories.sort(
+              (a: Memory, b: Memory) => (a.createdAt || 0) - (b.createdAt || 0)
+            );
+
+            const thought = sortedMemories[0]?.content?.planThought || '';
+            const runText = sortedMemories
+              .map((mem: Memory) => {
+                const actionName = mem.content?.actionName || 'Unknown';
+                const status = mem.content?.actionStatus || 'unknown';
+                const planStep = mem.content?.planStep || '';
+                const text = mem.content?.text || '';
+                const error = mem.content?.error || '';
+
+                let memText = `  - ${actionName} (${status})`;
+                if (planStep) {
+                  memText += ` [${planStep}]`;
+                }
+                if (error) {
+                  memText += `: Error - ${error}`;
+                } else if (text && text !== `Executed action: ${actionName}`) {
+                  memText += `: ${text}`;
+                }
+
+                return memText;
+              })
+              .join('\n');
+
+            return `**Action Run ${runId.slice(0, 8)}**${thought ? ` - "${thought}"` : ''}\n${runText}`;
+          })
+          .join('\n\n');
+
+        actionResultsText = formattedActionResults
+          ? addHeader('# Recent Action Executions', formattedActionResults)
+          : '';
+      }
 
       // Create formatted text with headers
       const recentPosts =
         formattedRecentPosts && formattedRecentPosts.length > 0
-          ? addHeader("# Posts in Thread", formattedRecentPosts)
-          : "";
+          ? addHeader('# Posts in Thread', formattedRecentPosts)
+          : '';
 
       const recentMessages =
         formattedRecentMessages && formattedRecentMessages.length > 0
-          ? addHeader("# Conversation Messages", formattedRecentMessages)
-          : "";
+          ? addHeader('# Conversation Messages', formattedRecentMessages)
+          : '';
 
       // If there are no messages at all, and no current message to process, return a specific message.
-      // The check for recentMessagesData.length === 0 ensures we only show this if there's truly nothing.
+      // The check for dialogueMessages.length === 0 ensures we only show this if there's truly nothing.
       if (
         !recentPosts &&
         !recentMessages &&
-        recentMessagesData.length === 0 &&
+        dialogueMessages.length === 0 &&
         !message.content.text
       ) {
         return {
           data: {
-            recentMessages: [],
+            recentMessages: dialogueMessages,
             recentInteractions: [],
+            actionResults: actionResultMessages,
           },
           values: {
-            recentPosts: "",
-            recentMessages: "",
-            recentMessageInteractions: "",
-            recentPostInteractions: "",
-            recentInteractions: "",
+            recentPosts: '',
+            recentMessages: '',
+            recentMessageInteractions: '',
+            recentPostInteractions: '',
+            recentInteractions: '',
+            recentActionResults: actionResultsText,
           },
-          text: "No recent messages available",
+          text: 'No recent messages available',
         };
+      }
+
+      let recentMessage = 'No recent message available.';
+
+      if (dialogueMessages.length > 0) {
+        // Get the most recent dialogue message (create a copy to avoid mutating original array)
+        const mostRecentMessage = [...dialogueMessages].sort(
+          (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+        )[0];
+
+        // Format just this single message to get the internal thought
+        const formattedSingleMessage = formatMessages({
+          messages: [mostRecentMessage],
+          entities: entitiesData,
+        });
+
+        if (formattedSingleMessage) {
+          recentMessage = formattedSingleMessage;
+        }
       }
 
       const metaData = message.metadata as CustomMetadata;
       const senderName =
-        entitiesData
-          .find((entity: Entity) => entity.id === message.entityId)
-          ?.names.slice(-1)[0] ||
+        entitiesData.find((entity: Entity) => entity.id === message.entityId)?.names[0] ||
         metaData?.entityName ||
-        (metaData?.raw as any)?.senderName ||
-        "Unknown User";
+        'Unknown User';
       const receivedMessageContent = message.content.text;
 
       const hasReceivedMessage = !!receivedMessageContent?.trim();
 
       const receivedMessageHeader = hasReceivedMessage
-        ? addHeader(
-            "# Received Message",
-            `${senderName}: ${receivedMessageContent}`,
-          )
-        : "";
+        ? addHeader('# Received Message', `${senderName}: ${receivedMessageContent}`)
+        : '';
 
       const focusHeader = hasReceivedMessage
         ? addHeader(
-            "# Focus your response",
-            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message. Do not repeat earlier replies unless the sender asks again.`,
+            '# Focus your response',
+            `You are replying to the above message from **${senderName}**. Keep your answer relevant to that message. Do not repeat earlier replies unless the sender asks again.`
           )
-        : "";
+        : '';
 
       // Preload all necessary entities for both types of interactions
       const interactionEntityMap = new Map<UUID, Entity>();
@@ -184,7 +253,7 @@ export const recentMessagesProvider: Provider = {
           ...new Set(
             recentInteractionsData
               .map((message) => message.entityId)
-              .filter((id) => id !== runtime.agentId),
+              .filter((id) => id !== runtime.agentId)
           ),
         ];
 
@@ -202,16 +271,12 @@ export const recentMessagesProvider: Provider = {
 
         // Get the remaining entities that weren't already loaded
         // Use Set difference for efficient filtering
-        const remainingEntityIds = uniqueEntityIds.filter(
-          (id) => !entitiesDataIdSet.has(id),
-        );
+        const remainingEntityIds = uniqueEntityIds.filter((id) => !entitiesDataIdSet.has(id));
 
         // Only fetch the entities we don't already have
         if (remainingEntityIds.length > 0) {
           const entities = await Promise.all(
-            remainingEntityIds.map((entityId) =>
-              runtime.getEntityById(entityId),
-            ),
+            remainingEntityIds.map((entityId) => runtime.getEntityById(entityId))
           );
 
           entities.forEach((entity, index) => {
@@ -224,7 +289,7 @@ export const recentMessagesProvider: Provider = {
 
       // Format recent message interactions
       const getRecentMessageInteractions = async (
-        recentInteractionsData: Memory[],
+        recentInteractionsData: Memory[]
       ): Promise<string> => {
         // Format messages using the pre-fetched entities
         const formattedInteractions = recentInteractionsData.map((message) => {
@@ -235,20 +300,20 @@ export const recentMessagesProvider: Provider = {
             sender = runtime.character.name;
           } else {
             sender =
-              (interactionEntityMap.get(message.entityId)?.metadata
-                ?.userName as string) || "unknown";
+              (interactionEntityMap.get(message.entityId)?.metadata?.userName as string) ||
+              'unknown';
           }
 
           return `${sender}: ${message.content.text}`;
         });
 
-        return formattedInteractions.join("\n");
+        return formattedInteractions.join('\n');
       };
 
       // Format recent post interactions
       const getRecentPostInteractions = async (
         recentInteractionsData: Memory[],
-        entities: Entity[],
+        entities: Entity[]
       ): Promise<string> => {
         // Combine pre-loaded entities with any other entities
         const combinedEntities = [...entities];
@@ -271,15 +336,15 @@ export const recentMessagesProvider: Provider = {
       };
 
       // Process both types of interactions in parallel
-      const [recentMessageInteractions, recentPostInteractions] =
-        await Promise.all([
-          getRecentMessageInteractions(recentInteractionsData),
-          getRecentPostInteractions(recentInteractionsData, entitiesData),
-        ]);
+      const [recentMessageInteractions, recentPostInteractions] = await Promise.all([
+        getRecentMessageInteractions(recentInteractionsData),
+        getRecentPostInteractions(recentInteractionsData, entitiesData),
+      ]);
 
       const data = {
-        recentMessages: recentMessagesData,
+        recentMessages: dialogueMessages,
         recentInteractions: recentInteractionsData,
+        actionResults: actionResultMessages,
       };
 
       const values = {
@@ -287,24 +352,21 @@ export const recentMessagesProvider: Provider = {
         recentMessages,
         recentMessageInteractions,
         recentPostInteractions,
-        recentInteractions: isPostFormat
-          ? recentPostInteractions
-          : recentMessageInteractions,
+        recentInteractions: isPostFormat ? recentPostInteractions : recentMessageInteractions,
+        recentActionResults: actionResultsText,
+        recentMessage,
       };
 
       // Combine all text sections
       const text = [
         isPostFormat ? recentPosts : recentMessages,
+        actionResultsText, // Include action results in the text output
         // Only add received message and focus headers if there are messages or a current message to process
-        recentMessages || recentPosts || message.content.text
-          ? receivedMessageHeader
-          : "",
-        recentMessages || recentPosts || message.content.text
-          ? focusHeader
-          : "",
+        recentMessages || recentPosts || message.content.text ? receivedMessageHeader : '',
+        recentMessages || recentPosts || message.content.text ? focusHeader : '',
       ]
         .filter(Boolean)
-        .join("\n\n");
+        .join('\n\n');
 
       return {
         data,
@@ -312,21 +374,30 @@ export const recentMessagesProvider: Provider = {
         text,
       };
     } catch (error) {
-      logger.error("Error in recentMessagesProvider:", error);
+      logger.error(
+        {
+          src: 'plugin:bootstrap:provider:recent_messages',
+          agentId: runtime.agentId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Error in recentMessagesProvider'
+      );
       // Return a default state in case of error, similar to the empty message list
       return {
         data: {
           recentMessages: [],
           recentInteractions: [],
+          actionResults: [],
         },
         values: {
-          recentPosts: "",
-          recentMessages: "",
-          recentMessageInteractions: "",
-          recentPostInteractions: "",
-          recentInteractions: "",
+          recentPosts: '',
+          recentMessages: '',
+          recentMessageInteractions: '',
+          recentPostInteractions: '',
+          recentInteractions: '',
+          recentActionResults: '',
         },
-        text: "Error retrieving recent messages.", // Or 'No recent messages available' as the test expects
+        text: 'Error retrieving recent messages.', // Or 'No recent messages available' as the test expects
       };
     }
   },

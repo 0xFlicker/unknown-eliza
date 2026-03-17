@@ -1,8 +1,9 @@
-import { Button } from "@/components/ui/button";
-import type { Agent } from "@elizaos/core";
-import { Image as ImageIcon, Upload, X, Info } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
-import { compressImage } from "@/lib/utils";
+import { Button } from '@/components/ui/button';
+import type { Agent } from '@elizaos/core';
+import { Image as ImageIcon, Upload, X, Info } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { compressImage } from '@/lib/utils';
+import { AVATAR_IMAGE_MAX_SIZE } from '@/constants';
 
 interface AvatarPanelProps {
   characterValue: Agent;
@@ -14,25 +15,24 @@ interface AvatarPanelProps {
   };
 }
 
-export default function AvatarPanel({
-  characterValue,
-  setCharacterValue,
-}: AvatarPanelProps) {
-  const [avatar, setAvatar] = useState<string | null>(
-    characterValue?.settings?.avatar || null,
-  );
+export default function AvatarPanel({ characterValue, setCharacterValue }: AvatarPanelProps) {
+  // Extract avatar as string, handling various types
+  const getAvatarUrl = () => {
+    const avatarSetting = characterValue?.settings?.avatar;
+    return typeof avatarSetting === 'string' ? avatarSetting : null;
+  };
+
+  const [avatar, setAvatar] = useState<string | null>(getAvatarUrl());
   const [hasChanged, setHasChanged] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset the change flag when component initializes or character changes
   useEffect(() => {
-    setAvatar(characterValue?.settings?.avatar || null);
+    setAvatar(getAvatarUrl());
     setHasChanged(false);
   }, [characterValue.id]);
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
@@ -43,7 +43,7 @@ export default function AvatarPanel({
         // Only update when there's a real change
         updateCharacterAvatar(compressedImage);
       } catch (error) {
-        console.error("Error compressing image:", error);
+        console.error('Error compressing image:', error);
       }
     }
   };
@@ -52,7 +52,7 @@ export default function AvatarPanel({
     if (avatar) {
       setAvatar(null);
       setHasChanged(true);
-      updateCharacterAvatar("");
+      updateCharacterAvatar('');
     }
   };
 
@@ -63,10 +63,10 @@ export default function AvatarPanel({
       setCharacterValue.updateAvatar(avatarUrl);
     } else if (setCharacterValue.updateSetting) {
       // Use updateSetting as fallback
-      setCharacterValue.updateSetting("avatar", avatarUrl);
+      setCharacterValue.updateSetting('avatar', avatarUrl);
     } else if (setCharacterValue.updateField) {
       // Last resort - use the generic field update
-      setCharacterValue.updateField("settings.avatar", avatarUrl);
+      setCharacterValue.updateField('settings.avatar', avatarUrl);
     }
   };
 
@@ -108,15 +108,17 @@ export default function AvatarPanel({
 
           <div className="flex gap-2">
             <Button
+              type="button"
               className="flex items-center gap-2 flex-1"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-5 h-5" />
-              {avatar ? "Replace" : "Upload"}
+              {avatar ? 'Replace' : 'Upload'}
             </Button>
 
             {avatar && (
               <Button
+                type="button"
                 variant="outline"
                 className="flex items-center"
                 onClick={handleRemoveAvatar}
@@ -126,15 +128,11 @@ export default function AvatarPanel({
             )}
           </div>
 
-          {hasChanged && (
-            <div className="text-sm text-blue-500 mt-1 text-center">
-              Avatar has been updated
-            </div>
-          )}
-
           <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-1">
             <Info className="w-3.5 h-3.5" />
-            <span>Images greater than 300x300 will be resized</span>
+            <span>
+              Images greater than {AVATAR_IMAGE_MAX_SIZE}x{AVATAR_IMAGE_MAX_SIZE} will be resized
+            </span>
           </div>
         </div>
       </div>

@@ -1,33 +1,40 @@
-import { GROUP_CHAT_SOURCE, USER_NAME } from "@/constants";
-import { apiClient } from "@/lib/api";
-import type {
-  Agent,
-  Content,
-  Memory,
-  UUID,
-  Memory as CoreMemory,
-} from "@elizaos/core";
+import { GROUP_CHAT_SOURCE, USER_NAME } from '@/constants';
+// Direct error handling without bridge layer
+import type { Agent, Content, Memory, UUID, Memory as CoreMemory, Media } from '@elizaos/core';
 import {
   useQuery,
   useMutation,
   useQueryClient,
   useQueries,
   UseQueryResult,
-  type DefinedUseQueryResult,
-  type UndefinedInitialDataOptions,
   type UseQueryOptions,
-} from "@tanstack/react-query";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useToast } from "./use-toast";
-import { getEntityId, randomUUID, moment } from "@/lib/utils";
+} from '@tanstack/react-query';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useToast } from './use-toast';
+import { getEntityId } from '@/lib/utils';
 import type {
   ServerMessage,
-  AgentWithStatus,
   MessageChannel as ClientMessageChannel,
   MessageServer as ClientMessageServer,
-} from "@/types";
-import clientLogger from "@/lib/logger";
-import { useNavigate } from "react-router-dom";
+  UiMessage,
+} from '@/types';
+import clientLogger from '@/lib/logger';
+import { useNavigate } from 'react-router-dom';
+import {
+  mapApiAgentToClient,
+  mapApiChannelToClient,
+  mapApiChannelsToClient,
+  mapApiServersToClient,
+  mapApiMessageToUi,
+  mapApiLogToClient,
+  mapApiMemoryToClient,
+  type AgentLog,
+} from '@/lib/api-type-mappers';
+import type { ListRunsParams, RunDetail, RunSummary } from '@elizaos/api-client';
+import { getElizaClient } from '@/lib/api-client-config';
+
+// Helper to always get the current client instance (important after API key updates)
+const getClient = () => getElizaClient();
 
 /**
  * Represents content with additional user information.
@@ -42,32 +49,11 @@ type ContentWithUser = Content & {
   name: string;
   createdAt: number;
   isLoading?: boolean;
-  worldId?: string;
-  id?: string; // Add optional ID field
+  worldId?: UUID;
+  id?: UUID; // Add optional ID field
 };
 
-// AgentLog type from the API
-type AgentLog = {
-  id?: string;
-  type?: string;
-  timestamp?: number;
-  message?: string;
-  details?: string;
-  roomId?: string;
-  body?: {
-    modelType?: string;
-    modelKey?: string;
-    params?: any;
-    response?: any;
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      total_tokens?: number;
-    };
-  };
-  createdAt?: number;
-  [key: string]: any;
-};
+// AgentLog type is now imported from api-type-mappers
 
 // Constants for stale times
 export const STALE_TIMES = {
@@ -87,7 +73,7 @@ export const STALE_TIMES = {
  */
 
 interface NetworkInformation {
-  effectiveType: "slow-2g" | "2g" | "3g" | "4g" | "unknown";
+  effectiveType: 'slow-2g' | '2g' | '3g' | '4g' | 'unknown';
   saveData: boolean;
   [key: string]: unknown;
 }
@@ -105,14 +91,14 @@ interface NetworkInformation {
 const useNetworkStatus = () => {
   // Get navigator.connection if available (Network Information API)
   const connection =
-    typeof navigator !== "undefined" && "connection" in navigator
+    typeof navigator !== 'undefined' && 'connection' in navigator
       ? (navigator as Navigator & { connection: NetworkInformation }).connection
       : null;
 
   // Return the effective connection type or a default value
   return {
-    isOffline: typeof navigator !== "undefined" && !navigator.onLine,
-    effectiveType: connection?.effectiveType || "unknown",
+    isOffline: typeof navigator !== 'undefined' && !navigator.onLine,
+    effectiveType: connection?.effectiveType || 'unknown',
     saveData: connection?.saveData || false,
   };
 };
@@ -129,9 +115,14 @@ const useNetworkStatus = () => {
 export function useAgents(options = {}) {
   const network = useNetworkStatus();
 
-  return useQuery<{ data: { agents: Partial<AgentWithStatus>[] } }>({
-    queryKey: ["agents"],
-    queryFn: () => apiClient.getAgents(),
+  return useQuery<{ data: { agents: Agent[] } }>({
+    queryKey: ['agents'],
+    queryFn: async () => {
+      const result = await getClient().agents.listAgents();
+      // Map the API agents to client format
+      const mappedAgents = result.agents.map((agent) => mapApiAgentToClient(agent));
+      return { data: { agents: mappedAgents } };
+    },
     staleTime: STALE_TIMES.FREQUENT, // Use shorter stale time for real-time data
     // Use more frequent polling for real-time updates
     refetchInterval: !network.isOffline ? STALE_TIMES.FREQUENT : false,
@@ -139,7 +130,7 @@ export function useAgents(options = {}) {
     refetchIntervalInBackground: false,
     // Configure based on network conditions
     ...(!network.isOffline &&
-      network.effectiveType === "slow-2g" && {
+      network.effectiveType === 'slow-2g' && {
         refetchInterval: STALE_TIMES.STANDARD, // Poll less frequently on slow connections
       }),
     // Allow overriding any options
@@ -157,22 +148,82 @@ export function useAgents(options = {}) {
 export function useAgent(agentId: UUID | undefined | null, options = {}) {
   const network = useNetworkStatus();
 
-  return useQuery<{ data: AgentWithStatus }>({
-    queryKey: ["agent", agentId],
-    queryFn: () => apiClient.getAgent(agentId || ""),
+  return useQuery<{ data: Agent }>({
+    queryKey: ['agent', agentId],
+    queryFn: async () => {
+      if (!agentId) throw new Error('Agent ID is required');
+      const result = await getClient().agents.getAgent(agentId);
+      return { data: mapApiAgentToClient(result) };
+    },
     staleTime: STALE_TIMES.FREQUENT, // Use shorter stale time for real-time data
     enabled: Boolean(agentId),
     // Use more frequent polling for real-time updates
-    refetchInterval:
-      !network.isOffline && Boolean(agentId) ? STALE_TIMES.FREQUENT : false,
+    refetchInterval: !network.isOffline && Boolean(agentId) ? STALE_TIMES.FREQUENT : false,
     // Disable polling when the tab is not active
     refetchIntervalInBackground: false,
     // Configure based on network conditions
     ...(!network.isOffline &&
-      network.effectiveType === "slow-2g" && {
+      network.effectiveType === 'slow-2g' && {
         refetchInterval: STALE_TIMES.STANDARD, // Poll less frequently on slow connections
       }),
     // Allow overriding any options
+    ...options,
+  });
+}
+
+type RunsListResponse = { runs: RunSummary[]; total: number; hasMore: boolean };
+
+export function useAgentRuns(
+  agentId: UUID | undefined | null,
+  params?: ListRunsParams,
+  options: Partial<UseQueryOptions<RunsListResponse, Error, RunsListResponse>> = {}
+) {
+  const network = useNetworkStatus();
+  const sanitizedParams = params
+    ? Object.fromEntries(Object.entries(params).filter(([_, value]) => value !== undefined))
+    : undefined;
+  const serializedParams = sanitizedParams ? JSON.stringify(sanitizedParams) : 'default';
+
+  return useQuery<RunsListResponse>({
+    queryKey: ['agent', agentId, 'runs', serializedParams],
+    queryFn: async () => {
+      if (!agentId) throw new Error('Agent ID is required');
+      return getClient().runs.listRuns(agentId, sanitizedParams as ListRunsParams | undefined);
+    },
+    enabled: Boolean(agentId),
+    staleTime: STALE_TIMES.FREQUENT,
+    refetchInterval: !network.isOffline && Boolean(agentId) ? STALE_TIMES.FREQUENT : false,
+    refetchIntervalInBackground: false,
+    ...(!network.isOffline &&
+      network.effectiveType === 'slow-2g' && {
+        refetchInterval: STALE_TIMES.STANDARD,
+      }),
+    ...options,
+  });
+}
+
+export function useAgentRunDetail(
+  agentId: UUID | undefined | null,
+  runId: UUID | undefined | null,
+  roomId?: UUID | null,
+  options: Partial<UseQueryOptions<RunDetail, Error, RunDetail>> = {}
+) {
+  const network = useNetworkStatus();
+
+  return useQuery<RunDetail>({
+    queryKey: ['agent', agentId, 'runs', 'detail', runId, roomId ?? null],
+    queryFn: async () => {
+      if (!agentId || !runId) throw new Error('Agent ID and Run ID are required');
+      return getClient().runs.getRun(agentId, runId, roomId ?? undefined);
+    },
+    enabled: Boolean(agentId && runId),
+    staleTime: STALE_TIMES.FREQUENT,
+    refetchInterval: !network.isOffline && Boolean(agentId && runId) ? STALE_TIMES.FREQUENT : false,
+    refetchIntervalInBackground: false,
+    ...(!network.isOffline &&
+      network.effectiveType === 'slow-2g' && {
+        refetchInterval: STALE_TIMES.STANDARD,
+      }),
     ...options,
   });
 }
@@ -187,57 +238,48 @@ export function useStartAgent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<
-    { data: { id: UUID; name: string; status: string } },
-    Error,
-    UUID
-  >({
+  return useMutation<{ data: { id: UUID; name: string; status: string } }, Error, UUID>({
     mutationFn: async (agentId: UUID) => {
       try {
-        return await apiClient.startAgent(agentId);
+        const result = await getClient().agents.startAgent(agentId);
+        return { data: { id: agentId, name: 'Agent', status: result.status } };
       } catch (error) {
-        // Capture specific error types
+        // Use the centralized error handler, but preserve specific agent logic
         if (error instanceof Error) {
-          if (error.message.includes("network")) {
-            throw new Error(
-              "Network error: Please check your connection and try again.",
-            );
-          }
-          if (error.message.includes("already running")) {
-            throw new Error("Agent is already running.");
+          if (error.message.includes('already running')) {
+            throw new Error('Agent is already running.');
           }
         }
-        throw error; // Re-throw if not a specific case we handle
+        throw error;
       }
     },
     onMutate: async (_agentId) => {
       // Optimistically update UI to show agent is starting
       toast({
-        title: "Starting Agent",
-        description: "Initializing agent...",
+        title: 'Starting Agent',
+        description: 'Initializing agent...',
       });
 
       // Return context for potential rollback
       return {};
     },
     onSuccess: (response, agentId) => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
 
       toast({
-        title: "Agent Started",
-        description: `${response?.data?.name || "Agent"} is now running`,
+        title: 'Agent Started',
+        description: `${response?.data?.name || 'Agent'} is now running`,
       });
     },
     onError: (error) => {
       // Handle specific error cases
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to start agent";
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start agent';
 
       toast({
-        title: "Error Starting Agent",
+        title: 'Error Starting Agent',
         description: `${errorMessage}. Please try again.`,
-        variant: "destructive",
+        variant: 'destructive',
       });
     },
   });
@@ -253,59 +295,49 @@ export function useStopAgent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<{ data: { message: string } }, Error, string>({
-    mutationFn: (agentId: string) => apiClient.stopAgent(agentId),
+  return useMutation<{ data: { message: string } }, Error, UUID>({
+    mutationFn: async (agentId: UUID) => {
+      const result = await getClient().agents.stopAgent(agentId);
+      return { data: { message: `Agent ${result.status}` } };
+    },
     onMutate: async (agentId) => {
       // Optimistically update the UI
       // Get the agent data from the cache
-      const agent = queryClient.getQueryData<Agent>(["agent", agentId]);
+      const agent = queryClient.getQueryData<Agent>(['agent', agentId]);
 
       if (agent) {
         toast({
-          title: "Stopping Agent",
+          title: 'Stopping Agent',
           description: `Stopping ${agent.name}...`,
         });
       }
     },
     onSuccess: (response, agentId) => {
       // Immediately invalidate the queries for fresh data
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
 
       toast({
-        title: "Agent Stopped",
-        description:
-          response?.data?.message || "The agent has been successfully stopped",
+        title: 'Agent Stopped',
+        description: response?.data?.message || 'The agent has been successfully stopped',
       });
     },
     onError: (error, agentId) => {
       // Force invalidate on error
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
 
       toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to stop agent",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to stop agent',
+        variant: 'destructive',
       });
     },
   });
 }
 
-// Type for UI message list items
-export type UiMessage = Content & {
-  id: UUID; // Message ID
-  name: string; // Display name of sender (USER_NAME or agent name)
-  senderId: UUID; // Central ID of the sender
-  isAgent: boolean;
-  createdAt: number; // Timestamp ms
-  isLoading?: boolean;
-  channelId: UUID; // Central Channel ID
-  serverId?: UUID; // Server ID (optional in some contexts, but good for full context)
-  prompt?: string; // The LLM prompt used to generate this message (for agents)
-  // attachments and other Content props are inherited
-};
+// Re-export UiMessage from types for backwards compatibility
+export type { UiMessage } from '@/types';
 
 /**
  * Custom hook to manage fetching and loading messages for a specific channel.
@@ -315,7 +347,7 @@ export type UiMessage = Content & {
  */
 export function useChannelMessages(
   channelId: UUID | undefined, // Changed from UUID | null
-  initialServerId?: UUID | undefined, // Changed from UUID (optional was already undefined)
+  initialMessageServerId?: UUID | undefined // Changed from UUID (optional was already undefined)
 ): {
   data: UiMessage[] | undefined;
   isLoading: boolean;
@@ -325,17 +357,15 @@ export function useChannelMessages(
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   addMessage: (newMessage: UiMessage) => void;
-  updateMessage: (messageId: string, updates: Partial<UiMessage>) => void;
-  removeMessage: (messageId: string) => void;
+  updateMessage: (messageId: UUID, updates: Partial<UiMessage>) => void;
+  removeMessage: (messageId: UUID) => void;
   clearMessages: () => void;
 } {
   const currentClientCentralId = getEntityId(); // Central ID of the currently logged-in user
 
   // Using a more manual approach for pagination with getChannelMessages
   const [messages, setMessages] = useState<UiMessage[]>([]);
-  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<
-    number | null
-  >(null);
+  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<number | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(true);
   const [internalIsLoading, setInternalIsLoading] = useState<boolean>(true); // Start true
   const [internalIsError, setInternalIsError] = useState<boolean>(false);
@@ -347,9 +377,9 @@ export function useChannelMessages(
       const isAgent = sm.authorId !== currentClientCentralId;
       let timestamp = Date.now(); // Default to now
 
-      if (typeof sm.createdAt === "number") {
+      if (typeof sm.createdAt === 'number') {
         timestamp = sm.createdAt;
-      } else if (typeof sm.createdAt === "string") {
+      } else if (typeof sm.createdAt === 'string') {
         const parsedTs = Date.parse(sm.createdAt); // Try direct parse
         if (!isNaN(parsedTs)) {
           timestamp = parsedTs;
@@ -357,10 +387,10 @@ export function useChannelMessages(
           // If direct parse fails, try moment (if available and robust)
           // For now, log a warning if it's an unparsable string not handled by Date.parse
           clientLogger.warn(
-            "[transformServerMessageToUiMessage] createdAt string was not directly parsable by Date.parse():",
+            '[transformServerMessageToUiMessage] createdAt string was not directly parsable by Date.parse():',
             sm.createdAt,
-            "for message id:",
-            sm.id,
+            'for message id:',
+            sm.id
           );
           // As a fallback, could try new Date(sm.createdAt).getTime(), but Date.parse is usually sufficient
           // Defaulting to Date.now() if unparsable to avoid NaN
@@ -369,16 +399,16 @@ export function useChannelMessages(
         // If it's not a number or string, but exists (e.g. could be a Date object from some contexts)
         // Attempt to convert. This is less likely if types are strict from server.
         try {
-          const dateObjTimestamp = new Date(sm.createdAt as any).getTime();
+          const dateObjTimestamp = new Date(sm.createdAt as string | number | Date).getTime();
           if (!isNaN(dateObjTimestamp)) {
             timestamp = dateObjTimestamp;
           }
         } catch (e) {
           clientLogger.warn(
-            "[transformServerMessageToUiMessage] Could not process createdAt (unknown type):",
+            '[transformServerMessageToUiMessage] Could not process createdAt (unknown type):',
             sm.createdAt,
-            "for message:",
-            sm.id,
+            'for message:',
+            sm.id
           );
         }
       }
@@ -390,26 +420,22 @@ export function useChannelMessages(
           ? sm.metadata?.agentName ||
             sm.metadata?.authorDisplayName ||
             sm.authorDisplayName ||
-            "Agent"
+            'Agent'
           : USER_NAME,
         senderId: sm.authorId,
         isAgent: isAgent,
         createdAt: timestamp,
-        attachments: sm.metadata?.attachments as any[],
+        attachments: (sm.metadata?.attachments as Media[]) || [],
         thought: isAgent ? sm.metadata?.thought : undefined,
         actions: isAgent ? sm.metadata?.actions : undefined,
         channelId: sm.channelId,
-        serverId:
-          serverIdToUse ||
-          sm.metadata?.serverId ||
-          sm.serverId ||
-          initialServerId,
+        messageServerId: serverIdToUse || sm.metadata?.messageServerId || initialMessageServerId,
         source: sm.sourceType,
         isLoading: false,
         prompt: isAgent ? sm.metadata?.prompt : undefined,
       };
     },
-    [currentClientCentralId, initialServerId],
+    [currentClientCentralId, initialMessageServerId]
   );
 
   const fetchMessages = useCallback(
@@ -428,36 +454,26 @@ export function useChannelMessages(
       setInternalError(null);
 
       try {
-        const response = await apiClient.getChannelMessages(channelId, {
+        const response = await getClient().messaging.getChannelMessages(channelId, {
           limit: 30,
-          before: beforeTimestamp,
+          before: beforeTimestamp ? new Date(beforeTimestamp).toISOString() : undefined,
         });
 
-        const newUiMessages = response.data.messages.map((msg) =>
-          transformServerMessageToUiMessage(
-            msg,
-            initialServerId || msg.metadata?.serverId,
-          ),
+        const newUiMessages = response.messages.map((msg) =>
+          mapApiMessageToUi(msg, initialMessageServerId || (msg.metadata?.messageServerId as UUID))
         );
 
         setMessages((prev) => {
-          const combined = beforeTimestamp
-            ? [...newUiMessages, ...prev]
-            : newUiMessages;
+          const combined = beforeTimestamp ? [...newUiMessages, ...prev] : newUiMessages;
           const uniqueMessages = Array.from(
-            new Map(combined.map((item) => [item.id, item])).values(),
+            new Map(combined.map((item) => [item.id, item])).values()
           );
           return uniqueMessages.sort((a, b) => a.createdAt - b.createdAt);
         });
 
         if (newUiMessages.length > 0) {
-          const oldestFetched = Math.min(
-            ...newUiMessages.map((m) => m.createdAt),
-          );
-          if (
-            !beforeTimestamp ||
-            oldestFetched < (oldestMessageTimestamp || Infinity)
-          ) {
+          const oldestFetched = Math.min(...newUiMessages.map((m) => m.createdAt));
+          if (!beforeTimestamp || oldestFetched < (oldestMessageTimestamp || Infinity)) {
             setOldestMessageTimestamp(oldestFetched);
           }
         }
@@ -465,33 +481,28 @@ export function useChannelMessages(
       } catch (err) {
         setInternalIsError(true);
         setInternalError(err);
-        clientLogger.error(
-          `Failed to fetch messages for channel ${channelId}:`,
-          err,
-        );
+        clientLogger.error(`Failed to fetch messages for channel ${channelId}:`, err);
       } finally {
         setInternalIsLoading(false);
         setIsFetchingMore(false);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [channelId, transformServerMessageToUiMessage, initialServerId],
-  ); // Add initialServerId to deps
+    [channelId, transformServerMessageToUiMessage, initialMessageServerId]
+  ); // Add initialMessageServerId to deps
 
   useEffect(() => {
     // Initial fetch when channelId changes or becomes available
     if (channelId) {
       clientLogger.info(
-        `[useChannelMessages] ChannelId changed or became available: ${channelId}. Clearing messages and fetching initial set.`,
+        `[useChannelMessages] ChannelId changed or became available: ${channelId}. Clearing messages and fetching initial set.`
       );
       setMessages([]); // Clear previous messages
       setOldestMessageTimestamp(null);
       setHasMoreMessages(true);
       fetchMessages(); // This will set internalIsLoading to true
     } else {
-      clientLogger.info(
-        "[useChannelMessages] ChannelId is undefined. Clearing messages.",
-      );
+      clientLogger.info('[useChannelMessages] ChannelId is undefined. Clearing messages.');
       setMessages([]);
       setOldestMessageTimestamp(null);
       setHasMoreMessages(true);
@@ -525,22 +536,19 @@ export function useChannelMessages(
   }, []);
 
   // Add method to update a message by ID
-  const updateMessage = useCallback(
-    (messageId: string, updates: Partial<UiMessage>) => {
-      setMessages((prev) => {
-        return prev.map((m) => {
-          if (m.id === messageId) {
-            return { ...m, ...updates };
-          }
-          return m;
-        });
+  const updateMessage = useCallback((messageId: UUID, updates: Partial<UiMessage>) => {
+    setMessages((prev) => {
+      return prev.map((m) => {
+        if (m.id === messageId) {
+          return { ...m, ...updates };
+        }
+        return m;
       });
-    },
-    [],
-  );
+    });
+  }, []);
 
   // Add method to remove a message by ID
-  const removeMessage = useCallback((messageId: string) => {
+  const removeMessage = useCallback((messageId: UUID) => {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   }, []);
 
@@ -572,14 +580,11 @@ export function useChannelMessages(
   };
 }
 
-export function useGroupChannelMessages(
-  channelId: UUID | null,
-  initialServerId?: UUID,
-) {
+export function useGroupChannelMessages(channelId: UUID | null, initialMessageServerId?: UUID) {
   // This hook now becomes an alias or a slightly specialized version of useChannelMessages
   // if group-specific logic (like different source filtering) isn't handled here.
   // For now, it can directly use useChannelMessages.
-  return useChannelMessages(channelId ?? undefined, initialServerId);
+  return useChannelMessages(channelId ?? undefined, initialMessageServerId);
 }
 
 // Hook for fetching agent actions
@@ -590,20 +595,22 @@ export function useGroupChannelMessages(
  * @param {string[]} excludeTypes - Optional array of types to exclude from results.
  * @returns {QueryResult} The result of the query containing agent actions.
  */
-export function useAgentActions(
-  agentId: UUID,
-  roomId?: UUID,
-  excludeTypes?: string[],
-) {
+export function useAgentActions(agentId: UUID, roomId?: UUID, excludeTypes?: string[]) {
   return useQuery({
-    queryKey: ["agentActions", agentId, roomId, excludeTypes],
+    queryKey: ['agentActions', agentId, roomId, excludeTypes],
     queryFn: async () => {
-      const response = await apiClient.getAgentLogs(agentId, {
-        roomId,
-        count: 50,
-        excludeTypes,
+      const response = await getClient().agents.getAgentLogs(agentId, {
+        limit: 50,
       });
-      return response.data || [];
+      if (!response) return [];
+
+      // Filter to only include model calls (useModel:*) and actions
+      const relevantLogs = response.filter((log) => {
+        const logType = log.type || '';
+        return logType.startsWith('useModel:') || logType === 'action';
+      });
+
+      return relevantLogs.map(mapApiLogToClient);
     },
     refetchInterval: 1000,
     staleTime: 1000,
@@ -619,18 +626,23 @@ export function useDeleteLog() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ agentId, logId }: { agentId: string; logId: string }) =>
-      apiClient.deleteLog(logId),
+    mutationFn: async ({ agentId, logId }: { agentId: UUID; logId: UUID }) => {
+      await getClient().agents.deleteAgentLog(agentId, logId);
+      return { agentId, logId };
+    },
 
     onMutate: async ({ agentId, logId }) => {
       // Optimistically update the UI by removing the log from the cache
-      const previousLogs = queryClient.getQueryData(["agentActions", agentId]);
+      const previousLogs = queryClient.getQueryData(['agentActions', agentId]);
 
       // Update cache if we have the data
       if (previousLogs) {
-        queryClient.setQueryData(["agentActions", agentId], (oldData: any) =>
-          oldData.filter((log: any) => log.id !== logId),
-        );
+        queryClient.setQueryData(['agentActions', agentId], (oldData: unknown) => {
+          if (Array.isArray(oldData)) {
+            return oldData.filter((log: { id?: string }) => log.id !== logId);
+          }
+          return oldData;
+        });
       }
 
       return { previousLogs, agentId, logId };
@@ -638,32 +650,28 @@ export function useDeleteLog() {
 
     onSuccess: (_, { agentId }) => {
       // Invalidate relevant queries to refetch the latest data
-      queryClient.invalidateQueries({ queryKey: ["agentActions", agentId] });
+      queryClient.invalidateQueries({ queryKey: ['agentActions', agentId] });
 
       toast({
-        title: "Log Deleted",
-        description: "The log entry has been successfully removed",
+        title: 'Log Deleted',
+        description: 'The log entry has been successfully removed',
       });
     },
 
     onError: (error, { agentId }, context) => {
       // Revert the optimistic update on error
       if (context?.previousLogs) {
-        queryClient.setQueryData(
-          ["agentActions", agentId],
-          context.previousLogs,
-        );
+        queryClient.setQueryData(['agentActions', agentId], context.previousLogs);
       }
 
       toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to delete log",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete log',
+        variant: 'destructive',
       });
 
       // Force invalidate on error to ensure data is fresh
-      queryClient.invalidateQueries({ queryKey: ["agentActions", agentId] });
+      queryClient.invalidateQueries({ queryKey: ['agentActions', agentId] });
     },
   });
 }
@@ -675,43 +683,25 @@ export function useAgentMemories(
   agentId: UUID,
   tableName?: string,
   channelId?: UUID, // Changed from roomId to channelId
-  includeEmbedding = false,
+  includeEmbedding = false
 ) {
   const queryKey = channelId
-    ? [
-        "agents",
-        agentId,
-        "channels",
-        channelId,
-        "memories",
-        tableName,
-        includeEmbedding,
-      ] // Updated query key
-    : ["agents", agentId, "memories", tableName, includeEmbedding];
+    ? ['agents', agentId, 'channels', channelId, 'memories', tableName, includeEmbedding] // Updated query key
+    : ['agents', agentId, 'memories', tableName, includeEmbedding];
 
   return useQuery({
     queryKey,
     queryFn: async () => {
-      const result = await apiClient.getAgentMemories(
-        agentId,
-        channelId,
+      const params: Record<string, unknown> = {
         tableName,
         includeEmbedding,
-      ); // Pass channelId
-      console.log("Agent memories result:", {
-        agentId,
-        tableName,
-        includeEmbedding,
-        channelId, // Log channelId instead of roomId
-        result,
-        dataLength: result.data?.memories?.length,
-        firstMemory: result.data?.memories?.[0],
-        hasEmbeddings: (result.data?.memories || []).some(
-          (m: any) => m.embedding?.length > 0,
-        ),
-      });
-      // Handle response format
-      return result.data?.memories || [];
+      };
+      const result = channelId
+        ? await getClient().memory.getRoomMemories(agentId, channelId, params)
+        : await getClient().memory.getAgentMemories(agentId, params);
+      // Map the API memories to client format
+      const memories = result.memories || [];
+      return memories.map(mapApiMemoryToClient);
     },
     enabled: Boolean(agentId && tableName),
     staleTime: 1000,
@@ -728,27 +718,20 @@ export function useDeleteMemory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      agentId,
-      memoryId,
-    }: {
-      agentId: UUID;
-      memoryId: string;
-    }) => {
-      await apiClient.deleteAgentMemory(agentId, memoryId);
+    mutationFn: async ({ agentId, memoryId }: { agentId: UUID; memoryId: UUID }) => {
+      await getClient().memory.deleteMemory(agentId, memoryId);
       return { agentId, memoryId };
     },
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ["agents", data.agentId, "memories"],
+        queryKey: ['agents', data.agentId, 'memories'],
       });
 
       // Also invalidate room-specific memories
       queryClient.invalidateQueries({
-        queryKey: ["agents", data.agentId, "rooms"],
-        predicate: (query) =>
-          query.queryKey.length > 3 && query.queryKey[4] === "memories",
+        queryKey: ['agents', data.agentId, 'rooms'],
+        predicate: (query) => query.queryKey.length > 3 && query.queryKey[4] === 'memories',
       });
     },
   });
@@ -763,20 +746,14 @@ export function useDeleteAllMemories() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      agentId,
-      roomId,
-    }: {
-      agentId: UUID;
-      roomId: UUID;
-    }) => {
-      await apiClient.deleteAllAgentMemories(agentId, roomId);
+    mutationFn: async ({ agentId, roomId }: { agentId: UUID; roomId: UUID }) => {
+      await getClient().memory.clearRoomMemories(agentId, roomId);
       return { agentId };
     },
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ["agents", data.agentId, "memories"],
+        queryKey: ['agents', data.agentId, 'memories'],
       });
     },
   });
@@ -800,13 +777,13 @@ export function useUpdateMemory() {
       memoryData,
     }: {
       agentId: UUID;
-      memoryId: string;
+      memoryId: UUID;
       memoryData: Partial<Memory>;
     }) => {
-      const result = await apiClient.updateAgentMemory(
+      const result = await getClient().memory.updateMemory(
         agentId,
         memoryId,
-        memoryData,
+        memoryData as Record<string, unknown>
       );
       return { agentId, memoryId, result };
     },
@@ -814,48 +791,40 @@ export function useUpdateMemory() {
     onSuccess: (data) => {
       // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ["agents", data.agentId, "memories"],
+        queryKey: ['agents', data.agentId, 'memories'],
       });
 
       // Also invalidate room-specific memories if we have roomId in the memory data
       if (data.result?.roomId) {
         queryClient.invalidateQueries({
-          queryKey: [
-            "agents",
-            data.agentId,
-            "rooms",
-            data.result.roomId,
-            "memories",
-          ],
+          queryKey: ['agents', data.agentId, 'rooms', data.result.roomId, 'memories'],
         });
       } else {
         // Otherwise invalidate all room memories for this agent
         queryClient.invalidateQueries({
-          queryKey: ["agents", data.agentId, "rooms"],
-          predicate: (query) =>
-            query.queryKey.length > 3 && query.queryKey[4] === "memories",
+          queryKey: ['agents', data.agentId, 'rooms'],
+          predicate: (query) => query.queryKey.length > 3 && query.queryKey[4] === 'memories',
         });
       }
 
       // Also invalidate regular messages queries
       if (data.result?.roomId) {
         queryClient.invalidateQueries({
-          queryKey: ["messages", data.agentId, data.result.roomId],
+          queryKey: ['messages', data.agentId, data.result.roomId],
         });
       }
 
       toast({
-        title: "Memory Updated",
-        description: "The memory has been successfully updated",
+        title: 'Memory Updated',
+        description: 'The memory has been successfully updated',
       });
     },
 
     onError: (error) => {
       toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to update memory",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update memory',
+        variant: 'destructive',
       });
     },
   });
@@ -865,18 +834,12 @@ export function useDeleteGroupMemory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      serverId,
-      memoryId,
-    }: {
-      serverId: UUID;
-      memoryId: UUID;
-    }) => {
-      await apiClient.deleteGroupMemory(serverId, memoryId);
+    mutationFn: async ({ serverId, memoryId }: { serverId: UUID; memoryId: UUID }) => {
+      await getClient().messaging.deleteMessage(serverId, memoryId);
       return { serverId };
     },
     onSuccess: ({ serverId }) => {
-      queryClient.invalidateQueries({ queryKey: ["groupmessages", serverId] });
+      queryClient.invalidateQueries({ queryKey: ['groupmessages', serverId] });
     },
   });
 }
@@ -886,11 +849,11 @@ export function useClearGroupChat() {
 
   return useMutation({
     mutationFn: async (serverId: UUID) => {
-      await apiClient.clearGroupChat(serverId);
+      await getClient().messaging.clearChannelHistory(serverId);
       return { serverId };
     },
     onSuccess: ({ serverId }) => {
-      queryClient.invalidateQueries({ queryKey: ["groupmessages", serverId] });
+      queryClient.invalidateQueries({ queryKey: ['groupmessages', serverId] });
     },
   });
 }
@@ -906,12 +869,13 @@ export function useClearGroupChat() {
  * @returns {QueryResult} The result of the query containing agent panels.
  */
 export type AgentPanel = {
+  id: string;
   name: string;
-  path: string;
+  url: string;
+  type: string;
 };
 
 export function useAgentPanels(agentId: UUID | undefined | null, options = {}) {
-  console.log("useAgentPanels", agentId);
   const network = useNetworkStatus();
 
   return useQuery<{
@@ -919,15 +883,18 @@ export function useAgentPanels(agentId: UUID | undefined | null, options = {}) {
     data: AgentPanel[];
     error?: { code: string; message: string; details?: string };
   }>({
-    queryKey: ["agentPanels", agentId],
-    queryFn: () => apiClient.getAgentPanels(agentId || ""),
+    queryKey: ['agentPanels', agentId],
+    queryFn: async () => {
+      if (!agentId) throw new Error('Agent ID required');
+      const result = await getClient().agents.getAgentPanels(agentId);
+      return { success: true, data: result.panels };
+    },
     enabled: Boolean(agentId),
     staleTime: STALE_TIMES.STANDARD, // Panels are unlikely to change very frequently
-    refetchInterval:
-      !network.isOffline && Boolean(agentId) ? STALE_TIMES.RARE : false,
+    refetchInterval: !network.isOffline && Boolean(agentId) ? STALE_TIMES.RARE : false,
     refetchIntervalInBackground: false,
     ...(!network.isOffline &&
-      network.effectiveType === "slow-2g" && {
+      network.effectiveType === 'slow-2g' && {
         refetchInterval: STALE_TIMES.NEVER, // Or even disable for slow connections
       }),
     ...options,
@@ -957,40 +924,36 @@ interface AgentsWithDetailsResult {
 export function useAgentsWithDetails(): AgentsWithDetailsResult {
   const network = useNetworkStatus();
   const { data: agentsData, isLoading: isAgentsLoading } = useAgents();
-  const agentIds =
-    agentsData?.data?.agents?.map((agent) => agent.id as UUID) || [];
+  const agentIds = agentsData?.data?.agents?.map((agent) => agent.id as UUID) || [];
 
   // Use useQueries for parallel fetching
   const agentQueries = useQueries<UseQueryResult<{ data: Agent }, Error>[]>({
     queries: agentIds.map((id) => ({
-      queryKey: ["agent", id] as const,
-      queryFn: () => apiClient.getAgent(id),
+      queryKey: ['agent', id] as const,
+      queryFn: async () => {
+        const result = await getClient().agents.getAgent(id);
+        return { data: result };
+      },
       staleTime: STALE_TIMES.FREQUENT,
       enabled: Boolean(id),
-      refetchInterval:
-        !network.isOffline && Boolean(id) ? STALE_TIMES.FREQUENT : false,
+      refetchInterval: !network.isOffline && Boolean(id) ? STALE_TIMES.FREQUENT : false,
       refetchIntervalInBackground: false,
       ...(!network.isOffline &&
-        network.effectiveType === "slow-2g" && {
+        network.effectiveType === 'slow-2g' && {
           refetchInterval: STALE_TIMES.STANDARD,
         }),
     })),
   });
 
   // Safely check loading and error states
-  const isLoading =
-    isAgentsLoading || agentQueries.some((query) => query.isLoading);
+  const isLoading = isAgentsLoading || agentQueries.some((query) => query.isLoading);
   const isError = agentQueries.some((query) => query.isError);
   const error = agentQueries.find((query) => query.error)?.error;
 
   // Safely collect agent details
   const detailedAgents = agentQueries
-    .filter(
-      (
-        query,
-      ): query is UseQueryResult<{ data: Agent }, Error> & {
-        data: { data: Agent };
-      } => Boolean(query.data?.data),
+    .filter((query): query is UseQueryResult<{ data: Agent }, Error> & { data: { data: Agent } } =>
+      Boolean(query.data?.data)
     )
     .map((query) => query.data.data);
 
@@ -1007,19 +970,17 @@ export function useAgentsWithDetails(): AgentsWithDetailsResult {
 // --- Hooks for Admin/Debug (Agent-Perspective Data) ---
 export function useAgentInternalActions(
   agentId: UUID | null,
-  agentPerspectiveRoomId?: UUID | null,
+  agentPerspectiveRoomId?: UUID | null
 ) {
   return useQuery<AgentLog[], Error>({
-    queryKey: ["agentInternalActions", agentId, agentPerspectiveRoomId],
+    queryKey: ['agentInternalActions', agentId, agentPerspectiveRoomId],
     queryFn: async () => {
       if (!agentId) return []; // Or throw error, depending on desired behavior for null agentId
-      const response = await apiClient.getAgentLogs(agentId, {
-        // Uses getAgentLogs
-        roomId: agentPerspectiveRoomId ?? undefined, // Pass undefined if null
-        type: "action",
-        count: 50,
+      const response = await getClient().agents.getAgentLogs(agentId, {
+        limit: 50,
       });
-      return response.data || [];
+      // Map the API logs to client format
+      return response ? response.map(mapApiLogToClient) : [];
     },
     enabled: !!agentId, // Only enable if agentId is present
     staleTime: STALE_TIMES.FREQUENT,
@@ -1030,28 +991,23 @@ export function useAgentInternalActions(
 export function useDeleteAgentInternalLog() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  return useMutation<void, Error, { agentId: string; logId: string }>({
-    mutationFn: ({ agentId, logId }) =>
-      apiClient.deleteAgentLog(agentId, logId), // Uses deleteAgentLog
+  return useMutation<void, Error, { agentId: UUID; logId: UUID }>({
+    mutationFn: async ({ agentId, logId }: { agentId: UUID; logId: UUID }) => {
+      await getClient().agents.deleteAgentLog(agentId, logId);
+    },
     onSuccess: (_, { agentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['agentInternalActions', agentId] });
       queryClient.invalidateQueries({
-        queryKey: ["agentInternalActions", agentId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["agentInternalActions", agentId, undefined],
+        queryKey: ['agentInternalActions', agentId, undefined],
         exact: false,
       });
-      toast({
-        title: "Log Deleted",
-        description: "The agent log entry has been removed",
-      });
+      toast({ title: 'Log Deleted', description: 'The agent log entry has been removed' });
     },
     onError: (error) => {
       toast({
-        title: "Error Deleting Log",
-        description:
-          error instanceof Error ? error.message : "Failed to delete agent log",
-        variant: "destructive",
+        title: 'Error Deleting Log',
+        description: error instanceof Error ? error.message : 'Failed to delete agent log',
+        variant: 'destructive',
       });
     },
   });
@@ -1060,12 +1016,12 @@ export function useDeleteAgentInternalLog() {
 export function useAgentInternalMemories(
   agentId: UUID | null,
   agentPerspectiveRoomId: UUID | null,
-  tableName: string = "messages",
-  includeEmbedding = false,
+  tableName: string = 'messages',
+  includeEmbedding = false
 ) {
   return useQuery<CoreMemory[], Error>({
     queryKey: [
-      "agentInternalMemories",
+      'agentInternalMemories',
       agentId,
       agentPerspectiveRoomId,
       tableName,
@@ -1073,13 +1029,12 @@ export function useAgentInternalMemories(
     ],
     queryFn: async () => {
       if (!agentId || !agentPerspectiveRoomId) return Promise.resolve([]);
-      const response = await apiClient.getAgentInternalMemories(
+      const response = await getClient().memory.getAgentInternalMemories(
         agentId,
         agentPerspectiveRoomId,
-        tableName,
-        { includeEmbedding },
-      ); // Uses getAgentInternalMemories
-      return response.data.memories;
+        includeEmbedding
+      );
+      return (response.data || []).map(mapApiMemoryToClient);
     },
     enabled: !!agentId && !!agentPerspectiveRoomId,
     staleTime: STALE_TIMES.STANDARD,
@@ -1089,34 +1044,25 @@ export function useAgentInternalMemories(
 export function useDeleteAgentInternalMemory() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  return useMutation<
-    { agentId: UUID; memoryId: string },
-    Error,
-    { agentId: UUID; memoryId: string }
-  >({
-    mutationFn: async ({ agentId, memoryId }) => {
-      await apiClient.deleteAgentInternalMemory(agentId, memoryId); // Uses deleteAgentInternalMemory
+  return useMutation<{ agentId: UUID; memoryId: UUID }, Error, { agentId: UUID; memoryId: UUID }>({
+    mutationFn: async ({ agentId, memoryId }: { agentId: UUID; memoryId: UUID }) => {
+      await getClient().memory.deleteAgentInternalMemory(agentId, memoryId);
       return { agentId, memoryId };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: "Memory Deleted",
+        title: 'Memory Deleted',
         description: `Agent memory ${variables.memoryId} removed.`,
       });
-      queryClient.invalidateQueries({
-        queryKey: ["agentInternalMemories", variables.agentId],
-      });
+      queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId] });
       // More specific invalidation if needed:
       // queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId, variables.memoryData?.roomId] });
     },
     onError: (error) => {
       toast({
-        title: "Error Deleting Memory",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete agent memory",
-        variant: "destructive",
+        title: 'Error Deleting Memory',
+        description: error instanceof Error ? error.message : 'Failed to delete agent memory',
+        variant: 'destructive',
       });
     },
   });
@@ -1131,33 +1077,23 @@ export function useDeleteAllAgentInternalMemories() {
     { agentId: UUID; agentPerspectiveRoomId: UUID }
   >({
     mutationFn: async ({ agentId, agentPerspectiveRoomId }) => {
-      await apiClient.deleteAllAgentInternalMemories(
-        agentId,
-        agentPerspectiveRoomId,
-      ); // Uses deleteAllAgentInternalMemories
+      await getClient().memory.deleteAllAgentInternalMemories(agentId, agentPerspectiveRoomId);
       return { agentId, agentPerspectiveRoomId };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: "All Memories Deleted",
+        title: 'All Memories Deleted',
         description: `All memories for agent in room perspective ${variables.agentPerspectiveRoomId} cleared.`,
       });
       queryClient.invalidateQueries({
-        queryKey: [
-          "agentInternalMemories",
-          variables.agentId,
-          variables.agentPerspectiveRoomId,
-        ],
+        queryKey: ['agentInternalMemories', variables.agentId, variables.agentPerspectiveRoomId],
       });
     },
     onError: (error) => {
       toast({
-        title: "Error Clearing Memories",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to clear agent memories",
-        variant: "destructive",
+        title: 'Error Clearing Memories',
+        description: error instanceof Error ? error.message : 'Failed to clear agent memories',
+        variant: 'destructive',
       });
     },
   });
@@ -1170,36 +1106,31 @@ export function useUpdateAgentInternalMemory() {
     {
       agentId: UUID;
       memoryId: string;
-      response: { success: boolean; data: { id: UUID; message: string } };
+      response: unknown;
     },
     Error,
-    { agentId: UUID; memoryId: string; memoryData: Partial<CoreMemory> }
+    { agentId: UUID; memoryId: UUID; memoryData: Partial<CoreMemory> }
   >({
     mutationFn: async ({ agentId, memoryId, memoryData }) => {
-      const response = await apiClient.updateAgentInternalMemory(
+      const response = await getClient().memory.updateAgentInternalMemory(
         agentId,
         memoryId,
-        memoryData,
-      ); // Uses updateAgentInternalMemory
+        memoryData as Record<string, unknown>
+      );
       return { agentId, memoryId, response };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: "Memory Updated",
+        title: 'Memory Updated',
         description: `Agent memory ${variables.memoryId} updated.`,
       });
-      queryClient.invalidateQueries({
-        queryKey: ["agentInternalMemories", variables.agentId],
-      });
+      queryClient.invalidateQueries({ queryKey: ['agentInternalMemories', variables.agentId] });
     },
     onError: (error) => {
       toast({
-        title: "Error Updating Memory",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to update agent memory",
-        variant: "destructive",
+        title: 'Error Updating Memory',
+        description: error instanceof Error ? error.message : 'Failed to update agent memory',
+        variant: 'destructive',
       });
     },
   });
@@ -1209,8 +1140,11 @@ export function useUpdateAgentInternalMemory() {
 export function useServers(options = {}) {
   const network = useNetworkStatus();
   return useQuery<{ data: { servers: ClientMessageServer[] } }>({
-    queryKey: ["servers"],
-    queryFn: () => apiClient.getServers(),
+    queryKey: ['servers'],
+    queryFn: async () => {
+      const result = await getClient().messaging.listMessageServers();
+      return { data: { servers: mapApiServersToClient(result.messageServers) } };
+    },
     staleTime: STALE_TIMES.RARE,
     refetchInterval: !network.isOffline ? STALE_TIMES.RARE : false,
     ...options,
@@ -1220,15 +1154,15 @@ export function useServers(options = {}) {
 export function useChannels(serverId: UUID | undefined, options = {}) {
   const network = useNetworkStatus();
   return useQuery<{ data: { channels: ClientMessageChannel[] } }>({
-    queryKey: ["channels", serverId],
-    queryFn: () => {
-      if (!serverId) return Promise.resolve({ data: { channels: [] } }); // Handle undefined serverId case for queryFn
-      return apiClient.getChannelsForServer(serverId);
+    queryKey: ['channels', serverId],
+    queryFn: async () => {
+      if (!serverId) return Promise.resolve({ data: { channels: [] } });
+      const result = await getClient().messaging.getMessageServerChannels(serverId);
+      return { data: { channels: mapApiChannelsToClient(result.channels) } };
     },
     enabled: !!serverId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval:
-      !network.isOffline && !!serverId ? STALE_TIMES.STANDARD : false,
+    refetchInterval: !network.isOffline && !!serverId ? STALE_TIMES.STANDARD : false,
     ...options,
   });
 }
@@ -1237,35 +1171,48 @@ export function useChannelDetails(channelId: UUID | undefined, options = {}) {
   // Allow undefined
   const network = useNetworkStatus();
   return useQuery<{ success: boolean; data: ClientMessageChannel | null }>({
-    queryKey: ["channelDetails", channelId],
-    queryFn: () => {
+    queryKey: ['channelDetails', channelId],
+    queryFn: async () => {
       if (!channelId) return Promise.resolve({ success: true, data: null });
-      return apiClient.getChannelDetails(channelId);
+      const result = await getClient().messaging.getChannelDetails(channelId);
+      return { success: true, data: mapApiChannelToClient(result) };
     },
     enabled: !!channelId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval:
-      !network.isOffline && !!channelId ? STALE_TIMES.RARE : false,
+    refetchInterval: !network.isOffline && !!channelId ? STALE_TIMES.RARE : false,
     ...options,
   });
 }
 
-export function useChannelParticipants(
-  channelId: UUID | undefined,
-  options = {},
-) {
+export function useChannelParticipants(channelId: UUID | undefined, options = {}) {
   // Allow undefined
   const network = useNetworkStatus();
   return useQuery<{ success: boolean; data: UUID[] }>({
-    queryKey: ["channelParticipants", channelId],
-    queryFn: () => {
+    queryKey: ['channelParticipants', channelId],
+    queryFn: async () => {
       if (!channelId) return Promise.resolve({ success: true, data: [] });
-      return apiClient.getChannelParticipants(channelId);
+      try {
+        const result = await getClient().messaging.getChannelParticipants(channelId);
+
+        // Handle different possible response formats
+        let participants = [];
+        if (result && Array.isArray(result.participants)) {
+          participants = result.participants.map((participant) => participant.userId);
+        } else if (result && Array.isArray(result)) {
+          // If result is directly an array
+          participants = result.map(
+            (participant) => participant.userId || participant.id || participant
+          );
+        }
+        return { success: true, data: participants };
+      } catch (error) {
+        clientLogger.error('[useChannelParticipants] Error:', error);
+        return { success: false, data: [] };
+      }
     },
     enabled: !!channelId,
     staleTime: STALE_TIMES.STANDARD,
-    refetchInterval:
-      !network.isOffline && !!channelId ? STALE_TIMES.FREQUENT : false,
+    refetchInterval: !network.isOffline && !!channelId ? STALE_TIMES.FREQUENT : false,
     ...options,
   });
 }
@@ -1279,21 +1226,20 @@ export function useDeleteChannelMessage() {
     { channelId: UUID; messageId: UUID }
   >({
     mutationFn: async ({ channelId, messageId }) => {
-      await apiClient.deleteChannelMessage(channelId, messageId);
+      await getClient().messaging.deleteMessage(channelId, messageId);
       return { channelId, messageId };
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: "Message Deleted",
-        description: "Message removed successfully.",
+        title: 'Message Deleted',
+        description: 'Message removed successfully.',
       });
     },
     onError: (error) => {
       toast({
-        title: "Error Deleting Message",
-        description:
-          error instanceof Error ? error.message : "Failed to delete message",
-        variant: "destructive",
+        title: 'Error Deleting Message',
+        description: error instanceof Error ? error.message : 'Failed to delete message',
+        variant: 'destructive',
       });
     },
   });
@@ -1304,25 +1250,22 @@ export function useClearChannelMessages() {
   const { toast } = useToast();
   return useMutation<{ channelId: UUID }, Error, UUID>({
     mutationFn: async (channelId: UUID) => {
-      await apiClient.clearChannelMessages(channelId);
+      await getClient().messaging.clearChannelHistory(channelId);
       return { channelId };
     },
     onSuccess: (_data, variables_channelId) => {
       toast({
-        title: "Channel Cleared",
+        title: 'Channel Cleared',
         description: `All messages in channel ${variables_channelId} cleared.`,
       });
-      queryClient.invalidateQueries({
-        queryKey: ["messages", variables_channelId],
-      });
-      queryClient.setQueryData(["messages", variables_channelId], () => []);
+      queryClient.invalidateQueries({ queryKey: ['messages', variables_channelId] });
+      queryClient.setQueryData(['messages', variables_channelId], () => []);
     },
     onError: (error) => {
       toast({
-        title: "Error Clearing Channel",
-        description:
-          error instanceof Error ? error.message : "Failed to clear messages",
-        variant: "destructive",
+        title: 'Error Clearing Channel',
+        description: error instanceof Error ? error.message : 'Failed to clear messages',
+        variant: 'destructive',
       });
     },
   });
@@ -1335,27 +1278,24 @@ export function useDeleteChannel() {
 
   return useMutation<void, Error, { channelId: UUID; serverId: UUID }>({
     mutationFn: async ({ channelId }) => {
-      await apiClient.deleteChannel(channelId);
+      await getClient().messaging.deleteChannel(channelId);
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: "Group Deleted",
-        description: "The group has been successfully deleted.",
+        title: 'Group Deleted',
+        description: 'The group has been successfully deleted.',
       });
       // Invalidate channel queries
-      queryClient.invalidateQueries({
-        queryKey: ["channels", variables.serverId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["channels"] });
+      queryClient.invalidateQueries({ queryKey: ['channels', variables.serverId] });
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
       // Navigate back to home
-      navigate("/");
+      navigate('/');
     },
     onError: (error) => {
       toast({
-        title: "Error Deleting Group",
-        description:
-          error instanceof Error ? error.message : "Failed to delete group",
-        variant: "destructive",
+        title: 'Error Deleting Group',
+        description: error instanceof Error ? error.message : 'Failed to delete group',
+        variant: 'destructive',
       });
     },
   });

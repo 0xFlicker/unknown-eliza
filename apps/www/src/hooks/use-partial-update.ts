@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback } from 'react';
 
 /**
  * A custom hook for handling partial updates of objects with nested JSONb fields.
@@ -26,7 +26,7 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
   const updateField = useCallback(<K>(path: string, newValue: K) => {
     setValue((prevValue) => {
       // Handle simple (non-nested) case
-      if (!path.includes(".")) {
+      if (!path.includes('.')) {
         return {
           ...prevValue,
           [path]: newValue,
@@ -34,9 +34,9 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
       }
 
       // Handle nested paths
-      const pathParts = path.split(".");
+      const pathParts = path.split('.');
       const fieldToUpdate = pathParts[0];
-      const remainingPath = pathParts.slice(1).join(".");
+      const remainingPath = pathParts.slice(1).join('.');
 
       // Handle arrays in path (e.g., 'style.all.0')
       const isArrayIndex = !isNaN(Number(pathParts[1]));
@@ -53,7 +53,7 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
           array[index] = newValue;
         } else {
           // Updating a property of an object in an array
-          const deeperPath = pathParts.slice(2).join(".");
+          const deeperPath = pathParts.slice(2).join('.');
           array[index] = updateNestedObject(array[index], deeperPath, newValue);
         }
 
@@ -64,10 +64,12 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
       }
 
       // Special case for settings.secrets path
-      if (path.startsWith("settings.secrets.")) {
-        const secretKey = path.split(".")[2];
+      if (path.startsWith('settings.secrets.')) {
+        const secretKey = path.split('.')[2];
 
-        const currentSettings = (prevValue as any).settings || {};
+        const currentSettings =
+          (prevValue as Record<string, unknown> & { settings?: Record<string, unknown> })
+            .settings || {};
         const currentSecrets = currentSettings.secrets || {};
 
         const newSecrets = {
@@ -88,9 +90,9 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
       const result = {
         ...prevValue,
         [fieldToUpdate]: updateNestedObject(
-          prevValue[fieldToUpdate as keyof T],
+          prevValue[fieldToUpdate as keyof T] as Record<string, unknown>,
           remainingPath,
-          newValue,
+          newValue
         ),
       } as T;
 
@@ -101,21 +103,25 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
   /**
    * Helper function to update a nested object
    */
-  const updateNestedObject = <K, V>(obj: K, path: string, value: V): K => {
-    if (!path.includes(".")) {
+  const updateNestedObject = <K extends Record<string, unknown>, V>(
+    obj: K,
+    path: string,
+    value: V
+  ): K => {
+    if (!path.includes('.')) {
       return {
         ...obj,
         [path]: value,
-      } as unknown as K;
+      } as K;
     }
 
-    const [field, ...remainingPath] = path.split(".");
-    const nextPath = remainingPath.join(".");
+    const [field, ...remainingPath] = path.split('.');
+    const nextPath = remainingPath.join('.');
 
     return {
       ...obj,
-      [field]: updateNestedObject((obj as any)[field] || {}, nextPath, value),
-    } as unknown as K;
+      [field]: updateNestedObject((obj[field] as Record<string, unknown>) || {}, nextPath, value),
+    } as K;
   };
 
   /**
@@ -126,14 +132,13 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
    */
   const addArrayItem = useCallback(<V>(path: string, item: V) => {
     setValue((prevValue) => {
-      const pathParts = path.split(".");
+      const pathParts = path.split('.');
 
       // Handle simple array field
       if (pathParts.length === 1) {
         const fieldName = pathParts[0];
-        const currentArray = Array.isArray(prevValue[fieldName as keyof T])
-          ? [...(prevValue[fieldName as keyof T] as unknown as V[])]
-          : [];
+        const fieldValue = prevValue[fieldName as keyof T];
+        const currentArray = Array.isArray(fieldValue) ? [...(fieldValue as V[])] : [];
 
         return {
           ...prevValue,
@@ -143,7 +148,7 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
 
       // Handle nested array field
       const updatePath = path;
-      const currentValue = getNestedValue(prevValue, updatePath);
+      const currentValue = getNestedValue(prevValue as Record<string, unknown>, updatePath);
       const currentArray = Array.isArray(currentValue) ? [...currentValue] : [];
 
       return setNestedValue(prevValue, updatePath, [...currentArray, item]);
@@ -158,42 +163,31 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
    */
   const removeArrayItem = useCallback((path: string, index: number) => {
     setValue((prevValue) => {
-      const pathParts = path.split(".");
+      const pathParts = path.split('.');
 
       // Handle simple array field
       if (pathParts.length === 1) {
         const fieldName = pathParts[0];
-        const currentArray = Array.isArray(prevValue[fieldName as keyof T])
-          ? [...(prevValue[fieldName as keyof T] as unknown as any[])]
-          : [];
+        const fieldValue = prevValue[fieldName as keyof T];
+        const currentArray = Array.isArray(fieldValue) ? [...fieldValue] : [];
 
         if (index < 0 || index >= currentArray.length) return prevValue;
 
         return {
           ...prevValue,
-          [fieldName]: [
-            ...currentArray.slice(0, index),
-            ...currentArray.slice(index + 1),
-          ],
+          [fieldName]: [...currentArray.slice(0, index), ...currentArray.slice(index + 1)],
         } as T;
       }
 
       // Handle nested array field
       const updatePath = path;
-      const currentValue = getNestedValue(prevValue, updatePath);
+      const currentValue = getNestedValue(prevValue as Record<string, unknown>, updatePath);
 
-      if (
-        !Array.isArray(currentValue) ||
-        index < 0 ||
-        index >= currentValue.length
-      ) {
+      if (!Array.isArray(currentValue) || index < 0 || index >= currentValue.length) {
         return prevValue;
       }
 
-      const newArray = [
-        ...currentValue.slice(0, index),
-        ...currentValue.slice(index + 1),
-      ];
+      const newArray = [...currentValue.slice(0, index), ...currentValue.slice(index + 1)];
       return setNestedValue(prevValue, updatePath, newArray);
     });
   }, []);
@@ -201,15 +195,15 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
   /**
    * Helper function to get a nested value from an object
    */
-  const getNestedValue = (obj: any, path: string): any => {
-    const parts = path.split(".");
-    let current = obj;
+  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
+    const parts = path.split('.');
+    let current: unknown = obj;
 
     for (const part of parts) {
       if (current === null || current === undefined) {
         return undefined;
       }
-      current = current[part];
+      current = (current as Record<string, unknown>)[part];
     }
 
     return current;
@@ -219,7 +213,7 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
    * Helper function to set a nested value in an object
    */
   const setNestedValue = <O, V>(obj: O, path: string, value: V): O => {
-    const parts = path.split(".");
+    const parts = path.split('.');
 
     if (parts.length === 1) {
       return {
@@ -229,11 +223,11 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
     }
 
     const [first, ...rest] = parts;
-    const nextObj = (obj as any)[first] || {};
+    const nextObj = ((obj as Record<string, unknown>)[first] as Record<string, unknown>) || {};
 
     return {
       ...obj,
-      [first]: setNestedValue(nextObj, rest.join("."), value),
+      [first]: setNestedValue(nextObj, rest.join('.'), value),
     } as O;
   };
 
@@ -246,20 +240,21 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
 
   // Special handling for updating the entire settings object
   const updateSettings = useCallback(
-    (settings: any) => {
+    (settings: Record<string, unknown>) => {
       setValue((prevValue) => {
         // Extract settings but remove 'secrets' key to avoid duplication
         const { secrets, avatar, ...otherSettings } = settings;
 
-        // Only include avatar if it's a valid string; otherwise, omit it from the update
-        const safeAvatar = typeof avatar === "string" ? avatar : "";
-
         // Create the updated settings object
         const updatedSettings = {
-          ...(prevValue as any).settings, // Start with existing settings
+          ...(prevValue as Record<string, unknown> & { settings?: Record<string, unknown> })
+            .settings, // Start with existing settings
           ...otherSettings, // Add other settings (not secrets)
-          avatar: safeAvatar,
         };
+
+        if (typeof avatar === 'string') {
+          updatedSettings.avatar = avatar;
+        }
 
         // Only add secrets if it was included in the update
         if (secrets) {
@@ -284,7 +279,7 @@ export function usePartialUpdate<T extends object>(initialValue: T) {
         return result;
       });
     },
-    [], // Remove value from dependencies to avoid unnecessary rerenders
+    [] // Remove value from dependencies to avoid unnecessary rerenders
   );
 
   return {

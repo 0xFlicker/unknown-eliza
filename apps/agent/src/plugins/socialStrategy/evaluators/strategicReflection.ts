@@ -189,12 +189,18 @@ export const strategicReflectionEvaluator: Evaluator = {
 
       strategyService.getState().lastStrategyReview = Date.now();
 
-      logger.info("[StrategicReflection] Completed strategic review.", {
-        threatLevel: review.threatLevel,
-        confidence: review.confidenceLevel,
-      });
+      logger.info(
+        {
+          threatLevel: review.threatLevel,
+          confidence: review.confidenceLevel,
+        },
+        "[StrategicReflection] Completed strategic review.",
+      );
     } catch (error) {
-      logger.error("[StrategicReflection] Error conducting review:", error);
+      logger.error(
+        { error },
+        "[StrategicReflection] Error conducting review",
+      );
     }
   },
 };

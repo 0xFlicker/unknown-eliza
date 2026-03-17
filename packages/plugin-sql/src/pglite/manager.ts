@@ -1,7 +1,7 @@
-import { PGlite, type PGliteOptions } from "@electric-sql/pglite";
-import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
-import { vector } from "@electric-sql/pglite/vector";
-import type { IDatabaseClientManager } from "../types";
+import { PGlite, type PGliteOptions } from '@electric-sql/pglite';
+import { fuzzystrmatch } from '@electric-sql/pglite/contrib/fuzzystrmatch';
+import { vector } from '@electric-sql/pglite/vector';
+import type { IDatabaseClientManager } from '../types';
 
 /**
  * Class representing a database client manager for PGlite.
@@ -41,6 +41,14 @@ export class PGliteClientManager implements IDatabaseClientManager<PGlite> {
 
   public async close(): Promise<void> {
     this.shuttingDown = true;
+    // Actually close the PGLite client to release file locks and cleanup resources
+    // Without this, the WAL files remain locked and deleting the data directory
+    // causes ENOENT errors when subsequent tests try to access it
+    if (this.client) {
+      try {
+        await this.client.close();
+      } catch {}
+    }
   }
 
   private setupShutdownHandlers() {

@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { getEntityDetails, logger } from "@elizaos/core";
-import { composePrompt } from "@elizaos/core";
+import { z } from 'zod';
+import { asUUID, getEntityDetails, parseKeyValueXml } from '@elizaos/core';
+import { composePrompt } from '@elizaos/core';
 import {
   type Entity,
   type Evaluator,
@@ -9,7 +9,34 @@ import {
   ModelType,
   type State,
   type UUID,
-} from "@elizaos/core";
+} from '@elizaos/core';
+import { v4 } from 'uuid';
+
+/** Shape of a single fact in the XML response */
+interface FactXml {
+  claim?: string;
+  type?: string;
+  in_bio?: string;
+  already_known?: string;
+}
+
+/** Shape of a single relationship in the XML response */
+interface RelationshipXml {
+  sourceEntityId?: string;
+  targetEntityId?: string;
+  tags?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** Shape of the reflection XML response */
+interface ReflectionXmlResult {
+  facts?: {
+    fact?: FactXml | FactXml[];
+  };
+  relationships?: {
+    relationship?: RelationshipXml | RelationshipXml[];
+  };
+}
 
 // Schema definitions for the reflection output
 const relationshipSchema = z.object({
@@ -45,7 +72,7 @@ z.object({
       type: z.string(),
       in_bio: z.boolean(),
       already_known: z.boolean(),
-    }),
+    })
   ),
   relationships: z.array(relationshipSchema),
 });
@@ -86,27 +113,32 @@ Message Sender: {{senderName}} (ID: {{senderId}})
   - The targetEntityId is the UUID of the entity being interacted with.
   - Relationships are one-direction, so a friendship would be two entity relationships where each entity is both the source and the target of the other.
 
+Do NOT include any thinking, reasoning, or <think> sections in your response. 
+Go directly to the XML response format without any preamble or explanation.
+
 Generate a response in the following format:
-\`\`\`json
-{
-  "thought": "a self-reflective thought on the conversation",
-  "facts": [
-      {
-          "claim": "factual statement",
-          "type": "fact|opinion|status",
-          "in_bio": false,
-          "already_known": false
-      }
-  ],
-  "relationships": [
-      {
-          "sourceEntityId": "entity_initiating_interaction",
-          "targetEntityId": "entity_being_interacted_with",
-          "tags": ["group_interaction|voice_interaction|dm_interaction", "additional_tag1", "additional_tag2"]
-      }
-  ]
-}
-\`\`\``;
+<response>
+  <thought>a self-reflective thought on the conversation</thought>
+  <facts>
+    <fact>
+      <claim>factual statement</claim>
+      <type>fact|opinion|status</type>
+      <in_bio>false</in_bio>
+      <already_known>false</already_known>
+    </fact>
+    <!-- Add more facts as needed -->
+  </facts>
+  <relationships>
+    <relationship>
+      <sourceEntityId>entity_initiating_interaction</sourceEntityId>
+      <targetEntityId>entity_being_interacted_with</targetEntityId>
+      <tags>group_interaction,voice_interaction,dm_interaction,additional_tag1,additional_tag2</tags>
+    </relationship>
+    <!-- Add more relationships as needed -->
+  </relationships>
+</response>
+
+IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.`;
 
 /**
  * Resolve an entity name to their UUID
@@ -122,13 +154,9 @@ Generate a response in the following format:
  * @returns {UUID} - The resolved UUID of the entity.
  * @throws {Error} - If the entity ID cannot be resolved to a valid UUID.
  */
-function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
+function resolveEntity(entityId: string, entities: Entity[]): UUID {
   // First try exact UUID match
-  if (
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      entityId,
-    )
-  ) {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entityId)) {
     return entityId as UUID;
   }
 
@@ -148,7 +176,7 @@ function resolveEntity(entityId: UUID, entities: Entity[]): UUID {
 
   // Try name match as last resort
   entity = entities.find((a) =>
-    a.names.some((n) => n.toLowerCase().includes(entityId.toLowerCase())),
+    a.names.some((n) => n.toLowerCase().includes(entityId.toLowerCase()))
   );
   if (entity?.id) {
     return entity.id;
@@ -160,7 +188,10 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
   const { agentId, roomId } = message;
 
   if (!agentId || !roomId) {
-    logger.warn("Missing agentId or roomId in message", message);
+    runtime.logger.warn(
+      { src: 'plugin:bootstrap:evaluator:reflection', agentId: runtime.agentId, message },
+      'Missing agentId or roomId in message'
+    );
     return;
   }
 
@@ -171,7 +202,7 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
     }),
     getEntityDetails({ runtime, roomId }),
     runtime.getMemories({
-      tableName: "facts",
+      tableName: 'facts',
       roomId,
       count: 30,
       unique: true,
@@ -187,67 +218,106 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
       existingRelationships: JSON.stringify(existingRelationships),
       senderId: message.entityId,
     },
-    template:
-      runtime.character.templates?.reflectionTemplate || reflectionTemplate,
+    template: runtime.character.templates?.reflectionTemplate || reflectionTemplate,
   });
 
   // Use the model without schema validation
   try {
-    const reflection = await runtime.useModel(ModelType.OBJECT_SMALL, {
+    const response = await runtime.useModel(ModelType.TEXT_SMALL, {
       prompt,
-      // Remove schema validation to avoid zod issues
     });
 
+    if (!response) {
+      runtime.logger.warn(
+        { src: 'plugin:bootstrap:evaluator:reflection', agentId: runtime.agentId },
+        'Getting reflection failed - empty response'
+      );
+      return;
+    }
+
+    // Parse XML response
+    const reflection = parseKeyValueXml<ReflectionXmlResult>(response);
+
     if (!reflection) {
-      logger.warn("Getting reflection failed - empty response", prompt);
-      return;
-    }
-
-    // Perform basic structure validation instead of using zod
-    if (!reflection.facts || !Array.isArray(reflection.facts)) {
-      logger.warn(
-        "Getting reflection failed - invalid facts structure",
-        reflection,
+      runtime.logger.warn(
+        { src: 'plugin:bootstrap:evaluator:reflection', agentId: runtime.agentId },
+        'Getting reflection failed - failed to parse XML'
       );
       return;
     }
 
-    if (!reflection.relationships || !Array.isArray(reflection.relationships)) {
-      logger.warn(
-        "Getting reflection failed - invalid relationships structure",
-        reflection,
+    // Perform basic structure validation
+    if (!reflection.facts) {
+      runtime.logger.warn(
+        { src: 'plugin:bootstrap:evaluator:reflection', agentId: runtime.agentId },
+        'Getting reflection failed - invalid facts structure'
       );
       return;
     }
 
-    // Store new facts
-    const newFacts =
-      reflection.facts.filter(
-        (fact) =>
-          fact &&
-          typeof fact === "object" &&
-          !fact.already_known &&
-          !fact.in_bio &&
-          fact.claim &&
-          typeof fact.claim === "string" &&
-          fact.claim.trim() !== "",
-      ) || [];
+    if (!reflection.relationships) {
+      runtime.logger.warn(
+        { src: 'plugin:bootstrap:evaluator:reflection', agentId: runtime.agentId },
+        'Getting reflection failed - invalid relationships structure'
+      );
+      return;
+    }
+
+    // Handle facts - parseKeyValueXml returns nested structures differently
+    // Facts might be a single object or an array depending on the count
+    let factsArray: FactXml[] = [];
+    if (reflection.facts.fact) {
+      // Normalize to array
+      factsArray = Array.isArray(reflection.facts.fact)
+        ? reflection.facts.fact
+        : [reflection.facts.fact];
+    }
+
+    // Store new facts - filter for valid new facts with claim text
+    const newFacts = factsArray.filter(
+      (fact): fact is FactXml & { claim: string } =>
+        fact != null &&
+        fact.already_known === 'false' &&
+        fact.in_bio === 'false' &&
+        typeof fact.claim === 'string' &&
+        fact.claim.trim() !== ''
+    );
 
     await Promise.all(
       newFacts.map(async (fact) => {
-        const factMemory = await runtime.addEmbeddingToMemory({
+        const factMemory = {
+          id: asUUID(v4()),
           entityId: agentId,
           agentId,
           content: { text: fact.claim },
           roomId,
           createdAt: Date.now(),
-        });
-        return runtime.createMemory(factMemory, "facts", true);
-      }),
+        };
+        // Create memory first and capture the returned ID
+        const createdMemoryId = await runtime.createMemory(factMemory, 'facts', true);
+        // Update the memory object with the actual ID from the database
+        const createdMemory = { ...factMemory, id: createdMemoryId };
+        // Queue embedding generation asynchronously for the memory with correct ID
+        await runtime.queueEmbeddingGeneration(createdMemory, 'low');
+        return createdMemory;
+      })
     );
 
+    // Handle relationships - similar structure normalization
+    let relationshipsArray: RelationshipXml[] = [];
+    if (reflection.relationships.relationship) {
+      relationshipsArray = Array.isArray(reflection.relationships.relationship)
+        ? reflection.relationships.relationship
+        : [reflection.relationships.relationship];
+    }
+
     // Update or create relationships
-    for (const relationship of reflection.relationships) {
+    for (const relationship of relationshipsArray) {
+      if (!relationship.sourceEntityId || !relationship.targetEntityId) {
+        console.warn('Skipping relationship with missing entity IDs:', relationship);
+        continue;
+      }
+
       let sourceId: UUID;
       let targetId: UUID;
 
@@ -255,8 +325,8 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
         sourceId = resolveEntity(relationship.sourceEntityId, entities);
         targetId = resolveEntity(relationship.targetEntityId, entities);
       } catch (error) {
-        console.warn("Failed to resolve relationship entities:", error);
-        console.warn("relationship:\n", relationship);
+        console.warn('Failed to resolve relationship entities:', error);
+        console.warn('relationship:\n', relationship);
         continue; // Skip this relationship if we can't resolve the IDs
       }
 
@@ -264,18 +334,22 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
         return r.sourceEntityId === sourceId && r.targetEntityId === targetId;
       });
 
+      // Parse tags from comma-separated string
+      const tags = relationship.tags
+        ? relationship.tags
+            .split(',')
+            .map((tag: string) => tag.trim())
+            .filter(Boolean)
+        : [];
+
       if (existingRelationship) {
         const updatedMetadata = {
           ...existingRelationship.metadata,
           interactions:
-            ((existingRelationship.metadata?.interactions as
-              | number
-              | undefined) || 0) + 1,
+            ((existingRelationship.metadata?.interactions as number | undefined) || 0) + 1,
         };
 
-        const updatedTags = Array.from(
-          new Set([...(existingRelationship.tags || []), ...relationship.tags]),
-        );
+        const updatedTags = Array.from(new Set([...(existingRelationship.tags || []), ...tags]));
 
         await runtime.updateRelationship({
           ...existingRelationship,
@@ -286,10 +360,10 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
         await runtime.createRelationship({
           sourceEntityId: sourceId,
           targetEntityId: targetId,
-          tags: relationship.tags,
+          tags,
           metadata: {
             interactions: 1,
-            ...relationship.metadata,
+            ...(relationship.metadata || {}),
           },
         });
       }
@@ -297,41 +371,36 @@ async function handler(runtime: IAgentRuntime, message: Memory, state?: State) {
 
     await runtime.setCache<string>(
       `${message.roomId}-reflection-last-processed`,
-      message?.id || "",
+      message?.id || ''
     );
-
-    return reflection;
   } catch (error) {
-    logger.error("Error in reflection handler:", error);
+    runtime.logger.error(
+      {
+        src: 'plugin:bootstrap:evaluator:reflection',
+        agentId: runtime.agentId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'Error in reflection handler'
+    );
     return;
   }
 }
 
 export const reflectionEvaluator: Evaluator = {
-  name: "REFLECTION",
-  similes: [
-    "REFLECT",
-    "SELF_REFLECT",
-    "EVALUATE_INTERACTION",
-    "ASSESS_SITUATION",
-  ],
-  validate: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  name: 'REFLECTION',
+  similes: ['REFLECT', 'SELF_REFLECT', 'EVALUATE_INTERACTION', 'ASSESS_SITUATION'],
+  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     const lastMessageId = await runtime.getCache<string>(
-      `${message.roomId}-reflection-last-processed`,
+      `${message.roomId}-reflection-last-processed`
     );
     const messages = await runtime.getMemories({
-      tableName: "messages",
+      tableName: 'messages',
       roomId: message.roomId,
       count: runtime.getConversationLength(),
     });
 
     if (lastMessageId) {
-      const lastMessageIndex = messages.findIndex(
-        (msg) => msg.id === lastMessageId,
-      );
+      const lastMessageIndex = messages.findIndex((msg) => msg.id === lastMessageId);
       if (lastMessageIndex !== -1) {
         messages.splice(0, lastMessageIndex + 1);
       }
@@ -342,7 +411,7 @@ export const reflectionEvaluator: Evaluator = {
     return messages.length > reflectionInterval;
   },
   description:
-    "Generate a self-reflective thought on the conversation, then extract facts and relationships between entities in the conversation.",
+    'Generate a self-reflective thought on the conversation, then extract facts and relationships between entities in the conversation.',
   handler,
   examples: [
     {
@@ -353,47 +422,47 @@ Current Room: general-chat
 Message Sender: John (user-123)`,
       messages: [
         {
-          name: "John",
+          name: 'John',
           content: { text: "Hey everyone, I'm new here!" },
         },
         {
-          name: "Sarah",
-          content: { text: "Welcome John! How did you find our community?" },
+          name: 'Sarah',
+          content: { text: 'Welcome John! How did you find our community?' },
         },
         {
-          name: "John",
+          name: 'John',
           content: { text: "Through a friend who's really into AI" },
         },
       ],
-      outcome: `{
-    "thought": "I'm engaging appropriately with a new community member, maintaining a welcoming and professional tone. My questions are helping to learn more about John and make him feel welcome.",
-    "facts": [
-        {
-            "claim": "John is new to the community",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        },
-        {
-            "claim": "John found the community through a friend interested in AI",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        }
-    ],
-    "relationships": [
-        {
-            "sourceEntityId": "sarah-agent",
-            "targetEntityId": "user-123",
-            "tags": ["group_interaction"]
-        },
-        {
-            "sourceEntityId": "user-123",
-            "targetEntityId": "sarah-agent",
-            "tags": ["group_interaction"]
-        }
-    ]
-}`,
+      outcome: `<response>
+    <thought>I'm engaging appropriately with a new community member, maintaining a welcoming and professional tone. My questions are helping to learn more about John and make him feel welcome.</thought>
+    <facts>
+        <fact>
+            <claim>John is new to the community</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+        <fact>
+            <claim>John found the community through a friend interested in AI</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+    </facts>
+    <relationships>
+        <relationship>
+            <sourceEntityId>sarah-agent</sourceEntityId>
+            <targetEntityId>user-123</targetEntityId>
+            <tags>group_interaction</tags>
+        </relationship>
+        <relationship>
+            <sourceEntityId>user-123</sourceEntityId>
+            <targetEntityId>sarah-agent</targetEntityId>
+            <tags>group_interaction</tags>
+        </relationship>
+    </relationships>
+</response>`,
     },
     {
       prompt: `Agent Name: Alex
@@ -403,48 +472,48 @@ Current Room: tech-help
 Message Sender: Emma (user-456)`,
       messages: [
         {
-          name: "Emma",
-          content: { text: "My app keeps crashing when I try to upload files" },
+          name: 'Emma',
+          content: { text: 'My app keeps crashing when I try to upload files' },
         },
         {
-          name: "Alex",
-          content: { text: "Have you tried clearing your cache?" },
+          name: 'Alex',
+          content: { text: 'Have you tried clearing your cache?' },
         },
         {
-          name: "Emma",
-          content: { text: "No response..." },
+          name: 'Emma',
+          content: { text: 'No response...' },
         },
         {
-          name: "Alex",
+          name: 'Alex',
           content: {
-            text: "Emma, are you still there? We can try some other troubleshooting steps.",
+            text: 'Emma, are you still there? We can try some other troubleshooting steps.',
           },
         },
       ],
-      outcome: `{
-    "thought": "I'm not sure if I'm being helpful or if Emma is frustrated with my suggestions. The lack of response is concerning - maybe I should have asked for more details about the issue first before jumping to solutions.",
-    "facts": [
-        {
-            "claim": "Emma is having technical issues with file uploads",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        },
-        {
-            "claim": "Emma stopped responding after the first troubleshooting suggestion",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        }
-    ],
-    "relationships": [
-        {
-            "sourceEntityId": "alex-agent",
-            "targetEntityId": "user-456",
-            "tags": ["group_interaction", "support_interaction", "incomplete_interaction"]
-        }
-    ]
-}`,
+      outcome: `<response>
+    <thought>I'm not sure if I'm being helpful or if Emma is frustrated with my suggestions. The lack of response is concerning - maybe I should have asked for more details about the issue first before jumping to solutions.</thought>
+    <facts>
+        <fact>
+            <claim>Emma is having technical issues with file uploads</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+        <fact>
+            <claim>Emma stopped responding after the first troubleshooting suggestion</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+    </facts>
+    <relationships>
+        <relationship>
+            <sourceEntityId>alex-agent</sourceEntityId>
+            <targetEntityId>user-456</targetEntityId>
+            <tags>group_interaction,support_interaction,incomplete_interaction</tags>
+        </relationship>
+    </relationships>
+</response>`,
     },
     {
       prompt: `Agent Name: Max
@@ -454,58 +523,58 @@ Current Room: book-club
 Message Sender: Lisa (user-789)`,
       messages: [
         {
-          name: "Lisa",
-          content: { text: "What did everyone think about chapter 5?" },
+          name: 'Lisa',
+          content: { text: 'What did everyone think about chapter 5?' },
         },
         {
-          name: "Max",
+          name: 'Max',
           content: {
-            text: "The symbolism was fascinating! The red door clearly represents danger.",
+            text: 'The symbolism was fascinating! The red door clearly represents danger.',
           },
         },
         {
-          name: "Max",
+          name: 'Max',
           content: {
             text: "And did anyone notice how the author used weather to reflect the protagonist's mood?",
           },
         },
         {
-          name: "Max",
+          name: 'Max',
           content: {
-            text: "Plus the foreshadowing in the first paragraph was brilliant!",
+            text: 'Plus the foreshadowing in the first paragraph was brilliant!',
           },
         },
         {
-          name: "Max",
+          name: 'Max',
           content: {
-            text: "I also have thoughts about the character development...",
+            text: 'I also have thoughts about the character development...',
           },
         },
       ],
-      outcome: `{
-    "thought": "I'm dominating the conversation and not giving others a chance to share their perspectives. I've sent multiple messages in a row without waiting for responses. I need to step back and create space for other members to participate.",
-    "facts": [
-        {
-            "claim": "The discussion is about chapter 5 of a book",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        },
-        {
-            "claim": "Max has sent 4 consecutive messages without user responses",
-            "type": "fact",
-            "in_bio": false,
-            "already_known": false
-        }
-    ],
-    "relationships": [
-        {
-            "sourceEntityId": "max-agent",
-            "targetEntityId": "user-789",
-            "tags": ["group_interaction", "excessive_interaction"]
-        }
-    ]
-}`,
+      outcome: `<response>
+    <thought>I'm dominating the conversation and not giving others a chance to share their perspectives. I've sent multiple messages in a row without waiting for responses. I need to step back and create space for other members to participate.</thought>
+    <facts>
+        <fact>
+            <claim>The discussion is about chapter 5 of a book</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+        <fact>
+            <claim>Max has sent 4 consecutive messages without user responses</claim>
+            <type>fact</type>
+            <in_bio>false</in_bio>
+            <already_known>false</already_known>
+        </fact>
+    </facts>
+    <relationships>
+        <relationship>
+            <sourceEntityId>max-agent</sourceEntityId>
+            <targetEntityId>user-789</targetEntityId>
+            <tags>group_interaction,excessive_interaction</tags>
+        </relationship>
+    </relationships>
+</response>`,
     },
   ],
 };
@@ -515,5 +584,5 @@ function formatFacts(facts: Memory[]) {
   return facts
     .reverse()
     .map((fact: Memory) => fact.content.text)
-    .join("\n");
+    .join('\n');
 }

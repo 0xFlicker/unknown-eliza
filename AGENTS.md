@@ -57,15 +57,12 @@ Here’s a rewrite of your rules reflecting your decisions.
 ### 3.2 Voting & Ties
 
 - **Empower**: plurality wins; ties → random among tied.
-
   - The same player **may be empowered in consecutive rounds** (no restriction).
 
 - **Expose voting**: each player casts one _expose_ vote. Tally all valid expose votes.
 - **Council candidates (ensure exactly two):**
-
   1. Start with the **top two** by expose votes (break internal ties randomly).
   2. If the empowered agent uses **`protect @target`**:
-
      - `@target` is **not a council candidate** and gains a **shield next round** (cannot be revealed next round).
      - Substitute with the **next most-revealed** player.
      - If there’s a tie among eligible substitutes **or** there aren’t enough with votes, the **empowered agent selects** from any eligible (alive, non-shielded) players to ensure **two** total candidates.
@@ -73,7 +70,6 @@ Here’s a rewrite of your rules reflecting your decisions.
   3. If fewer than two eligible players exist after protections/shields, the empowered agent **fills remaining slots** by choice from any alive, non-shielded players.
 
 - **Council voting**: all players vote to eliminate **one of the two revealed**.
-
   - **Tie at council** → the **empowered agent** casts the **deciding vote** (the empowered does **not** otherwise vote in council).
 
 - **`auto`**: during **POWER**, the empowered may `auto @player` (must be one of the two revealed) to **immediately eliminate** and **skip COUNCIL**.
@@ -134,7 +130,6 @@ Handlers translate this structured output to concrete bot commands.
 1. **AFK Player**: Three consecutive randomised actions → auto‑eliminate (_inactivity_ event).
 2. **Zero Empower Votes**: Empowered selected randomly among _alive_ agents.
 3. **Only 2 Players Left**:
-
    - Skip _Expose_; empowered chooses directly.
    - Prevent infinite loops.
 

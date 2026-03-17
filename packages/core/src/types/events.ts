@@ -1,69 +1,78 @@
-import type { HandlerCallback } from "./components";
-import type { Entity, Room, World } from "./environment";
-import type { Memory } from "./memory";
-import type { ModelTypeName } from "./model";
-import type { Metadata, UUID } from "./primitives";
-import type { IAgentRuntime } from "./runtime";
+import type { HandlerCallback } from './components';
+import type { Entity, Room, World } from './environment';
+import type { Memory } from './memory';
+import type { ControlMessage } from './messaging';
+import type { ModelTypeName } from './model';
+import type { Content, UUID } from './primitives';
+import type { IAgentRuntime } from './runtime';
 
 /**
  * Standard event types across all platforms
  */
 export enum EventType {
   // World events
-  WORLD_JOINED = "WORLD_JOINED",
-  WORLD_CONNECTED = "WORLD_CONNECTED",
-  WORLD_LEFT = "WORLD_LEFT",
+  WORLD_JOINED = 'WORLD_JOINED',
+  WORLD_CONNECTED = 'WORLD_CONNECTED',
+  WORLD_LEFT = 'WORLD_LEFT',
 
   // Entity events
-  ENTITY_JOINED = "ENTITY_JOINED",
-  ENTITY_LEFT = "ENTITY_LEFT",
-  ENTITY_UPDATED = "ENTITY_UPDATED",
+  ENTITY_JOINED = 'ENTITY_JOINED',
+  ENTITY_LEFT = 'ENTITY_LEFT',
+  ENTITY_UPDATED = 'ENTITY_UPDATED',
 
   // Room events
-  ROOM_JOINED = "ROOM_JOINED",
-  ROOM_LEFT = "ROOM_LEFT",
+  ROOM_JOINED = 'ROOM_JOINED',
+  ROOM_LEFT = 'ROOM_LEFT',
 
   // Message events
-  MESSAGE_RECEIVED = "MESSAGE_RECEIVED",
-  MESSAGE_SENT = "MESSAGE_SENT",
-  MESSAGE_DELETED = "MESSAGE_DELETED",
+  MESSAGE_RECEIVED = 'MESSAGE_RECEIVED',
+  MESSAGE_SENT = 'MESSAGE_SENT',
+  MESSAGE_DELETED = 'MESSAGE_DELETED',
 
   // Channel events
-  CHANNEL_CLEARED = "CHANNEL_CLEARED",
+  CHANNEL_CLEARED = 'CHANNEL_CLEARED',
 
   // Voice events
-  VOICE_MESSAGE_RECEIVED = "VOICE_MESSAGE_RECEIVED",
-  VOICE_MESSAGE_SENT = "VOICE_MESSAGE_SENT",
+  VOICE_MESSAGE_RECEIVED = 'VOICE_MESSAGE_RECEIVED',
+  VOICE_MESSAGE_SENT = 'VOICE_MESSAGE_SENT',
 
   // Interaction events
-  REACTION_RECEIVED = "REACTION_RECEIVED",
-  POST_GENERATED = "POST_GENERATED",
-  INTERACTION_RECEIVED = "INTERACTION_RECEIVED",
+  REACTION_RECEIVED = 'REACTION_RECEIVED',
+  POST_GENERATED = 'POST_GENERATED',
+  INTERACTION_RECEIVED = 'INTERACTION_RECEIVED',
 
   // Run events
-  RUN_STARTED = "RUN_STARTED",
-  RUN_ENDED = "RUN_ENDED",
-  RUN_TIMEOUT = "RUN_TIMEOUT",
+  RUN_STARTED = 'RUN_STARTED',
+  RUN_ENDED = 'RUN_ENDED',
+  RUN_TIMEOUT = 'RUN_TIMEOUT',
 
   // Action events
-  ACTION_STARTED = "ACTION_STARTED",
-  ACTION_COMPLETED = "ACTION_COMPLETED",
+  ACTION_STARTED = 'ACTION_STARTED',
+  ACTION_COMPLETED = 'ACTION_COMPLETED',
 
   // Evaluator events
-  EVALUATOR_STARTED = "EVALUATOR_STARTED",
-  EVALUATOR_COMPLETED = "EVALUATOR_COMPLETED",
+  EVALUATOR_STARTED = 'EVALUATOR_STARTED',
+  EVALUATOR_COMPLETED = 'EVALUATOR_COMPLETED',
 
   // Model events
-  MODEL_USED = "MODEL_USED",
+  MODEL_USED = 'MODEL_USED',
+
+  // Embedding events
+  EMBEDDING_GENERATION_REQUESTED = 'EMBEDDING_GENERATION_REQUESTED',
+  EMBEDDING_GENERATION_COMPLETED = 'EMBEDDING_GENERATION_COMPLETED',
+  EMBEDDING_GENERATION_FAILED = 'EMBEDDING_GENERATION_FAILED',
+
+  // Control events
+  CONTROL_MESSAGE = 'CONTROL_MESSAGE',
 }
 
 /**
  * Platform-specific event type prefix
  */
 export enum PlatformPrefix {
-  DISCORD = "DISCORD",
-  TELEGRAM = "TELEGRAM",
-  TWITTER = "TWITTER",
+  DISCORD = 'DISCORD',
+  TELEGRAM = 'TELEGRAM',
+  TWITTER = 'TWITTER',
 }
 
 /**
@@ -92,10 +101,10 @@ export interface EntityPayload extends EventPayload {
   worldId?: UUID;
   roomId?: UUID;
   metadata?: {
-    orginalId: string;
+    originalId: string;
     username: string;
     displayName?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -105,7 +114,6 @@ export interface EntityPayload extends EventPayload {
 export interface MessagePayload extends EventPayload {
   message: Memory;
   callback?: HandlerCallback;
-  onComplete?: () => void;
 }
 
 /**
@@ -125,7 +133,6 @@ export interface InvokePayload extends EventPayload {
   userId: string;
   roomId: UUID;
   callback?: HandlerCallback;
-  source: string;
 }
 
 /**
@@ -137,7 +144,7 @@ export interface RunEventPayload extends EventPayload {
   roomId: UUID;
   entityId: UUID;
   startTime: number;
-  status: "started" | "completed" | "timeout";
+  status: 'started' | 'completed' | 'timeout';
   endTime?: number;
   duration?: number;
   error?: string;
@@ -147,11 +154,10 @@ export interface RunEventPayload extends EventPayload {
  * Action event payload type
  */
 export interface ActionEventPayload extends EventPayload {
-  actionId: UUID;
-  actionName: string;
-  startTime?: number;
-  completed?: boolean;
-  error?: Error;
+  roomId: UUID;
+  world: UUID;
+  content: Content;
+  messageId?: UUID;
 }
 
 /**
@@ -179,12 +185,25 @@ export interface ModelEventPayload extends EventPayload {
   };
 }
 
-export type MessageReceivedHandlerParams = {
-  runtime: IAgentRuntime;
-  message: Memory;
-  callback: HandlerCallback;
-  onComplete?: () => void;
-};
+/**
+ * Payload for embedding generation events
+ */
+export interface EmbeddingGenerationPayload extends EventPayload {
+  memory: Memory;
+  priority?: 'high' | 'normal' | 'low';
+  retryCount?: number;
+  maxRetries?: number;
+  embedding?: number[];
+  error?: Error | string | unknown;
+  runId?: UUID;
+}
+
+/**
+ * Payload for control message events
+ */
+export interface ControlMessagePayload extends EventPayload {
+  message: ControlMessage;
+}
 
 /**
  * Maps event types to their corresponding payload types
@@ -199,6 +218,8 @@ export interface EventPayloadMap {
   [EventType.MESSAGE_RECEIVED]: MessagePayload;
   [EventType.MESSAGE_SENT]: MessagePayload;
   [EventType.MESSAGE_DELETED]: MessagePayload;
+  [EventType.VOICE_MESSAGE_RECEIVED]: MessagePayload;
+  [EventType.VOICE_MESSAGE_SENT]: MessagePayload;
   [EventType.CHANNEL_CLEARED]: ChannelClearedPayload;
   [EventType.REACTION_RECEIVED]: MessagePayload;
   [EventType.POST_GENERATED]: InvokePayload;
@@ -211,19 +232,15 @@ export interface EventPayloadMap {
   [EventType.EVALUATOR_STARTED]: EvaluatorEventPayload;
   [EventType.EVALUATOR_COMPLETED]: EvaluatorEventPayload;
   [EventType.MODEL_USED]: ModelEventPayload;
+  [EventType.EMBEDDING_GENERATION_REQUESTED]: EmbeddingGenerationPayload;
+  [EventType.EMBEDDING_GENERATION_COMPLETED]: EmbeddingGenerationPayload;
+  [EventType.EMBEDDING_GENERATION_FAILED]: EmbeddingGenerationPayload;
+  [EventType.CONTROL_MESSAGE]: ControlMessagePayload;
 }
 
 /**
  * Event handler function type
  */
 export type EventHandler<T extends keyof EventPayloadMap> = (
-  payload: EventPayloadMap[T],
+  payload: EventPayloadMap[T]
 ) => Promise<void>;
-
-/**
- * Defines a more specific type for event handlers, expecting an `Metadata`.
- * This aims to improve upon generic 'any' type handlers, providing a clearer contract
- * for functions that respond to events emitted within the agent runtime (see `emitEvent` in `AgentRuntime`).
- * Handlers can be synchronous or asynchronous.
- */
-export type TypedEventHandler = (data: Metadata) => Promise<void> | void;

@@ -27,7 +27,7 @@ export async function getGameState(
 
     return gameState;
   } catch (error) {
-    logger.error(`Failed to load game state for game ${gameId}:`, error);
+    logger.error({ error, gameId }, "Failed to load game state");
     return null;
   }
 }
@@ -60,7 +60,7 @@ export async function saveGameState(
       `Saved game state for game ${gameId}: phase=${gameState.phase}, round=${gameState.round}`,
     );
   } catch (error) {
-    logger.error(`Failed to save game state for game ${gameId}:`, error);
+    logger.error({ error, gameId }, "Failed to save game state");
     throw error;
   }
 }

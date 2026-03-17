@@ -122,7 +122,7 @@ export class StrategyService extends Service {
         logger.info("Loaded existing strategy state from memory");
       }
     } catch (error) {
-      logger.warn("Failed to load strategy state, using defaults", error);
+      logger.warn({ error }, "Failed to load strategy state, using defaults");
     }
   }
 
@@ -139,7 +139,7 @@ export class StrategyService extends Service {
       );
       logger.debug("Strategy state saved to memory");
     } catch (error) {
-      logger.error("Failed to save strategy state", error);
+      logger.error({ error }, "Failed to save strategy state");
     }
   }
 
@@ -191,11 +191,14 @@ export class StrategyService extends Service {
     this.state.relationships.set(playerId, updated);
     await this.saveState();
 
-    logger.debug("Updated strategic relationship", {
-      playerId,
-      playerName,
-      updates,
-    });
+    logger.debug(
+      {
+        playerId,
+        playerName,
+        updates,
+      },
+      "Updated strategic relationship",
+    );
   }
 
   async addDiaryEntry(
@@ -216,11 +219,14 @@ export class StrategyService extends Service {
 
     await this.saveState();
 
-    logger.info("Added diary entry", {
-      phase: diaryEntry.phase,
-      round: diaryEntry.round,
-      emotionalState: diaryEntry.emotionalState,
-    });
+    logger.info(
+      {
+        phase: diaryEntry.phase,
+        round: diaryEntry.round,
+        emotionalState: diaryEntry.emotionalState,
+      },
+      "Added diary entry",
+    );
 
     return diaryEntry;
   }
@@ -249,7 +255,7 @@ export class StrategyService extends Service {
     this.state.playerPatterns.set(playerId, updated);
     await this.saveState();
 
-    logger.debug("Updated player pattern", { playerId, updates });
+    logger.debug({ playerId, updates }, "Updated player pattern");
   }
   getState(): StrategyState {
     return { ...this.state };
@@ -268,7 +274,7 @@ export class StrategyService extends Service {
   async updateAnalysis(updates: Partial<StrategyAnalysis>): Promise<void> {
     this.state.analysis = { ...this.state.analysis, ...updates };
     await this.saveState();
-    logger.debug("Strategy analysis updated", { updates });
+    logger.debug({ updates }, "Strategy analysis updated");
   }
 
   /**
@@ -279,10 +285,13 @@ export class StrategyService extends Service {
     trigger: "phase_transition" | "event" | "manual";
     contextData?: Record<string, unknown>;
   }): Promise<void> {
-    logger.info("Updating strategic context", {
-      phase: context.phase,
-      trigger: context.trigger,
-    });
+    logger.info(
+      {
+        phase: context.phase,
+        trigger: context.trigger,
+      },
+      "Updating strategic context",
+    );
 
     // Update phase if different
     if (this.state.currentPhase !== context.phase) {
@@ -293,10 +302,13 @@ export class StrategyService extends Service {
     const newMode = this.getStrategyModeForPhase(context.phase);
     if (this.state.strategicMode !== newMode) {
       this.state.strategicMode = newMode;
-      logger.debug("Strategic mode updated", {
-        oldMode: this.state.strategicMode,
-        newMode,
-      });
+      logger.debug(
+        {
+          oldMode: this.state.strategicMode,
+          newMode,
+        },
+        "Strategic mode updated",
+      );
     }
 
     // Store context data if provided
@@ -312,10 +324,13 @@ export class StrategyService extends Service {
    * Set diary prompt for phase-dependent prompting
    */
   async setDiaryPrompt(prompt: string): Promise<void> {
-    logger.debug("Setting phase-dependent diary prompt", {
-      phase: this.state.currentPhase,
-      promptLength: prompt.length,
-    });
+    logger.debug(
+      {
+        phase: this.state.currentPhase,
+        promptLength: prompt.length,
+      },
+      "Setting phase-dependent diary prompt",
+    );
 
     // Store the prompt in configuration for use by diary room action
     this.state.configuration.diaryReflection = prompt;
@@ -333,12 +348,15 @@ export class StrategyService extends Service {
     this.state.lastPhaseChange = Date.now();
     this.state.strategicMode = this.getStrategyModeForPhase(phase);
 
-    logger.info("Phase updated", {
-      previousPhase,
-      newPhase: phase,
-      round,
-      strategicMode: this.state.strategicMode,
-    });
+    logger.info(
+      {
+        previousPhase,
+        newPhase: phase,
+        round,
+        strategicMode: this.state.strategicMode,
+      },
+      "Phase updated",
+    );
 
     await this.saveState();
   }
@@ -347,7 +365,7 @@ export class StrategyService extends Service {
    * Analyze phase completion for strategic insights
    */
   async analyzePhaseCompletion(phase: Phase, round: number): Promise<void> {
-    logger.info("Analyzing phase completion", { phase, round });
+    logger.info({ phase, round }, "Analyzing phase completion");
 
     // Create a diary entry for phase completion analysis
     const phaseAnalysisEntry = {

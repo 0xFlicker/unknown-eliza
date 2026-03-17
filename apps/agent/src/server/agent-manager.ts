@@ -90,8 +90,8 @@ export class AgentManager<
         );
       } catch (error) {
         logger.error(
-          `Failed to apply runtime decorator to agent ${config.character.name}:`,
-          error,
+          { error, characterName: config.character.name },
+          "Failed to apply runtime decorator to agent",
         );
         throw error;
       }
@@ -193,7 +193,10 @@ export class AgentManager<
 
       logger.info(`Successfully removed agent ${agent.character.name}`);
     } catch (error) {
-      logger.error(`Failed to remove agent ${agent.character.name}:`, error);
+      logger.error(
+        { error, agentId, characterName: agent.character.name },
+        "Failed to remove agent",
+      );
       throw error;
     }
   }
@@ -264,7 +267,7 @@ export class AgentManager<
 
     const cleanupPromises = Array.from(this.agents.keys()).map((agentId) =>
       this.removeAgent(agentId).catch((error) => {
-        logger.error(`Failed to cleanup agent ${agentId}:`, error);
+        logger.error({ error, agentId }, "Failed to cleanup agent");
       }),
     );
 

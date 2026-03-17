@@ -1,16 +1,8 @@
-import {
-  Agent,
-  AgentStatus,
-  ChannelType,
-  Entity,
-  Memory,
-  Room,
-  UUID,
-} from "@elizaos/core";
+import { Agent, AgentStatus, ChannelType, Entity, Memory, Room, UUID } from '@elizaos/core';
 
 // Generate fixed UUIDs for testing to avoid type issues
 const fixedUuid = (n: number): UUID =>
-  `${"0".repeat(8)}-${"0".repeat(4)}-${"0".repeat(4)}-${"0".repeat(4)}-${n.toString().padStart(12, "0")}`;
+  `${'0'.repeat(8)}-${'0'.repeat(4)}-${'0'.repeat(4)}-${'0'.repeat(4)}-${n.toString().padStart(12, '0')}`;
 
 // Test IDs
 export const embeddingTestAgentId = fixedUuid(1);
@@ -25,10 +17,10 @@ export const generateRandomVector = (size: number): number[] => {
 
 export const embeddingTestAgent = {
   id: embeddingTestAgentId,
-  name: "Embedding Test Agent",
-  username: "embedding_test_agent",
-  system: "Test agent system prompt",
-  bio: "An agent for testing embedding functionality",
+  name: 'Embedding Test Agent',
+  username: 'embedding_test_agent',
+  system: 'Test agent system prompt',
+  bio: 'An agent for testing embedding functionality',
   enabled: true,
   status: AgentStatus.ACTIVE,
   createdAt: new Date().getTime(),
@@ -40,7 +32,7 @@ export const embeddingTestAgent = {
   knowledge: [],
   plugins: [],
   settings: {
-    dummySetting: "dummy value",
+    dummySetting: 'dummy value',
   },
   style: {
     all: [],
@@ -52,19 +44,19 @@ export const embeddingTestAgent = {
 // Test Entity
 export const embeddingTestEntity: Entity = {
   id: embeddingTestEntityId,
-  names: ["Test Entity"],
+  names: ['Test Entity'],
   agentId: embeddingTestAgentId,
   metadata: {
-    description: "A test entity for embedding tests",
+    description: 'A test entity for embedding tests',
   },
 };
 
 // Test Room
 export const embeddingTestRoom: Room = {
   id: embeddingTestRoomId,
-  name: "Embedding Test Room",
+  name: 'Embedding Test Room',
   agentId: embeddingTestAgentId,
-  source: "test",
+  source: 'test',
   type: ChannelType.DM,
   worldId: embeddingTestWorldId,
 };
@@ -83,12 +75,12 @@ export const embeddingTestMemories: TestMemory[] = [
     roomId: embeddingTestRoomId,
     createdAt: new Date().getTime(),
     content: {
-      text: "This is test memory 1",
-      type: "text",
+      text: 'This is test memory 1',
+      type: 'text',
     },
     unique: true,
-    type: "test",
-    metadata: { type: "test" },
+    type: 'test',
+    metadata: { type: 'test' },
   },
   {
     id: fixedUuid(11),
@@ -97,12 +89,12 @@ export const embeddingTestMemories: TestMemory[] = [
     roomId: embeddingTestRoomId,
     createdAt: new Date().getTime(),
     content: {
-      text: "This is test memory 2",
-      type: "text",
+      text: 'This is test memory 2',
+      type: 'text',
     },
     unique: true,
-    type: "test",
-    metadata: { type: "test" },
+    type: 'test',
+    metadata: { type: 'test' },
   },
   {
     id: fixedUuid(12),
@@ -111,12 +103,12 @@ export const embeddingTestMemories: TestMemory[] = [
     roomId: embeddingTestRoomId,
     createdAt: new Date().getTime(),
     content: {
-      text: "This is test memory 3",
-      type: "text",
+      text: 'This is test memory 3',
+      type: 'text',
     },
     unique: true,
-    type: "test",
-    metadata: { type: "test" },
+    type: 'test',
+    metadata: { type: 'test' },
   },
 ];
 
@@ -143,9 +135,7 @@ export const embeddingTestData: any[] = [
 ];
 
 // Memory with embedding
-export const embeddingTestMemoriesWithEmbedding: (TestMemory & {
-  embedding: number[];
-})[] = [
+export const embeddingTestMemoriesWithEmbedding: (TestMemory & { embedding: number[] })[] = [
   {
     ...embeddingTestMemories[0],
     embedding: embeddingTestData[0].dim384!,

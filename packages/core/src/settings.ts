@@ -1,6 +1,8 @@
-import crypto from "crypto-browserify";
-import { createUniqueUuid } from "./entities";
-import { logger } from "./logger";
+import { createUniqueUuid } from './entities';
+import { getEnv } from './utils/environment';
+import { BufferUtils } from './utils/buffer';
+import { logger } from './logger';
+import * as cryptoUtils from './utils/crypto-compat';
 import type {
   Character,
   IAgentRuntime,
@@ -8,58 +10,78 @@ import type {
   Setting,
   World,
   WorldSettings,
-} from "./types";
+} from './types';
 
-/**
- * Creates a new Setting object based on provided config settings.
- * @param {Omit<Setting, "value">} configSetting - The configuration settings for the new Setting object.
- * @returns {Setting} - The newly created Setting object.
- */
 /**
  * Creates a Setting object from a configSetting object by omitting the 'value' property.
  *
  * @param {Omit<Setting, 'value'>} configSetting - The configSetting object to create the Setting from.
  * @returns {Setting} A new Setting object created from the provided configSetting object.
  */
-export function createSettingFromConfig(
-  configSetting: Omit<Setting, "value">,
-): Setting {
+export function createSettingFromConfig(configSetting: Omit<Setting, 'value'>): Setting {
   return {
     name: configSetting.name,
     description: configSetting.description,
-    usageDescription: configSetting.usageDescription || "",
+    usageDescription: configSetting.usageDescription || '',
     value: null,
     required: configSetting.required,
-    validation: configSetting.validation || null,
+    validation: configSetting.validation || undefined,
     public: configSetting.public || false,
     secret: configSetting.secret || false,
     dependsOn: configSetting.dependsOn || [],
-    onSetAction: configSetting.onSetAction || null,
-    visibleIf: configSetting.visibleIf || null,
+    onSetAction: configSetting.onSetAction || undefined,
+    visibleIf: configSetting.visibleIf || undefined,
   };
 }
 
+// Cache for salt value with TTL
+interface SaltCache {
+  value: string;
+  timestamp: number;
+}
+
+let saltCache: SaltCache | null = null;
+let saltErrorLogged = false;
+const SALT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+
 /**
- * Retrieves the salt based on env variable SECRET_SALT
+ * Gets the salt for the agent.
  *
  * @returns {string} The salt for the agent.
  */
 export function getSalt(): string {
-  const secretSalt =
-    (typeof process !== "undefined"
-      ? process.env.SECRET_SALT
-      : (import.meta as any).env.SECRET_SALT) || "secretsalt";
+  // Always read current env first to detect changes
+  const currentEnvSalt = getEnv('SECRET_SALT', 'secretsalt') || 'secretsalt';
+  const now = Date.now();
 
-  if (!secretSalt) {
-    logger.error("SECRET_SALT is not set");
+  // Return cached value only if still valid AND matches current env
+  if (saltCache !== null) {
+    const cacheFresh = now - saltCache.timestamp < SALT_CACHE_TTL_MS;
+    if (cacheFresh && saltCache.value === currentEnvSalt) {
+      return saltCache.value;
+    }
   }
 
-  const salt = secretSalt;
+  if (currentEnvSalt === 'secretsalt' && !saltErrorLogged) {
+    logger.warn({ src: 'core:settings' }, 'SECRET_SALT is not set or using default value');
+    saltErrorLogged = true;
+  }
 
-  logger.debug(
-    `Generated salt with length: ${salt.length} (truncated for security)`,
-  );
-  return salt;
+  // Update cache with latest env-derived salt
+  saltCache = {
+    value: currentEnvSalt,
+    timestamp: now,
+  };
+
+  return currentEnvSalt;
+}
+
+/**
+ * Clears the salt cache - useful for tests or when environment changes
+ */
+export function clearSaltCache(): void {
+  saltCache = null;
+  saltErrorLogged = false;
 }
 
 /**
@@ -71,112 +93,79 @@ export function getSalt(): string {
 export function encryptStringValue(value: string, salt: string): string {
   // Check if value is undefined or null
   if (value === undefined || value === null) {
-    logger.debug("Attempted to encrypt undefined or null value");
     return value; // Return the value as is (undefined or null)
   }
 
-  if (typeof value === "boolean" || typeof value === "number") {
-    logger.debug("Value is a boolean or number, returning as is");
+  if (typeof value === 'boolean' || typeof value === 'number') {
     return value;
   }
 
-  if (typeof value !== "string") {
-    logger.debug(
-      `Value is not a string (type: ${typeof value}), returning as is`,
-    );
+  if (typeof value !== 'string') {
     return value;
   }
 
   // Check if value is already encrypted (has the format "iv:encrypted")
-  const parts = value.split(":");
+  const parts = value.split(':');
   if (parts.length === 2) {
     try {
       // Try to parse the first part as hex to see if it's already encrypted
-      const possibleIv = Buffer.from(parts[0], "hex");
+      const possibleIv = BufferUtils.fromHex(parts[0]);
       if (possibleIv.length === 16) {
         // Value is likely already encrypted, return as is
-        logger.debug(
-          "Value appears to be already encrypted, skipping re-encryption",
-        );
         return value;
       }
-    } catch (e) {
+    } catch {
       // Not a valid hex string, proceed with encryption
     }
   }
 
   // Create key and iv from the salt
-  const key = crypto.createHash("sha256").update(salt).digest().slice(0, 32);
-  const iv = crypto.randomBytes(16);
+  const key = cryptoUtils.createHash('sha256').update(salt).digest().slice(0, 32);
+  const iv = BufferUtils.randomBytes(16);
 
   // Encrypt the value
-  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-  let encrypted = cipher.update(value, "utf8", "hex");
-  encrypted += cipher.final("hex");
+  const cipher = cryptoUtils.createCipheriv('aes-256-cbc', key, iv);
+  let encrypted = cipher.update(value, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
 
   // Store IV with the encrypted value so we can decrypt it later
-  return `${iv.toString("hex")}:${encrypted}`;
+  return `${BufferUtils.toHex(iv)}:${encrypted}`;
 }
 
 /**
  * Common decryption function for string values
- * @param {string} value - The encrypted value in 'iv:encrypted' format
- * @param {string} salt - The salt to use for decryption
- * @returns {string} - The decrypted string value
+ * @param value - The encrypted value in 'iv:encrypted' format
+ * @param salt - The salt to use for decryption
+ * @returns The decrypted string value, or original value if not encrypted
  */
 export function decryptStringValue(value: string, salt: string): string {
   try {
-    // Check if value is undefined or null
-    if (value === undefined || value === null) {
-      //logger.debug('Attempted to decrypt undefined or null value');
-      return value; // Return the value as is (undefined or null)
-    }
-
-    if (typeof value === "boolean" || typeof value === "number") {
-      //logger.debug('Value is a boolean or number, returning as is');
-      return value;
-    }
-    if (typeof value !== "string") {
-      logger.debug(
-        `Value is not a string (type: ${typeof value}), returning as is`,
-      );
-      return value;
-    }
-
     // Split the IV and encrypted value
-    const parts = value.split(":");
+    const parts = value.split(':');
     if (parts.length !== 2) {
-      /*
-      logger.debug(
-        `Invalid encrypted value format - expected 'iv:encrypted', returning original value`
-      );
-      */
       return value; // Return the original value without decryption
     }
 
-    const iv = Buffer.from(parts[0], "hex");
+    const iv = BufferUtils.fromHex(parts[0]);
     const encrypted = parts[1];
 
     // Verify IV length
     if (iv.length !== 16) {
-      if (iv.length) {
-        logger.debug(`Invalid IV length (${iv.length}) - expected 16 bytes`);
-      }
       return value; // Return the original value without decryption
     }
 
     // Create key from the salt
-    const key = crypto.createHash("sha256").update(salt).digest().slice(0, 32);
+    const key = cryptoUtils.createHash('sha256').update(salt).digest().slice(0, 32);
 
     // Decrypt the value
-    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
+    const decipher = cryptoUtils.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
 
     return decrypted;
   } catch (error) {
-    logger.error(`Error decrypting value: ${error}`);
-    // Return the encrypted value on error
+    logger.error({ src: 'core:settings', error }, 'Decryption failed');
+    // Return the original value on error
     return value;
   }
 }
@@ -189,11 +178,7 @@ export function saltSettingValue(setting: Setting, salt: string): Setting {
   const settingCopy = { ...setting };
 
   // Only encrypt string values in secret settings
-  if (
-    setting.secret === true &&
-    typeof setting.value === "string" &&
-    setting.value
-  ) {
+  if (setting.secret === true && typeof setting.value === 'string' && setting.value) {
     settingCopy.value = encryptStringValue(setting.value, salt);
   }
 
@@ -208,11 +193,7 @@ export function unsaltSettingValue(setting: Setting, salt: string): Setting {
   const settingCopy = { ...setting };
 
   // Only decrypt string values in secret settings
-  if (
-    setting.secret === true &&
-    typeof setting.value === "string" &&
-    setting.value
-  ) {
+  if (setting.secret === true && typeof setting.value === 'string' && setting.value) {
     settingCopy.value = decryptStringValue(setting.value, salt);
   }
 
@@ -222,10 +203,7 @@ export function unsaltSettingValue(setting: Setting, salt: string): Setting {
 /**
  * Applies salt to all settings in a WorldSettings object
  */
-export function saltWorldSettings(
-  worldSettings: WorldSettings,
-  salt: string,
-): WorldSettings {
+export function saltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
   const saltedSettings: WorldSettings = {};
 
   for (const [key, setting] of Object.entries(worldSettings)) {
@@ -238,10 +216,7 @@ export function saltWorldSettings(
 /**
  * Removes salt from all settings in a WorldSettings object
  */
-export function unsaltWorldSettings(
-  worldSettings: WorldSettings,
-  salt: string,
-): WorldSettings {
+export function unsaltWorldSettings(worldSettings: WorldSettings, salt: string): WorldSettings {
   const unsaltedSettings: WorldSettings = {};
 
   for (const [key, setting] of Object.entries(worldSettings)) {
@@ -257,13 +232,13 @@ export function unsaltWorldSettings(
 export async function updateWorldSettings(
   runtime: IAgentRuntime,
   serverId: string,
-  worldSettings: WorldSettings,
+  worldSettings: WorldSettings
 ): Promise<boolean> {
   const worldId = createUniqueUuid(runtime, serverId);
   const world = await runtime.getWorld(worldId);
 
   if (!world) {
-    logger.error(`No world found for server ${serverId}`);
+    logger.error({ src: 'core:settings', serverId }, 'World not found');
     return false;
   }
 
@@ -290,7 +265,7 @@ export async function updateWorldSettings(
  */
 export async function getWorldSettings(
   runtime: IAgentRuntime,
-  serverId: string,
+  serverId: string
 ): Promise<WorldSettings | null> {
   const worldId = createUniqueUuid(runtime, serverId);
   const world = await runtime.getWorld(worldId);
@@ -313,11 +288,14 @@ export async function getWorldSettings(
 export async function initializeOnboarding(
   runtime: IAgentRuntime,
   world: World,
-  config: OnboardingConfig,
+  config: OnboardingConfig
 ): Promise<WorldSettings | null> {
   // Check if settings state already exists
   if (world.metadata?.settings) {
-    logger.info(`Onboarding state already exists for server ${world.serverId}`);
+    logger.debug(
+      { src: 'core:settings', serverId: world.messageServerId },
+      'Onboarding state already exists'
+    );
     // Get settings from metadata and remove salt
     const saltedSettings = world.metadata.settings as WorldSettings;
     const salt = getSalt();
@@ -344,7 +322,10 @@ export async function initializeOnboarding(
 
   await runtime.updateWorld(world);
 
-  logger.info(`Initialized settings config for server ${world.serverId}`);
+  logger.info(
+    { src: 'core:settings', serverId: world.messageServerId },
+    'Settings config initialized'
+  );
   return worldSettings;
 }
 
@@ -360,10 +341,7 @@ export function encryptedCharacter(character: Character): Character {
 
   // Encrypt character.settings.secrets if it exists
   if (encryptedChar.settings?.secrets) {
-    encryptedChar.settings.secrets = encryptObjectValues(
-      encryptedChar.settings.secrets,
-      salt,
-    );
+    encryptedChar.settings.secrets = encryptObjectValues(encryptedChar.settings.secrets, salt);
   }
 
   // Encrypt character.secrets if it exists
@@ -380,20 +358,14 @@ export function encryptedCharacter(character: Character): Character {
  * @param {IAgentRuntime} runtime - The runtime information needed for salt generation
  * @returns {Character} - A copy of the character with decrypted secrets
  */
-export function decryptedCharacter(
-  character: Character,
-  _runtime: IAgentRuntime,
-): Character {
+export function decryptedCharacter(character: Character, _runtime: IAgentRuntime): Character {
   // Create a deep copy to avoid modifying the original
   const decryptedChar = JSON.parse(JSON.stringify(character));
   const salt = getSalt();
 
   // Decrypt character.settings.secrets if it exists
   if (decryptedChar.settings?.secrets) {
-    decryptedChar.settings.secrets = decryptObjectValues(
-      decryptedChar.settings.secrets,
-      salt,
-    );
+    decryptedChar.settings.secrets = decryptObjectValues(decryptedChar.settings.secrets, salt);
   }
 
   // Decrypt character.secrets if it exists
@@ -406,18 +378,18 @@ export function decryptedCharacter(
 
 /**
  * Helper function to encrypt all string values in an object
- * @param {Record<string, any>} obj - Object with values to encrypt
+ * @param {Record<string, unknown>} obj - Object with values to encrypt
  * @param {string} salt - The salt to use for encryption
- * @returns {Record<string, any>} - Object with encrypted values
+ * @returns {Record<string, unknown>} - Object with encrypted values
  */
 export function encryptObjectValues(
-  obj: Record<string, any>,
-  salt: string,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+  obj: Record<string, unknown>,
+  salt: string
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string" && value) {
+    if (typeof value === 'string' && value) {
       result[key] = encryptStringValue(value, salt);
     } else {
       result[key] = value;
@@ -429,18 +401,18 @@ export function encryptObjectValues(
 
 /**
  * Helper function to decrypt all string values in an object
- * @param {Record<string, any>} obj - Object with encrypted values
+ * @param {Record<string, unknown>} obj - Object with encrypted values
  * @param {string} salt - The salt to use for decryption
- * @returns {Record<string, any>} - Object with decrypted values
+ * @returns {Record<string, unknown>} - Object with decrypted values
  */
 export function decryptObjectValues(
-  obj: Record<string, any>,
-  salt: string,
-): Record<string, any> {
-  const result: Record<string, any> = {};
+  obj: Record<string, unknown>,
+  salt: string
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string" && value) {
+    if (typeof value === 'string' && value) {
       result[key] = decryptStringValue(value, salt);
     } else {
       result[key] = value;

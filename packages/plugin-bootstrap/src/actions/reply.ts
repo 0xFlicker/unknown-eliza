@@ -1,4 +1,5 @@
 import {
+  type HandlerOptions,
   type Action,
   type ActionExample,
   composePromptFromState,
@@ -7,7 +8,10 @@ import {
   type Memory,
   ModelType,
   type State,
-} from "@elizaos/core";
+  type ActionResult,
+  logger,
+  parseKeyValueXml,
+} from '@elizaos/core';
 
 /**
  * Template for generating dialog and actions for a character.
@@ -20,20 +24,29 @@ import {
  * @type {string}
  */
 const replyTemplate = `# Task: Generate dialog for the character {{agentName}}.
+
 {{providers}}
+
 # Instructions: Write the next message for {{agentName}}.
 "thought" should be a short description of what the agent is thinking about and planning.
-"message" should be the next message for {{agentName}} which they will send to the conversation.
+"text" should be the next message for {{agentName}} which they will send to the conversation.
 
-Response format should be formatted in a valid JSON block like this:
-\`\`\`json
-{
-    "thought": "<string>",
-    "message": "<string>"
-}
-\`\`\`
+IMPORTANT CODE BLOCK FORMATTING RULES:
+- If {{agentName}} includes code examples, snippets, or multi-line code in the response, ALWAYS wrap the code with \`\`\` fenced code blocks (specify the language if known, e.g., \`\`\`python).
+- ONLY use fenced code blocks for actual code. Do NOT wrap non-code text, instructions, or single words in fenced code blocks.
+- If including inline code (short single words or function names), use single backticks (\`) as appropriate.
+- This ensures the user sees clearly formatted and copyable code when relevant.
 
-Your response should include the valid JSON block and nothing else.`;
+Do NOT include any thinking, reasoning, or <think> sections in your response.
+Go directly to the XML response format without any preamble or explanation.
+
+Respond using XML format like this:
+<response>
+    <thought>Your thought here</thought>
+    <text>Your message here</text>
+</response>
+
+IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.`;
 
 /**
  * Represents an action that allows the agent to reply to the current conversation with a generated message.
@@ -49,108 +62,173 @@ Your response should include the valid JSON block and nothing else.`;
  * @property {ActionExample[][]} examples - An array of example scenarios for the action.
  */
 export const replyAction = {
-  name: "REPLY",
-  similes: ["GREET", "REPLY_TO_MESSAGE", "SEND_REPLY", "RESPOND", "RESPONSE"],
+  name: 'REPLY',
+  similes: ['GREET', 'REPLY_TO_MESSAGE', 'SEND_REPLY', 'RESPOND', 'RESPONSE'],
   description:
-    "Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.",
+    'Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.',
   validate: async (_runtime: IAgentRuntime) => {
     return true;
   },
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
-    _options: any,
-    callback: HandlerCallback,
-    responses?: Memory[],
-  ) => {
+    state?: State,
+    _options?: HandlerOptions,
+    callback?: HandlerCallback,
+    responses?: Memory[]
+  ): Promise<ActionResult> => {
+    // Access previous action results from context if available
+    const actionContext = _options?.actionContext;
+    const previousResults = actionContext?.previousResults || [];
+
+    if (previousResults.length > 0) {
+      logger.debug(
+        {
+          src: 'plugin:bootstrap:action:reply',
+          agentId: runtime.agentId,
+          count: previousResults.length,
+        },
+        'Found previous action results'
+      );
+    }
+
     // Check if any responses had providers associated with them
-    const allProviders =
-      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+    const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
     // Only generate response using LLM if no suitable response was found
     state = await runtime.composeState(message, [
       ...(allProviders ?? []),
-      "RECENT_MESSAGES",
+      'RECENT_MESSAGES',
+      'ACTION_STATE',
     ]);
 
     const prompt = composePromptFromState({
       state,
-      template: replyTemplate,
+      template: runtime.character.templates?.replyTemplate || replyTemplate,
     });
 
-    const response = await runtime.useModel(ModelType.OBJECT_LARGE, {
-      prompt,
-    });
+    try {
+      // Streaming is automatic via streaming context (set by MessageService)
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt,
+      });
 
-    const responseContent = {
-      thought: response.thought,
-      text: (response.message as string) || "",
-      actions: ["REPLY"],
-    };
+      // Parse XML response
+      const parsedXml = parseKeyValueXml(response);
+      const thought = typeof parsedXml?.thought === 'string' ? parsedXml.thought : '';
+      const text = typeof parsedXml?.text === 'string' ? parsedXml.text : '';
 
-    await callback(responseContent);
+      const responseContent = {
+        thought,
+        text,
+        actions: ['REPLY'] as string[],
+      };
 
-    return true;
+      if (callback) {
+        await callback(responseContent);
+      }
+
+      return {
+        text: `Generated reply: ${responseContent.text}`,
+        values: {
+          success: true,
+          responded: true,
+          lastReply: responseContent.text,
+          lastReplyTime: Date.now(),
+          thoughtProcess: thought,
+        },
+        data: {
+          actionName: 'REPLY',
+          response: responseContent,
+          thought,
+          messageGenerated: true,
+        },
+        success: true,
+      };
+    } catch (error) {
+      logger.error(
+        {
+          src: 'plugin:bootstrap:action:reply',
+          agentId: runtime.agentId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Error generating response'
+      );
+
+      return {
+        text: 'Error generating reply',
+        values: {
+          success: false,
+          responded: false,
+          error: true,
+        },
+        data: {
+          actionName: 'REPLY',
+          error: error instanceof Error ? error.message : String(error),
+        },
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    }
   },
   examples: [
     [
       {
-        name: "{{name1}}",
+        name: '{{name1}}',
         content: {
-          text: "Hello there!",
+          text: 'Hello there!',
         },
       },
       {
-        name: "{{name2}}",
+        name: '{{name2}}',
         content: {
-          text: "Hi! How can I help you today?",
-          actions: ["REPLY"],
+          text: 'Hi! How can I help you today?',
+          actions: ['REPLY'],
         },
       },
     ],
     [
       {
-        name: "{{name1}}",
+        name: '{{name1}}',
         content: {
           text: "What's your favorite color?",
         },
       },
       {
-        name: "{{name2}}",
+        name: '{{name2}}',
         content: {
-          text: "I really like deep shades of blue. They remind me of the ocean and the night sky.",
-          actions: ["REPLY"],
+          text: 'I really like deep shades of blue. They remind me of the ocean and the night sky.',
+          actions: ['REPLY'],
         },
       },
     ],
     [
       {
-        name: "{{name1}}",
+        name: '{{name1}}',
         content: {
-          text: "Can you explain how neural networks work?",
+          text: 'Can you explain how neural networks work?',
         },
       },
       {
-        name: "{{name2}}",
+        name: '{{name2}}',
         content: {
-          text: "Let me break that down for you in simple terms...",
-          actions: ["REPLY"],
+          text: 'Let me break that down for you in simple terms...',
+          actions: ['REPLY'],
         },
       },
     ],
     [
       {
-        name: "{{name1}}",
+        name: '{{name1}}',
         content: {
-          text: "Could you help me solve this math problem?",
+          text: 'Could you help me solve this math problem?',
         },
       },
       {
-        name: "{{name2}}",
+        name: '{{name2}}',
         content: {
           text: "Of course! Let's work through it step by step.",
-          actions: ["REPLY"],
+          actions: ['REPLY'],
         },
       },
     ],

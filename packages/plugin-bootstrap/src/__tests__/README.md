@@ -45,19 +45,19 @@ The test suite includes a robust set of utilities in `test-utils.ts`:
 Run all tests:
 
 ```bash
-npx vitest run packages/plugin-bootstrap/__tests__
+bun test packages/plugin-bootstrap/__tests__
 ```
 
 Run specific test file:
 
 ```bash
-npx vitest run packages/plugin-bootstrap/__tests__/actions.test.ts
+bun test packages/plugin-bootstrap/__tests__/actions.test.ts
 ```
 
 Run tests in watch mode:
 
 ```bash
-npx vitest watch packages/plugin-bootstrap/__tests__
+bun test --watch packages/plugin-bootstrap/__tests__
 ```
 
 ## Common Test Patterns
@@ -65,11 +65,11 @@ npx vitest watch packages/plugin-bootstrap/__tests__
 ### Testing Actions
 
 ```typescript
-describe("My Action", () => {
+describe('My Action', () => {
   let mockRuntime: MockRuntime;
   let mockMessage: Partial<Memory>;
   let mockState: Partial<State>;
-  let callbackFn: ReturnType<typeof vi.fn>;
+  let callbackFn: ReturnType<typeof mock>;
 
   beforeEach(() => {
     // Use the standard setup function
@@ -80,7 +80,7 @@ describe("My Action", () => {
     callbackFn = setup.callbackFn;
   });
 
-  it("should validate correctly", async () => {
+  it('should validate correctly', async () => {
     // Test implementation
   });
 });
@@ -89,7 +89,7 @@ describe("My Action", () => {
 ### Testing Providers
 
 ```typescript
-describe("My Provider", () => {
+describe('My Provider', () => {
   let mockRuntime: MockRuntime;
   let mockMessage: Partial<Memory>;
   let mockState: Partial<State>;
@@ -99,7 +99,7 @@ describe("My Provider", () => {
     const setup = setupActionTest({
       stateOverrides: {
         values: {
-          customValue: "test",
+          customValue: 'test',
         },
       },
     });
@@ -108,7 +108,7 @@ describe("My Provider", () => {
     mockState = setup.mockState;
   });
 
-  it("should provide correct data", async () => {
+  it('should provide correct data', async () => {
     // Test implementation
   });
 });

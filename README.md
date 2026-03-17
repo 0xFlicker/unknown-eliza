@@ -18,15 +18,15 @@ bun run prepare
 
 ## Scripts
 
-| Command          | Description                            |
-| ---------------- | -------------------------------------- |
-| `bun run build`  | Build all packages                     |
-| `bun run dev`    | Run development tasks for all packages |
-| `bun run start`  | Start all start scripts in packages    |
-| `bun run test`   | Run all tests across workspaces        |
-| `bun run lint`   | Lint all packages                      |
-| `bun run format` | Format all packages                    |
-| `bun run format:check` | Check formatting without changes   |
+| Command                | Description                            |
+| ---------------------- | -------------------------------------- |
+| `bun run build`        | Build all packages                     |
+| `bun run dev`          | Run development tasks for all packages |
+| `bun run start`        | Start all start scripts in packages    |
+| `bun run test`         | Run all tests across workspaces        |
+| `bun run lint`         | Lint all packages                      |
+| `bun run format`       | Format all packages                    |
+| `bun run format:check` | Check formatting without changes       |
 
 ## TypeScript Monorepo + Bun
 
@@ -39,9 +39,9 @@ source files directly (without pre-building). The root `tsconfig.json` contains:
     "baseUrl": ".",
     "paths": {
       "@elizaos/*": ["packages/*/src"],
-      "src/*": ["apps/agent/src/*"]
-    }
-  }
+      "src/*": ["apps/agent/src/*"],
+    },
+  },
 }
 ```
 
@@ -61,8 +61,9 @@ Or add a script in `apps/agent/package.json`:
 ```jsonc
 {
   "scripts": {
-    "dev": "bun run --inspect-brk --tsconfig-override ../../tsconfig.json src/server/dev.ts"
-  }
+    "dev": "bun run --inspect-brk --tsconfig-override ../../tsconfig.json src/server/dev.ts",
+  },
 }
 ```
-This line has trailing spaces.   
+
+This line has trailing spaces.

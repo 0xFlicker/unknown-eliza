@@ -1,15 +1,101 @@
-import type { Agent } from "./agent";
-import type {
-  Component,
-  Entity,
-  Participant,
-  Relationship,
-  Room,
-  World,
-} from "./environment";
-import type { Memory, MemoryMetadata } from "./memory";
-import type { Metadata, UUID } from "./primitives";
-import type { Task } from "./task";
+import type { Agent } from './agent';
+import type { Component, Entity, Participant, Relationship, Room, World } from './environment';
+import type { Memory, MemoryMetadata } from './memory';
+import type { Metadata, UUID } from './primitives';
+import type { Task } from './task';
+
+/**
+ * Base log body type with common properties
+ */
+export interface BaseLogBody {
+  runId?: string | UUID;
+  status?: string;
+  messageId?: UUID;
+  roomId?: UUID;
+  entityId?: UUID;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/**
+ * Log body for action logs
+ */
+export interface ActionLogBody extends BaseLogBody {
+  action?: string;
+  actionId?: UUID | string;
+  message?: string;
+  messageId?: UUID;
+  state?: unknown;
+  responses?: unknown;
+  content?: {
+    actions?: string[];
+    [key: string]: unknown;
+  };
+  result?: {
+    success?: boolean;
+    data?: unknown;
+    text?: string;
+    error?: string | Error;
+    [key: string]: unknown;
+  };
+  isLegacyReturn?: boolean;
+  prompts?: Array<{
+    modelType: string;
+    prompt: string;
+    timestamp: number;
+  }>;
+  promptCount?: number;
+  planStep?: string;
+  planThought?: string;
+}
+
+/**
+ * Log body for evaluator logs
+ */
+export interface EvaluatorLogBody extends BaseLogBody {
+  evaluator?: string;
+  messageId?: UUID;
+  message?: string;
+  state?: unknown;
+}
+
+/**
+ * Log body for model logs
+ */
+export interface ModelLogBody extends BaseLogBody {
+  modelType?: string;
+  modelKey?: string;
+  params?: Record<string, unknown>;
+  prompt?: string;
+  systemPrompt?: string | null;
+  timestamp?: number;
+  executionTime?: number;
+  provider?: string;
+  actionContext?: {
+    actionName: string;
+    actionId: UUID;
+  };
+  response?: unknown;
+}
+
+/**
+ * Log body for embedding logs
+ */
+export interface EmbeddingLogBody extends BaseLogBody {
+  status?: string;
+  memoryId?: string;
+  duration?: number;
+}
+
+/**
+ * Union type for all possible log body types
+ */
+export type LogBody =
+  | BaseLogBody
+  | ActionLogBody
+  | EvaluatorLogBody
+  | ModelLogBody
+  | EmbeddingLogBody;
 
 /**
  * Represents a log entry
@@ -24,8 +110,8 @@ export interface Log {
   /** Associated room ID */
   roomId?: UUID;
 
-  /** Log body */
-  body: { [key: string]: unknown };
+  /** Log body - can be any of the log body types */
+  body: LogBody;
 
   /** Log type */
   type: string;
@@ -34,21 +120,69 @@ export interface Log {
   createdAt: Date;
 }
 
+export type RunStatus = 'started' | 'completed' | 'timeout' | 'error';
+
+export interface AgentRunCounts {
+  actions: number;
+  modelCalls: number;
+  errors: number;
+  evaluators: number;
+}
+
+export interface AgentRunSummary {
+  runId: string;
+  status: RunStatus;
+  startedAt: number | null;
+  endedAt: number | null;
+  durationMs: number | null;
+  messageId?: UUID;
+  roomId?: UUID;
+  entityId?: UUID;
+  metadata?: Record<string, unknown>;
+  counts?: AgentRunCounts;
+}
+
+export interface AgentRunSummaryResult {
+  runs: AgentRunSummary[];
+  total: number;
+  hasMore: boolean;
+}
+
 /**
  * Interface for database operations
  */
 export interface IDatabaseAdapter {
   /** Database instance */
-  db: any;
+  db: unknown;
 
   /** Initialize database connection */
-  initialize(config?: any): Promise<void>;
+  initialize(config?: Record<string, string | number | boolean | null>): Promise<void>;
 
   /** Initialize database connection */
   init(): Promise<void>;
 
-  /** Run database migrations */
-  runMigrations(schema?: any, pluginName?: string): Promise<void>;
+  /**
+   * Run plugin schema migrations for all registered plugins
+   * @param plugins Array of plugins with their schemas
+   * @param options Migration options (verbose, force, dryRun, etc.)
+   */
+  runPluginMigrations?(
+    plugins: Array<{
+      name: string;
+      schema?: Record<string, string | number | boolean | null | Record<string, unknown>>;
+    }>,
+    options?: {
+      verbose?: boolean;
+      force?: boolean;
+      dryRun?: boolean;
+    }
+  ): Promise<void>;
+
+  /**
+   * Run database migrations from migration files
+   * @param migrationsPaths Optional array of migration file paths
+   */
+  runMigrations?(migrationsPaths?: string[]): Promise<void>;
 
   /** Check if the database connection is ready */
   isReady(): Promise<boolean>;
@@ -56,7 +190,15 @@ export interface IDatabaseAdapter {
   /** Close database connection */
   close(): Promise<void>;
 
-  getConnection(): Promise<any>;
+  getConnection(): Promise<unknown>;
+
+  /**
+   * Execute a callback with entity context for Entity RLS
+   * @param entityId - The entity ID to set as context
+   * @param callback - The callback to execute within the entity context
+   * @returns The result of the callback
+   */
+  withEntityContext?<T>(entityId: UUID | null, callback: () => Promise<T>): Promise<T>;
 
   getAgent(agentId: UUID): Promise<Agent | null>;
 
@@ -72,13 +214,10 @@ export interface IDatabaseAdapter {
   ensureEmbeddingDimension(dimension: number): Promise<void>;
 
   /** Get entity by IDs */
-  getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null>;
+  getEntitiesByIds(entityIds: UUID[]): Promise<Entity[] | null>;
 
   /** Get entities for room */
-  getEntitiesForRoom(
-    roomId: UUID,
-    includeComponents?: boolean,
-  ): Promise<Entity[]>;
+  getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]>;
 
   /** Create new entities */
   createEntities(entities: Entity[]): Promise<boolean>;
@@ -91,15 +230,11 @@ export interface IDatabaseAdapter {
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID,
+    sourceEntityId?: UUID
   ): Promise<Component | null>;
 
   /** Get all components for an entity */
-  getComponents(
-    entityId: UUID,
-    worldId?: UUID,
-    sourceEntityId?: UUID,
-  ): Promise<Component[]>;
+  getComponents(entityId: UUID, worldId?: UUID, sourceEntityId?: UUID): Promise<Component[]>;
 
   /** Create component */
   createComponent(component: Component): Promise<boolean>;
@@ -115,6 +250,7 @@ export interface IDatabaseAdapter {
     entityId?: UUID;
     agentId?: UUID;
     count?: number;
+    offset?: number;
     unique?: boolean;
     tableName: string;
     start?: number;
@@ -150,7 +286,7 @@ export interface IDatabaseAdapter {
   }): Promise<void>;
 
   getLogs(params: {
-    entityId: UUID;
+    entityId?: UUID;
     roomId?: UUID;
     type?: string;
     count?: number;
@@ -158,6 +294,15 @@ export interface IDatabaseAdapter {
   }): Promise<Log[]>;
 
   deleteLog(logId: UUID): Promise<void>;
+
+  getAgentRunSummaries?(params: {
+    limit?: number;
+    roomId?: UUID;
+    status?: RunStatus | 'all';
+    from?: number;
+    to?: number;
+    entityId?: UUID;
+  }): Promise<AgentRunSummaryResult>;
 
   searchMemories(params: {
     embedding: number[];
@@ -171,15 +316,9 @@ export interface IDatabaseAdapter {
     entityId?: UUID;
   }): Promise<Memory[]>;
 
-  createMemory(
-    memory: Memory,
-    tableName: string,
-    unique?: boolean,
-  ): Promise<UUID>;
+  createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID>;
 
-  updateMemory(
-    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata },
-  ): Promise<boolean>;
+  updateMemory(memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata }): Promise<boolean>;
 
   deleteMemory(memoryId: UUID): Promise<void>;
 
@@ -187,11 +326,7 @@ export interface IDatabaseAdapter {
 
   deleteAllMemories(roomId: UUID, tableName: string): Promise<void>;
 
-  countMemories(
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string,
-  ): Promise<number>;
+  countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number>;
 
   createWorld(world: World): Promise<UUID>;
 
@@ -225,17 +360,16 @@ export interface IDatabaseAdapter {
 
   getParticipantsForRoom(roomId: UUID): Promise<UUID[]>;
 
+  isRoomParticipant(roomId: UUID, entityId: UUID): Promise<boolean>;
+
   addParticipantsRoom(entityIds: UUID[], roomId: UUID): Promise<boolean>;
 
-  getParticipantUserState(
-    roomId: UUID,
-    entityId: UUID,
-  ): Promise<"FOLLOWED" | "MUTED" | null>;
+  getParticipantUserState(roomId: UUID, entityId: UUID): Promise<'FOLLOWED' | 'MUTED' | null>;
 
   setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: "FOLLOWED" | "MUTED" | null,
+    state: 'FOLLOWED' | 'MUTED' | null
   ): Promise<void>;
 
   /**
@@ -272,10 +406,7 @@ export interface IDatabaseAdapter {
    * @param params Object containing the user ID, agent ID and optional tags to filter by
    * @returns Promise resolving to an array of Relationship objects
    */
-  getRelationships(params: {
-    entityId: UUID;
-    tags?: string[];
-  }): Promise<Relationship[]>;
+  getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]>;
 
   getCache<T>(key: string): Promise<T | undefined>;
   setCache<T>(key: string, value: T): Promise<boolean>;
@@ -283,11 +414,7 @@ export interface IDatabaseAdapter {
 
   // Only task instance methods - definitions are in-memory
   createTask(task: Task): Promise<UUID>;
-  getTasks(params: {
-    roomId?: UUID;
-    tags?: string[];
-    entityId?: UUID;
-  }): Promise<Task[]>;
+  getTasks(params: { roomId?: UUID; tags?: string[]; entityId?: UUID }): Promise<Task[]>;
   getTask(id: UUID): Promise<Task | null>;
   getTasksByName(name: string): Promise<Task[]>;
   updateTask(id: UUID, task: Partial<Task>): Promise<void>;

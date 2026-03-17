@@ -1,4 +1,4 @@
-import type { Metadata, UUID } from "./primitives";
+import type { Metadata, UUID } from './primitives';
 
 export interface Component {
   id: UUID;
@@ -22,8 +22,8 @@ export interface Entity {
   /** Names of the entity */
   names: string[];
 
-  /** Optional additional metadata */
-  metadata?: Metadata;
+  /** Additional metadata */
+  metadata: Metadata;
 
   /** Agent ID this account is related to, for agents should be themselves */
   agentId: UUID;
@@ -40,16 +40,20 @@ export interface Entity {
  * These roles are often used in `World.metadata.roles` to assign roles to entities.
  */
 export enum Role {
-  OWNER = "OWNER",
-  ADMIN = "ADMIN",
-  NONE = "NONE",
+  OWNER = 'OWNER',
+  ADMIN = 'ADMIN',
+  NONE = 'NONE',
 }
 
 export type World = {
   id: UUID;
   name?: string;
   agentId: UUID;
-  serverId: string;
+  messageServerId?: UUID;
+  /**
+   * @deprecated Use messageServerId instead. This alias is kept for backward compatibility.
+   */
+  serverId?: UUID;
   metadata?: {
     ownership?: {
       ownerId: string;
@@ -62,17 +66,17 @@ export type World = {
 };
 
 export enum ChannelType {
-  SELF = "SELF", // Messages to self
-  DM = "DM", // Direct messages between two participants
-  GROUP = "GROUP", // Group messages with multiple participants
-  VOICE_DM = "VOICE_DM", // Voice direct messages
-  VOICE_GROUP = "VOICE_GROUP", // Voice channels with multiple participants
-  FEED = "FEED", // Social media feed
-  THREAD = "THREAD", // Threaded conversation
-  WORLD = "WORLD", // World channel
-  FORUM = "FORUM", // Forum discussion
+  SELF = 'SELF', // Messages to self
+  DM = 'DM', // Direct messages between two participants
+  GROUP = 'GROUP', // Group messages with multiple participants
+  VOICE_DM = 'VOICE_DM', // Voice direct messages
+  VOICE_GROUP = 'VOICE_GROUP', // Voice channels with multiple participants
+  FEED = 'FEED', // Social media feed
+  THREAD = 'THREAD', // Threaded conversation
+  WORLD = 'WORLD', // World channel
+  FORUM = 'FORUM', // Forum discussion
   // Legacy types - kept for backward compatibility but should be replaced
-  API = "API", // @deprecated - Use DM or GROUP instead
+  API = 'API', // @deprecated - Use DM or GROUP instead
 }
 
 export type Room = {
@@ -82,7 +86,11 @@ export type Room = {
   source: string;
   type: ChannelType;
   channelId?: string;
-  serverId?: string;
+  messageServerId?: UUID;
+  /**
+   * @deprecated Use messageServerId instead. This alias is kept for backward compatibility.
+   */
+  serverId?: UUID;
   worldId?: UUID;
   metadata?: Metadata;
 };

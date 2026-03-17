@@ -69,11 +69,14 @@ export const interrogationReplyAction: Action = {
       typeof message.content.text === "string";
 
     if (!isValid) {
-      logger.debug("Validation failed", {
-        messageEntityId: message.entityId,
-        agentId: runtime.agentId,
-        hasText: !!message.content?.text,
-      });
+      logger.debug(
+        {
+          messageEntityId: message.entityId,
+          agentId: runtime.agentId,
+          hasText: !!message.content?.text,
+        },
+        "Validation failed",
+      );
     }
     return isValid;
   },
@@ -125,7 +128,7 @@ export const interrogationReplyAction: Action = {
       logger.info(`Successfully sent interrogation reply.`);
       return true;
     } catch (error) {
-      logger.error("Error in interrogationReplyAction handler:", error);
+      logger.error({ error }, "Error in interrogationReplyAction handler");
       // Fallback response on error
       await callback?.({
         thought:

@@ -1,39 +1,40 @@
-import type { IAgentRuntime, UUID, Log } from "@elizaos/core";
-import { validateUuid, logger } from "@elizaos/core";
-import express from "express";
-import { sendError, sendSuccess } from "../shared/response-utils";
+import type { ElizaOS, UUID, Log } from '@elizaos/core';
+import { validateUuid, logger } from '@elizaos/core';
+import express from 'express';
+import { sendError, sendSuccess } from '../shared/response-utils';
 
 /**
  * Agent logs management
  */
-export function createAgentLogsRouter(
-  agents: Map<UUID, IAgentRuntime>,
-): express.Router {
+export function createAgentLogsRouter(elizaOS: ElizaOS): express.Router {
   const router = express.Router();
 
   // Get Agent Logs
-  router.get("/:agentId/logs", async (req, res) => {
+  router.get('/:agentId/logs', async (req, res) => {
     const agentId = validateUuid(req.params.agentId);
     const { roomId, type, count, offset, excludeTypes } = req.query;
     if (!agentId) {
-      return sendError(res, 400, "INVALID_ID", "Invalid agent ID format");
+      return sendError(res, 400, 'INVALID_ID', 'Invalid agent ID format');
     }
 
-    const runtime = agents.get(agentId);
+    const runtime = elizaOS.getAgent(agentId);
     if (!runtime) {
-      return sendError(res, 404, "NOT_FOUND", "Agent not found");
+      return sendError(res, 404, 'NOT_FOUND', 'Agent not found');
     }
 
     if (roomId) {
       const roomIdValidated = validateUuid(roomId as string);
       if (!roomIdValidated) {
-        return sendError(res, 400, "INVALID_ID", "Invalid room ID format");
+        return sendError(res, 400, 'INVALID_ID', 'Invalid room ID format');
       }
     }
 
     try {
+      // Get entityId from X-Entity-Id header for RLS context
+      const entityId = validateUuid(req.headers['x-entity-id'] as string) || undefined;
+
       const logs: Log[] = await runtime.getLogs({
-        entityId: agentId,
+        entityId,
         roomId: roomId ? (roomId as UUID) : undefined,
         type: type ? (type as string) : undefined,
         count: count ? Number(count) : undefined,
@@ -54,14 +55,17 @@ export function createAgentLogsRouter(
           }
 
           // Check the modelType in the log body for model-related operations
-          if (log.body && typeof log.body === "object") {
-            const body = log.body as any;
+          if (log.body && typeof log.body === 'object' && log.body !== null) {
+            interface LogBodyWithModelType {
+              modelType?: string;
+              [key: string]: unknown;
+            }
+            const body = log.body as LogBodyWithModelType;
             if (
               body.modelType &&
+              typeof body.modelType === 'string' &&
               excludeTypesArray.some((excludeType) =>
-                body.modelType
-                  .toLowerCase()
-                  .includes(excludeType.toLowerCase()),
+                body.modelType!.toLowerCase().includes(excludeType.toLowerCase())
               )
             ) {
               return false;
@@ -75,35 +79,35 @@ export function createAgentLogsRouter(
       sendSuccess(res, filteredLogs);
     } catch (error) {
       logger.error(
-        `[AGENT LOGS] Error retrieving logs for agent ${agentId}:`,
-        error,
+        {
+          src: 'http',
+          path: req.path,
+          agentId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Error retrieving agent logs'
       );
       sendError(
         res,
         500,
-        "LOG_ERROR",
-        "Error retrieving agent logs",
-        error instanceof Error ? error.message : String(error),
+        'LOG_ERROR',
+        'Error retrieving agent logs',
+        error instanceof Error ? error.message : String(error)
       );
     }
   });
 
   // Delete specific log
-  router.delete("/:agentId/logs/:logId", async (req, res) => {
+  router.delete('/:agentId/logs/:logId', async (req, res) => {
     const agentId = validateUuid(req.params.agentId);
     const logId = validateUuid(req.params.logId);
     if (!agentId || !logId) {
-      return sendError(
-        res,
-        400,
-        "INVALID_ID",
-        "Invalid agent or log ID format",
-      );
+      return sendError(res, 400, 'INVALID_ID', 'Invalid agent or log ID format');
     }
 
-    const runtime = agents.get(agentId);
+    const runtime = elizaOS.getAgent(agentId);
     if (!runtime) {
-      return sendError(res, 404, "NOT_FOUND", "Agent not found");
+      return sendError(res, 404, 'NOT_FOUND', 'Agent not found');
     }
 
     try {
@@ -111,15 +115,21 @@ export function createAgentLogsRouter(
       res.status(204).send();
     } catch (error) {
       logger.error(
-        `[LOG DELETE] Error deleting log ${logId} for agent ${agentId}:`,
-        error,
+        {
+          src: 'http',
+          path: req.path,
+          agentId,
+          logId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Error deleting log'
       );
       sendError(
         res,
         500,
-        "DELETE_ERROR",
-        "Failed to delete log",
-        error instanceof Error ? error.message : String(error),
+        'DELETE_ERROR',
+        'Failed to delete log',
+        error instanceof Error ? error.message : String(error)
       );
     }
   });

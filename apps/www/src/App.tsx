@@ -1,36 +1,32 @@
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import AgentCreator from "./components/agent-creator";
-import { AppSidebar } from "./components/app-sidebar";
-import { ConnectionErrorBanner } from "./components/connection-error-banner";
-import EnvSettings from "./components/env-settings";
-import { AgentLogViewer } from "./components/agent-log-viewer";
-import OnboardingTour from "./components/onboarding-tour";
-import { Toaster } from "./components/ui/toaster";
-import { TooltipProvider } from "./components/ui/tooltip";
-import { AuthProvider } from "./context/AuthContext";
-import { ConnectionProvider, useConnection } from "./context/ConnectionContext";
-import { STALE_TIMES } from "./hooks/use-query-hooks";
-import useVersion from "./hooks/use-version";
-import "./index.css";
-import { apiClient } from "./lib/api";
-import Chat from "./routes/chat";
-import AgentCreatorRoute from "./routes/createAgent";
-import Home from "./routes/home";
-import NotFound from "./routes/not-found";
-import GroupChannel from "./routes/group";
-import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "./components/ui/sheet";
-import { Button } from "./components/ui/button";
-import CreateGroupPage from "./routes/group-new";
-import AgentSettingsRoute from "./routes/agent-settings";
-import clientLogger from "@/lib/logger";
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import AgentCreator from './components/agent-creator';
+import { AppSidebar } from './components/app-sidebar';
+import { ConnectionErrorBanner } from './components/connection-error-banner';
+import EnvSettings from './components/env-settings';
+import { AgentLogViewer } from './components/agent-log-viewer';
+import OnboardingTour from './components/onboarding-tour';
+import { Toaster } from './components/ui/toaster';
+import { TooltipProvider } from './components/ui/tooltip';
+import { AuthProvider } from './context/AuthContext';
+import { ConnectionProvider, useConnection } from './context/ConnectionContext';
+import { STALE_TIMES } from './hooks/use-query-hooks';
+import useVersion from './hooks/use-version';
+import './index.css';
+import { getElizaClient } from './lib/api-client-config';
+import Chat from './routes/chat';
+import AgentCreatorRoute from './routes/createAgent';
+import Home from './routes/home';
+import NotFound from './routes/not-found';
+import GroupChannel from './routes/group';
+import { Menu } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from './components/ui/sheet';
+import { Button } from './components/ui/button';
+import CreateGroupPage from './routes/group-new';
+import AgentSettingsRoute from './routes/agent-settings';
+import clientLogger from '@/lib/logger';
 
 // Create a query client with optimized settings
 const queryClient = new QueryClient({
@@ -39,8 +35,15 @@ const queryClient = new QueryClient({
       staleTime: STALE_TIMES.STANDARD,
       // Default to no polling unless specifically configured
       refetchInterval: false,
-      // Make queries retry 3 times with exponential backoff
-      retry: 3,
+      // Don't retry on 401 errors (authentication required) to avoid spamming the server
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401 (Unauthorized) or 403 (Forbidden)
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          return false;
+        }
+        // Retry up to 3 times for other errors
+        return failureCount < 3;
+      },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       // Refetch query on window focus
       refetchOnWindowFocus: true,
@@ -49,8 +52,13 @@ const queryClient = new QueryClient({
       // Fail queries that take too long
     },
     mutations: {
-      // Default to 3 retries for mutations too
-      retry: 3,
+      // Don't retry mutations on 401/403 either
+      retry: (failureCount, error: any) => {
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          return false;
+        }
+        return failureCount < 3;
+      },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
   },
@@ -61,18 +69,19 @@ const prefetchInitialData = async () => {
   try {
     // Prefetch agents (real-time data so shorter stale time)
     await queryClient.prefetchQuery({
-      queryKey: ["agents"],
-      queryFn: () => apiClient.getAgents(),
+      queryKey: ['agents'],
+      queryFn: async () => {
+        const elizaClient = getElizaClient();
+        const result = await elizaClient.agents.listAgents();
+        return { data: result };
+      },
       staleTime: STALE_TIMES.FREQUENT,
     });
   } catch (error) {
-    console.error("Error prefetching initial data:", error);
+    console.error('Error prefetching initial data:', error);
     // Don't throw, let the app continue loading with fallbacks
   }
 };
-
-// Execute prefetch immediately
-prefetchInitialData();
 
 // Component containing the core application logic and routing
 function AppContent() {
@@ -83,24 +92,19 @@ function AppContent() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    clientLogger.info("[AppContent] Mounted/Updated");
+    clientLogger.info('[AppContent] Mounted/Updated');
     prefetchInitialData();
   }, []);
 
   const refreshHomePage = () => {
-    clientLogger.info(
-      "[AppContent] refreshHomePage called. Current homeKey:",
-      homeKey,
-    );
+    clientLogger.info('[AppContent] refreshHomePage called. Current homeKey:', homeKey);
     const newKey = Date.now();
     setHomeKey(newKey);
-    clientLogger.info("[AppContent] New homeKey set to:", newKey);
+    clientLogger.info('[AppContent] New homeKey set to:', newKey);
 
-    clientLogger.info(
-      "[AppContent] Invalidating queries for Home page refresh.",
-    );
-    queryClient.invalidateQueries({ queryKey: ["agents"] });
-    queryClient.invalidateQueries({ queryKey: ["servers"] });
+    clientLogger.info('[AppContent] Invalidating queries for Home page refresh.');
+    queryClient.invalidateQueries({ queryKey: ['agents'] });
+    queryClient.invalidateQueries({ queryKey: ['servers'] });
   };
 
   return (
@@ -112,11 +116,7 @@ function AppContent() {
           <div className="md:hidden absolute top-4 left-4 z-50">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  data-testid="mobile-menu-button"
-                >
+                <Button variant="ghost" size="icon" data-testid="mobile-menu-button">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
@@ -150,10 +150,7 @@ function AppContent() {
                   </div>
                 }
               />
-              <Route
-                path="settings/:agentId"
-                element={<AgentSettingsRoute />}
-              />
+              <Route path="settings/:agentId" element={<AgentSettingsRoute />} />
               <Route path="group/new" element={<CreateGroupPage />} />
               <Route path="agents/new" element={<AgentCreatorRoute />} />
               <Route
@@ -190,7 +187,7 @@ function AppContent() {
               <Route
                 path="settings/"
                 element={
-                  <div className="flex w-full justify-center">
+                  <div className="flex w-full justify-center overflow-y-auto">
                     <div className="w-full md:max-w-4xl">
                       <EnvSettings />
                     </div>
@@ -204,7 +201,7 @@ function AppContent() {
         </SidebarInset>
       </SidebarProvider>
       <Toaster />
-      {status !== "unauthorized" && <OnboardingTour />}
+      {status !== 'unauthorized' && <OnboardingTour />}
     </TooltipProvider>
   );
 }
@@ -216,7 +213,7 @@ function App() {
       <div
         className="dark antialiased font-sans"
         style={{
-          colorScheme: "dark",
+          colorScheme: 'dark',
         }}
       >
         <BrowserRouter>

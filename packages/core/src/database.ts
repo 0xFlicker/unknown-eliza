@@ -12,12 +12,8 @@ import type {
   Task,
   UUID,
   World,
-} from "./types";
+} from './types';
 
-/**
- * An abstract class representing a database adapter for managing various entities
- * like entities, memories, entities, goals, and rooms.
- */
 /**
  * Database adapter class to be extended by individual database adapters.
  *
@@ -25,19 +21,18 @@ import type {
  * @abstract
  * implements IDatabaseAdapter
  */
-export abstract class DatabaseAdapter<DB = unknown>
-  implements IDatabaseAdapter
-{
+export abstract class DatabaseAdapter<DB = unknown> implements IDatabaseAdapter {
   /**
    * The database instance.
    */
-  db: DB;
+  db!: DB;
 
   /**
    * Initialize the database adapter.
+   * @param config - Optional configuration object
    * @returns A Promise that resolves when initialization is complete.
    */
-  abstract initialize(config?: any): Promise<void>;
+  abstract initialize(config?: Record<string, string | number | boolean | null>): Promise<void>;
 
   /**
    * Initialize the database adapter.
@@ -46,11 +41,22 @@ export abstract class DatabaseAdapter<DB = unknown>
   abstract init(): Promise<void>;
 
   /**
-   * Run database migrations
-   * @param migrationsPaths Optional array of paths to migration folders
+   * Run plugin schema migrations for all registered plugins
+   * @param plugins Array of plugins with their schemas
+   * @param options Migration options (verbose, force, dryRun, etc.)
    * @returns A Promise that resolves when migrations are complete.
    */
-  abstract runMigrations(migrationsPaths?: string[]): Promise<void>;
+  abstract runPluginMigrations(
+    plugins: Array<{
+      name: string;
+      schema?: Record<string, string | number | boolean | null | Record<string, unknown>>;
+    }>,
+    options?: {
+      verbose?: boolean;
+      force?: boolean;
+      dryRun?: boolean;
+    }
+  ): Promise<void>;
 
   /**
    * Check if the database connection is ready.
@@ -68,19 +74,16 @@ export abstract class DatabaseAdapter<DB = unknown>
    * Retrieves a connection to the database.
    * @returns A Promise that resolves to the database connection.
    */
-  abstract getConnection(): Promise<unknown>;
+  abstract getConnection(): Promise<DB>;
 
   /**
    * Retrieves an account by its ID.
    * @param entityIds The UUIDs of the user account to retrieve.
    * @returns A Promise that resolves to the Entity object or null if not found.
    */
-  abstract getEntityByIds(entityIds: UUID[]): Promise<Entity[] | null>;
+  abstract getEntitiesByIds(entityIds: UUID[]): Promise<Entity[] | null>;
 
-  abstract getEntitiesForRoom(
-    roomId: UUID,
-    includeComponents?: boolean,
-  ): Promise<Entity[]>;
+  abstract getEntitiesForRoom(roomId: UUID, includeComponents?: boolean): Promise<Entity[]>;
 
   /**
    * Creates a new entities in the database.
@@ -108,7 +111,7 @@ export abstract class DatabaseAdapter<DB = unknown>
     entityId: UUID,
     type: string,
     worldId?: UUID,
-    sourceEntityId?: UUID,
+    sourceEntityId?: UUID
   ): Promise<Component | null>;
 
   /**
@@ -121,7 +124,7 @@ export abstract class DatabaseAdapter<DB = unknown>
   abstract getComponents(
     entityId: UUID,
     worldId?: UUID,
-    sourceEntityId?: UUID,
+    sourceEntityId?: UUID
   ): Promise<Component[]>;
 
   /**
@@ -154,6 +157,7 @@ export abstract class DatabaseAdapter<DB = unknown>
     entityId?: UUID;
     agentId?: UUID;
     count?: number;
+    offset?: number;
     unique?: boolean;
     tableName: string;
     start?: number;
@@ -176,10 +180,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param tableName Optional table name to filter memories by type
    * @returns Promise resolving to array of Memory objects
    */
-  abstract getMemoriesByIds(
-    memoryIds: UUID[],
-    tableName?: string,
-  ): Promise<Memory[]>;
+  abstract getMemoriesByIds(memoryIds: UUID[], tableName?: string): Promise<Memory[]>;
 
   /**
    * Retrieves cached embeddings based on the specified query parameters.
@@ -225,7 +226,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @returns A Promise that resolves to an array of Log objects.
    */
   abstract getLogs(params: {
-    entityId: UUID;
+    entityId?: UUID;
     roomId?: UUID;
     type?: string;
     count?: number;
@@ -263,11 +264,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param unique Indicates if the memory should be unique.
    * @returns A Promise that resolves when the memory has been created.
    */
-  abstract createMemory(
-    memory: Memory,
-    tableName: string,
-    unique?: boolean,
-  ): Promise<UUID>;
+  abstract createMemory(memory: Memory, tableName: string, unique?: boolean): Promise<UUID>;
 
   /**
    * Updates an existing memory in the database.
@@ -275,7 +272,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @returns Promise resolving to boolean indicating success
    */
   abstract updateMemory(
-    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata },
+    memory: Partial<Memory> & { id: UUID; metadata?: MemoryMetadata }
   ): Promise<boolean>;
 
   /**
@@ -307,11 +304,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param tableName Optional table name to count memories from.
    * @returns A Promise that resolves to the number of memories.
    */
-  abstract countMemories(
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string,
-  ): Promise<number>;
+  abstract countMemories(roomId: UUID, unique?: boolean, tableName?: string): Promise<number>;
 
   /**
    * Retrieves a world by its ID.
@@ -349,7 +342,7 @@ export abstract class DatabaseAdapter<DB = unknown>
 
   /**
    * Retrieves the room ID for a given room, if it exists.
-   * @param roomId The UUID of the room to retrieve.
+   * @param roomIds The UUIDs of the rooms to retrieve.
    * @returns A Promise that resolves to the room ID or null if not found.
    */
   abstract getRoomsByIds(roomIds: UUID[]): Promise<Room[] | null>;
@@ -362,9 +355,9 @@ export abstract class DatabaseAdapter<DB = unknown>
   abstract getRoomsByWorld(worldId: UUID): Promise<Room[]>;
 
   /**
-   * Creates a new rooms with an optional specified ID.
-   * @param roomId Optional UUID to assign to the new room.
-   * @returns A Promise that resolves to the UUID of the created rooms.
+   * Creates new rooms in the database.
+   * @param rooms Array of Room objects to create.
+   * @returns A Promise that resolves to the UUIDs of the created rooms.
    */
   abstract createRooms(rooms: Room[]): Promise<UUID[]>;
 
@@ -402,10 +395,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param roomId The UUID of the room to which the user will be added.
    * @returns A Promise that resolves to a boolean indicating success or failure.
    */
-  abstract addParticipantsRoom(
-    entityIds: UUID[],
-    roomId: UUID,
-  ): Promise<boolean>;
+  abstract addParticipantsRoom(entityIds: UUID[], roomId: UUID): Promise<boolean>;
 
   /**
    * Removes a user as a participant from a specific room.
@@ -429,15 +419,24 @@ export abstract class DatabaseAdapter<DB = unknown>
    */
   abstract getParticipantsForRoom(roomId: UUID): Promise<UUID[]>;
 
+  /**
+   * Check if an entity is a participant in a specific room.
+   * More efficient than getParticipantsForRoom when only checking membership.
+   * @param roomId The UUID of the room.
+   * @param entityId The UUID of the entity to check.
+   * @returns A Promise that resolves to a boolean indicating if the entity is a participant.
+   */
+  abstract isRoomParticipant(roomId: UUID, entityId: UUID): Promise<boolean>;
+
   abstract getParticipantUserState(
     roomId: UUID,
-    entityId: UUID,
-  ): Promise<"FOLLOWED" | "MUTED" | null>;
+    entityId: UUID
+  ): Promise<'FOLLOWED' | 'MUTED' | null>;
 
   abstract setParticipantUserState(
     roomId: UUID,
     entityId: UUID,
-    state: "FOLLOWED" | "MUTED" | null,
+    state: 'FOLLOWED' | 'MUTED' | null
   ): Promise<void>;
 
   /**
@@ -467,10 +466,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param params Object containing the user ID, agent ID and optional tags to filter by
    * @returns A Promise that resolves to an array of Relationship objects.
    */
-  abstract getRelationships(params: {
-    entityId: UUID;
-    tags?: string[];
-  }): Promise<Relationship[]>;
+  abstract getRelationships(params: { entityId: UUID; tags?: string[] }): Promise<Relationship[]>;
 
   /**
    * Updates an existing relationship between two users.
@@ -535,9 +531,8 @@ export abstract class DatabaseAdapter<DB = unknown>
 
   /**
    * Sets a value in the cache with the given key.
-   * @param params Object containing the cache key and value
    * @param key The key to store the value under
-   * @param value The string value to cache
+   * @param value The value to cache
    * @returns Promise resolving to true if the cache was set successfully
    */
   abstract setCache<T>(key: string, value: T): Promise<boolean>;
@@ -561,11 +556,7 @@ export abstract class DatabaseAdapter<DB = unknown>
    * @param params Object containing optional roomId and tags to filter tasks
    * @returns Promise resolving to an array of Task objects
    */
-  abstract getTasks(params: {
-    roomId?: UUID;
-    tags?: string[];
-    entityId?: UUID;
-  }): Promise<Task[]>;
+  abstract getTasks(params: { roomId?: UUID; tags?: string[]; entityId?: UUID }): Promise<Task[]>;
 
   /**
    * Retrieves a specific task by its ID.

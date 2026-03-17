@@ -1,12 +1,13 @@
-import { USER_NAME } from "@/constants";
-import { SOCKET_MESSAGE_TYPE } from "@elizaos/core";
-import { Evt } from "evt";
-import { io, type Socket } from "socket.io-client";
-import { randomUUID } from "./utils";
-import clientLogger from "./logger";
+import { USER_NAME } from '@/constants';
+import { SOCKET_MESSAGE_TYPE, type Media } from '@elizaos/core';
+import { Evt } from 'evt';
+import { io, type Socket } from 'socket.io-client';
+import { randomUUID } from './utils';
+import clientLogger from './logger';
 
 // Define types for the events
 export type MessageBroadcastData = {
+  id?: string;
   senderId: string;
   senderName: string;
   text: string;
@@ -15,26 +16,27 @@ export type MessageBroadcastData = {
   createdAt: number;
   source: string;
   name: string; // Required for ContentWithUser compatibility
-  attachments?: any[];
+  serverId?: string;
+  attachments?: Media[];
   thought?: string; // Agent's thought process
   actions?: string[]; // Actions taken by the agent
   prompt?: string; // The LLM prompt used to generate this message
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type MessageCompleteData = {
   channelId: string;
   roomId?: string; // Deprecated - for backward compatibility only
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Define type for control messages
 export type ControlMessageData = {
-  action: "enable_input" | "disable_input";
+  action: 'enable_input' | 'disable_input';
   target?: string;
   channelId: string;
   roomId?: string; // Deprecated - for backward compatibility only
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Define type for message deletion events
@@ -42,21 +44,21 @@ export type MessageDeletedData = {
   messageId: string;
   channelId: string;
   roomId?: string; // Deprecated - for backward compatibility only
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Define type for channel cleared events
 export type ChannelClearedData = {
   channelId: string;
   roomId?: string; // Deprecated - for backward compatibility only
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Define type for channel deleted events
 export type ChannelDeletedData = {
   channelId: string;
   roomId?: string; // Deprecated - for backward compatibility only
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Define type for log stream messages
@@ -69,6 +71,26 @@ export type LogStreamData = {
   channelId?: string;
   roomId?: string; // Deprecated - for backward compatibility only
   [key: string]: string | number | boolean | null | undefined;
+};
+
+// Define type for stream chunk events (real-time LLM streaming)
+// Uses camelCase for client-facing WebSocket events (JS convention)
+export type StreamChunkData = {
+  messageId: string;
+  chunk: string;
+  index: number;
+  agentId: string;
+  channelId: string;
+};
+
+// Define type for stream error events
+// Uses camelCase for client-facing WebSocket events (JS convention)
+export type StreamErrorData = {
+  messageId: string;
+  channelId: string;
+  agentId: string;
+  error: string;
+  partialText?: string;
 };
 
 // A simple class that provides EventEmitter-like interface using Evt internally
@@ -84,18 +106,20 @@ class EventAdapter {
     this.events.channelCleared = Evt.create<ChannelClearedData>();
     this.events.channelDeleted = Evt.create<ChannelDeletedData>();
     this.events.logStream = Evt.create<LogStreamData>();
+    this.events.messageStreamChunk = Evt.create<StreamChunkData>();
+    this.events.messageStreamError = Evt.create<StreamErrorData>();
   }
 
-  on(eventName: string, listener: (...args: any[]) => void) {
+  on<T = unknown>(eventName: string, listener: (data: T) => void) {
     if (!this.events[eventName]) {
       this.events[eventName] = Evt.create();
     }
 
-    this.events[eventName].attach(listener);
+    this.events[eventName].attach(listener as (data: unknown) => void);
     return this;
   }
 
-  off(eventName: string, listener: (...args: any[]) => void) {
+  off<T = unknown>(eventName: string, listener: (data: T) => void) {
     if (this.events[eventName]) {
       const handlers = this.events[eventName].getHandlers();
       for (const handler of handlers) {
@@ -107,14 +131,14 @@ class EventAdapter {
     return this;
   }
 
-  emit(eventName: string, ...args: any[]) {
+  emit(eventName: string, ...args: unknown[]) {
     if (this.events[eventName]) {
       this.events[eventName].post(args.length === 1 ? args[0] : args);
     }
     return this;
   }
 
-  once(eventName: string, listener: (...args: any[]) => void) {
+  once(eventName: string, listener: (...args: unknown[]) => void) {
     if (!this.events[eventName]) {
       this.events[eventName] = Evt.create();
     }
@@ -152,31 +176,39 @@ export class SocketIOManager extends EventAdapter {
 
   // Public accessor for EVT instances (for advanced usage)
   public get evtMessageBroadcast() {
-    return this._getEvt("messageBroadcast") as Evt<MessageBroadcastData>;
+    return this._getEvt('messageBroadcast') as Evt<MessageBroadcastData>;
   }
 
   public get evtMessageComplete() {
-    return this._getEvt("messageComplete") as Evt<MessageCompleteData>;
+    return this._getEvt('messageComplete') as Evt<MessageCompleteData>;
   }
 
   public get evtControlMessage() {
-    return this._getEvt("controlMessage") as Evt<ControlMessageData>;
+    return this._getEvt('controlMessage') as Evt<ControlMessageData>;
   }
 
   public get evtMessageDeleted() {
-    return this._getEvt("messageDeleted") as Evt<MessageDeletedData>;
+    return this._getEvt('messageDeleted') as Evt<MessageDeletedData>;
   }
 
   public get evtChannelCleared() {
-    return this._getEvt("channelCleared") as Evt<ChannelClearedData>;
+    return this._getEvt('channelCleared') as Evt<ChannelClearedData>;
   }
 
   public get evtChannelDeleted() {
-    return this._getEvt("channelDeleted") as Evt<ChannelDeletedData>;
+    return this._getEvt('channelDeleted') as Evt<ChannelDeletedData>;
   }
 
   public get evtLogStream() {
-    return this._getEvt("logStream") as Evt<LogStreamData>;
+    return this._getEvt('logStream') as Evt<LogStreamData>;
+  }
+
+  public get evtMessageStreamChunk() {
+    return this._getEvt('messageStreamChunk') as Evt<StreamChunkData>;
+  }
+
+  public get evtMessageStreamError() {
+    return this._getEvt('messageStreamError') as Evt<StreamErrorData>;
   }
 
   private constructor() {
@@ -201,19 +233,24 @@ export class SocketIOManager extends EventAdapter {
   /**
    * Initialize the Socket.io connection to the server
    * @param clientEntityId The client entity ID (central user ID)
+   * @param apiKey Optional API key for server authentication
    */
-  public initialize(clientEntityId: string): void {
+  public initialize(clientEntityId: string, apiKey?: string): void {
     this.clientEntityId = clientEntityId;
 
     if (this.socket) {
-      clientLogger.debug("[SocketIO] Socket already initialized");
+      clientLogger.debug('[SocketIO] Socket already initialized');
       return;
     }
 
     // Create a single socket connection
-    const fullURL = window.location.origin + "/";
-    clientLogger.info("connecting to", fullURL);
+    const fullURL = window.location.origin + '/';
+    clientLogger.info('connecting to', fullURL);
     this.socket = io(fullURL, {
+      auth: {
+        apiKey: apiKey,
+        entityId: clientEntityId,
+      },
       autoConnect: true,
       reconnection: true,
     });
@@ -223,22 +260,19 @@ export class SocketIOManager extends EventAdapter {
       this.resolveConnect = resolve;
     });
 
-    this.socket.on("connect", () => {
-      clientLogger.info("[SocketIO] Connected to server");
+    this.socket.on('connect', () => {
+      clientLogger.info('[SocketIO] Connected to server');
       this.isConnected = true;
       this.resolveConnect?.();
 
       // Add debug listener for all incoming events
-      if (process.env.NODE_ENV === "development" && this.socket) {
+      if (process.env.NODE_ENV === 'development' && this.socket) {
         this.socket.onAny((event, ...args) => {
-          clientLogger.debug(
-            `[SocketIO DEBUG] Received event '${event}':`,
-            args,
-          );
+          clientLogger.debug(`[SocketIO DEBUG] Received event '${event}':`, args);
         });
       }
 
-      this.emit("connect");
+      this.emit('connect');
 
       // CRITICAL: Ensure this loop remains commented out or removed.
       // this.activeChannelIds.forEach((channelId) => {
@@ -247,75 +281,124 @@ export class SocketIOManager extends EventAdapter {
       // });
     });
 
-    this.socket.on("unauthorized", (reason: string) => {
-      this.emit("unauthorized", reason);
+    // Listen for 'authenticated' event - server sends the entityId it assigned/verified
+    this.socket.on('authenticated', (data: { entityId: string; timestamp: number }) => {
+      if (data.entityId) {
+        const USER_ID_KEY = 'elizaos-client-user-id';
+        const previousEntityId = localStorage.getItem(USER_ID_KEY);
+
+        // Update localStorage with server-assigned entityId
+        localStorage.setItem(USER_ID_KEY, data.entityId);
+
+        if (previousEntityId !== data.entityId) {
+          clientLogger.info(
+            `[SocketIO] EntityId synchronized: ${previousEntityId?.substring(0, 8)}... → ${data.entityId.substring(0, 8)}... (source: server)`
+          );
+        } else {
+          clientLogger.debug(`[SocketIO] EntityId confirmed: ${data.entityId.substring(0, 8)}...`);
+        }
+      }
     });
 
-    this.socket.on("messageBroadcast", (data: MessageBroadcastData) => {
+    this.socket.on('unauthorized', (reason: string) => {
+      this.emit('unauthorized', reason);
+    });
+
+    this.socket.on('messageBroadcast', (raw: unknown) => {
+      // Server sends objects to others and JSON strings back to the sender.
+      const data: MessageBroadcastData =
+        typeof raw === 'string'
+          ? (() => {
+              try {
+                return JSON.parse(raw);
+              } catch (e) {
+                clientLogger.warn(
+                  '[SocketIO] Failed to parse string messageBroadcast payload:',
+                  raw
+                );
+                return {} as MessageBroadcastData;
+              }
+            })()
+          : (raw as MessageBroadcastData);
+
       clientLogger.info(`[SocketIO] Message broadcast received:`, data);
 
       // Log the full data structure to understand formats
-      clientLogger.debug("[SocketIO] Message broadcast data structure:", {
-        keys: Object.keys(data),
+      const isObj = data && typeof data === 'object';
+      const keys = isObj ? Object.keys(data) : [];
+      clientLogger.debug('[SocketIO] Message broadcast data structure:', {
+        keys,
         senderId: data.senderId,
         senderNameType: typeof data.senderName,
         textType: typeof data.text,
         textLength: data.text ? data.text.length : 0,
-        hasThought: "thought" in data,
-        hasActions: "actions" in data,
-        additionalKeys: Object.keys(data).filter(
+        hasThought: isObj && 'thought' in data,
+        hasActions: isObj && 'actions' in data,
+        additionalKeys: keys.filter(
           (k) =>
             ![
-              "senderId",
-              "senderName",
-              "text",
-              "roomId",
-              "createdAt",
-              "source",
-              "thought",
-              "actions",
-            ].includes(k),
+              'senderId',
+              'senderName',
+              'text',
+              'roomId',
+              'createdAt',
+              'source',
+              'thought',
+              'actions',
+            ].includes(k)
         ),
       });
 
       // Check if this is a message for one of our active channels
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
-        clientLogger.info(
-          `[SocketIO] Handling message for active channel ${channelId}`,
-        );
+        clientLogger.info(`[SocketIO] Handling message for active channel ${channelId}`);
         // Post the message to the event for UI updates
-        this.emit("messageBroadcast", {
+        this.emit('messageBroadcast', {
           ...data,
           channelId: channelId, // Ensure channelId is always set
           roomId: channelId, // Keep roomId for backward compatibility
-          name: data.senderName, // Required for ContentWithUser compatibility in some older UI parts
+          name: data.senderName, // Required for ContentWithUser compatibility
         });
       } else {
         clientLogger.warn(
           `[SocketIO] Received message for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds),
+          Array.from(this.activeChannelIds)
         );
       }
     });
 
-    this.socket.on("messageComplete", (data) => {
-      this.emit("messageComplete", data);
+    this.socket.on('messageComplete', (data) => {
+      this.emit('messageComplete', data);
+    });
+
+    // Listen for stream chunks (real-time LLM streaming)
+    this.socket.on('messageStreamChunk', (data: StreamChunkData) => {
+      // Check if this is for one of our active channels
+      if (data.channelId && this.activeChannelIds.has(data.channelId)) {
+        this.emit('messageStreamChunk', data);
+      }
+    });
+
+    // Listen for stream errors
+    this.socket.on('messageStreamError', (data: StreamErrorData) => {
+      // Check if this is for one of our active channels
+      if (data.channelId && this.activeChannelIds.has(data.channelId)) {
+        this.emit('messageStreamError', data);
+      }
     });
 
     // Listen for control messages
-    this.socket.on("controlMessage", (data) => {
+    this.socket.on('controlMessage', (data) => {
       clientLogger.info(`[SocketIO] Control message received:`, data);
 
       // Check if this is for one of our active channels
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
-        clientLogger.info(
-          `[SocketIO] Handling control message for active channel ${channelId}`,
-        );
+        clientLogger.info(`[SocketIO] Handling control message for active channel ${channelId}`);
 
         // Emit the control message event
-        this.emit("controlMessage", {
+        this.emit('controlMessage', {
           ...data,
           channelId: channelId, // Ensure channelId is always set
           roomId: channelId, // Keep roomId for backward compatibility
@@ -323,24 +406,22 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received control message for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds),
+          Array.from(this.activeChannelIds)
         );
       }
     });
 
     // Listen for message deletion events
-    this.socket.on("messageDeleted", (data) => {
+    this.socket.on('messageDeleted', (data) => {
       clientLogger.debug(`[SocketIO] Message deleted event received:`, data);
 
       // Check if this is for one of our active channels
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
-        clientLogger.info(
-          `[SocketIO] Handling message deletion for active channel ${channelId}`,
-        );
+        clientLogger.info(`[SocketIO] Handling message deletion for active channel ${channelId}`);
 
         // Emit the message deleted event
-        this.emit("messageDeleted", {
+        this.emit('messageDeleted', {
           ...data,
           channelId: channelId, // Ensure channelId is always set
           roomId: channelId, // Deprecated: Retained for backward compatibility with older clients
@@ -348,24 +429,22 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received message deleted event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds),
+          Array.from(this.activeChannelIds)
         );
       }
     });
 
     // Listen for channel cleared events
-    this.socket.on("channelCleared", (data) => {
+    this.socket.on('channelCleared', (data) => {
       clientLogger.info(`[SocketIO] Channel cleared event received:`, data);
 
       // Check if this is for one of our active channels
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
-        clientLogger.info(
-          `[SocketIO] Handling channel cleared for active channel ${channelId}`,
-        );
+        clientLogger.info(`[SocketIO] Handling channel cleared for active channel ${channelId}`);
 
         // Emit the channel cleared event
-        this.emit("channelCleared", {
+        this.emit('channelCleared', {
           ...data,
           channelId: channelId, // Ensure channelId is always set
           roomId: channelId, // Keep roomId for backward compatibility
@@ -373,24 +452,22 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received channel cleared event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds),
+          Array.from(this.activeChannelIds)
         );
       }
     });
 
     // Listen for channel deleted events
-    this.socket.on("channelDeleted", (data) => {
+    this.socket.on('channelDeleted', (data) => {
       clientLogger.info(`[SocketIO] Channel deleted event received:`, data);
 
       // Check if this is for one of our active channels
       const channelId = data.channelId || data.roomId; // Handle both new and old message format
       if (channelId && this.activeChannelIds.has(channelId)) {
-        clientLogger.info(
-          `[SocketIO] Handling channel deleted for active channel ${channelId}`,
-        );
+        clientLogger.info(`[SocketIO] Handling channel deleted for active channel ${channelId}`);
 
         // Emit the channel deleted event (same as cleared for now)
-        this.emit("channelDeleted", {
+        this.emit('channelDeleted', {
           ...data,
           channelId: channelId, // Ensure channelId is always set
           roomId: channelId, // Keep roomId for backward compatibility
@@ -398,52 +475,52 @@ export class SocketIOManager extends EventAdapter {
       } else {
         clientLogger.warn(
           `[SocketIO] Received channel deleted event for inactive channel ${channelId}, active channels:`,
-          Array.from(this.activeChannelIds),
+          Array.from(this.activeChannelIds)
         );
       }
     });
 
-    this.socket.on("disconnect", (reason) => {
+    this.socket.on('disconnect', (reason) => {
       clientLogger.info(`[SocketIO] Disconnected. Reason: ${reason}`);
       this.isConnected = false;
 
-      this.emit("disconnect", reason);
+      this.emit('disconnect', reason);
 
       // Reset connect promise for next connection
       this.connectPromise = new Promise<void>((resolve) => {
         this.resolveConnect = resolve;
       });
 
-      if (reason === "io server disconnect") {
+      if (reason === 'io server disconnect') {
         this.socket?.connect();
       }
     });
 
-    this.socket.on("reconnect_attempt", (attempt) => {
-      clientLogger.info("[SocketIO] Reconnect attempt", attempt);
-      this.emit("reconnect_attempt", attempt);
+    this.socket.on('reconnect_attempt', (attempt) => {
+      clientLogger.info('[SocketIO] Reconnect attempt', attempt);
+      this.emit('reconnect_attempt', attempt);
     });
 
-    this.socket.on("reconnect", (attempt) => {
+    this.socket.on('reconnect', (attempt) => {
       clientLogger.info(`[SocketIO] Reconnected after ${attempt} attempts`);
-      this.emit("reconnect", attempt);
+      this.emit('reconnect', attempt);
     });
 
-    this.socket.on("connect_error", (error) => {
-      clientLogger.error("[SocketIO] Connection error:", error);
-      this.emit("connect_error", error);
+    this.socket.on('connect_error', (error) => {
+      clientLogger.error('[SocketIO] Connection error:', error);
+      this.emit('connect_error', error);
     });
 
     // Handle log stream events
-    this.socket.on("log_stream", (data) => {
-      clientLogger.debug("[SocketIO] Log stream data received:", data);
-      if (data.type === "log_entry" && data.payload) {
-        this.emit("logStream", data.payload);
+    this.socket.on('log_stream', (data) => {
+      clientLogger.debug('[SocketIO] Log stream data received:', data);
+      if (data.type === 'log_entry' && data.payload) {
+        this.emit('logStream', data.payload);
       }
     });
 
-    this.socket.on("log_subscription_confirmed", (data) => {
-      clientLogger.info("[SocketIO] Log subscription confirmed:", data);
+    this.socket.on('log_subscription_confirmed', (data) => {
+      clientLogger.info('[SocketIO] Log subscription confirmed:', data);
       this.logStreamSubscribed = data.subscribed;
     });
   }
@@ -454,9 +531,7 @@ export class SocketIOManager extends EventAdapter {
    */
   public async joinChannel(channelId: string): Promise<void> {
     if (!this.socket) {
-      clientLogger.error(
-        "[SocketIO] Cannot join channel: socket not initialized",
-      );
+      clientLogger.error('[SocketIO] Cannot join channel: socket not initialized');
       return;
     }
 
@@ -467,15 +542,15 @@ export class SocketIOManager extends EventAdapter {
 
     clientLogger.info(
       `[SocketIO] joinChannel: Attempting to join ${channelId}. Current activeChannelIds before add:`,
-      new Set(this.activeChannelIds),
+      new Set(this.activeChannelIds)
     );
     this.activeChannelIds.add(channelId);
     clientLogger.info(
       `[SocketIO] joinChannel: Joined ${channelId}. Current activeChannelIds after add:`,
-      new Set(this.activeChannelIds),
+      new Set(this.activeChannelIds)
     );
 
-    this.socket.emit("message", {
+    this.socket.emit('message', {
       type: SOCKET_MESSAGE_TYPE.ROOM_JOINING,
       payload: {
         channelId: channelId,
@@ -500,20 +575,18 @@ export class SocketIOManager extends EventAdapter {
    */
   public leaveChannel(channelId: string): void {
     if (!this.socket || !this.isConnected) {
-      clientLogger.warn(
-        `[SocketIO] Cannot leave channel ${channelId}: not connected`,
-      );
+      clientLogger.warn(`[SocketIO] Cannot leave channel ${channelId}: not connected`);
       return;
     }
 
     clientLogger.info(
       `[SocketIO] leaveChannel: Attempting to leave ${channelId}. Current activeChannelIds before delete:`,
-      new Set(this.activeChannelIds),
+      new Set(this.activeChannelIds)
     );
     this.activeChannelIds.delete(channelId);
     clientLogger.info(
       `[SocketIO] leaveChannel: Left ${channelId}. Current activeChannelIds after delete:`,
-      new Set(this.activeChannelIds),
+      new Set(this.activeChannelIds)
     );
     // No server-side message for leaving a room in this client's protocol,
     // client just stops listening / tracking.
@@ -530,7 +603,7 @@ export class SocketIOManager extends EventAdapter {
    * Send a message to a specific channel
    * @param message Message text to send
    * @param channelId Channel ID to send the message to
-   * @param serverId Server ID to send the message to
+   * @param messageServerId Message Server ID to send the message to
    * @param source Source identifier (e.g., 'client_chat')
    * @param attachments Optional media attachments
    * @param messageId Optional message ID for tracking optimistic updates
@@ -538,16 +611,14 @@ export class SocketIOManager extends EventAdapter {
   public async sendMessage(
     message: string,
     channelId: string,
-    serverId: string,
+    messageServerId: string,
     source: string,
-    attachments?: any[],
+    attachments?: Media[],
     messageId?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<void> {
     if (!this.socket) {
-      clientLogger.error(
-        "[SocketIO] Cannot send message: socket not initialized",
-      );
+      clientLogger.error('[SocketIO] Cannot send message: socket not initialized');
       return;
     }
 
@@ -560,11 +631,11 @@ export class SocketIOManager extends EventAdapter {
     const finalMessageId = messageId || randomUUID();
 
     clientLogger.info(
-      `[SocketIO] Sending message to central channel ${channelId} on server ${serverId}`,
+      `[SocketIO] Sending message to central channel ${channelId} on message server ${messageServerId}`
     );
 
     // Emit message to server
-    this.socket.emit("message", {
+    this.socket.emit('message', {
       type: SOCKET_MESSAGE_TYPE.SEND_MESSAGE,
       payload: {
         senderId: this.clientEntityId,
@@ -572,7 +643,7 @@ export class SocketIOManager extends EventAdapter {
         message,
         channelId: channelId,
         roomId: channelId, // Keep for backward compatibility
-        serverId: serverId, // Client uses serverId, not worldId
+        messageServerId: messageServerId,
         messageId: finalMessageId,
         source,
         attachments,
@@ -588,9 +659,7 @@ export class SocketIOManager extends EventAdapter {
    */
   public async subscribeToLogStream(): Promise<void> {
     if (!this.socket) {
-      clientLogger.error(
-        "[SocketIO] Cannot subscribe to logs: socket not initialized",
-      );
+      clientLogger.error('[SocketIO] Cannot subscribe to logs: socket not initialized');
       return;
     }
 
@@ -599,8 +668,8 @@ export class SocketIOManager extends EventAdapter {
       await this.connectPromise;
     }
 
-    this.socket.emit("subscribe_logs");
-    clientLogger.info("[SocketIO] Subscribed to log stream");
+    this.socket.emit('subscribe_logs');
+    clientLogger.info('[SocketIO] Subscribed to log stream');
   }
 
   /**
@@ -608,9 +677,7 @@ export class SocketIOManager extends EventAdapter {
    */
   public async unsubscribeFromLogStream(): Promise<void> {
     if (!this.socket) {
-      clientLogger.error(
-        "[SocketIO] Cannot unsubscribe from logs: socket not initialized",
-      );
+      clientLogger.error('[SocketIO] Cannot unsubscribe from logs: socket not initialized');
       return;
     }
 
@@ -619,8 +686,8 @@ export class SocketIOManager extends EventAdapter {
       await this.connectPromise;
     }
 
-    this.socket.emit("unsubscribe_logs");
-    clientLogger.info("[SocketIO] Unsubscribed from log stream");
+    this.socket.emit('unsubscribe_logs');
+    clientLogger.info('[SocketIO] Unsubscribed from log stream');
   }
 
   /**
@@ -631,9 +698,7 @@ export class SocketIOManager extends EventAdapter {
     level?: string;
   }): Promise<void> {
     if (!this.socket) {
-      clientLogger.error(
-        "[SocketIO] Cannot update log filters: socket not initialized",
-      );
+      clientLogger.error('[SocketIO] Cannot update log filters: socket not initialized');
       return;
     }
 
@@ -642,8 +707,8 @@ export class SocketIOManager extends EventAdapter {
       await this.connectPromise;
     }
 
-    this.socket.emit("update_log_filters", filters);
-    clientLogger.info("[SocketIO] Updated log stream filters:", filters);
+    this.socket.emit('update_log_filters', filters);
+    clientLogger.info('[SocketIO] Updated log stream filters:', filters);
   }
 
   /**
@@ -654,7 +719,7 @@ export class SocketIOManager extends EventAdapter {
   }
 
   /**
-   * Disconnect from the server
+   * Disconnect from the server (allows auto-reconnection)
    */
   public disconnect(): void {
     if (this.socket) {
@@ -663,8 +728,35 @@ export class SocketIOManager extends EventAdapter {
       this.isConnected = false;
       this.activeChannelIds.clear();
       this.logStreamSubscribed = false;
-      clientLogger.info("[SocketIO] Disconnected from server");
+      clientLogger.info('[SocketIO] Disconnected from server');
     }
+  }
+
+  /**
+   * Logout - gracefully disconnect and destroy the singleton instance
+   * Emits 'logout' event before disconnecting so listeners can handle without showing error toasts
+   */
+  public logout(): void {
+    clientLogger.info('[SocketIO] Logout initiated');
+
+    // Emit logout event BEFORE disconnecting so listeners know this is intentional
+    this.emit('logout', 'User logout');
+
+    // Disconnect socket
+    if (this.socket) {
+      this.socket.io.opts.reconnection = false;
+      clientLogger.debug('[SocketIO] Auto-reconnection disabled for logout');
+
+      this.socket.disconnect();
+      this.socket = null;
+      this.isConnected = false;
+      this.activeChannelIds.clear();
+      this.logStreamSubscribed = false;
+    }
+
+    // Destroy singleton instance - forces clean re-initialization on next login
+    SocketIOManager.instance = null;
+    clientLogger.info('[SocketIO] Logout complete - singleton destroyed');
   }
 }
 

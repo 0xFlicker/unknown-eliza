@@ -498,7 +498,7 @@ export const messageReceivedHandler = async ({
           // let processedResponse = response.replace('```json', '').replaceAll('```', '').trim(); // No longer needed for XML
 
           const responseObject = parseKeyValueXml(response);
-          logger.debug("[Bootstrap] Parsed response:", responseObject);
+          logger.debug({ responseObject }, "[Bootstrap] Parsed response");
 
           // If an action is provided, the agent intends to respond in some way
           // Only exclude explicit non-response actions
@@ -547,11 +547,11 @@ export const messageReceivedHandler = async ({
               prompt,
             });
 
-            logger.debug("[Bootstrap] *** Raw LLM Response ***\n", response);
+            logger.debug({ response }, "[Bootstrap] *** Raw LLM Response ***");
 
             // Attempt to parse the XML response
             const parsedXml = parseKeyValueXml(response);
-            logger.debug("[Bootstrap] *** Parsed XML Content ***\n", parsedXml);
+            logger.debug({ parsedXml }, "[Bootstrap] *** Parsed XML Content ***");
 
             // Map parsed XML to Content type, handling potential missing fields
             if (parsedXml) {
@@ -779,7 +779,7 @@ export const reactionReceivedHandler = async ({
       logger.warn("[Bootstrap] Duplicate reaction memory, skipping");
       return;
     }
-    logger.error("[Bootstrap] Error in reaction handler:", error);
+    logger.error({ error }, "[Bootstrap] Error in reaction handler");
   }
 };
 
@@ -805,18 +805,19 @@ export const messageDeletedHandler = async ({
     }
 
     logger.info(
+      {
+        messageId: message.id,
+        roomId: message.roomId,
+      },
       "[Bootstrap] Deleting memory for message",
-      message.id,
-      "from room",
-      message.roomId,
     );
     await runtime.deleteMemory(message.id);
     logger.debug(
+      { messageId: message.id },
       "[Bootstrap] Successfully deleted memory for message",
-      message.id,
     );
   } catch (error: unknown) {
-    logger.error("[Bootstrap] Error in message deleted handler:", error);
+    logger.error({ error }, "[Bootstrap] Error in message deleted handler");
   }
 };
 
@@ -861,8 +862,8 @@ export const channelClearedHandler = async ({
           deletedCount++;
         } catch (error) {
           logger.warn(
-            `[Bootstrap] Failed to delete message memory ${memory.id}:`,
-            error,
+            { error, memoryId: memory.id },
+            "[Bootstrap] Failed to delete message memory",
           );
         }
       }
@@ -872,7 +873,7 @@ export const channelClearedHandler = async ({
       `[Bootstrap] Successfully cleared ${deletedCount}/${memories.length} message memories from channel ${channelId}`,
     );
   } catch (error: unknown) {
-    logger.error("[Bootstrap] Error in channel cleared handler:", error);
+    logger.error({ error }, "[Bootstrap] Error in channel cleared handler");
   }
 };
 

@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { getContentTypeFromMimeType } from "@elizaos/core";
-import { UUID, Media, ChannelType } from "@elizaos/core";
-import { randomUUID } from "@/lib/utils";
-import { apiClient } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
-import clientLogger from "@/lib/logger";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { getContentTypeFromMimeType } from '@elizaos/core';
+import { UUID, Media, ChannelType } from '@elizaos/core';
+import { randomUUID } from '@/lib/utils';
+import { getElizaClient } from '@/lib/api-client-config';
+import { useToast } from '@/hooks/use-toast';
+// Direct error handling
+import clientLogger from '@/lib/logger';
 
 export type UploadingFile = {
   file: File;
@@ -21,14 +22,11 @@ interface UseFileUploadProps {
   chatType: ChannelType.DM | ChannelType.GROUP;
 }
 
-export function useFileUpload({
-  agentId,
-  channelId,
-  chatType,
-}: UseFileUploadProps) {
+export function useFileUpload({ agentId, channelId, chatType }: UseFileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<UploadingFile[]>([]);
   const blobUrlsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
+  const elizaClient = getElizaClient();
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -43,20 +41,18 @@ export function useFileUpload({
       const files = Array.from(e.target.files || []);
       const validFiles = files.filter(
         (file) =>
-          file.type.startsWith("image/") ||
-          file.type.startsWith("video/") ||
-          file.type.startsWith("audio/") ||
-          file.type === "application/pdf" ||
-          file.type === "application/msword" ||
+          file.type.startsWith('image/') ||
+          file.type.startsWith('video/') ||
+          file.type.startsWith('audio/') ||
+          file.type === 'application/pdf' ||
+          file.type === 'application/msword' ||
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          file.type === 'application/vnd.ms-excel' ||
+          file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          file.type === 'application/vnd.ms-powerpoint' ||
           file.type ===
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-          file.type === "application/vnd.ms-excel" ||
-          file.type ===
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-          file.type === "application/vnd.ms-powerpoint" ||
-          file.type ===
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-          file.type.startsWith("text/"),
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+          file.type.startsWith('text/')
       );
 
       const uniqueFiles = validFiles.filter((newFile) => {
@@ -64,7 +60,7 @@ export function useFileUpload({
           (existingFile) =>
             existingFile.file.name === newFile.name &&
             existingFile.file.size === newFile.size &&
-            existingFile.file.lastModified === newFile.lastModified,
+            existingFile.file.lastModified === newFile.lastModified
         );
       });
 
@@ -77,14 +73,12 @@ export function useFileUpload({
       setSelectedFiles((prev) => {
         const combined = [...prev, ...newUploadingFiles];
         return Array.from(
-          new Map(
-            combined.map((f) => [`${f.file.name}-${f.file.size}`, f]),
-          ).values(),
+          new Map(combined.map((f) => [`${f.file.name}-${f.file.size}`, f])).values()
         );
       });
-      if (e.target) e.target.value = "";
+      if (e.target) e.target.value = '';
     },
-    [selectedFiles],
+    [selectedFiles]
   );
 
   const removeFile = useCallback((fileId: string) => {
@@ -121,7 +115,7 @@ export function useFileUpload({
 
   const uploadFiles = useCallback(
     async (
-      files: UploadingFile[],
+      files: UploadingFile[]
     ): Promise<{
       uploaded: Media[];
       failed: Array<{ file: UploadingFile; error: string }>;
@@ -133,39 +127,36 @@ export function useFileUpload({
         try {
           const uploadResult =
             chatType === ChannelType.DM && agentId
-              ? await apiClient.uploadAgentMedia(agentId, fileData.file)
-              : await apiClient.uploadChannelMedia(channelId!, fileData.file);
+              ? await elizaClient.media.uploadAgentMedia(agentId, {
+                  file: fileData.file,
+                  filename: fileData.file.name,
+                })
+              : await elizaClient.media.uploadChannelMedia(channelId!, fileData.file);
 
-          if (uploadResult.success) {
-            return {
-              success: true,
-              media: {
-                id: fileData.id,
-                url: uploadResult.data.url,
-                title: fileData.file.name,
-                source: "file_upload",
-                contentType: getContentTypeFromMimeType(fileData.file.type),
-              } as Media,
-            };
-          } else {
-            throw new Error(`Upload failed for ${fileData.file.name}`);
-          }
+          return {
+            success: true,
+            media: {
+              id: fileData.id,
+              url: uploadResult.url,
+              title: fileData.file.name,
+              source: 'file_upload',
+              contentType: getContentTypeFromMimeType(fileData.file.type),
+            } as Media,
+          };
         } catch (uploadError) {
-          clientLogger.error(
-            `Failed to upload ${fileData.file.name}:`,
-            uploadError,
-          );
+          clientLogger.error(`Failed to upload ${fileData.file.name}:`, uploadError);
+
+          // Direct error handling
           toast({
             title: `Upload Failed: ${fileData.file.name}`,
-            variant: "destructive",
+            description: uploadError instanceof Error ? uploadError.message : 'Upload failed',
+            variant: 'destructive',
           });
+
           return {
             success: false,
             file: fileData,
-            error:
-              uploadError instanceof Error
-                ? uploadError.message
-                : "Upload failed",
+            error: uploadError instanceof Error ? uploadError.message : 'Upload failed',
           };
         }
       });
@@ -175,18 +166,29 @@ export function useFileUpload({
       const failed: Array<{ file: UploadingFile; error: string }> = [];
       const blobUrls: string[] = [];
 
+      interface UploadSuccessResult {
+        success: true;
+        media: Media;
+      }
+
+      interface UploadFailureResult {
+        success: false;
+        file: UploadingFile;
+        error: string;
+      }
+
       settledUploads.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          if (result.value.success && "media" in result.value) {
-            uploaded.push(result.value.media as Media);
-          } else if ("file" in result.value) {
-            failed.push(result.value as { file: UploadingFile; error: string });
+        if (result.status === 'fulfilled') {
+          if (result.value.success && 'media' in result.value) {
+            uploaded.push((result.value as UploadSuccessResult).media);
+          } else if ('file' in result.value) {
+            failed.push(result.value as UploadFailureResult);
           }
         } else {
           // Handle rejected promise
           failed.push({
             file: files[index],
-            error: result.reason?.message || "Upload failed",
+            error: result.reason?.message || 'Upload failed',
           });
         }
       });
@@ -198,7 +200,7 @@ export function useFileUpload({
 
       return { uploaded, failed, blobUrls };
     },
-    [chatType, agentId, channelId, toast],
+    [chatType, agentId, channelId, toast]
   );
 
   const cleanupBlobUrls = useCallback((urls: string[]) => {
